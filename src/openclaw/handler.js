@@ -6,9 +6,23 @@ import { join, resolve } from 'node:path';
 import { verifySignedSeaPayload } from '../auth/sea.js';
 import { resolveOperatorDeveloperPolicy } from '../operator/developer-access.js';
 import { resolveCharacterPersona } from './characters.js';
+import { runCharacterChat as runCharacterChatOpenAi } from './character-chat.js';
 
 const ID = /^[a-zA-Z0-9_-]{12,100}$/;
 const digest = value => createHash('sha256').update(value).digest('hex');
+// Character chat history: the client's own recent turns, resent with each
+// signed request because the OpenAI runner is stateless. Only plain
+// user/assistant turns are allowed, so a client can never smuggle in a
+// second system prompt; the persona still comes only from the registry.
+const HISTORY_LIMIT = 20;
+function validHistory(history) {
+  return Array.isArray(history) && history.length <= HISTORY_LIMIT && history.every(entry =>
+    entry && typeof entry === 'object' && !Array.isArray(entry)
+    && Object.keys(entry).sort().join(',') === 'content,role'
+    && (entry.role === 'user' || entry.role === 'assistant')
+    && typeof entry.content === 'string' && entry.content.length > 0 && entry.content.length <= 6000);
+}
+const canonicalHistory = history => JSON.stringify((history || []).map(entry => [entry.role, entry.content]));
 
 function json(res, status, data) {
   res.statusCode = status;
@@ -103,24 +117,34 @@ export function createOpenClawHandler(options = {}) {
   const config = options.config || process.env;
   const verify = options.verify || verifySignedSeaPayload;
   const run = options.run || ((request, runOptions) => runOpenClaw(request, { ...options, ...runOptions }));
+  const runCharacter = options.runCharacterChat
+    || ((request, runOptions) => runCharacterChatOpenAi(request, { config, fetchImpl: options.fetchImpl, ...runOptions }));
   const stateDir = resolve(config.THREEDVR_HELM_STATE_DIR || '/var/lib/3dvr-helm');
   let chatBusy = false;
   return async (req, res) => {
     if (req.method !== 'POST') return json(res, 405, { error: 'Use a signed POST request.' });
     let body;
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Invalid or oversized request.' }); }
-    const { action, requestId, sessionId, message, createdAt, expiresAt, characterId } = body;
+    const { action, requestId, sessionId, message, createdAt, expiresAt, characterId, history } = body;
     const engine = body.engine ?? 'openclaw';
     if (!['openclaw', 'codex', 'codex-backup'].includes(engine) || !['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
       || (action === 'chat' && (typeof message !== 'string' || !message.trim() || message.length > 6000))) {
       return json(res, 400, { error: 'Invalid Helm request.' });
     }
-    // Character chat rides the same bridge: a signed characterId names a
-    // persona the server holds (see characters.js). Personas only apply to
-    // OpenClaw chat, never to status checks or the Codex engines.
+    // Character chat rides the same signed envelope as Helm: a signed
+    // characterId names a persona the server holds (see characters.js),
+    // and the owner gate, session naming, and receipts below are shared.
+    // Only the execution differs: character turns run on the OpenAI API
+    // (character-chat.js), never through the OpenClaw gateway. The wire
+    // engine label stays 'openclaw' so the signed envelope v1 clients
+    // already hold keeps verifying; it names the envelope, not the engine.
+    // Personas never apply to status checks or the Codex engines.
     if (characterId !== undefined && (typeof characterId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(characterId)
       || action !== 'chat' || engine !== 'openclaw')) {
       return json(res, 400, { error: 'Invalid character chat request.' });
+    }
+    if (history !== undefined && (!characterId || !validHistory(history))) {
+      return json(res, 400, { error: 'Invalid character chat history.' });
     }
     const origin = req.headers?.origin || 'https://portal.3dvr.tech';
     const allowed = (config.THREEDVR_HELM_ALLOWED_ORIGINS || 'https://portal.3dvr.tech,https://operator.3dvr.tech').split(',').map(value => value.trim()).filter(Boolean);
@@ -137,7 +161,8 @@ export function createOpenClawHandler(options = {}) {
     if (auth.identity.action !== action || signed.requestId !== requestId || signed.sessionId !== sessionId
       || (signed.engine ?? 'openclaw') !== engine
       || (signed.characterId || undefined) !== (characterId || undefined)
-      || (action === 'chat' && signed.message !== message)) {
+      || (action === 'chat' && signed.message !== message)
+      || canonicalHistory(signed.history) !== canonicalHistory(history)) {
       return json(res, 403, { error: 'Request does not match its signature.' });
     }
     const persona = characterId ? resolveCharacterPersona(characterId) : null;
@@ -192,7 +217,7 @@ export function createOpenClawHandler(options = {}) {
     if (chatBusy) return json(res, 429, { error: 'Helm is handling a message. Wait for its result.' });
     chatBusy = true;
     let receipt;
-    const fingerprint = digest(JSON.stringify(request));
+    const fingerprint = digest(JSON.stringify(persona ? { ...request, history: history || [] } : request));
     try {
       await mkdir(stateDir, { recursive: true, mode: 0o700 });
       receipt = join(stateDir, `${owner}-${requestId}.json`);
@@ -206,7 +231,10 @@ export function createOpenClawHandler(options = {}) {
         return finish(200, prior.result);
       }
       if (wantsStream) beginStream();
-      const result = await run(request, wantsStream ? { onDelta: text => event('delta', { text }) } : {});
+      const runOptions = wantsStream ? { onDelta: text => event('delta', { text }) } : {};
+      const result = persona
+        ? await runCharacter({ persona, message, history: history || [], session: request.session }, runOptions)
+        : await run(request, runOptions);
       await writeFile(receipt, JSON.stringify({ fingerprint, result }), { mode: 0o600 });
       return finish(result.ok ? 200 : 503, result);
     } catch {
