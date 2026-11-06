@@ -10,6 +10,9 @@
       "type": "bitwarden-secrets-manager",
       "binary": "/usr/local/bin/bws",
       "timeoutMs": 15000
+    },
+    "openbao": {
+      "type": "openbao-kv"
     }
   },
   "secrets": {
@@ -67,6 +70,55 @@
       ],
       "approval": {
         "mode": "auto"
+      }
+    },
+    "google.oauth.3dvr": {
+      "backend": "openbao",
+      "locator": {
+        "key": "GOOGLE_OAUTH_3DVR"
+      },
+      "capability": "secret.read",
+      "scopes": [
+        "secrets:google-oauth"
+      ],
+      "approval": {
+        "mode": "auto"
+      }
+    },
+    "google.oauth.tmsteph": {
+      "backend": "openbao",
+      "locator": {
+        "key": "GOOGLE_OAUTH_TMSTEPH"
+      },
+      "capability": "secret.read",
+      "scopes": [
+        "secrets:google-oauth"
+      ],
+      "approval": {
+        "mode": "auto"
+      }
+    },
+    "google.vault.3dvr": {
+      "backend": "openbao",
+      "locator": {
+        "key": "google-oauth:acct_google_REPLACE_WITH_ACCOUNT_ID"
+      },
+      "capability": "secret.read",
+      "scopes": [
+        "secrets:google-oauth"
+      ],
+      "approval": {
+        "mode": "auto"
+      },
+      "write": {
+        "capability": "secret.write",
+        "scopes": [
+          "secrets:google-oauth"
+        ],
+        "approval": {
+          "mode": "auto"
+        },
+        "projectName": "google-oauth-vault"
       }
     }
   }

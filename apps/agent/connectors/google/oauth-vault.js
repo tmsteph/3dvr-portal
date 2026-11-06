@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { OpenBaoBackend } = require('../secrets/openbao');
+const { resolveSecretsBackend } = require('../secrets/backend');
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -25,13 +25,8 @@ function deriveKey(keyMaterial) {
   return crypto.createHash('sha256').update(masterKeyMaterial(keyMaterial), 'utf8').digest();
 }
 
-function resolveOpenBao(explicit) {
-  const backend = explicit || new OpenBaoBackend();
-  try {
-    return backend.ready() ? backend : null;
-  } catch {
-    return null;
-  }
+function resolveOpenBao(options = {}) {
+  return resolveSecretsBackend(options.openBaoBackend);
 }
 
 function readStore(filePath = defaultVaultPath()) {
