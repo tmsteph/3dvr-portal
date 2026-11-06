@@ -2,7 +2,7 @@ import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
 
-const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun')
+const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
@@ -50,7 +50,7 @@ function put(node, value) {
       settled = true;
       clearTimeout(timer);
       resolve({
-        acknowledged: !ack?.err,
+        acknowledged: Boolean(ack && !ack.err && typeof ack.ok === 'number' && ack.ok > 0),
         error: ack?.err ? String(ack.err) : '',
         ack: ack || {}
       });
@@ -78,7 +78,8 @@ function once(node) {
 async function main() {
   if (!allowEnqueue) throw new Error('Refusing to enqueue: set OPERATOR_RUNTIME_E2E_ALLOW_ENQUEUE=true in an explicitly approved isolated test environment');
   if (!ownerAlias || ownerAlias === '3dvr-managed') throw new Error('Refusing shared/default queue: set THREEDVR_AGENT_OWNER_ALIAS to an isolated test worker owner');
-  if (!peers.length) throw new Error('No Gun peers configured');
+  if (!peers.length) throw new Error('Refusing enqueue without an explicitly configured isolated Gun relay');
+  if (peers.some(peer => /gun-relay-3dvr\.fly\.dev/i.test(peer))) throw new Error('Refusing shared public Gun relay; use an isolated test relay');
   console.log(`E2E_TASK_ID=${taskId}`);
   console.log(`E2E_PEERS=${peers.join(',')}`);
   console.log(`E2E_OWNER=${ownerAlias}`);
