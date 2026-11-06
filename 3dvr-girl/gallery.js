@@ -202,6 +202,46 @@
   /* ---------- After Dark: lock, filters, cards ---------- */
   const cards = [...grid.querySelectorAll('.private-card')];
 
+  /* The private set reveals in chunks, like the public archive: the
+     filter picks the set, only the first chunk renders until asked.
+     Locked visitors never see the grid or the button at all — the
+     curtain behavior is unchanged. */
+  const AD_PAGE = 12;
+  let adFilter = 'all';
+  let adShown = AD_PAGE;
+  const adMoreRow = document.createElement('div');
+  adMoreRow.className = 'show-more-row';
+  adMoreRow.hidden = true;
+  const adMoreButton = document.createElement('button');
+  adMoreButton.type = 'button';
+  adMoreButton.className = 'button';
+  adMoreButton.addEventListener('click', () => {
+    adShown += AD_PAGE;
+    applyAdVisibility();
+  });
+  adMoreRow.append(adMoreButton);
+  grid.after(adMoreRow);
+
+  function applyAdVisibility() {
+    let seen = 0;
+    cards.forEach(card => {
+      const tags = (card.dataset.tags || '').split(/\s+/).filter(Boolean);
+      const matches = adFilter === 'all' || tags.includes(adFilter);
+      if (!matches) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = seen >= adShown;
+      seen += 1;
+    });
+    const total = cards.filter(card => {
+      const tags = (card.dataset.tags || '').split(/\s+/).filter(Boolean);
+      return adFilter === 'all' || tags.includes(adFilter);
+    }).length;
+    adMoreRow.hidden = total <= adShown;
+    adMoreButton.textContent = `Show more frames · ${total - adShown} more`;
+  }
+
   function visibleCards() {
     return cards.filter(card => !card.hidden);
   }
@@ -240,15 +280,14 @@
   ];
 
   function setAdFilter(tag) {
+    adFilter = tag;
+    adShown = AD_PAGE;
     filterBar?.querySelectorAll('.filter-button').forEach(button => {
       const active = button.dataset.tag === tag;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
     });
-    cards.forEach(card => {
-      const tags = (card.dataset.tags || '').split(/\s+/).filter(Boolean);
-      card.hidden = tag !== 'all' && !tags.includes(tag);
-    });
+    applyAdVisibility();
   }
 
   function buildFilters() {
@@ -285,7 +324,12 @@
     grid.hidden = !open;
     if (lock) lock.hidden = open;
     if (filterBar) filterBar.hidden = !open;
-    if (open) buildFilters();
+    if (open) {
+      buildFilters();
+      applyAdVisibility();
+    } else {
+      adMoreRow.hidden = true;
+    }
     openFromHash();
   }
 
@@ -302,6 +346,8 @@
     if (!card) return;
     lastAutoOpenedHash = location.hash;
     setAdFilter('all');
+    adShown = cards.length;
+    applyAdVisibility();
     openViewer(cards.map(cardItem), cards.indexOf(card));
   }
 
