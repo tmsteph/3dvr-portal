@@ -2,6 +2,7 @@ const FORGE_ROOT = '3dvr-portal';
 const PROOF_WAIT_MS = 900;
 const AUTH_WAIT_MS = 12000;
 const WRITE_TIMEOUT_MS = 8000;
+const HELM_CACHE_ENTRY_LIMIT = 1000;
 const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
 const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun',
@@ -335,6 +336,55 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
     if (!key?.startsWith(entryPrefix)) continue;
     try { await decode(JSON.parse(globalThis.localStorage.getItem(key)), key.slice(entryPrefix.length)); } catch {}
   }
+  // The encrypted cache is a device convenience; the Gun graph stays the source
+  // of truth. When the origin quota fills up, drop the oldest cached states so a
+  // save keeps working instead of failing until the user clears site data by hand.
+  const isQuotaError = error => error?.name === 'QuotaExceededError'
+    || error?.code === 22 || error?.code === 1014
+    || /quota/i.test(String(error?.name || error?.message || ''));
+  const cachedEntriesOldestFirst = preserveKey => {
+    const entries = [];
+    for (let index = 0; index < globalThis.localStorage.length; index += 1) {
+      const key = globalThis.localStorage.key(index);
+      if (!key?.startsWith(entryPrefix) || key === preserveKey) continue;
+      let updatedAt = 0;
+      try { updatedAt = JSON.parse(globalThis.localStorage.getItem(key))?.updatedAt || 0; } catch {}
+      entries.push({ key, updatedAt, queued: key.endsWith(':queued') });
+    }
+    // Unsent outbox states outlive history: evict plain history entries first,
+    // then the oldest remaining entries, and never the entry being written.
+    return entries.sort((a, b) => Number(a.queued) - Number(b.queued) || a.updatedAt - b.updatedAt);
+  };
+  const trimCache = preserveKey => {
+    const entries = cachedEntriesOldestFirst(preserveKey);
+    const surplus = entries.length + 1 - HELM_CACHE_ENTRY_LIMIT;
+    for (const entry of entries.slice(0, Math.max(0, surplus))) {
+      globalThis.localStorage.removeItem(entry.key);
+    }
+  };
+  const writeCacheEntry = (key, value) => {
+    let failure;
+    try {
+      globalThis.localStorage.setItem(key, value);
+      return;
+    } catch (error) {
+      if (!isQuotaError(error)) throw error;
+      failure = error;
+    }
+    // Evict one entry at a time so a retry frees only as much room as it needs.
+    for (const entry of cachedEntriesOldestFirst(key)) {
+      globalThis.localStorage.removeItem(entry.key);
+      try {
+        globalThis.localStorage.setItem(key, value);
+        return;
+      } catch (error) {
+        if (!isQuotaError(error)) throw error;
+        failure = error;
+      }
+    }
+    // Nothing evictable remains: surface the storage failure itself.
+    throw failure;
+  };
   const stream = root.map();
   stream.on((value, id) => { void decode(value, id); });
   return {
@@ -346,7 +396,9 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
       const value = { ciphertext, updatedAt: record.updatedAt };
       // Encrypted device cache makes a peer outage survivable without publishing plaintext.
       const recordKey = `${record.id}:${record.status}`;
-      globalThis.localStorage.setItem(`${entryPrefix}${recordKey}`, JSON.stringify(value));
+      const entryKey = `${entryPrefix}${recordKey}`;
+      trimCache(entryKey);
+      writeCacheEntry(entryKey, JSON.stringify(value));
       // Separate state nodes keep a late queued writer from overwriting completion history.
       root.get(recordKey).put(value, ack => onSync(ack && !ack.err ? 'Saved here · account sync active' : 'Saved here · account sync pending'));
       return true;
