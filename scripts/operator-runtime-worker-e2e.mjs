@@ -26,17 +26,6 @@ const built = buildOperatorDelegatedTask({
   tenantAlias: 'operator-runtime-e2e'
 });
 
-const gun = Gun({
-  peers,
-  radisk: false,
-  localStorage: false
-});
-const queue = gun
-  .get('3dvr-portal')
-  .get('agentOps')
-  .get(ownerAlias)
-  .get('taskQueue');
-
 function put(node, value) {
   return new Promise(resolve => {
     let settled = false;
@@ -80,6 +69,10 @@ async function main() {
   if (!ownerAlias || ownerAlias === '3dvr-managed') throw new Error('Refusing shared/default queue: set THREEDVR_AGENT_OWNER_ALIAS to an isolated test worker owner');
   if (!peers.length) throw new Error('Refusing enqueue without an explicitly configured isolated Gun relay');
   if (peers.some(peer => /gun-relay-3dvr\.fly\.dev/i.test(peer))) throw new Error('Refusing shared public Gun relay; use an isolated test relay');
+  // Do not construct Gun until all opt-in and relay guards have passed.
+  // Constructing it earlier can establish peer connections before refusal.
+  const gun = Gun({ peers, radisk: false, localStorage: false });
+  const queue = gun.get('3dvr-portal').get('agentOps').get(ownerAlias).get('taskQueue');
   console.log(`E2E_TASK_ID=${taskId}`);
   console.log(`E2E_PEERS=${peers.join(',')}`);
   console.log(`E2E_OWNER=${ownerAlias}`);
