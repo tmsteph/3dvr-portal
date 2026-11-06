@@ -1,13 +1,21 @@
-// Character chat runner: calls the OpenAI chat completions API directly
-// from the portal server, with the server-held persona (characters.js) as
-// the system prompt.
+// Character chat runner: calls the OpenAI Responses API directly from the
+// portal server, with the server-held persona (characters.js) as the
+// request instructions.
 //
 // This replaces the OpenClaw gateway hop for character chat only. Helm
 // keeps its SSH/gateway path in handler.js untouched. The credential and
 // configuration style match the Operator's OpenAI wiring (src/operator/
-// api.js): the key comes from OPENAI_API_KEY, and the model from a
-// feature env var (OPENAI_GIRL_CHAT_MODEL), falling back to the Operator
-// model env var (OPENAI_OPERATOR_MODEL) and then the shared default.
+// api.js): the key comes from OPENAI_API_KEY, and the model from a feature
+// env var (OPENAI_GIRL_CHAT_MODEL), falling back to the Operator model env
+// var (OPENAI_OPERATOR_MODEL) and then the Operator's default model.
+//
+// The endpoint is /v1/responses, not /v1/chat/completions, on purpose: the
+// production OPENAI_API_KEY is endpoint-restricted. Probed 2026-11-05
+// against the key the portal services actually run with: POST
+// /v1/responses returns 200, while POST /v1/chat/completions returns 401
+// "Missing scopes: model.request". The request shape, streaming event
+// parsing, and reply extraction below mirror src/operator/api.js, which
+// already runs against this same key.
 //
 // The persona never comes from the client: the handler resolves it from
 // the signed characterId against the server registry and passes it here.
@@ -15,8 +23,8 @@
 // signature-bound by the handler); only 'user' and 'assistant' roles are
 // accepted there, so a client can never inject a second system prompt.
 
-export const DEFAULT_GIRL_CHAT_MODEL = 'gpt-4o-mini';
-export const OPENAI_CHAT_COMPLETIONS_URL = 'https://api.openai.com/v1/chat/completions';
+export const DEFAULT_GIRL_CHAT_MODEL = 'gpt-6-luna';
+export const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 
 export function resolveGirlChatModel(config = process.env) {
   return config.OPENAI_GIRL_CHAT_MODEL || config.OPENAI_OPERATOR_MODEL || DEFAULT_GIRL_CHAT_MODEL;
@@ -32,25 +40,60 @@ function errorMessage(status, bodyText) {
   return `OpenAI error ${status}.`;
 }
 
-// Reads an OpenAI SSE stream, forwarding text deltas to onDelta and
-// returning the assembled reply. Throws on a malformed stream.
-async function readChatStream(body, onDelta) {
+// Extracts the reply text from a Responses API payload (also the shape of
+// the response object carried by the response.completed stream event).
+// Same extraction src/operator/api.js uses.
+function outputText(data) {
+  return (data?.output || []).flatMap(item => item?.content || []).find(item => item?.type === 'output_text')?.text || '';
+}
+
+// Reads a Responses API SSE stream, forwarding output_text deltas to
+// onDelta and returning the assembled reply. Event handling mirrors the
+// upstream parser in src/operator/api.js: response.output_text.delta
+// carries incremental text, response.output_text.done and
+// response.completed carry the authoritative full text, and
+// response.failed / error abort the turn. Throws on a malformed or
+// failed stream.
+async function readResponsesStream(body, onDelta) {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let pending = '';
   let reply = '';
   const consume = block => {
-    for (const line of block.split('\n')) {
+    let event = 'message';
+    const dataLines = [];
+    for (const line of String(block || '').split('\n')) {
       const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      const raw = trimmed.slice(5).trim();
-      if (!raw || raw === '[DONE]') continue;
-      const data = JSON.parse(raw);
-      const delta = data?.choices?.[0]?.delta?.content;
-      if (typeof delta === 'string' && delta) {
+      if (!trimmed || trimmed.startsWith(':')) continue;
+      if (trimmed.startsWith('event:')) {
+        event = trimmed.slice(6).trim() || 'message';
+        continue;
+      }
+      if (trimmed.startsWith('data:')) dataLines.push(trimmed.slice(5).trim());
+    }
+    const raw = dataLines.join('\n');
+    if (!raw || raw === '[DONE]') return;
+    const data = JSON.parse(raw);
+    const type = data?.type || event;
+    if (type === 'response.output_text.delta') {
+      const delta = typeof data?.delta === 'string' ? data.delta : '';
+      if (delta) {
         reply += delta;
         onDelta?.(delta);
       }
+      return;
+    }
+    if (type === 'response.output_text.done' && typeof data?.text === 'string') {
+      reply = data.text;
+      return;
+    }
+    if (type === 'response.completed') {
+      const completedText = outputText(data?.response || {});
+      if (completedText) reply = completedText;
+      return;
+    }
+    if (type === 'response.failed' || type === 'error') {
+      throw new Error(data?.response?.error?.message || data?.error?.message || data?.message || 'The response stream failed.');
     }
   };
   try {
@@ -83,15 +126,14 @@ export async function runCharacterChat(request, options = {}) {
   if (!apiKey) {
     return { ok: false, engine: 'OpenAI', session, error: 'Character chat is not configured on the server yet (OPENAI_API_KEY is missing).' };
   }
-  const messages = [
-    { role: 'system', content: request.persona.system },
+  const input = [
     ...(request.history || []),
     { role: 'user', content: request.message }
   ];
   const streaming = Boolean(options.onDelta);
   let response;
   try {
-    response = await fetchImpl(OPENAI_CHAT_COMPLETIONS_URL, {
+    response = await fetchImpl(OPENAI_RESPONSES_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -99,7 +141,9 @@ export async function runCharacterChat(request, options = {}) {
       },
       body: JSON.stringify({
         model: resolveGirlChatModel(config),
-        messages,
+        store: false,
+        instructions: request.persona.system,
+        input,
         ...(streaming ? { stream: true } : {})
       }),
       signal: AbortSignal.timeout(100000)
@@ -113,8 +157,8 @@ export async function runCharacterChat(request, options = {}) {
   }
   try {
     const reply = streaming
-      ? await readChatStream(response.body, options.onDelta)
-      : (await response.json())?.choices?.[0]?.message?.content;
+      ? await readResponsesStream(response.body, options.onDelta)
+      : outputText(await response.json());
     if (typeof reply !== 'string' || !reply.trim()) throw new Error('empty reply');
     return { ok: true, reply, engine: 'OpenAI', session };
   } catch {
