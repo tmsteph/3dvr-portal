@@ -310,6 +310,63 @@ export async function createSignedPortalProof(scope, action, extra = {}) {
 }
 
 // Private per-message Helm records share Portal's existing authenticated Gun session.
+//
+// The encrypted device cache lives in IndexedDB. localStorage's small origin
+// quota is shared with everything else the portal keeps there (including Gun's
+// own local graph data, which this store must never evict), so the earlier
+// self-pruning eviction inside Helm's own localStorage keys could free every
+// Helm entry and still leave a save with no room. IndexedDB's quota is far
+// larger, so message payloads live there now. localStorage remains as the
+// fallback for environments where IndexedDB cannot be opened, and as the
+// migration source: on first open, the cache entries this account still holds
+// in localStorage move into IndexedDB and the localStorage copies are removed,
+// which is what actually frees that space. If IndexedDB open or migration
+// fails at any point, the localStorage data is left untouched and the store
+// runs on the localStorage path, exactly as it did before. Only small
+// non-message keys (sign-in state, session ids) stay in localStorage.
+const HELM_CACHE_DB_NAME = '3dvr-helm-cache';
+const HELM_CACHE_STORE_NAME = 'messages';
+
+function helmIdbRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('IndexedDB request failed.'));
+  });
+}
+
+function openHelmCacheDb() {
+  const indexedDB = globalThis.indexedDB;
+  if (!indexedDB) return Promise.resolve(null);
+  return new Promise(resolve => {
+    let request;
+    try {
+      request = indexedDB.open(HELM_CACHE_DB_NAME, 1);
+    } catch {
+      resolve(null);
+      return;
+    }
+    request.onupgradeneeded = () => {
+      try { request.result.createObjectStore(HELM_CACHE_STORE_NAME); } catch {}
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+    request.onblocked = () => resolve(null);
+  });
+}
+
+async function helmIdbRun(db, mode, run) {
+  const transaction = db.transaction(HELM_CACHE_STORE_NAME, mode);
+  const done = new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error('IndexedDB transaction failed.'));
+    transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted.'));
+  });
+  done.catch(() => {}); // A failed run rejects first; keep the transaction promise handled.
+  const result = await run(transaction.objectStore(HELM_CACHE_STORE_NAME));
+  await done;
+  return result;
+}
+
 export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {}) {
   const context = await getGunContext();
   const pair = context && await ensurePortalSea(context.user);
@@ -317,8 +374,8 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
   const pub = pair.pub;
   const root = context.user.get('helm-v1').get('messages');
   const cacheKey = `3dvr.helm.encrypted-messages.${pub}`;
-  let cache = {};
-  try { cache = JSON.parse(globalThis.localStorage.getItem(cacheKey) || '{}'); } catch {}
+  // Each state gets its own storage entry so tabs never replace one another's cache.
+  const entryPrefix = `${cacheKey}:`;
   const decode = async (value, id) => {
     if (!value?.ciphertext) return;
     try {
@@ -328,63 +385,164 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
       onRecord?.(record);
     } catch {}
   };
-  for (const [id, value] of Object.entries(cache)) await decode(value, id);
-  // Each state gets its own storage entry so tabs never replace one another's cache.
-  const entryPrefix = `${cacheKey}:`;
-  for (let index = 0; index < globalThis.localStorage.length; index += 1) {
-    const key = globalThis.localStorage.key(index);
-    if (!key?.startsWith(entryPrefix)) continue;
-    try { await decode(JSON.parse(globalThis.localStorage.getItem(key)), key.slice(entryPrefix.length)); } catch {}
-  }
-  // The encrypted cache is a device convenience; the Gun graph stays the source
-  // of truth. When the origin quota fills up, drop the oldest cached states so a
-  // save keeps working instead of failing until the user clears site data by hand.
   const isQuotaError = error => error?.name === 'QuotaExceededError'
     || error?.code === 22 || error?.code === 1014
     || /quota/i.test(String(error?.name || error?.message || ''));
-  const cachedEntriesOldestFirst = preserveKey => {
-    const entries = [];
+  // Every cache entry this account still holds in localStorage, as a
+  // record-key -> value map: the legacy combined blob first, then the
+  // per-entry keys (which win on a duplicate, being the newer representation).
+  const readLocalCache = () => {
+    const entries = new Map();
+    try {
+      const blob = JSON.parse(globalThis.localStorage.getItem(cacheKey) || '{}');
+      if (blob && typeof blob === 'object' && !Array.isArray(blob)) {
+        for (const [id, value] of Object.entries(blob)) entries.set(id, value);
+      }
+    } catch {}
     for (let index = 0; index < globalThis.localStorage.length; index += 1) {
       const key = globalThis.localStorage.key(index);
-      if (!key?.startsWith(entryPrefix) || key === preserveKey) continue;
-      let updatedAt = 0;
-      try { updatedAt = JSON.parse(globalThis.localStorage.getItem(key))?.updatedAt || 0; } catch {}
-      entries.push({ key, updatedAt, tier: key.endsWith(':queued') ? 2 : 0 });
+      if (!key?.startsWith(entryPrefix)) continue;
+      try { entries.set(key.slice(entryPrefix.length), JSON.parse(globalThis.localStorage.getItem(key))); } catch {}
     }
-    // The legacy combined blob under the bare cache key was written by older
-    // versions and is never rewritten now, so on long-lived browsers it can
-    // hold most of the quota while per-entry eviction frees almost nothing.
-    // It is a local cache copy like the history entries (the Gun graph stays
-    // the source of truth and re-syncs), so it becomes a candidate once this
-    // account's per-entry history is gone, but ahead of unsent outbox states.
-    if (cacheKey !== preserveKey && globalThis.localStorage.getItem(cacheKey) != null) {
-      entries.push({ key: cacheKey, updatedAt: 0, tier: 1 });
-    }
-    // Unsent outbox states outlive history: evict plain history entries first
-    // (oldest first), then the legacy blob, then queued entries (oldest
-    // first), and never the entry being written. Other accounts' keys are
-    // never candidates.
-    return entries.sort((a, b) => a.tier - b.tier || a.updatedAt - b.updatedAt);
+    return entries;
   };
-  const trimCache = preserveKey => {
-    const entries = cachedEntriesOldestFirst(preserveKey);
-    const surplus = entries.length + 1 - HELM_CACHE_ENTRY_LIMIT;
-    for (const entry of entries.slice(0, Math.max(0, surplus))) {
-      globalThis.localStorage.removeItem(entry.key);
+  const removeLocalCache = () => {
+    const keys = [];
+    for (let index = 0; index < globalThis.localStorage.length; index += 1) {
+      const key = globalThis.localStorage.key(index);
+      if (key === cacheKey || key?.startsWith(entryPrefix)) keys.push(key);
+    }
+    for (const key of keys) {
+      try { globalThis.localStorage.removeItem(key); } catch {}
     }
   };
-  const writeCacheEntry = (key, value) => {
-    let failure;
+  // IndexedDB persistence: the account's entries load into memory at open and
+  // saves write through, so callers see the same behavior as the localStorage
+  // store while the bytes live somewhere with real headroom.
+  const openIndexedDbCache = async () => {
+    const db = await openHelmCacheDb();
+    if (!db) return null;
     try {
-      globalThis.localStorage.setItem(key, value);
-      return;
-    } catch (error) {
-      if (!isQuotaError(error)) throw error;
-      failure = error;
+      const range = globalThis.IDBKeyRange?.bound?.(entryPrefix, `${entryPrefix}\uffff`);
+      if (!range) throw new Error('IndexedDB key ranges are unavailable.');
+      const entries = await helmIdbRun(db, 'readonly', async store => {
+        const [keys, values] = await Promise.all([
+          helmIdbRequest(store.getAllKeys(range)),
+          helmIdbRequest(store.getAll(range))
+        ]);
+        return new Map(keys.map((key, index) => [String(key).slice(entryPrefix.length), values[index]]));
+      });
+      // Migration: fold whatever localStorage still holds for this account
+      // into IndexedDB (newest updatedAt wins a collision), then remove the
+      // localStorage copies. Any failure before the removal step aborts into
+      // the fallback with localStorage untouched.
+      const local = readLocalCache();
+      const migrated = [];
+      for (const [id, value] of local) {
+        const existing = entries.get(id);
+        if (!existing || (value?.updatedAt || 0) > (existing.updatedAt || 0)) {
+          entries.set(id, value);
+          migrated.push([id, value]);
+        }
+      }
+      if (migrated.length) {
+        await helmIdbRun(db, 'readwrite', async store => {
+          await Promise.all(migrated.map(([id, value]) => helmIdbRequest(store.put(value, `${entryPrefix}${id}`))));
+        });
+      }
+      if (local.size) removeLocalCache();
+      return { db, entries };
+    } catch {
+      try { db.close?.(); } catch {}
+      return null;
     }
-    // Evict one entry at a time so a retry frees only as much room as it needs.
-    for (const entry of cachedEntriesOldestFirst(key)) {
-      globalThis.localStorage.removeItem(entry.key);
+  };
+  const indexedDbPersist = ({ db, entries }) => {
+    // Same eviction contract as the localStorage store: plain history first
+    // (oldest first), unsent outbox states last, never the entry being
+    // written, and only this account's entries are ever candidates.
+    const evictionOrder = preserveKey => [...entries]
+      .filter(([id]) => `${entryPrefix}${id}` !== preserveKey)
+      .map(([id, value]) => ({ id, tier: id.endsWith(':queued') ? 1 : 0, updatedAt: value?.updatedAt || 0 }))
+      .sort((a, b) => a.tier - b.tier || a.updatedAt - b.updatedAt);
+    const evict = async entry => {
+      entries.delete(entry.id);
+      await helmIdbRun(db, 'readwrite', store => helmIdbRequest(store.delete(`${entryPrefix}${entry.id}`)));
+    };
+    const put = (entryKey, value) => helmIdbRun(db, 'readwrite', store => helmIdbRequest(store.put(value, entryKey)));
+    return async (recordKey, value) => {
+      const entryKey = `${entryPrefix}${recordKey}`;
+      entries.set(recordKey, value);
+      let surplus = entries.size - HELM_CACHE_ENTRY_LIMIT;
+      for (const entry of evictionOrder(entryKey)) {
+        if (surplus <= 0) break;
+        await evict(entry);
+        surplus -= 1;
+      }
+      try {
+        await put(entryKey, value);
+      } catch (error) {
+        if (!isQuotaError(error)) throw error;
+        // IndexedDB running out of room is far rarer, but keep the contract:
+        // free the oldest entries one at a time until the write lands.
+        let failure = error;
+        let landed = false;
+        for (const entry of evictionOrder(entryKey)) {
+          await evict(entry);
+          try {
+            await put(entryKey, value);
+            landed = true;
+            break;
+          } catch (retryError) {
+            if (!isQuotaError(retryError)) throw retryError;
+            failure = retryError;
+          }
+        }
+        if (!landed) throw failure;
+      }
+      // A localStorage shadow of this record can survive only if a cleanup
+      // was interrupted; never let it resurrect a stale state on a later open.
+      try { globalThis.localStorage?.removeItem?.(entryKey); } catch {}
+    };
+  };
+  // The localStorage store, unchanged: the encrypted cache is a device
+  // convenience and the Gun graph stays the source of truth, so when the
+  // origin quota fills up, drop the oldest cached states so a save keeps
+  // working instead of failing until the user clears site data by hand.
+  const localStoragePersist = () => {
+    const cachedEntriesOldestFirst = preserveKey => {
+      const entries = [];
+      for (let index = 0; index < globalThis.localStorage.length; index += 1) {
+        const key = globalThis.localStorage.key(index);
+        if (!key?.startsWith(entryPrefix) || key === preserveKey) continue;
+        let updatedAt = 0;
+        try { updatedAt = JSON.parse(globalThis.localStorage.getItem(key))?.updatedAt || 0; } catch {}
+        entries.push({ key, updatedAt, tier: key.endsWith(':queued') ? 2 : 0 });
+      }
+      // The legacy combined blob under the bare cache key was written by older
+      // versions and is never rewritten now, so on long-lived browsers it can
+      // hold most of the quota while per-entry eviction frees almost nothing.
+      // It is a local cache copy like the history entries (the Gun graph stays
+      // the source of truth and re-syncs), so it becomes a candidate once this
+      // account's per-entry history is gone, but ahead of unsent outbox states.
+      if (cacheKey !== preserveKey && globalThis.localStorage.getItem(cacheKey) != null) {
+        entries.push({ key: cacheKey, updatedAt: 0, tier: 1 });
+      }
+      // Unsent outbox states outlive history: evict plain history entries first
+      // (oldest first), then the legacy blob, then queued entries (oldest
+      // first), and never the entry being written. Other accounts' keys are
+      // never candidates.
+      return entries.sort((a, b) => a.tier - b.tier || a.updatedAt - b.updatedAt);
+    };
+    const trimCache = preserveKey => {
+      const entries = cachedEntriesOldestFirst(preserveKey);
+      const surplus = entries.length + 1 - HELM_CACHE_ENTRY_LIMIT;
+      for (const entry of entries.slice(0, Math.max(0, surplus))) {
+        globalThis.localStorage.removeItem(entry.key);
+      }
+    };
+    const writeCacheEntry = (key, value) => {
+      let failure;
       try {
         globalThis.localStorage.setItem(key, value);
         return;
@@ -392,10 +550,42 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
         if (!isQuotaError(error)) throw error;
         failure = error;
       }
-    }
-    // Nothing evictable remains: surface the storage failure itself.
-    throw failure;
+      // Evict one entry at a time so a retry frees only as much room as it needs.
+      for (const entry of cachedEntriesOldestFirst(key)) {
+        globalThis.localStorage.removeItem(entry.key);
+        try {
+          globalThis.localStorage.setItem(key, value);
+          return;
+        } catch (error) {
+          if (!isQuotaError(error)) throw error;
+          failure = error;
+        }
+      }
+      // Nothing evictable remains: surface the storage failure itself.
+      throw failure;
+    };
+    return (recordKey, value) => {
+      const entryKey = `${entryPrefix}${recordKey}`;
+      trimCache(entryKey);
+      writeCacheEntry(entryKey, JSON.stringify(value));
+    };
   };
+  let persistCacheEntry;
+  let closeCache = () => {};
+  const idbCache = await openIndexedDbCache();
+  if (idbCache) {
+    persistCacheEntry = indexedDbPersist(idbCache);
+    closeCache = () => { try { idbCache.db.close?.(); } catch {} };
+    // Replay history oldest first. The outbox resolves per-message state by
+    // status rank and updatedAt, so this order only mirrors what the
+    // localStorage store effectively replayed; it is not load-bearing.
+    const restored = [...idbCache.entries]
+      .sort((a, b) => (a[1]?.updatedAt || 0) - (b[1]?.updatedAt || 0) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    for (const [id, value] of restored) await decode(value, id);
+  } else {
+    persistCacheEntry = localStoragePersist();
+    for (const [id, value] of readLocalCache()) await decode(value, id);
+  }
   const stream = root.map();
   stream.on((value, id) => { void decode(value, id); });
   return {
@@ -407,14 +597,12 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
       const value = { ciphertext, updatedAt: record.updatedAt };
       // Encrypted device cache makes a peer outage survivable without publishing plaintext.
       const recordKey = `${record.id}:${record.status}`;
-      const entryKey = `${entryPrefix}${recordKey}`;
-      trimCache(entryKey);
-      writeCacheEntry(entryKey, JSON.stringify(value));
+      await persistCacheEntry(recordKey, value);
       // Separate state nodes keep a late queued writer from overwriting completion history.
       root.get(recordKey).put(value, ack => onSync(ack && !ack.err ? 'Saved here · account sync active' : 'Saved here · account sync pending'));
       return true;
     },
-    close() { stream.off(); }
+    close() { stream.off(); closeCache(); }
   };
 }
 
