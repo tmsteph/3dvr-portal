@@ -1,20 +1,25 @@
 import { ModelRouter } from "./router";
 import { ModelProvider } from "./types";
-import { FakeProvider, OllamaProvider, OpenAiCompatibleProvider } from "./providers";
+import { FakeProvider, OllamaProvider, OpenAiCompatibleProvider, OpenAiResponsesProvider } from "./providers";
 
 // Router configuration comes from server-side environment only. Nothing here
 // is safe to run in a browser: OPERATOR_MODEL_API_KEY must exist solely in the
 // server process env (in production: delivered via the OpenBao-backed secrets
 // broker on OVH, never committed, never logged).
 //
-//   OPERATOR_MODEL_PROVIDER   "api" (default) | "ollama" | "fake"
+//   OPERATOR_MODEL_PROVIDER   "api" (default) | "responses" | "ollama" | "fake"
+//                             "api" posts /chat/completions; "responses"
+//                             posts /responses (for keys scoped to the
+//                             Responses API only)
 //   OPERATOR_MODEL_NAME       model name for the primary provider (required
 //                             for api/ollama)
 //   OPERATOR_MODEL_BASE_URL   api default https://api.openai.com/v1,
 //                             ollama default http://127.0.0.1:11434
 //   OPERATOR_MODEL_API_KEY    api provider key (server-side only)
 //   OPERATOR_MODEL_FALLBACK   optional second provider kind, configured with
-//                             OPERATOR_MODEL_FALLBACK_NAME / _BASE_URL
+//                             OPERATOR_MODEL_FALLBACK_NAME / _BASE_URL /
+//                             _API_KEY (a fallback without its own _API_KEY
+//                             reuses OPERATOR_MODEL_API_KEY)
 //   OPERATOR_MODEL_FAKE_RESPONSE  raw output for the "fake" provider
 
 type Env = Record<string, string | undefined>;
@@ -33,7 +38,14 @@ function buildProvider(kind: string, env: Env, prefix: string): ModelProvider {
       return new OpenAiCompatibleProvider({
         model: name,
         baseUrl: baseUrl ?? "https://api.openai.com/v1",
-        apiKey: env["OPERATOR_MODEL_API_KEY"],
+        apiKey: env[`${prefix}API_KEY`] ?? env["OPERATOR_MODEL_API_KEY"],
+      });
+    case "responses":
+      if (!name) throw new Error(`${prefix}NAME is required for the responses provider`);
+      return new OpenAiResponsesProvider({
+        model: name,
+        baseUrl: baseUrl ?? "https://api.openai.com/v1",
+        apiKey: env[`${prefix}API_KEY`] ?? env["OPERATOR_MODEL_API_KEY"],
       });
     default:
       throw new Error(`unknown model provider kind: ${kind}`);
