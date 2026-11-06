@@ -1,8 +1,8 @@
 {
-  "localDate": "2026-11-05",
+  "localDate": "2026-11-06",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-11-05T16:58:15.250Z",
+    "checkedAt": "2026-11-06T16:51:26.151Z",
     "source": "authenticated OVH general CDP 9222 Lighthouse week API",
     "weeksChecked": [
       "2026-11-02",
@@ -14,17 +14,17 @@
     ]
   },
   "iatse": {
-    "checkedAt": "2026-11-05T16:59:47.045Z",
+    "checkedAt": "2026-11-06T16:53:00Z",
     "outcome": "noop",
     "changedDates": [],
     "deferredDates": [],
     "renderedWindow": {
-      "start": "2026-11-04",
-      "end": "2026-12-06"
+      "start": "2026-11-05",
+      "end": "2026-12-07"
     },
     "mismatches": [],
     "persistedAfterReload": true,
-    "desiredDatesChecked": 21,
+    "desiredDatesChecked": 20,
     "unmodifiedUnspecifiedDates": [
       "2026-11-26",
       "2026-11-27",
@@ -36,18 +36,20 @@
       "2026-12-03",
       "2026-12-04",
       "2026-12-05",
-      "2026-12-06"
+      "2026-12-06",
+      "2026-12-07"
     ],
-    "note": "Preserved existing Nov 6–7 Not Available markers; Booked markers treated only as conflict markers, not proof of union dispatch. No IATSE writes were needed."
+    "note": "Protected existing work/rest conflict markers Nov 6–22 and preserved All Day Nov 23–25. Booked markers treated as conflict markers, not proof of union dispatch. No writes required."
   },
   "verification": {
     "sourceWeeksHttp200": true,
     "iatseReloadVerified": true,
-    "writerLeaseReleaseAttempted": true,
-    "writerLeaseReleaseIndependentlyVerified": true
+    "writerLeaseReleaseAttempted": false,
+    "writerLeaseReleaseIndependentlyVerified": false,
+    "note": "Read-only no-op; writer lease not acquired."
   },
   "execution": {
-    "path": "Hetzner SSH to OVH canonical general browser lane CDP 9222",
-    "authenticationRecovery": "SharePoint-first persistent session; Lighthouse broker browser-login authenticated"
+    "path": "OVH canonical general browser lane CDP 9222",
+    "authenticationRecovery": "Not needed; existing persistent sessions authenticated"
   }
 }
