@@ -70,7 +70,16 @@ export async function runOpenClaw(request, options = {}) {
   const native = backup || request.engine === 'codex';
   const script = await readFile(new URL(native ? './native.py' : './remote.py', import.meta.url), 'utf8');
   const encoded = Buffer.from(JSON.stringify({ ...request, stream: Boolean(options.onDelta) })).toString('base64url');
-  const host = backup ? '3dvr-do' : config.THREEDVR_OPENCLAW_SSH_HOST || '3dvr-hetzner';
+  // The native bridge (the Codex engines, which run native.py) can be
+  // routed independently of the OpenClaw gateway: THREEDVR_NATIVE_SSH_HOST
+  // names its SSH target when set. When it is unset, routing is exactly
+  // the legacy behavior per engine, so setting it is the only change.
+  const nativeHost = config.THREEDVR_NATIVE_SSH_HOST;
+  const host = backup
+    ? nativeHost || '3dvr-do'
+    : native && nativeHost
+      ? nativeHost
+      : config.THREEDVR_OPENCLAW_SSH_HOST || '3dvr-hetzner';
   // The emergency node runs one bounded chat process, never another gateway.
   const remote = backup
     ? ['systemd-run', '--quiet', '--pipe', '--wait', '--collect', `--unit=3dvr-helm-backup-${randomUUID()}`,

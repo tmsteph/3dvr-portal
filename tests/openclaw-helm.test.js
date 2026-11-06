@@ -306,6 +306,44 @@ test('backup chat uses the independent DO host with bounded resources and no tra
   assert.equal(calls, 1);
 });
 
+async function capturedBridge(request, config) {
+  let args;
+  const child = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill() {}
+  });
+  const task = runOpenClaw(request, { uid: 1000, config, spawn: (_command, values) => { args = values; return child; } });
+  await new Promise(resolve => child.stdin.once('data', resolve));
+  child.stdout.write('{"ok":true,"reply":"Done"}\n');
+  child.emit('close', 0);
+  await task;
+  return args;
+}
+const bridgeHost = args => args[args.indexOf('ConnectTimeout=8') + 1];
+
+test('native SSH host override routes only the native bridge', async () => {
+  const config = { THREEDVR_OPENCLAW_SSH_HOST: 'gateway-host', THREEDVR_NATIVE_SSH_HOST: 'native-host' };
+  // The Codex engine follows the native host, not the gateway host.
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex', message: 'Hi' }, config)), 'native-host');
+  // The backup engine runs the same native bridge, bounded as before.
+  const backupArgs = await capturedBridge({ action: 'chat', engine: 'codex-backup' }, config);
+  assert.equal(bridgeHost(backupArgs), 'native-host');
+  assert.ok(backupArgs.includes('systemd-run'));
+  // The OpenClaw engine never follows the native host.
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' }, config)), 'gateway-host');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' },
+    { THREEDVR_NATIVE_SSH_HOST: 'native-host' })), '3dvr-hetzner');
+});
+
+test('unset native SSH host keeps the legacy per-engine routing', async () => {
+  const gateway = { THREEDVR_OPENCLAW_SSH_HOST: 'gateway-host' };
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex', message: 'Hi' }, gateway)), 'gateway-host');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex-backup' }, gateway)), '3dvr-do');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' }, gateway)), 'gateway-host');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex', message: 'Hi' }, {})), '3dvr-hetzner');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex-backup' }, {})), '3dvr-do');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' }, {})), '3dvr-hetzner');
+});
+
 test('HELM_CODEX_TOOLS defaults on and honors explicit off values', () => {
   assert.equal(helmCodexToolsEnabled({}), true);
   assert.equal(helmCodexToolsEnabled({ HELM_CODEX_TOOLS: '1' }), true);
