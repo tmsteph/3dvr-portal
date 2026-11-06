@@ -54,6 +54,16 @@ export function openClawSshCommand(config = process.env, uid = process.getuid?.(
     : { command: 'ssh', prefix: [] };
 }
 
+export function helmCodexToolsEnabled(config = process.env) {
+  // Kill switch for the Native Codex agent posture. Default on for the owner
+  // engine; an explicit off value returns Helm's Codex sessions to the
+  // chat-only pilot with no deploy: set HELM_CODEX_TOOLS in the Portal
+  // service environment and restart the service.
+  const raw = config.HELM_CODEX_TOOLS;
+  if (raw === undefined) return true;
+  return !['0', 'false', 'off', 'no'].includes(String(raw).trim().toLowerCase());
+}
+
 export async function runOpenClaw(request, options = {}) {
   const config = options.config || process.env;
   const backup = request.engine === 'codex-backup';
@@ -84,7 +94,10 @@ export async function runOpenClaw(request, options = {}) {
       else if (typeof data.ok === 'boolean') result = data;
       else throw new Error('invalid output');
     };
-    const timer = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('timeout')); }, 100000);
+    // Agent turns run tests and git operations, so a tools-enabled Codex
+    // request gets a longer transport window than a chat reply.
+    const timeoutMs = request.engine === 'codex' && request.toolsEnabled ? 295000 : 100000;
+    const timer = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('timeout')); }, timeoutMs);
     child.stdout.on('data', chunk => {
       try {
         received += Buffer.byteLength(chunk);
@@ -181,6 +194,7 @@ export function createOpenClawHandler(options = {}) {
     }
     const owner = digest(auth.identity.pub);
     const request = { action, ...(engine !== 'openclaw' ? { engine } : {}),
+      ...(engine === 'codex' ? { toolsEnabled: helmCodexToolsEnabled(config) } : {}),
       session: characterId
         ? `girl-${characterId}-${owner.slice(0, 24)}-${sessionId}`
         : `helm-${owner.slice(0, 24)}-${sessionId}`,

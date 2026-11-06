@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createOpenClawHandler, openClawSshCommand, runOpenClaw } from '../src/openclaw/handler.js';
+import { createOpenClawHandler, helmCodexToolsEnabled, openClawSshCommand, runOpenClaw } from '../src/openclaw/handler.js';
 import { verifySignedSeaPayload } from '../src/auth/sea.js';
 const { default: SEA } = await import('gun/sea.js');
 
@@ -304,6 +304,29 @@ test('backup chat uses the independent DO host with bounded resources and no tra
   };
   await assert.rejects(runOpenClaw({ action: 'chat', engine: 'codex-backup' }, { spawn: mockSpawn, uid: 1000 }));
   assert.equal(calls, 1);
+});
+
+test('HELM_CODEX_TOOLS defaults on and honors explicit off values', () => {
+  assert.equal(helmCodexToolsEnabled({}), true);
+  assert.equal(helmCodexToolsEnabled({ HELM_CODEX_TOOLS: '1' }), true);
+  assert.equal(helmCodexToolsEnabled({ HELM_CODEX_TOOLS: 'yes' }), true);
+  for (const off of ['0', 'false', 'off', 'no', ' OFF ']) {
+    assert.equal(helmCodexToolsEnabled({ HELM_CODEX_TOOLS: off }), false);
+  }
+});
+
+test('codex requests carry the tools posture; other engines never do', async t => {
+  const { config, sign } = await setup(t);
+  const requests = [];
+  const run = async request => { requests.push(request); return { ok: true, reply: 'Done' }; };
+  const on = createOpenClawHandler({ config, run });
+  assert.equal((await call(on, await sign({ engine: 'codex', requestId: 'tools-on-1234567' }))).statusCode, 200);
+  assert.equal(requests.at(-1).toolsEnabled, true);
+  assert.equal((await call(on, await sign({ requestId: 'plain-req-1234567' }))).statusCode, 200);
+  assert.equal(requests.at(-1).toolsEnabled, undefined);
+  const off = createOpenClawHandler({ config: { ...config, HELM_CODEX_TOOLS: '0' }, run });
+  assert.equal((await call(off, await sign({ engine: 'codex', requestId: 'tools-off-123456' }))).statusCode, 200);
+  assert.equal(requests.at(-1).toolsEnabled, false);
 });
 
 test('backup engine is owner-signed and durable receipts never change its host lane', async t => {
