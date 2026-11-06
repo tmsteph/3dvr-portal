@@ -6,7 +6,8 @@ const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
-const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
+const ownerAlias = String(process.env.THREEDVR_AGENT_OWNER_ALIAS || '').trim();
+const allowEnqueue = process.env.OPERATOR_RUNTIME_E2E_ALLOW_ENQUEUE === 'true';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
 const readTimeoutMs = 5000;
@@ -75,6 +76,9 @@ function once(node) {
 }
 
 async function main() {
+  if (!allowEnqueue) throw new Error('Refusing to enqueue: set OPERATOR_RUNTIME_E2E_ALLOW_ENQUEUE=true in an explicitly approved isolated test environment');
+  if (!ownerAlias || ownerAlias === '3dvr-managed') throw new Error('Refusing shared/default queue: set THREEDVR_AGENT_OWNER_ALIAS to an isolated test worker owner');
+  if (!peers.length) throw new Error('No Gun peers configured');
   console.log(`E2E_TASK_ID=${taskId}`);
   console.log(`E2E_PEERS=${peers.join(',')}`);
   console.log(`E2E_OWNER=${ownerAlias}`);
@@ -88,7 +92,10 @@ async function main() {
     put(queue.get('runtime').get(taskId), built.runtime)
   ]);
   console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
-  console.log('E2E_ENQUEUE_ATTEMPTED=true');
+  if (writes.some(write => !write.acknowledged || write.timedOut)) {
+    throw new Error('Queue write acknowledgment failed; execution cannot be verified');
+  }
+  console.log('E2E_ENQUEUE_ACKNOWLEDGED=true');
 
   const transitions = [];
   const deadline = Date.now() + maxWaitMs;
@@ -113,6 +120,9 @@ async function main() {
     workerDeviceId: record?.workerDeviceId || ''
   })}`);
 
+  if ((record?.status || record?.state) === 'completed' && (!String(record?.workerDeviceId || '').trim() || !String(record?.resultSummary || '').trim())) {
+    throw new Error('Task marked completed without worker identity and nonempty result summary');
+  }
   if ((record?.status || record?.state) !== 'completed') {
     throw new Error(`Operator runtime task did not complete: ${record?.status || record?.state || 'timeout'} ${record?.error || ''}`);
   }
