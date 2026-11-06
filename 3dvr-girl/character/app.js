@@ -2,6 +2,7 @@
 // The character is chosen with ?c=<id> and defaults to the first entry;
 // adding a character to the data adds her site and switcher link here.
 import { characters, getCharacter, defaultCharacter } from '../characters.js';
+import { AFTER_DARK_PAYWALL, readAfterDarkEntitlement, resolveAfterDarkAccess } from './access.js';
 
 const params = new URLSearchParams(location.search);
 const character = getCharacter(params.get('c')) || defaultCharacter();
@@ -93,6 +94,73 @@ $('galleryGrid').replaceChildren(...character.gallery.map(scene => {
   link.append(img, caption);
   return link;
 }));
+
+
+// After Dark: her private frames. The paywall decision lives in
+// access.js (resolveAfterDarkAccess); this only renders its answer.
+// Locked visitors get blurred previews and the unlock prompt — the same
+// curtain model as the world page, never a vault. Open visitors get the
+// frames as ordinary gallery cards.
+function renderAfterDark() {
+  const section = $('after-dark');
+  if (!section) return;
+  const frames = character.afterDark || [];
+  if (!frames.length) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  let signedIn = false;
+  try { signedIn = localStorage.getItem('signedIn') === 'true'; } catch {}
+  const open = resolveAfterDarkAccess({ signedIn, entitled: readAfterDarkEntitlement() }) !== 'locked';
+  const lock = $('afterDarkLock');
+  lock.hidden = open;
+  if (!open) {
+    const unlock = $('afterDarkUnlock');
+    const copy = $('afterDarkLockCopy');
+    if (AFTER_DARK_PAYWALL.paymentLink) {
+      unlock.hidden = false;
+      unlock.href = AFTER_DARK_PAYWALL.paymentLink;
+      unlock.textContent = AFTER_DARK_PAYWALL.priceLabel
+        ? `${AFTER_DARK_PAYWALL.unlockLabel} — ${AFTER_DARK_PAYWALL.priceLabel}`
+        : AFTER_DARK_PAYWALL.unlockLabel;
+      copy.textContent = 'One unlock opens the private frames on every character site.';
+    } else {
+      unlock.hidden = true;
+      copy.textContent = 'Members will be able to unlock these frames here. The owner sees them open.';
+    }
+  }
+  $('afterDarkGrid').replaceChildren(...frames.map(frame => {
+    const figure = document.createElement('figure');
+    figure.className = 'gallery-card private-card';
+    const img = document.createElement('img');
+    img.src = asset(frame.src);
+    img.alt = open ? frame.alt : '';
+    img.loading = 'lazy';
+    if (!open) img.className = 'is-blurred';
+    const caption = document.createElement('figcaption');
+    caption.className = 'gallery-card__caption';
+    const mode = document.createElement('span');
+    mode.textContent = 'After dark';
+    const strong = document.createElement('strong');
+    strong.textContent = frame.title;
+    caption.append(mode, strong);
+    if (open) {
+      const link = document.createElement('a');
+      link.href = asset(frame.src);
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.append(img);
+      figure.append(link, caption);
+    } else {
+      figure.append(img, caption);
+    }
+    return figure;
+  }));
+}
+renderAfterDark();
+window.addEventListener('storage', renderAfterDark);
+window.addEventListener('focus', renderAfterDark);
 
 $('storiesNote').textContent = character.storiesNote;
 $('storyGrid').replaceChildren(...character.stories.map(story => {

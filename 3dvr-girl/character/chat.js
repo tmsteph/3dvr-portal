@@ -1,7 +1,11 @@
-// Character chat client: the same signed OpenClaw bridge Helm uses
+// Character chat client: the same signed envelope Helm uses
 // (POST /api/openclaw, scope 'openclaw-helm', owner-only), with one extra
 // signed field — characterId. The server maps that id to a persona it
-// holds; no persona text is sent from the browser.
+// holds; no persona text is sent from the browser. Character turns run
+// server-side on the OpenAI API (the Helm/OpenClaw path is separate and
+// untouched). The runner is stateless, so this page keeps the recent
+// conversation and resends it, signed, as `history` — user/assistant
+// turns only; the server rejects anything else.
 import { createSignedPortalProof } from '/operator/forge.js';
 import { readHelmResponse } from '/helm/stream.js';
 import { getCharacter, defaultCharacter } from '../characters.js';
@@ -20,6 +24,11 @@ const sessionKey = `3dvr.girl-chat.session.${character.id}`;
 let sessionId = globalThis.sessionStorage?.getItem(sessionKey) || crypto.randomUUID();
 globalThis.sessionStorage?.setItem(sessionKey, sessionId);
 let busy = false;
+// Recent turns for the stateless runner: user/assistant only, capped the
+// same way the server caps them. The greeting is hers but is not a turn
+// she actually sent, so it stays out.
+const HISTORY_LIMIT = 20;
+const history = [];
 
 function signedIn() {
   try { return localStorage.getItem('signedIn') === 'true'; } catch { return false; }
@@ -73,6 +82,7 @@ form.addEventListener('submit', async event => {
       message: text,
       characterId: character.id,
       engine: 'openclaw',
+      history: [...history],
       createdAt: now,
       expiresAt: now + 10 * 60 * 1000
     };
@@ -96,7 +106,10 @@ form.addEventListener('submit', async event => {
       error.stale = result.stale === true;
       throw error;
     }
-    replyBody.textContent = result.reply || streamed;
+    const reply = result.reply || streamed;
+    replyBody.textContent = reply;
+    history.push({ role: 'user', content: text }, { role: 'assistant', content: reply });
+    while (history.length > HISTORY_LIMIT) history.shift();
     setStatus(`Replied after ${Math.max(1, Math.round((Date.now() - started) / 1000))}s.`);
   } catch (error) {
     replyBody.textContent = '';

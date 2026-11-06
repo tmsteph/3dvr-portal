@@ -562,3 +562,33 @@ button, textarea { font: inherit; color: inherit; }
   .topbar__nav a:not(.topbar__portal) { display: none; }
   .msg { max-width: 100%; }
 }
+
+/* After Dark: the paywalled private frames. The lock panel mirrors the
+   world page's; locked frames render blurred and unlinkable. */
+.after-dark__lock {
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  max-width: 620px;
+  margin-bottom: 28px;
+}
+
+.after-dark__lock p {
+  margin: 0 0 10px;
+}
+
+.after-dark__lock .button {
+  margin-top: 8px;
+}
+
+.private-card {
+  margin: 0;
+}
+
+.private-card img.is-blurred {
+  filter: blur(18px) saturate(0.85);
+  transform: scale(1.06);
+  pointer-events: none;
+  user-select: none;
+}
