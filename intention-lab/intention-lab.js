@@ -7,8 +7,8 @@ const ALLOWED_MODES = Object.freeze([
 ]);
 const ACTION_STATUSES = Object.freeze(['completed', 'planned', 'skipped']);
 const DEFAULT_PEERS = Object.freeze([
-  'wss://gun-relay-3dvr.fly.dev/gun',
-  'https://gun-relay-3dvr.fly.dev/gun',
+  'wss://portal.3dvr.tech/gun-relay',
+  'https://portal.3dvr.tech/gun-relay',
 ]);
 const RECENT_RUN_LIMIT = 8;
 

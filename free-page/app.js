@@ -16,7 +16,7 @@ const TOUCH_LOG_NODE = 'crm-touch-log';
 const sessionKey = '3dvr-free-page-analytics-session';
 const analyticsClient = createFreePageAnalyticsClient();
 const crmGun = typeof Gun === 'function'
-  ? Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'])
+  ? Gun(window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'])
   : null;
 const crmRoot = crmGun?.get(CRM_NODE) || null;
 const touchLogRoot = crmGun?.get('3dvr-portal')?.get(TOUCH_LOG_NODE) || null;

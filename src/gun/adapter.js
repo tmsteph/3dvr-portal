@@ -22,7 +22,7 @@ export function createGun() {
     const fallbackPeers = [
       RELAY,
       'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
+      'wss://portal.3dvr.tech/gun-relay'
     ].filter(Boolean);
     const peers = (typeof window !== 'undefined' && Array.isArray(window.__GUN_PEERS__))
       ? window.__GUN_PEERS__

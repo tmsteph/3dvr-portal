@@ -68,7 +68,7 @@ if (!kind || !id) {
 } else if (!window.Gun) {
   showError('Forge sync is unavailable in this browser.');
 } else {
-  const gun = window.Gun({ peers: window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'] });
+  const gun = window.Gun({ peers: window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'] });
   const collection = kind === 'edit' ? 'editRequests' : 'suggestions';
   const node = gun.get('3dvr-portal').get('forge').get(collection).get(id);
   let resolved = false;

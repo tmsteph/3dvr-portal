@@ -1,7 +1,7 @@
 export const HOMEPAGE_HERO_EXPERIMENT_ID = 'homepage-hero';
 export const DEFAULT_GUN_PEERS = Object.freeze([
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun',
+  'wss://portal.3dvr.tech/gun-relay',
 ]);
 export const EXPERIMENT_CONFIG_PATH = Object.freeze([
   '3dvr-portal',

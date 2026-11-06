@@ -7,7 +7,7 @@ const ROOT_KEY = '3dvr-portal';
 const MANAGED_AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_PEERS = [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay'
 ];
 const TASK_WATCH_TIMEOUT_MS = 5 * 60 * 1000;
 const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'skipped', 'cancelled', 'canceled', 'blocked', 'review']);

@@ -5,8 +5,8 @@ import { mergeQueueRuntimeRecord } from '../src/operator-runtime/runtime-sidecar
 const ROOT = '3dvr-portal';
 const AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_PEERS = [
-  'wss://gun-relay-3dvr.fly.dev/gun',
-  'https://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay',
+  'https://portal.3dvr.tech/gun-relay'
 ];
 
 const records = new Map();

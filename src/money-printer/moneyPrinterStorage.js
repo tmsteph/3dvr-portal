@@ -25,7 +25,7 @@ const MARKET_PULSE_CAPSULE_PATH = Object.freeze([
   'venture-capsules',
   'latest',
 ]);
-const DEFAULT_GUN_PEERS = Object.freeze(['wss://gun-relay-3dvr.fly.dev/gun']);
+const DEFAULT_GUN_PEERS = Object.freeze(['wss://portal.3dvr.tech/gun-relay']);
 let pendingOutcomeSyncState = null;
 let outcomeSyncTimer = null;
 

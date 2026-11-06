@@ -1,7 +1,7 @@
 (function initLab() {
   const gun = Gun(window.__GUN_PEERS__ || [
     'wss://relay.3dvr.tech/gun',
-    'wss://gun-relay-3dvr.fly.dev/gun'
+    'wss://portal.3dvr.tech/gun-relay'
   ]);
   const labRoot = gun.get('3dvr-portal').get('workbench-dev-lab');
 

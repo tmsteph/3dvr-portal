@@ -9,7 +9,7 @@ import {
   sanitizeQuote,
 } from './quote-model.js';
 
-const gun = Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun']);
+const gun = Gun(window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay']);
 const user = gun.user();
 const crmRoot = gun.get('3dvr-crm');
 const quotesRoot = gun.get('3dvr-portal').get('quotes');

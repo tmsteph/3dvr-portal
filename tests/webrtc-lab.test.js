@@ -63,7 +63,7 @@ describe('WebRTC Lab app', () => {
     assert.match(js, /sessionStorage\.setItem\(PEER_SESSION_KEY, next\)/);
     assert.doesNotMatch(js, /sessionStorage\.getItem\(PEER_SESSION_KEY\)/);
     assert.match(js, /DEFAULT_GUN_PEERS = Object\.freeze/);
-    assert.match(js, /https:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
+    assert.match(js, /https:\/\/portal\.3dvr\.tech\/gun-relay/);
     assert.match(js, /function configuredGunPeers\(\)/);
     assert.match(js, /gun\.on\('hi'/);
     assert.match(js, /radisk: false/);

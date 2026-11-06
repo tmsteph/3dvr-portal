@@ -8,7 +8,7 @@ import {
 
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun',
+  'wss://portal.3dvr.tech/gun-relay',
 ]);
 const portalRoot = gun.get('3dvr-portal');
 const crmRecords = gun.get('3dvr-crm');

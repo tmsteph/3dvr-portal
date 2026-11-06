@@ -12,7 +12,7 @@ const TOUCH_LOG_NODE = 'crm-touch-log';
 const AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_PEERS = [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay'
 ];
 
 const PLAN_PRICES = Object.freeze({

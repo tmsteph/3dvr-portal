@@ -4,8 +4,8 @@ const AUTH_WAIT_MS = 12000;
 const WRITE_TIMEOUT_MS = 8000;
 const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
 const DEFAULT_PEERS = [
-  'wss://gun-relay-3dvr.fly.dev/gun',
-  'https://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay',
+  'https://portal.3dvr.tech/gun-relay'
 ];
 
 let gunInstance = null;

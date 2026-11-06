@@ -1,4 +1,4 @@
-const PEERS = ['wss://gun-relay-3dvr.fly.dev/gun', 'https://gun-relay-3dvr.fly.dev/gun'];
+const PEERS = ['wss://portal.3dvr.tech/gun-relay', 'https://portal.3dvr.tech/gun-relay'];
 let counter = 0;
 
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();

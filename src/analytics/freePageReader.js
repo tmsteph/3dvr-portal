@@ -8,7 +8,7 @@ import {
 import { readGunMap } from '../growth/homepage-hero-cron.js';
 
 export const DEFAULT_ANALYTICS_GUN_PEERS = Object.freeze([
-  'wss://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay'
 ]);
 
 function parsePeers(value) {
