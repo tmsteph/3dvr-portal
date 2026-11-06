@@ -139,3 +139,15 @@ test('Campaign CRM inbox replay does not double-count the same message', () => {
   assert.equal(replay.replyCount, 1, 'replayed message must not increase replyCount');
   assert.equal(replay.activityCount, 3, 'replayed message must not increase activityCount');
 });
+
+// A last-message-only check is insufficient: the same message can reappear after a different reply.
+// This remains red until the server's durable receipt ledger is integrated into inbox updates.
+test('Campaign CRM nonadjacent A/B/A replay preserves unique reply counts', () => {
+  const existing = { id: 'crm-replay', email: 'synthetic@example.invalid', activityCount: 0, replyCount: 0 };
+  const at = new Date('2026-11-05T18:00:00Z');
+  const a = buildCampaignCrmInboxUpdate({ existing, eventType: 'replied', messageId: 'synthetic-A', occurredAt: at });
+  const b = buildCampaignCrmInboxUpdate({ existing: a, eventType: 'replied', messageId: 'synthetic-B', occurredAt: at });
+  const replayA = buildCampaignCrmInboxUpdate({ existing: b, eventType: 'replied', messageId: 'synthetic-A', occurredAt: at });
+  assert.equal(replayA.replyCount, 2, 'only two unique messages may count as replies');
+  assert.equal(replayA.activityCount, 2, 'only two unique messages may count as activity');
+});
