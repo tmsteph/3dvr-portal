@@ -131,7 +131,7 @@ write_default_config() {
   log "Creating config at $CONFIG_FILE"
 cat > "$CONFIG_FILE" <<'EOF'
 # 3dvr-agent local config
-THREEDVR_GUN_RELAY=https://gun-relay-3dvr.fly.dev/gun
+THREEDVR_GUN_RELAY=wss://portal.3dvr.tech/gun-relay
 THREEDVR_PORTAL_URL=https://portal.3dvr.tech
 THREEDVR_GMAIL_AUTH=oauth-first
 THREEDVR_OAUTH_FILE="${THREEDVR_HOME:-$HOME/.3dvr}/oauth.json"

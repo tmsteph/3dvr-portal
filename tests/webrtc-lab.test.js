@@ -104,7 +104,7 @@ describe('WebRTC Lab app', () => {
     assert.match(readme, /TURN only affects media\s+connectivity after peers can see each other/);
     assert.match(readme, /localStorage: false/);
     assert.match(readme, /waits for the Gun relay `hi` event/);
-    assert.match(readme, /https:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
+    assert.match(readme, /https:\/\/portal\.3dvr\.tech\/gun-relay/);
     assert.match(readme, /Mesh WebRTC/);
     assert.match(readme, /3dvr-webrtc-lab-v2\/<room>/);
   });

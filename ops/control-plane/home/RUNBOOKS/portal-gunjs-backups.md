@@ -5,11 +5,11 @@ GunJS is the realtime/local-first synchronization layer for 3DVR. It remains aut
 Gun backups still need two layers:
 
 1. Archive the relay's RAD data directory. This is the complete relay-level backup.
-2. Capture known root snapshots as JSON on a separate host. This is useful for inspection, targeted recovery, and resilience if the Fly relay is unavailable, but it cannot prove every Gun soul was discovered.
+2. Capture known root snapshots as JSON on a separate host. This is useful for inspection, targeted recovery, and resilience if the OVH relay is unavailable, but it cannot prove every Gun soul was discovered.
 
 ## What To Back Up
 
-- Relay peer: `wss://gun-relay-3dvr.fly.dev/gun`
+- Relay peer: `wss://portal.3dvr.tech/gun-relay`
 - Default Gun RAD directory when not overridden: `radata`
 - Portal root manifest: `ops/gun/portal-gun-roots.json`
 - Independent snapshot output: `/var/backups/3dvr/gun-snapshots`
@@ -18,7 +18,7 @@ Treat every backup artifact as sensitive. Even encrypted SEA records, billing mi
 
 ## Daily Relay RAD Archive
 
-Run this on the Fly host/container that owns the relay data volume:
+Run this on the OVH host that owns the relay data volume (the host running `3dvr-gun-relay.service`):
 
 ```sh
 GUN_RAD_DIR=/path/to/radata \
@@ -32,11 +32,11 @@ If the relay is managed by systemd and you want a more consistent archive, stop 
 ```sh
 GUN_RAD_DIR=/path/to/radata \
 GUN_BACKUP_STOP_SERVICE=1 \
-GUN_RELAY_SERVICE=gun-relay.service \
+GUN_RELAY_SERVICE=3dvr-gun-relay.service \
 ops/gun/archive-rad.sh
 ```
 
-A local archive on the same VM or Fly volume is only a short-term recovery point. The complete backup standard requires an off-host copy. `archive-rad.sh` supports `GUN_BACKUP_RCLONE_REMOTE` once an external destination is configured.
+A local archive on the same VM or volume is only a short-term recovery point. The complete backup standard requires an off-host copy. `archive-rad.sh` supports `GUN_BACKUP_RCLONE_REMOTE` once an external destination is configured.
 
 ## Nightly Independent Known-Roots Snapshot
 
@@ -45,7 +45,7 @@ The repository now includes:
 - `ops/systemd/3dvr-gun-snapshot.service`
 - `ops/systemd/3dvr-gun-snapshot.timer`
 
-Install and enable these on a host separate from the Fly relay after the repository is deployed to `/opt/3dvr-portal`:
+Install and enable these on a host separate from the OVH relay host after the repository is deployed to `/opt/3dvr-portal`:
 
 ```sh
 sudo cp ops/systemd/3dvr-gun-snapshot.service /etc/systemd/system/
@@ -54,13 +54,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now 3dvr-gun-snapshot.timer
 ```
 
-The service writes snapshots under `/var/backups/3dvr/gun-snapshots` and connects to the Fly relay over the network.
+The service writes snapshots under `/var/backups/3dvr/gun-snapshots` and connects to the OVH relay over the network.
 
 Manual equivalent:
 
 ```sh
 GUN_BACKUP_OUT_DIR=/var/backups/3dvr/gun-snapshots \
-GUN_BACKUP_PEERS='wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun' \
+GUN_BACKUP_PEERS='wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay' \
 GUN_BACKUP_MAX_NODES=500 \
 GUN_BACKUP_MAX_MEMORY_MB=256 \
 npm run gun:backup
@@ -87,7 +87,7 @@ On any host with the repository available:
 ops/data/storage-report.sh
 ```
 
-On the Fly relay host, set `GUN_RAD_DIR` if the RAD directory is not one of the common locations. The report shows RAD size, local snapshot size, latest snapshot path, and Postgres information when that database is reachable from the same shell.
+On the OVH relay host, set `GUN_RAD_DIR` if the RAD directory is not one of the common locations. The report shows RAD size, local snapshot size, latest snapshot path, and Postgres information when that database is reachable from the same shell.
 
 ## Restore Notes
 

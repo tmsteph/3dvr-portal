@@ -8,7 +8,7 @@ Type=oneshot
 User=root
 WorkingDirectory=/opt/3dvr-portal
 Environment=GUN_BACKUP_OUT_DIR=/var/backups/3dvr/gun-snapshots
-Environment=GUN_BACKUP_PEERS=wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun
+Environment=GUN_BACKUP_PEERS=wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay
 Environment=GUN_BACKUP_MAX_NODES=500
 Environment=GUN_BACKUP_MAX_MEMORY_MB=256
 ExecStart=/usr/bin/node /opt/3dvr-portal/scripts/gun/backup-known-roots.mjs

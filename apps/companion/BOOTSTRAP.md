@@ -5,7 +5,7 @@ This file marks the first consolidated 3DVR Companion bootstrap after the duplic
 The canonical Android build now includes:
 
 - the always-on native localhost recovery bridge;
-- the authenticated direct Fly relay with Android Keystore-backed ephemeral credentials;
+- the authenticated direct portal relay with Android Keystore-backed ephemeral credentials;
 - Vercel workload-identity command routing;
 - bounded direct actions for device status, known app launch, and HTTPS URL launch;
 - persistent signed Android releases with self-update verification;

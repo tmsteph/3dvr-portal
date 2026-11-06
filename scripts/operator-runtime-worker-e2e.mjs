@@ -2,7 +2,7 @@ import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
 
-const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun')
+const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
