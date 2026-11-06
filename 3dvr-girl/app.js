@@ -414,20 +414,65 @@ function openScene(scene) {
   sceneDialog.showModal();
 }
 
+/* The scene archive reveals in chunks: the filter picks the set, and
+   only the first chunk of it is in view (and loading) until the visitor
+   asks for more. Scoped to the archive grid so the workshop cards in
+   the machine section are never caught by it. */
+const ARCHIVE_PAGE = 12;
+let archiveFilter = 'all';
+let archiveShown = ARCHIVE_PAGE;
+let archiveMoreRow = null;
+
+function archiveCards() {
+  return archiveGrid ? [...archiveGrid.querySelectorAll('.archive-card')] : [];
+}
+
+function applyArchiveVisibility() {
+  let seen = 0;
+  const cards = archiveCards();
+  cards.forEach(card => {
+    const matches = archiveFilter === 'all' || card.dataset.collection === archiveFilter;
+    if (!matches) {
+      card.hidden = true;
+      return;
+    }
+    card.hidden = seen >= archiveShown;
+    seen += 1;
+  });
+  if (archiveMoreRow) {
+    const total = cards.filter(card => archiveFilter === 'all' || card.dataset.collection === archiveFilter).length;
+    archiveMoreRow.hidden = total <= archiveShown;
+    const button = archiveMoreRow.querySelector('button');
+    if (button) button.textContent = `Show more scenes · ${total - archiveShown} more`;
+  }
+}
+
 function setFilter(collection) {
-  document.querySelectorAll('.filter-button').forEach(button => {
+  sceneFilters?.querySelectorAll('.filter-button').forEach(button => {
     const active = button.dataset.collection === collection;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-pressed', String(active));
   });
 
-  document.querySelectorAll('.archive-card').forEach(card => {
-    card.hidden = collection !== 'all' && card.dataset.collection !== collection;
-  });
+  archiveFilter = collection;
+  archiveShown = ARCHIVE_PAGE;
+  applyArchiveVisibility();
 }
 
 if (archiveGrid) {
   scenes.forEach(scene => archiveGrid.append(createArchiveCard(scene)));
+  archiveMoreRow = document.createElement('div');
+  archiveMoreRow.className = 'show-more-row';
+  archiveMoreRow.hidden = true;
+  const archiveMoreButton = document.createElement('button');
+  archiveMoreButton.type = 'button';
+  archiveMoreButton.className = 'button';
+  archiveMoreButton.addEventListener('click', () => {
+    archiveShown += ARCHIVE_PAGE;
+    applyArchiveVisibility();
+  });
+  archiveMoreRow.append(archiveMoreButton);
+  archiveGrid.after(archiveMoreRow);
 }
 
 if (sceneFilters) {
@@ -523,4 +568,13 @@ if (carousel && carouselSlides.length) {
   carousel.addEventListener('focusout', startCarousel);
   showSlide(0);
   startCarousel();
+}
+
+/* Back to top: the page is long; give the thumb a way home. */
+const backToTop = document.querySelector('#backToTop');
+if (backToTop) {
+  window.addEventListener('scroll', () => {
+    backToTop.hidden = window.scrollY < 600;
+  }, { passive: true });
+  backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 }

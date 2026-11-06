@@ -61,15 +61,64 @@ button {
   position: fixed;
   inset: 0 0 auto;
   z-index: 30;
-  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px clamp(18px, 4vw, 56px) 10px;
+  border-bottom: 1px solid rgba(241, 232, 219, 0.08);
+  background: linear-gradient(180deg, rgba(5, 8, 6, 0.9), rgba(5, 8, 6, 0.52));
+  backdrop-filter: blur(18px);
+}
+
+.topbar__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 14px clamp(18px, 4vw, 56px);
-  border-bottom: 1px solid rgba(241, 232, 219, 0.08);
-  background: linear-gradient(180deg, rgba(5, 8, 6, 0.9), rgba(5, 8, 6, 0.52));
-  backdrop-filter: blur(18px);
+  width: 100%;
+}
+
+/* The cast strip: every character's own site is one tap away from the
+   world page, without scrolling to find a link. */
+.cast-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cast-strip::-webkit-scrollbar { display: none; }
+
+.cast-strip a {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.cast-strip a:hover,
+.cast-strip a:focus-visible {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.cast-strip__key {
+  margin-left: auto;
+  border-color: rgba(211, 185, 143, 0.56);
+  color: var(--text);
+  background: rgba(211, 185, 143, 0.1);
+}
+
+/* Anchor jumps land below the fixed two-row header, not under it. */
+main section[id] {
+  scroll-margin-top: 132px;
 }
 
 .brand {
@@ -1262,4 +1311,42 @@ button {
 }
 .gallery-dialog.is-zoomed .gallery-dialog__figure img:active {
   cursor: grabbing;
+}
+
+/* Show-more rows under the chunked grids (scene archive, After Dark). */
+.show-more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.show-more-row[hidden] {
+  display: none;
+}
+
+/* Back to top, bottom-right; on phones it lifts clear of the
+   portal-wide issue pill that spans the bottom center. */
+.back-to-top {
+  position: fixed;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 40;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(8, 11, 9, 0.82);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.back-to-top[hidden] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .back-to-top { bottom: 96px; right: 12px; }
 }

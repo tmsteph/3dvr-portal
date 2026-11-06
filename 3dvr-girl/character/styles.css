@@ -38,6 +38,10 @@ img { max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 button, textarea { font: inherit; color: inherit; }
 
+/* The hidden attribute always wins on this page: tab panels, paginated
+   cards, and the lock panel all toggle it. */
+[hidden] { display: none !important; }
+
 .sr-only {
   position: absolute;
   width: 1px; height: 1px;
@@ -50,16 +54,37 @@ button, textarea { font: inherit; color: inherit; }
   position: fixed;
   inset: 0 0 auto;
   z-index: 30;
-  min-height: 68px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 14px clamp(18px, 4vw, 56px);
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px clamp(18px, 4vw, 56px) 10px;
   border-bottom: 1px solid rgba(241, 232, 219, 0.08);
   background: linear-gradient(180deg, rgba(5, 8, 6, 0.9), rgba(5, 8, 6, 0.52));
   backdrop-filter: blur(18px);
 }
+
+.topbar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+}
+
+/* One always-reachable strip under the brand row: the character
+   switcher and the section tabs, side by side, scrolling sideways on
+   narrow screens instead of disappearing. */
+.topbar__strip {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.topbar__strip::-webkit-scrollbar { display: none; }
 
 .brand {
   display: inline-flex;
@@ -81,10 +106,12 @@ button, textarea { font: inherit; color: inherit; }
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .topbar__nav a { transition: color 160ms ease; }
 .topbar__nav a:hover, .topbar__nav a:focus-visible { color: var(--text); }
+.topbar__nav a.is-active { color: var(--sand); }
 
 .topbar__portal {
   padding: 8px 12px;
@@ -204,15 +231,14 @@ button, textarea { font: inherit; color: inherit; }
 .button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .switcher {
-  width: min(1180px, calc(100% - 36px));
-  margin: 26px auto 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .switcher a {
@@ -224,7 +250,12 @@ button, textarea { font: inherit; color: inherit; }
 .switcher a[aria-current="page"] {
   border-color: rgba(211, 185, 143, 0.56);
   color: var(--text);
+  background: rgba(211, 185, 143, 0.12);
 }
+
+/* Tab panels: only one shows at a time (JS toggles hidden). The margin
+   keeps a scrolled-to panel clear of the fixed header. */
+.tab-panel { scroll-margin-top: 128px; }
 
 .section {
   width: min(1180px, calc(100% - 36px));
@@ -559,7 +590,6 @@ button, textarea { font: inherit; color: inherit; }
   .world-card img { min-height: 320px; }
   .story-grid { grid-template-columns: 1fr; }
   .section-heading { flex-direction: column; align-items: start; }
-  .topbar__nav a:not(.topbar__portal) { display: none; }
   .msg { max-width: 100%; }
 }
 
@@ -591,4 +621,140 @@ button, textarea { font: inherit; color: inherit; }
   transform: scale(1.06);
   pointer-events: none;
   user-select: none;
+}
+
+/* Unlock button before the payment link exists: visibly pending,
+   never a link that pretends to work. */
+.button--pending {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.button--pending:hover, .button--pending:focus-visible {
+  transform: none;
+  background: rgba(211, 185, 143, 0.1);
+}
+
+/* Show-more rows under the long grids. */
+.show-more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* Lightbox: same full-screen viewer language as the world page. */
+.gallery-dialog {
+  width: 100%;
+  max-width: 100%;
+  height: 100svh;
+  max-height: 100svh;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: rgba(3, 5, 4, 0.97);
+  color: var(--text);
+}
+
+.gallery-dialog::backdrop { background: rgba(3, 5, 4, 0.97); }
+
+.gallery-dialog[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-dialog__figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+}
+
+.gallery-dialog__figure img {
+  max-width: 100vw;
+  max-height: calc(100svh - 96px);
+  object-fit: contain;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.gallery-dialog__caption {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 0.95rem;
+}
+
+.gallery-dialog__caption span {
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery-dialog__copy {
+  margin: 2px auto 0;
+  max-width: 56ch;
+  text-align: center;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.gallery-dialog__close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gallery-dialog__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 56px;
+  height: 72px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 2.6rem;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.gallery-dialog__nav--prev { left: 2px; }
+.gallery-dialog__nav--next { right: 2px; }
+
+/* Back to top, bottom-right; on phones it lifts clear of the
+   portal-wide issue pill that spans the bottom center. */
+.back-to-top {
+  position: fixed;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 40;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(8, 11, 9, 0.82);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 640px) {
+  .back-to-top { bottom: 96px; right: 12px; }
 }

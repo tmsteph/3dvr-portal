@@ -16,24 +16,29 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="../" aria-label="Back to the 3DVR Girl world page">
-      <span class="brand__mark">3DVR</span>
-      <span>Girl</span>
-    </a>
-    <nav class="topbar__nav" aria-label="Page navigation">
-      <a href="#worlds">Worlds</a>
-      <a href="#gallery">Scenes</a>
-      <a href="#after-dark">After Dark</a>
-      <a href="#stories">Storybooks</a>
-      <a href="#chat">Chat</a>
-      <a href="../">Her world</a>
+    <div class="topbar__row">
+      <a class="brand" href="../" aria-label="Back to the 3DVR Girl world page">
+        <span class="brand__mark">3DVR</span>
+        <span>Girl</span>
+      </a>
       <a class="topbar__portal" href="../../index.html">Portal ↗</a>
-    </nav>
+    </div>
+    <div class="topbar__strip">
+      <nav class="switcher" id="characterSwitcher" aria-label="More character sites" hidden></nav>
+      <nav class="topbar__nav" aria-label="Page navigation">
+        <a href="#worlds" data-tab="about">Worlds</a>
+        <a href="#gallery" data-tab="scenes">Scenes</a>
+        <a href="#after-dark" data-tab="afterdark">After Dark</a>
+        <a href="#stories" data-tab="stories">Storybooks</a>
+        <a href="#chat" data-tab="chat">Chat</a>
+        <a href="../">Her world</a>
+      </nav>
+    </div>
   </header>
 
   <main id="top">
     <section class="hero" aria-labelledby="pageTitle">
-      <img class="hero__image" id="heroImage" src="" alt="">
+      <img class="hero__image" id="heroImage" alt="">
       <div class="hero__veil" aria-hidden="true"></div>
       <div class="hero__content">
         <p class="eyebrow" id="heroEyebrow"></p>
@@ -41,98 +46,121 @@
         <p class="hero__copy" id="heroTagline"></p>
         <div class="hero__tags" id="heroTags" aria-label="Character qualities"></div>
         <div class="hero__actions">
-          <a class="button" href="#worlds">See her world <span aria-hidden="true">↓</span></a>
-          <a class="button button--quiet" href="#chat">Talk with her <span aria-hidden="true">↓</span></a>
+          <a class="button" href="#worlds" data-tab="about">See her world <span aria-hidden="true">↓</span></a>
+          <a class="button button--quiet" href="#chat" data-tab="chat">Talk with her <span aria-hidden="true">↓</span></a>
         </div>
       </div>
     </section>
 
-    <nav class="switcher" id="characterSwitcher" aria-label="More character sites" hidden></nav>
-
-    <section class="intro section" aria-labelledby="aboutTitle">
-      <div class="intro__copy">
-        <p class="eyebrow">Who she is</p>
-        <h2 id="aboutTitle"></h2>
-        <div id="aboutCopy"></div>
-      </div>
-      <aside class="identity-card" aria-label="Character notes">
-        <p class="eyebrow">Field notes</p>
-        <dl id="fieldNotes"></dl>
-      </aside>
-    </section>
-
-    <section class="section" id="worlds" aria-labelledby="worldsTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Her modes</p>
-          <h2 id="worldsTitle">One character.<br>Different worlds.</h2>
+    <div class="tab-panel" data-tab-panel="about">
+      <section class="intro section" aria-labelledby="aboutTitle">
+        <div class="intro__copy">
+          <p class="eyebrow">Who she is</p>
+          <h2 id="aboutTitle"></h2>
+          <div id="aboutCopy"></div>
         </div>
-        <p>Less glowing-logo sci-fi. More places you can almost step into.</p>
-      </div>
-      <div class="world-grid" id="worldGrid"></div>
-    </section>
+        <aside class="identity-card" aria-label="Character notes">
+          <p class="eyebrow">Field notes</p>
+          <dl id="fieldNotes"></dl>
+        </aside>
+      </section>
 
-    <section class="section" id="gallery" aria-labelledby="galleryTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Scene archive</p>
-          <h2 id="galleryTitle">Her scenes.</h2>
+      <section class="section" id="worlds" aria-labelledby="worldsTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Her modes</p>
+            <h2 id="worldsTitle">One character.<br>Different worlds.</h2>
+          </div>
+          <p>Less glowing-logo sci-fi. More places you can almost step into.</p>
         </div>
-        <p>Tap a scene to open it full-size.</p>
-      </div>
-      <div class="gallery-grid" id="galleryGrid"></div>
-    </section>
+        <div class="world-grid" id="worldGrid"></div>
+      </section>
+    </div>
 
-
-    <section class="section after-dark" id="after-dark" aria-labelledby="afterDarkTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">After dark</p>
-          <h2 id="afterDarkTitle">Her private frames.</h2>
+    <div class="tab-panel" data-tab-panel="scenes" hidden>
+      <section class="section" id="gallery" aria-labelledby="galleryTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Scene archive</p>
+            <h2 id="galleryTitle">Her scenes.</h2>
+          </div>
+          <p>Tap a scene to open it full-size.</p>
         </div>
-        <p>The side of her archive that is not for the open page.</p>
-      </div>
-      <div class="after-dark__lock" id="afterDarkLock">
-        <p><strong>This part of her world is private.</strong></p>
-        <p id="afterDarkLockCopy">Members will be able to unlock these frames here. The owner sees them open.</p>
-        <a class="button" id="afterDarkUnlock" href="#" hidden>Unlock After Dark</a>
-      </div>
-      <div class="gallery-grid" id="afterDarkGrid"></div>
-    </section>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </section>
+    </div>
 
-    <section class="section" id="stories" aria-labelledby="storiesTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Storybook</p>
-          <h2 id="storiesTitle">The storybooks.</h2>
+    <div class="tab-panel" data-tab-panel="afterdark" hidden>
+      <section class="section after-dark" id="after-dark" aria-labelledby="afterDarkTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">After dark</p>
+            <h2 id="afterDarkTitle">Her private frames.</h2>
+          </div>
+          <p>The side of her archive that is not for the open page.</p>
         </div>
-        <p id="storiesNote"></p>
-      </div>
-      <div class="story-grid" id="storyGrid"></div>
-    </section>
+        <div class="after-dark__lock" id="afterDarkLock">
+          <p><strong>This part of her world is private.</strong></p>
+          <p id="afterDarkLockCopy">Members will be able to unlock these frames here. The owner sees them open.</p>
+          <a class="button" id="afterDarkUnlock" href="#" hidden>Unlock After Dark</a>
+        </div>
+        <div class="gallery-grid" id="afterDarkGrid"></div>
+      </section>
+    </div>
 
-    <section class="section chat-section" id="chat" aria-labelledby="chatTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Private chat</p>
-          <h2 id="chatTitle">Talk with her</h2>
+    <div class="tab-panel" data-tab-panel="stories" hidden>
+      <section class="section" id="stories" aria-labelledby="storiesTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Storybook</p>
+            <h2 id="storiesTitle">The storybooks.</h2>
+          </div>
+          <p id="storiesNote"></p>
         </div>
-        <p id="chatNote"></p>
-      </div>
-      <div class="chat-panel">
-        <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversation"></div>
-        <form class="chat-form" id="chatForm">
-          <label class="sr-only" for="chatMessage">Message</label>
-          <textarea id="chatMessage" rows="2" maxlength="6000" required></textarea>
-          <button class="button" id="chatSend" type="submit">Send ↑</button>
-        </form>
-        <p class="chat-status" id="chatStatus" role="status"></p>
-      </div>
-    </section>
+        <div class="story-grid" id="storyGrid"></div>
+      </section>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="chat" hidden>
+      <section class="section chat-section" id="chat" aria-labelledby="chatTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Private chat</p>
+            <h2 id="chatTitle">Talk with her</h2>
+          </div>
+          <p id="chatNote"></p>
+        </div>
+        <div class="chat-panel">
+          <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversation"></div>
+          <form class="chat-form" id="chatForm">
+            <label class="sr-only" for="chatMessage">Message</label>
+            <textarea id="chatMessage" rows="2" maxlength="6000" required></textarea>
+            <button class="button" id="chatSend" type="submit">Send ↑</button>
+          </form>
+          <p class="chat-status" id="chatStatus" role="status"></p>
+        </div>
+      </section>
+    </div>
   </main>
 
   <footer class="footer">
     <p>Part of the <a href="../../index.html">3DVR portal</a> · Back to <a href="../">her world page</a> · Meet <a href="../../characters/">the Portal Crew</a></p>
   </footer>
+
+  <dialog class="gallery-dialog" id="lightbox" aria-label="Full-screen photo viewer">
+    <button class="gallery-dialog__close" id="lightboxClose" type="button" aria-label="Close photo">×</button>
+    <button class="gallery-dialog__nav gallery-dialog__nav--prev" id="lightboxPrev" type="button" aria-label="Previous photo">‹</button>
+    <figure class="gallery-dialog__figure">
+      <img id="lightboxImage" alt="">
+      <figcaption class="gallery-dialog__caption">
+        <span id="lightboxCounter"></span>
+        <strong id="lightboxCaption"></strong>
+      </figcaption>
+      <p class="gallery-dialog__copy" id="lightboxCopy" hidden></p>
+    </figure>
+    <button class="gallery-dialog__nav gallery-dialog__nav--next" id="lightboxNext" type="button" aria-label="Next photo">›</button>
+  </dialog>
+
+  <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" hidden>↑ Top</button>
 </body>
 </html>
