@@ -139,3 +139,52 @@ test('the entry being written is never evicted and the quota error surfaces when
   await assert.rejects(store.save(bigger), /quota/i);
   assert.equal(map.get(key), savedValue, 'the existing entry is left untouched');
 });
+
+test('a save succeeds by evicting the legacy cache blob when it holds most of the quota', async t => {
+  const { pair, map, storage, store, prefix, usage, record } = await openQuotaStore(t);
+  const blobKey = `3dvr.helm.encrypted-messages.${pair.pub}`;
+  map.set(blobKey, JSON.stringify({ 'message-legacy1:completed': { ciphertext: 'x'.repeat(2000), updatedAt: 500 } }));
+  storage.quota = usage() + 50;
+  const fresh = record('message-fresh03');
+  assert.equal(await store.save(fresh), true);
+  assert.equal(map.has(blobKey), false, 'legacy blob is evicted to make room');
+  assert.equal(map.has(`${prefix}${fresh.id}:queued`), true, 'the new entry lands after eviction');
+});
+
+test('the legacy blob is evicted only after per-entry history entries', async t => {
+  const { pair, map, storage, store, prefix, seed, usage, record } = await openQuotaStore(t);
+  const blobKey = `3dvr.helm.encrypted-messages.${pair.pub}`;
+  seed('message-hist001', 'completed', 1000, 800);
+  map.set(blobKey, 'x'.repeat(1200));
+  storage.quota = usage() + 50;
+  const fresh = record('message-fresh04');
+  assert.equal(await store.save(fresh), true);
+  assert.equal(map.has(`${prefix}message-hist001:completed`), false, 'history entry is evicted first');
+  assert.equal(map.has(blobKey), true, 'legacy blob survives while history can make room');
+  assert.equal(map.has(`${prefix}${fresh.id}:queued`), true, 'the new entry lands after eviction');
+});
+
+test('a quota failure evicts the legacy blob before queued outbox entries', async t => {
+  const { pair, map, storage, store, prefix, seed, usage, record } = await openQuotaStore(t);
+  const blobKey = `3dvr.helm.encrypted-messages.${pair.pub}`;
+  seed('message-queue01', 'queued', 500, 100);
+  map.set(blobKey, 'x'.repeat(1200));
+  storage.quota = usage() + 50;
+  const fresh = record('message-fresh05');
+  assert.equal(await store.save(fresh), true);
+  assert.equal(map.has(blobKey), false, 'legacy blob is evicted');
+  assert.equal(map.has(`${prefix}message-queue01:queued`), true, 'queued outbox entry survives');
+  assert.equal(map.has(`${prefix}${fresh.id}:queued`), true, 'the new entry lands after eviction');
+});
+
+test("another account's legacy blob is never evicted, so the quota error surfaces", async t => {
+  const { map, storage, store, prefix, seed, usage, record } = await openQuotaStore(t);
+  const otherBlobKey = '3dvr.helm.encrypted-messages.someone-else-pub';
+  seed('message-hist001', 'completed', 1000, 100);
+  map.set(otherBlobKey, 'x'.repeat(2000));
+  storage.quota = usage() + 50;
+  await assert.rejects(store.save(record('message-fresh06')), /quota/i);
+  assert.equal(map.has(otherBlobKey), true, "another account's blob is untouched");
+  assert.equal(map.has(`${prefix}message-hist001:completed`), false, 'own history was evicted while trying');
+  assert.equal(map.has(`${prefix}message-fresh06:queued`), false, 'the failed entry never lands');
+});
