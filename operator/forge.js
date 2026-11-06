@@ -349,11 +349,22 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
       if (!key?.startsWith(entryPrefix) || key === preserveKey) continue;
       let updatedAt = 0;
       try { updatedAt = JSON.parse(globalThis.localStorage.getItem(key))?.updatedAt || 0; } catch {}
-      entries.push({ key, updatedAt, queued: key.endsWith(':queued') });
+      entries.push({ key, updatedAt, tier: key.endsWith(':queued') ? 2 : 0 });
     }
-    // Unsent outbox states outlive history: evict plain history entries first,
-    // then the oldest remaining entries, and never the entry being written.
-    return entries.sort((a, b) => Number(a.queued) - Number(b.queued) || a.updatedAt - b.updatedAt);
+    // The legacy combined blob under the bare cache key was written by older
+    // versions and is never rewritten now, so on long-lived browsers it can
+    // hold most of the quota while per-entry eviction frees almost nothing.
+    // It is a local cache copy like the history entries (the Gun graph stays
+    // the source of truth and re-syncs), so it becomes a candidate once this
+    // account's per-entry history is gone, but ahead of unsent outbox states.
+    if (cacheKey !== preserveKey && globalThis.localStorage.getItem(cacheKey) != null) {
+      entries.push({ key: cacheKey, updatedAt: 0, tier: 1 });
+    }
+    // Unsent outbox states outlive history: evict plain history entries first
+    // (oldest first), then the legacy blob, then queued entries (oldest
+    // first), and never the entry being written. Other accounts' keys are
+    // never candidates.
+    return entries.sort((a, b) => a.tier - b.tier || a.updatedAt - b.updatedAt);
   };
   const trimCache = preserveKey => {
     const entries = cachedEntriesOldestFirst(preserveKey);
