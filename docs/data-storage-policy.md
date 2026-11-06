@@ -52,8 +52,8 @@ A datastore is not considered backed up until a recoverable copy exists independ
 Minimum standard:
 
 1. Postgres: nightly validated custom-format dump.
-2. Gun: nightly known-root JSON snapshot on a host separate from the Fly relay.
-3. Gun relay: full RAD/radata archive from the Fly persistent volume.
+2. Gun: nightly known-root JSON snapshot on a host separate from the OVH relay.
+3. Gun relay: full RAD/radata archive from the OVH relay host volume.
 4. Checksums for backup artifacts.
 5. At least one off-host/off-provider copy for canonical business data.
 6. Periodic restore tests into disposable environments.
@@ -64,7 +64,7 @@ A file on the same VM or volume as the live database is only a local recovery po
 
 - Postgres local dumps: `/var/backups/3dvr/postgres`
 - Gun known-root snapshots: `/var/backups/3dvr/gun-snapshots`
-- Gun relay peer: `wss://gun-relay-3dvr.fly.dev/gun`
+- Gun relay peer: `wss://portal.3dvr.tech/gun-relay`
 - Gun full RAD backup helper: `ops/gun/archive-rad.sh`
 - Postgres backup helper: `ops/postgres/backup.sh`
 - Storage/backup report: `ops/data/storage-report.sh`

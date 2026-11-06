@@ -114,7 +114,7 @@ MONEY_AUTOPILOT_GH_BRANCH=main
 # Or set STRIPE_CHECKOUT_URL if that already exists.
 MONEY_AUTOPILOT_CHECKOUT_URL=https://portal.3dvr.tech/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro
 
-GROWTH_GUN_PEERS=https://relay.3dvr.tech/gun
+GROWTH_GUN_PEERS=https://portal.3dvr.tech/gun-relay
 
 META_PAGE_ID=
 META_PAGE_ACCESS_TOKEN=

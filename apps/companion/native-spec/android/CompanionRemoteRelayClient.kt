@@ -319,7 +319,7 @@ class CompanionRemoteRelayClient(context: Context) {
     )
 
     companion object {
-        const val RELAY_BASE_URL = "https://gun-relay-3dvr.fly.dev"
+        const val RELAY_BASE_URL = "https://portal.3dvr.tech"
 
         private val VOICE_NONCE_RE = Regex("^[A-Za-z0-9_-]{24,128}$")
         private val ALLOWED_APP_ALIASES = setOf(
