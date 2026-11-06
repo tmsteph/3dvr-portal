@@ -21,7 +21,6 @@ test('free page offer promises a real free live website', () => {
   assert.match(html, /3dvr\.tech@gmail\.com/);
   assert.match(html, /name="email" type="email"[^>]*required/);
   assert.match(html, /A tiny site can still do the important job/);
-  assert.match(html, /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/);
   assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-96XRKQ5L65/);
   assert.match(html, /gtag\('config', 'G-96XRKQ5L65'\)/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);

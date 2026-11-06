@@ -29,3 +29,21 @@ test('self-host still denies server source, configuration and directory paths', 
     assert.equal(isPrivateStaticPath(path), true, path);
   }
 });
+
+test('Free page analytics module stays reachable through the self-host static policy', async () => {
+  const pending = ['/free-page/app.js', '/free-page/preview/app.js'];
+  const visited = new Set();
+  while (pending.length) {
+    const path = pending.pop();
+    if (visited.has(path)) continue;
+    visited.add(path);
+    assert.equal(isPrivateStaticPath(path), false, `Browser dependency is private: ${path}`);
+    const source = await readFile(new URL(`.${path}`, root), 'utf8');
+    for (const match of source.matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)["']([^"']+)["']/g)) {
+      const specifier = match[1];
+      if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue;
+      pending.push(new URL(specifier, `https://portal.3dvr.tech${path}`).pathname);
+    }
+  }
+  assert.ok(visited.has('/src/analytics/freePage.js'));
+});
