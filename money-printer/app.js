@@ -237,7 +237,7 @@ async function initializeOpportunitySync() {
     elements.opportunitySyncStatus.textContent = 'Saved on this device';
     return;
   }
-  const gun = window.Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun']);
+  const gun = window.Gun(window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay']);
   const user = gun.user();
   const authenticated = await waitForGunAuthentication(user);
   opportunityEngineSync = createOpportunityEngineSync({ user, SEA: window.SEA || window.Gun.SEA });

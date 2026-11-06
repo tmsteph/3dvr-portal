@@ -18,7 +18,7 @@ const PROPOSAL_STAGES = [
 const OPEN_PROPOSAL_STAGES = ['idea', 'draft', 'sent', 'follow-up'];
 const DEFAULT_PEERS = [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay'
 ];
 
 const state = {

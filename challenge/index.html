@@ -177,7 +177,7 @@
       const status = document.querySelector('#challengeStatus');
       const emailAddress = '3dvr.tech@gmail.com';
       const crmGun = typeof Gun === 'function'
-        ? Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'])
+        ? Gun(window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'])
         : null;
       const crmRoot = crmGun?.get('3dvr-crm') || null;
       const touchLogRoot = crmGun?.get('3dvr-portal')?.get('crm-touch-log') || null;

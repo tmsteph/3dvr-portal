@@ -1,8 +1,8 @@
 const FORGE_ROOT = '3dvr-portal';
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_PEERS = [
-  'wss://gun-relay-3dvr.fly.dev/gun',
-  'https://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay',
+  'https://portal.3dvr.tech/gun-relay'
 ];
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'rejected', 'approval_required']);
 

@@ -17,7 +17,7 @@ const disabledGunPeers = new Set([
   'https://relay.3dvr.tech/gun',
   'wss://relay.3dvr.tech/gun'
 ]);
-const gunPeers = String(process.env.CHAT_PUSH_GUN_PEERS || 'https://gun-relay-3dvr.fly.dev/gun')
+const gunPeers = String(process.env.CHAT_PUSH_GUN_PEERS || 'https://portal.3dvr.tech/gun-relay')
   .split(',').map(value => value.trim()).filter(peer => peer && !disabledGunPeers.has(peer));
 if (vapidPublicKey && vapidPrivateKey) {
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);

@@ -254,7 +254,7 @@ function bootGunSync() {
   if (typeof Gun !== 'function') {
     return;
   }
-  const peers = window.__GUN_PEERS__ || ['wss://relay.3dvr.tech/gun', 'wss://gun-relay-3dvr.fly.dev/gun'];
+  const peers = window.__GUN_PEERS__ || ['wss://relay.3dvr.tech/gun', 'wss://portal.3dvr.tech/gun-relay'];
   const gun = Gun(peers);
   portalRoot = gun.get('3dvr-portal').get('spatialPortal').get('apps');
   syncReady = true;

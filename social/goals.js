@@ -27,7 +27,7 @@ const requestedGoalId = urlParams.get('goalId');
 const gunContext = ensureGunContext(() => (typeof Gun === 'function'
   ? Gun(window.__GUN_PEERS__ || [
       'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
+      'wss://portal.3dvr.tech/gun-relay'
     ])
   : null), { label: 'social-goals' });
 

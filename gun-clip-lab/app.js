@@ -61,7 +61,7 @@
     }
     gun = Gun({
       peers: window.__GUN_PEERS__ || [
-        'wss://gun-relay-3dvr.fly.dev/gun'
+        'wss://portal.3dvr.tech/gun-relay'
       ],
       axe: true
     });

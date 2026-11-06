@@ -1,5 +1,5 @@
 import { buildOutreachDraft, buildPreviewBrief, buildSearchUrls, normalizeProspect, signalSummary } from './core.js';
-const STORAGE_KEY='3dvr.leadFinder.prospects.v1';const BUILDER_PREFILL_KEY='web-builder-prefill-request';const DEFAULT_PEERS=['wss://relay.3dvr.tech/gun','wss://gun-relay-3dvr.fly.dev/gun'];
+const STORAGE_KEY='3dvr.leadFinder.prospects.v1';const BUILDER_PREFILL_KEY='web-builder-prefill-request';const DEFAULT_PEERS=['wss://relay.3dvr.tech/gun','wss://portal.3dvr.tech/gun-relay'];
 const $=id=>document.getElementById(id);const state={prospects:loadProspects(),filter:'all'};const gun=typeof Gun==='function'?Gun(window.__GUN_PEERS__||DEFAULT_PEERS):null;const crmRoot=gun?.get('3dvr-crm');const operatorItemsRoot=gun?.get('3dvr-portal').get('growthOperator').get('items');
 const els={searchForm:$('searchForm'),searchCategory:$('searchCategory'),searchLocation:$('searchLocation'),searchLinks:$('searchLinks'),prospectForm:$('prospectForm'),status:$('status'),list:$('prospectList'),filter:$('filter'),importInput:$('importInput'),exportButton:$('exportButton')};
 function safe(value){return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}

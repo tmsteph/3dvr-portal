@@ -177,8 +177,8 @@ function buildHandoffHtml(payload) {
         statusEl.textContent = 'Writing draft and screenshots to Gun…';
         const gun = Gun({
           peers: [
-            'wss://gun-relay-3dvr.fly.dev/gun',
-            'https://gun-relay-3dvr.fly.dev/gun'
+            'wss://portal.3dvr.tech/gun-relay',
+            'https://portal.3dvr.tech/gun-relay'
           ],
           localStorage: false
         });
