@@ -724,6 +724,17 @@
       custom: 'Custom checkout'
     };
 
+    // Post-sign-in destinations are limited to the portal's own app origins:
+    // same-origin paths, or absolute URLs on one of these allowlisted hosts.
+    // Anything else falls back to the default landing page (no open redirects).
+    const ALLOWED_POST_SIGN_IN_ORIGINS = new Set([
+      'https://portal.3dvr.tech',
+      'https://helm.3dvr.tech',
+      'https://operator.3dvr.tech',
+      'https://girl.3dvr.tech',
+      'https://ladies.3dvr.tech'
+    ]);
+
     function sanitizeRedirectDestination(rawValue) {
       const candidate = typeof rawValue === 'string' ? rawValue.trim() : '';
       if (!candidate) {
@@ -732,11 +743,14 @@
 
       try {
         const resolved = new URL(candidate, window.location.origin);
-        if (resolved.origin !== window.location.origin) {
-          return DEFAULT_POST_SIGN_IN_DESTINATION;
+        if (resolved.origin === window.location.origin) {
+          const nextPath = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+          return nextPath || DEFAULT_POST_SIGN_IN_DESTINATION;
         }
-        const nextPath = `${resolved.pathname}${resolved.search}${resolved.hash}`;
-        return nextPath || DEFAULT_POST_SIGN_IN_DESTINATION;
+        if (ALLOWED_POST_SIGN_IN_ORIGINS.has(resolved.origin)) {
+          return resolved.href;
+        }
+        return DEFAULT_POST_SIGN_IN_DESTINATION;
       } catch (error) {
         return DEFAULT_POST_SIGN_IN_DESTINATION;
       }
@@ -744,7 +758,9 @@
 
     function resolvePostSignInDestination() {
       const params = new URLSearchParams(window.location.search);
-      return sanitizeRedirectDestination(params.get('redirect') || params.get('next') || '');
+      return sanitizeRedirectDestination(
+        params.get('redirect') || params.get('next') || params.get('returnTo') || ''
+      );
     }
 
     function describeRedirectTarget(destination = DEFAULT_POST_SIGN_IN_DESTINATION) {
