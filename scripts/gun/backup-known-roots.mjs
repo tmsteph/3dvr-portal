@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 const DEFAULT_MANIFEST = 'ops/gun/portal-gun-roots.json';
 const DEFAULT_OUT_DIR = 'backups/gun-snapshots';
 const DEFAULT_PEERS = [
-  'wss://gun-relay-3dvr.fly.dev/gun',
-  'https://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay',
+  'https://portal.3dvr.tech/gun-relay'
 ];
 const DEFAULT_TIMEOUT_MS = 1000;
 const DEFAULT_CONNECT_TIMEOUT_MS = 15000;

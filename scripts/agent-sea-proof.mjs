@@ -18,7 +18,7 @@
 
 import { authAgentPair, createAgentSeaPair, signSeaProof } from '../src/agents/sea-signer.js';
 
-const DEFAULT_PEERS = ['https://gun-relay-3dvr.fly.dev/gun'];
+const DEFAULT_PEERS = ['https://portal.3dvr.tech/gun-relay'];
 
 function parseArgs(argv) {
   const args = { action: 'status', origin: 'https://portal.3dvr.tech', testPair: false };

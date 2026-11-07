@@ -64,7 +64,7 @@ A file on the same VM or volume as the live database is only a local recovery po
 
 - Postgres local dumps: `/var/backups/3dvr/postgres`
 - Gun known-root snapshots: `/var/backups/3dvr/gun-snapshots`
-- Gun relay peer: `wss://gun-relay-3dvr.fly.dev/gun`
+- Gun relay peer: `wss://portal.3dvr.tech/gun-relay`
 - Gun full RAD backup helper: `ops/gun/archive-rad.sh`
 - Postgres backup helper: `ops/postgres/backup.sh`
 - Storage/backup report: `ops/data/storage-report.sh`
