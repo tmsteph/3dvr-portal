@@ -1,7 +1,12 @@
 (() => {
   const scriptEl = document.currentScript;
-  const configuredWorkerUrl = scriptEl?.dataset?.swUrl || '/service-worker.js';
-  const configuredScope = scriptEl?.dataset?.swScope || '/';
+  // A page may set window.__pwaInstallConfig before this helper loads to pick
+  // its worker per origin (3DVR Girl does on ladies.3dvr.tech); the script
+  // tag's data attributes are the usual static route, and the portal root
+  // worker is the default.
+  const pageConfig = window.__pwaInstallConfig || {};
+  const configuredWorkerUrl = pageConfig.swUrl || scriptEl?.dataset?.swUrl || '/service-worker.js';
+  const configuredScope = pageConfig.swScope || scriptEl?.dataset?.swScope || '/';
   const resolvedWorkerUrl = new URL(configuredWorkerUrl, window.location.origin);
   const resolvedScopeUrl = new URL(configuredScope, window.location.origin);
   const scopePath = resolvedScopeUrl.pathname.endsWith('/')
@@ -246,13 +251,21 @@
   installButton.addEventListener('click', async () => {
     if (!deferredPrompt) return;
 
-    installButton.disabled = true;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    // The deferred prompt is single-use and is the whole interaction: there
+    // is no instructions fallback. Once it has been fired, accepted or
+    // dismissed, the button goes away until the browser offers a fresh one.
+    const prompt = deferredPrompt;
     deferredPrompt = null;
-    installButton.disabled = false;
-
-    if (outcome === 'accepted') hideBanner();
+    installButton.disabled = true;
+    try {
+      await prompt.prompt();
+      await prompt.userChoice;
+    } catch (error) {
+      console.warn('Install prompt unavailable', error);
+    } finally {
+      installButton.disabled = false;
+      hideBanner();
+    }
   });
 
   if (isInstalled()) hideBanner();

@@ -29,10 +29,11 @@ test('empty streaming bubble shows a live thinking indicator that clears on firs
   assert.match(css, /prefers-reduced-motion:reduce/);
 });
 
-test('install help explains the standalone origin instead of moving the user there', async () => {
+test('install is the shared real-prompt button, with no instructions dialog', async () => {
   const html = await read('operator/index.html');
-  const installer = await read('operator/install.js');
-  assert.doesNotMatch(installer, /operator\.3dvr\.tech\/operator/);
-  assert.doesNotMatch(installer, /location\.assign/);
-  assert.match(html, /Open the Operator web app \(operator\.3dvr\.tech\)/);
+  assert.match(html, /data-install-banner/);
+  assert.match(html, /data-install-button/);
+  assert.match(html, /src="\/pwa-install\.js" data-sw-url="\/operator\/service-worker\.js" data-sw-scope="\/operator\/"/);
+  assert.doesNotMatch(html, /operator-install-help/);
+  assert.doesNotMatch(html, /Add to Home screen/);
 });

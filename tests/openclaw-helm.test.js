@@ -52,12 +52,12 @@ test('Helm accepts owner proofs from any production origin and preserves explici
     return { ...body, authPub: pair.pub, authProof: await SEA.sign({ ...body, scope: 'openclaw-helm', pub: pair.pub, iat: Date.now(), origin }, pair) };
   };
   const handler = createOpenClawHandler({ config, run });
-  for (const origin of ['https://portal.3dvr.tech', 'https://operator.3dvr.tech', 'https://helm.3dvr.tech']) {
+  for (const origin of ['https://portal.3dvr.tech', 'https://operator.3dvr.tech', 'https://helm.3dvr.tech', 'https://ladies.3dvr.tech']) {
     assert.equal((await call(handler, await proof(origin), origin)).statusCode, 200);
   }
   assert.equal((await call(handler, await proof('https://operator.3dvr.tech'), 'https://portal.3dvr.tech')).statusCode, 401);
   assert.equal((await call(handler, await proof('https://operator.3dvr.tech.evil.example'), 'https://operator.3dvr.tech.evil.example')).statusCode, 403);
-  assert.equal(runs, 3);
+  assert.equal(runs, 4);
   const restricted = createOpenClawHandler({ config: { ...config, THREEDVR_HELM_ALLOWED_ORIGINS: ' https://portal.3dvr.tech, ' }, run });
   assert.equal((await call(restricted, await proof('https://operator.3dvr.tech'), 'https://operator.3dvr.tech')).statusCode, 403);
   assert.equal((await call(restricted, await proof('https://portal.3dvr.tech'))).statusCode, 200);
