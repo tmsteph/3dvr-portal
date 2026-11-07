@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/operator-runtime-worker-e2e.mjs'
-      - 'tests/operator-runtime-worker-refusal.test.mjs'
+      - 'tests/operator-runtime-e2e-refusal.test.mjs'
       - '.github/workflows/operator-offline-refusal.yml'
   workflow_dispatch:
 permissions:
@@ -26,4 +26,4 @@ jobs:
           THREEDVR_GUN_PEERS: ''
           THREEDVR_GUN_RELAY: ''
           THREEDVR_AGENT_OWNER_ALIAS: ''
-        run: node --test tests/operator-runtime-worker-refusal.test.mjs
+        run: node --test tests/operator-runtime-e2e-refusal.test.mjs
