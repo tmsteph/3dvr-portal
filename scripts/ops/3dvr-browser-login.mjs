@@ -3,9 +3,9 @@ import http from 'node:http';
 import { execFileSync } from 'node:child_process';
 
 const site = String(process.argv[2] || '').trim().toLowerCase();
-const lanes = Object.freeze({ portal: 'general', iatse: 'general', ukg: 'encore', lighthouse: 'general' });
+const lanes = Object.freeze({ portal: 'general', iatse: 'general', ukg: 'encore', lighthouse: 'general', '4over': 'general' });
 if (!lanes[site]) {
-  process.stderr.write('Usage: 3dvr-browser-login <portal|iatse|ukg|lighthouse>\n');
+  process.stderr.write('Usage: 3dvr-browser-login <portal|iatse|ukg|lighthouse|4over>\n');
   process.exit(64);
 }
 

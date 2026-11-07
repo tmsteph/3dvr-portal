@@ -46,6 +46,16 @@ const SITE_CONFIG = Object.freeze({
     multiStep: true,
     allowPasswordAfterEmail: false,
   },
+  '4over': {
+    lane: 'general',
+    port: 9222,
+    startUrl: 'https://4over.com/customer/account/login/',
+    hosts: ['4over.com'],
+    vaultTerms: ['4over', '4over.com'],
+    usernameSelectors: ['#email', 'input[name="login[username]"]', 'input[type="email"]', 'input[autocomplete="username"]'],
+    passwordSelectors: ['#pass', 'input[name="login[password]"]', 'input[type="password"]'],
+    submitText: ['sign in'],
+  },
 });
 
 const HUMAN_CHALLENGE = /(verification code|two[- ]factor|multi[- ]factor|authenticator|one[- ]time code|security code|approve sign[- ]in|verify your identity|captcha)/i;
@@ -292,6 +302,7 @@ function classifyState(site, config, state) {
   if (site === 'ukg' && /postlogout\.aspx/i.test(String(state?.url || ''))) return { status: 'login_required', reason: 'session-expired' };
   if (site === 'ukg' && !/login\.aspx/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
   if (site === 'lighthouse' && !/\/login(?:[/?#]|$)/i.test(String(state?.url || '')) && !state.emailCount && !state.passwordCount) return { status: 'authenticated' };
+  if (site === '4over' && !/\/customer\/account\/login/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
   return { status: 'login_required' };
 }
 
