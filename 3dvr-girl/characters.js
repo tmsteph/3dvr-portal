@@ -208,7 +208,11 @@ export const characters = [
       { src: 'assets/after-dark/anc-blonde-pool-2.webp', title: 'Pool at Dusk, Take Two', alt: 'The Blonde Girl nude at a pool at sunset, smiling at the camera, seated sideways across a man\'s lap on the pool edge; the render\'s partner is not Thomas' },
       { src: 'assets/after-dark/thomas-courtyard-1.webp', title: 'From behind, courtyard', alt: 'Thomas nude behind the 3DVR Girl on a courtyard daybed, kissing her cheek' },
       { src: 'assets/after-dark/thomas-courtyard-2.webp', title: 'Her on top', alt: '3DVR Girl nude on top of Thomas on a courtyard daybed under the bougainvillea' },
-      { src: 'assets/after-dark/thomas-courtyard-3.webp', title: 'The kiss', alt: 'Thomas and the 3DVR Girl kissing in a stone courtyard, her topless in turquoise earrings' }
+      { src: 'assets/after-dark/thomas-courtyard-3.webp', title: 'The kiss', alt: 'Thomas and the 3DVR Girl kissing in a stone courtyard, her topless in turquoise earrings' },
+      { src: 'assets/after-dark/eve-dance-courtyard.webp', title: 'Courtyard dance, with Kayla', alt: '3DVR Girl and Kayla nude, dancing joyfully in a sunlit courtyard, laughing, arms raised' },
+      { src: 'assets/after-dark/eve-dance-festival.webp', title: 'Festival dance', alt: '3DVR Girl, Kayla and the garden muse nude, dancing joyfully in a festival clearing, laughing, arms raised' },
+      { src: 'assets/after-dark/eve-yoga-tree.webp', title: 'Tree pose', alt: '3DVR Girl nude in tree pose in a garden, standing on one leg on a blue mat, arms raised above her head, palms together' },
+      { src: 'assets/after-dark/eve-tantric-embrace.webp', title: 'Tantric embrace', alt: '3DVR Girl and Kayla nude in a slow seated tantric embrace, face to face, foreheads close, eyes closed, arms around each other' }
     ],
     storiesNote: 'Three adventures so far: a door in the cliff, a keeper\u2019s secret, and an island in the sky. She shares these stories with the rest of the cast.',
     stories: [
@@ -353,7 +357,12 @@ export const characters = [
       { src: 'assets/after-dark/thomas-kayla-forest-embrace.webp', title: 'Forest clearing, kneeling embrace', alt: 'Thomas kneeling beside Kayla on a blanket in a forest clearing, in an intimate embrace' },
       { src: 'assets/after-dark/srv-kayla-forest.webp', title: 'Forest clearing, on top', alt: 'Thomas and Kayla nude in a forest clearing, Kayla on top, in the act' },
       { src: 'assets/after-dark/srv-kayla-solo.webp', title: 'The forest stream', alt: 'Kayla nude, standing in a forest stream in dappled light' },
-      { src: 'assets/after-dark/anc-kayla-forest.webp', title: 'Forest Clearing', alt: 'Kayla nude in a forest clearing, astride a man on a blanket among the ferns, in the act' }
+      { src: 'assets/after-dark/anc-kayla-forest.webp', title: 'Forest Clearing', alt: 'Kayla nude in a forest clearing, astride a man on a blanket among the ferns, in the act' },
+      { src: 'assets/after-dark/eve-dance-courtyard.webp', title: 'Courtyard dance, with 3DVR Girl', alt: '3DVR Girl and Kayla nude, dancing joyfully in a sunlit courtyard, laughing, arms raised' },
+      { src: 'assets/after-dark/eve-dance-festival.webp', title: 'Festival dance', alt: '3DVR Girl, Kayla and the garden muse nude, dancing joyfully in a festival clearing, laughing, arms raised' },
+      { src: 'assets/after-dark/eve-yoga-lotus.webp', title: 'Lotus', alt: 'Kayla nude, sitting in lotus pose in a bright studio, eyes closed, hands resting on her knees' },
+      { src: 'assets/after-dark/eve-tantric-embrace.webp', title: 'Tantric embrace', alt: '3DVR Girl and Kayla nude in a slow seated tantric embrace, face to face, foreheads close, eyes closed, arms around each other' },
+      { src: 'assets/after-dark/eve-tantric-foreheads.webp', title: 'Foreheads close', alt: 'Kayla and the Explorer nude in a slow seated tantric embrace, foreheads close, arms around each other' }
     ],
     storiesNote: 'The storybooks are cast stories. The woods run through all three, and Kayla is the reason the group keeps finding its way home.',
     stories: [
@@ -465,7 +474,10 @@ export const characters = [
       { src: 'assets/after-dark/srv-muse-hammock.webp', title: 'Hammock kiss, golden hour', alt: 'Thomas and the garden muse kissing nude in a garden hammock at golden hour' },
       { src: 'assets/after-dark/srv-muse-solo.webp', title: 'Hammock, all hers', alt: 'The garden muse nude in the hammock, lavender beside her, smiling at the camera' },
       { src: 'assets/after-dark/anc-garden-hammock-kiss.webp', title: 'Hammock Kiss', alt: 'Thomas and the garden muse kissing nude in a hammock in a lavender garden at golden hour' },
-      { src: 'assets/after-dark/anc-garden-lavender-solo.webp', title: 'Lavender Solo', alt: 'The garden muse nude, kneeling on a blanket among lavender rows at golden hour, freckles across her cheeks, purple woven bracelets' }
+      { src: 'assets/after-dark/anc-garden-lavender-solo.webp', title: 'Lavender Solo', alt: 'The garden muse nude, kneeling on a blanket among lavender rows at golden hour, freckles across her cheeks, purple woven bracelets' },
+      { src: 'assets/after-dark/eve-dance-festival.webp', title: 'Festival dance', alt: '3DVR Girl, Kayla and the garden muse nude, dancing joyfully in a festival clearing, laughing, arms raised' },
+      { src: 'assets/after-dark/eve-yoga-partner.webp', title: 'Partner stretch', alt: 'The garden muse and the Explorer nude in a paired partner stretch in a garden, kneeling facing each other, holding hands' },
+      { src: 'assets/after-dark/eve-tantric-cushions.webp', title: 'On the cushions', alt: 'Muse and the garden muse nude in a slow reclining tantric embrace on cushions, faces close, arms around each other; Muse\'s hair carries vivid purple streaks' }
     ],
     storiesNote: 'The storybooks are cast stories. She is at the heart of the first two: the key found in the lavender, and the key handed over at dusk.',
     stories: [
@@ -564,7 +576,11 @@ export const characters = [
       { src: 'assets/after-dark/thomas-asian-cliff-terrace.webp', title: 'Cliff terrace at dusk', alt: 'Thomas and the Explorer in a nude embrace on a cliff terrace at dusk, her back to camera, ocean sunset behind them' },
       { src: 'assets/after-dark/srv-asian-cliff.webp', title: 'Cliff embrace (not Thomas)', alt: 'The Explorer in a nude embrace with a dark-haired man on coastal cliffs at dusk; the render\'s partner is not Thomas' },
       { src: 'assets/after-dark/anc-asian-cliff.webp', title: 'Cliff Terrace at Dusk', alt: 'The Explorer in a nude embrace with a dark-haired man at a stone balustrade on coastal cliffs at dusk; the render\'s partner is not Thomas' },
-      { src: 'assets/after-dark/anc-asian-cliff-2.webp', title: 'Cliff Terrace, Take Two', alt: 'The Explorer face to face with a dark-haired man at a stone balustrade above the sea at dusk, about to kiss; the render\'s partner is not Thomas' }
+      { src: 'assets/after-dark/anc-asian-cliff-2.webp', title: 'Cliff Terrace, Take Two', alt: 'The Explorer face to face with a dark-haired man at a stone balustrade above the sea at dusk, about to kiss; the render\'s partner is not Thomas' },
+      { src: 'assets/after-dark/eve-dance-pool-dusk.webp', title: 'Poolside at dusk', alt: 'Muse and the Explorer nude, dancing joyfully in a pool at dusk, laughing, arms raised; Muse\'s dark hair carries purple highlights' },
+      { src: 'assets/after-dark/eve-dance-lavender.webp', title: 'Lavender field', alt: 'The Explorer nude, dancing joyfully alone in a lavender field at golden hour, laughing, one arm raised' },
+      { src: 'assets/after-dark/eve-yoga-partner.webp', title: 'Partner stretch', alt: 'The garden muse and the Explorer nude in a paired partner stretch in a garden, kneeling facing each other, holding hands' },
+      { src: 'assets/after-dark/eve-tantric-foreheads.webp', title: 'Foreheads close', alt: 'Kayla and the Explorer nude in a slow seated tantric embrace, foreheads close, arms around each other' }
     ],
     storiesNote: 'The storybooks are cast stories, and the first one turns on a door at the end of the garden — the kind of door her key looks made for.',
     stories: [
@@ -658,7 +674,10 @@ export const characters = [
       { src: 'assets/after-dark/muse-tentacles.webp', title: 'Tentacles in her hair', alt: 'Muse in a violet lit pool, purple tentacles woven through her two messy buns' },
       { src: 'assets/after-dark/thomas-muse-couch-kiss.webp', title: 'Couch kiss, lamplight', alt: 'Thomas and Muse in a deep nude kiss on a couch in warm lamplight, her dark hair in a messy bun with purple highlights' },
       { src: 'assets/after-dark/srv-ficmuse-couch.webp', title: 'Couch kiss, still dressed', alt: 'Thomas and Muse kissing on a couch, still dressed, her purple hair in a messy bun' },
-      { src: 'assets/after-dark/anc-ficmuse-couch.webp', title: 'On the Couch', alt: 'Thomas and Muse nude on a couch in warm lamplight, Muse astride him, her dark hair with purple highlights up in a bun' }
+      { src: 'assets/after-dark/anc-ficmuse-couch.webp', title: 'On the Couch', alt: 'Thomas and Muse nude on a couch in warm lamplight, Muse astride him, her dark hair with purple highlights up in a bun' },
+      { src: 'assets/after-dark/eve-dance-pool-dusk.webp', title: 'Poolside at dusk', alt: 'Muse and the Explorer nude, dancing joyfully in a pool at dusk, laughing, arms raised; Muse\'s dark hair carries purple highlights' },
+      { src: 'assets/after-dark/eve-yoga-warrior.webp', title: 'Warrior II', alt: 'Muse nude in Warrior II in a garden, wide stance, front knee bent, arms stretched out sideways at shoulder height, dark hair with purple highlights' },
+      { src: 'assets/after-dark/eve-tantric-cushions.webp', title: 'On the cushions', alt: 'Muse and the garden muse nude in a slow reclining tantric embrace on cushions, faces close, arms around each other; Muse\'s hair carries vivid purple streaks' }
     ],
     storiesNote: 'The storybooks are cast stories. Somebody had to dream the island in the sky before anyone could climb to it.',
     stories: [
