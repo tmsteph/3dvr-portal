@@ -273,7 +273,12 @@ export const characters = [
       { src: 'assets/after-dark/eve-dance-courtyard.webp', title: 'Courtyard dance, with Kayla', alt: '3DVR Girl and Kayla nude, dancing joyfully in a sunlit courtyard, laughing, arms raised' },
       { src: 'assets/after-dark/eve-dance-festival.webp', title: 'Festival dance', alt: '3DVR Girl, Kayla and the garden muse nude, dancing joyfully in a festival clearing, laughing, arms raised' },
       { src: 'assets/after-dark/eve-yoga-tree.webp', title: 'Tree pose', alt: '3DVR Girl nude in tree pose in a garden, standing on one leg on a blue mat, arms raised above her head, palms together' },
-      { src: 'assets/after-dark/eve-tantric-embrace.webp', title: 'Tantric embrace', alt: '3DVR Girl and Kayla nude in a slow seated tantric embrace, face to face, foreheads close, eyes closed, arms around each other' }
+      { src: 'assets/after-dark/eve-tantric-embrace.webp', title: 'Tantric embrace', alt: '3DVR Girl and Kayla nude in a slow seated tantric embrace, face to face, foreheads close, eyes closed, arms around each other' },
+      { src: 'assets/after-dark/fst-topless-dusk.webp', title: 'Tops off at dusk, with Kayla', alt: '3DVR Girl and Kayla topless in denim shorts and flower crowns, laughing together at a festival at dusk, string lights and crowd behind them' },
+      { src: 'assets/after-dark/fst-clearing-trio.webp', title: 'Nude in the clearing', alt: 'The garden muse, the Explorer and 3DVR Girl nude together in a festival clearing, flower crowns, arms around each other, tents and string lights at dusk' },
+      { src: 'assets/after-dark/fst-mixed-undress.webp', title: 'Mixed undress, one short of five', alt: 'Four women at a festival in mixed states of undress: the Explorer and 3DVR Girl nude, Kayla topless in denim shorts, and a second 3DVR Girl nude beside her, flower crowns, tents and string lights' },
+      { src: 'assets/after-dark/fst-blanket-tangle.webp', title: 'Tangled on the blankets', alt: 'Muse, her hair vivid purple, kissing Kayla in a tangled group on festival blankets, 3DVR Girl crowned with flowers leaning over them, more figures resting on blankets behind' },
+      { src: 'assets/after-dark/fst-blanket-wide.webp', title: 'Tangled on the blanket', alt: 'The garden muse, Kayla, the Explorer and 3DVR Girl nude, tangled together kissing on a striped festival blanket, flower crowns, tents and string lights behind them' }
     ],
     storiesNote: 'Three adventures so far: a door in the cliff, a keeper\u2019s secret, and an island in the sky. She shares these stories with the rest of the cast.',
     stories: [
@@ -455,7 +460,11 @@ export const characters = [
       { src: 'assets/after-dark/eve-dance-festival.webp', title: 'Festival dance', alt: '3DVR Girl, Kayla and the garden muse nude, dancing joyfully in a festival clearing, laughing, arms raised' },
       { src: 'assets/after-dark/eve-yoga-lotus.webp', title: 'Lotus', alt: 'Kayla nude, sitting in lotus pose in a bright studio, eyes closed, hands resting on her knees' },
       { src: 'assets/after-dark/eve-tantric-embrace.webp', title: 'Tantric embrace', alt: '3DVR Girl and Kayla nude in a slow seated tantric embrace, face to face, foreheads close, eyes closed, arms around each other' },
-      { src: 'assets/after-dark/eve-tantric-foreheads.webp', title: 'Foreheads close', alt: 'Kayla and the Explorer nude in a slow seated tantric embrace, foreheads close, arms around each other' }
+      { src: 'assets/after-dark/eve-tantric-foreheads.webp', title: 'Foreheads close', alt: 'Kayla and the Explorer nude in a slow seated tantric embrace, foreheads close, arms around each other' },
+      { src: 'assets/after-dark/fst-topless-dusk.webp', title: 'Tops off at dusk, with 3DVR Girl', alt: '3DVR Girl and Kayla topless in denim shorts and flower crowns, laughing together at a festival at dusk, string lights and crowd behind them' },
+      { src: 'assets/after-dark/fst-mixed-undress.webp', title: 'Mixed undress, one short of five', alt: 'Four women at a festival in mixed states of undress: the Explorer and 3DVR Girl nude, Kayla topless in denim shorts, and a second 3DVR Girl nude beside her, flower crowns, tents and string lights' },
+      { src: 'assets/after-dark/fst-blanket-tangle.webp', title: 'Tangled on the blankets', alt: 'Muse, her hair vivid purple, kissing Kayla in a tangled group on festival blankets, 3DVR Girl crowned with flowers leaning over them, more figures resting on blankets behind' },
+      { src: 'assets/after-dark/fst-blanket-wide.webp', title: 'Tangled on the blanket', alt: 'The garden muse, Kayla, the Explorer and 3DVR Girl nude, tangled together kissing on a striped festival blanket, flower crowns, tents and string lights behind them' }
     ],
     storiesNote: 'The storybooks are cast stories. The woods run through all three, and Kayla is the reason the group keeps finding its way home.',
     stories: [
@@ -595,7 +604,9 @@ export const characters = [
       { src: 'assets/after-dark/anc-garden-lavender-solo.webp', title: 'Lavender Solo', alt: 'The garden muse nude, kneeling on a blanket among lavender rows at golden hour, freckles across her cheeks, purple woven bracelets' },
       { src: 'assets/after-dark/eve-dance-festival.webp', title: 'Festival dance', alt: '3DVR Girl, Kayla and the garden muse nude, dancing joyfully in a festival clearing, laughing, arms raised' },
       { src: 'assets/after-dark/eve-yoga-partner.webp', title: 'Partner stretch', alt: 'The garden muse and the Explorer nude in a paired partner stretch in a garden, kneeling facing each other, holding hands' },
-      { src: 'assets/after-dark/eve-tantric-cushions.webp', title: 'On the cushions', alt: 'Muse and the garden muse nude in a slow reclining tantric embrace on cushions, faces close, arms around each other; Muse\'s hair carries vivid purple streaks' }
+      { src: 'assets/after-dark/eve-tantric-cushions.webp', title: 'On the cushions', alt: 'Muse and the garden muse nude in a slow reclining tantric embrace on cushions, faces close, arms around each other; Muse\'s hair carries vivid purple streaks' },
+      { src: 'assets/after-dark/fst-clearing-trio.webp', title: 'Nude in the clearing', alt: 'The garden muse, the Explorer and 3DVR Girl nude together in a festival clearing, flower crowns, arms around each other, tents and string lights at dusk' },
+      { src: 'assets/after-dark/fst-blanket-wide.webp', title: 'Tangled on the blanket', alt: 'The garden muse, Kayla, the Explorer and 3DVR Girl nude, tangled together kissing on a striped festival blanket, flower crowns, tents and string lights behind them' }
     ],
     storiesNote: 'The storybooks are cast stories. She is at the heart of the first two: the key found in the lavender, and the key handed over at dusk.',
     stories: [
@@ -730,7 +741,10 @@ export const characters = [
       { src: 'assets/after-dark/eve-dance-pool-dusk.webp', title: 'Poolside at dusk', alt: 'Muse and the Explorer nude, dancing joyfully in a pool at dusk, laughing, arms raised; Muse\'s dark hair carries purple highlights' },
       { src: 'assets/after-dark/eve-dance-lavender.webp', title: 'Lavender field', alt: 'The Explorer nude, dancing joyfully alone in a lavender field at golden hour, laughing, one arm raised' },
       { src: 'assets/after-dark/eve-yoga-partner.webp', title: 'Partner stretch', alt: 'The garden muse and the Explorer nude in a paired partner stretch in a garden, kneeling facing each other, holding hands' },
-      { src: 'assets/after-dark/eve-tantric-foreheads.webp', title: 'Foreheads close', alt: 'Kayla and the Explorer nude in a slow seated tantric embrace, foreheads close, arms around each other' }
+      { src: 'assets/after-dark/eve-tantric-foreheads.webp', title: 'Foreheads close', alt: 'Kayla and the Explorer nude in a slow seated tantric embrace, foreheads close, arms around each other' },
+      { src: 'assets/after-dark/fst-clearing-trio.webp', title: 'Nude in the clearing', alt: 'The garden muse, the Explorer and 3DVR Girl nude together in a festival clearing, flower crowns, arms around each other, tents and string lights at dusk' },
+      { src: 'assets/after-dark/fst-mixed-undress.webp', title: 'Mixed undress, one short of five', alt: 'Four women at a festival in mixed states of undress: the Explorer and 3DVR Girl nude, Kayla topless in denim shorts, and a second 3DVR Girl nude beside her, flower crowns, tents and string lights' },
+      { src: 'assets/after-dark/fst-blanket-wide.webp', title: 'Tangled on the blanket', alt: 'The garden muse, Kayla, the Explorer and 3DVR Girl nude, tangled together kissing on a striped festival blanket, flower crowns, tents and string lights behind them' }
     ],
     storiesNote: 'The storybooks are cast stories, and the first one turns on a door at the end of the garden — the kind of door her key looks made for.',
     stories: [
@@ -850,7 +864,8 @@ export const characters = [
       { src: 'assets/after-dark/anc-ficmuse-couch.webp', title: 'On the Couch', alt: 'Thomas and Muse nude on a couch in warm lamplight, Muse astride him, her dark hair with purple highlights up in a bun' },
       { src: 'assets/after-dark/eve-dance-pool-dusk.webp', title: 'Poolside at dusk', alt: 'Muse and the Explorer nude, dancing joyfully in a pool at dusk, laughing, arms raised; Muse\'s dark hair carries purple highlights' },
       { src: 'assets/after-dark/eve-yoga-warrior.webp', title: 'Warrior II', alt: 'Muse nude in Warrior II in a garden, wide stance, front knee bent, arms stretched out sideways at shoulder height, dark hair with purple highlights' },
-      { src: 'assets/after-dark/eve-tantric-cushions.webp', title: 'On the cushions', alt: 'Muse and the garden muse nude in a slow reclining tantric embrace on cushions, faces close, arms around each other; Muse\'s hair carries vivid purple streaks' }
+      { src: 'assets/after-dark/eve-tantric-cushions.webp', title: 'On the cushions', alt: 'Muse and the garden muse nude in a slow reclining tantric embrace on cushions, faces close, arms around each other; Muse\'s hair carries vivid purple streaks' },
+      { src: 'assets/after-dark/fst-blanket-tangle.webp', title: 'Tangled on the blankets', alt: 'Muse, her hair vivid purple, kissing Kayla in a tangled group on festival blankets, 3DVR Girl crowned with flowers leaning over them, more figures resting on blankets behind' }
     ],
     storiesNote: 'The storybooks are cast stories. Somebody had to dream the island in the sky before anyone could climb to it.',
     stories: [
