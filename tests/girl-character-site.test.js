@@ -187,6 +187,22 @@ test('galleries reveal by scrolling: no show-more buttons remain', async () => {
   }
 });
 
+test('phone top nav stays one scrollable line: no destination hidden, no mid-phrase wrap', async () => {
+  const css = await read('3dvr-girl/styles.css');
+  // The old phone rule hid three destinations (Worlds, Carousel, Woods)
+  // and the rest wrapped mid-phrase and bled off the right edge. The nav
+  // must keep every destination and scroll sideways on one line instead,
+  // the same pattern the cast strip below it uses.
+  assert.equal(/topbar__nav a:(first-child|nth-child)/.test(css), false,
+    'phone nav must not hide any destination');
+  assert.match(css, /\.topbar__nav \{[^}]*overflow-x: auto[^}]*white-space: nowrap/,
+    'phone nav must be a single-line sideways-scrolling row');
+  assert.match(css, /\.topbar__nav::-webkit-scrollbar \{ display: none; \}/,
+    'phone nav hides its scrollbar like the cast strip does');
+  assert.match(css, /\.topbar__nav a \{[^}]*flex: none/,
+    'phone nav links must not be squeezed into wrapping');
+});
+
 test('After Dark is organized by who and by set, derived from the batches', async () => {
   const [html, gallery] = await Promise.all([
     read('3dvr-girl/index.html'),
