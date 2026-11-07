@@ -4,14 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
   <meta name="theme-color" content="#101819">
+  <link rel="manifest" href="/helm/helm.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/helm-192.png">
+  <link rel="apple-touch-icon" href="/icons/helm-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Helm">
   <title>Helm · 3DVR</title>
   <link rel="stylesheet" href="styles.css">
-  <style>#engine { width:100%; min-height:42px; margin:8px 0; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; } #engine-note { font-size:12px; line-height:1.5; color:var(--muted); }</style>
+  <style>#engine { width:100%; min-height:42px; margin:8px 0; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; } #engine-note { font-size:12px; line-height:1.5; color:var(--muted); } #helm-install-help { max-width:min(92vw,26rem); border:1px solid var(--line); border-radius:12px; background:var(--panel); color:var(--text); padding:20px; line-height:1.5; } #helm-install-help::backdrop { background:rgba(0,0,0,.55); } .helm-install-entry { padding:10px 16px 0; } .helm-install-entry[hidden] { display:none; } </style>
   <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script defer src="/gun-init.js"></script>
   <script defer src="/auth-identity.js"></script>
   <script type="module" src="app.js"></script>
+  <script defer src="install.js"></script>
 </head>
 <body>
   <div class="workspace">
@@ -29,6 +35,7 @@
     </aside>
     <main>
       <header><a id="account" class="account" href="/auth/sign-in.html?returnTo=%2Fhelm%2F" aria-label="Account status">Sign in</a><div class="agent-title"><span class="eyebrow">HELM</span><h1>Agent chat <span class="badge">Private · tmsteph</span> <span class="badge">Agent test ✓</span></h1></div><button id="show-history" class="quiet" type="button" aria-expanded="false" aria-controls="history">History</button><button id="new-chat" class="quiet" type="button">＋ New chat</button></header>
+      <div class="helm-install-entry"><button id="helm-install" type="button">Install Helm</button></div>
       <aside id="history" hidden aria-label="Message history"><h2>Message history</h2><p>Expired and uncertain messages stay here. Use as new message only prepares a new draft.</p><div id="history-list"></div></aside>
       <div class="content">
         <section class="conversation" aria-label="Agent conversation">
@@ -42,5 +49,14 @@
       </div>
     </main>
   </div>
+  <dialog id="helm-install-help" aria-labelledby="helm-install-title">
+    <h2 id="helm-install-title">Install Helm</h2>
+    <p>On Android in Brave or Chrome, open the browser’s <strong>⋮ menu</strong> and choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>
+    <p>On iPhone or iPad, open this page in Safari, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</p>
+    <p>On desktop in Chrome or Edge, use the install icon in the address bar or the browser’s app menu.</p>
+    <p>If your browser only offers a shortcut, try Chrome for app installation.</p>
+    <p>Prefer Helm on its own home? <a href="https://helm.3dvr.tech/">Open Helm at helm.3dvr.tech</a> — the same app, with its own sign-in and storage on that site.</p>
+    <form method="dialog"><button type="submit">Got it</button></form>
+  </dialog>
 </body>
 </html>

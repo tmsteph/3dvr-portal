@@ -33,16 +33,18 @@ test('Operator installs as a distinct app and references available public assets
   assert.equal(manifest.start_url, '/operator/');
   assert.equal(manifest.scope, '/operator/');
   assert.equal(manifest.display, 'standalone');
-  assert.equal(manifest.name, 'Helm');
-  assert.equal(manifest.short_name, 'Helm');
+  assert.equal(manifest.name, '3DVR Operator');
+  assert.equal(manifest.short_name, 'Operator');
   assert.deepEqual(
     manifest.icons.map((icon) => icon.src),
-    ['/icons/helm-192.png', '/icons/helm-512.png', '/icons/helm-maskable-512.png']
+    ['/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png']
   );
   for (const icon of manifest.icons) await readFile(new URL(`.${icon.src}`, root));
   const html = await readFile(new URL('operator/index.html', root), 'utf8');
   assert.ok(html.includes('href="/operator/operator.webmanifest"'));
   assert.ok(html.includes('id="operator-install"'));
+  assert.ok(html.includes('>Install Operator</button>'));
+  assert.ok(!html.includes('Install Helm'));
   assert.ok(html.includes('src="/operator/install.js"'));
   const installer = await readFile(new URL('operator/install.js', root), 'utf8');
   assert.ok(installer.includes("register('/operator/service-worker.js', { scope: '/operator/' })"));
