@@ -1,8 +1,8 @@
 {
   "id": "/operator/",
-  "name": "3DVR Operator",
-  "short_name": "Operator",
-  "description": "Your everyday workspace for conversations, tools, and server-run tasks.",
+  "name": "Helm",
+  "short_name": "Helm",
+  "description": "Helm — your everyday workspace for conversations, tools, and server-run tasks.",
   "start_url": "/operator/",
   "scope": "/operator/",
   "display": "standalone",
@@ -10,20 +10,20 @@
   "theme_color": "#07101c",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
       "sizes": "192x192",
+      "src": "/icons/helm-192.png",
       "type": "image/png"
     },
     {
-      "src": "/icons/icon-512.png",
       "sizes": "512x512",
+      "src": "/icons/helm-512.png",
       "type": "image/png"
     },
     {
-      "src": "/icons/maskable-512.png",
+      "purpose": "maskable",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "src": "/icons/helm-maskable-512.png",
+      "type": "image/png"
     }
   ]
 }

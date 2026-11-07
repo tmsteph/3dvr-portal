@@ -51,9 +51,16 @@ const STATIC_ASSETS = [
   '/app-manifests/notes.webmanifest',
   '/app-manifests/calendar.webmanifest',
   '/app-manifests/contacts.webmanifest',
+  '/app-manifests/3dvr-girl.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/icons/maskable-512.png'
+  '/icons/maskable-512.png',
+  '/icons/helm-192.png',
+  '/icons/helm-512.png',
+  '/icons/helm-maskable-512.png',
+  '/icons/3dvr-girl-192.png',
+  '/icons/3dvr-girl-512.png',
+  '/icons/3dvr-girl-maskable-512.png'
 ];
 
 const createReloadedRequests = (assets) =>
