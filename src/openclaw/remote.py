@@ -1,6 +1,7 @@
 """Fixed owner bridge, invoked over SSH; never returns gateway credentials."""
 import base64
 import fcntl
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -58,7 +59,18 @@ def main():
                 'chatEnabled': bool(enabled), 'host': 'Hetzner', 'profile': 'cloud'}
     if not enabled:
         return {'ok': False, 'error': 'OpenClaw HTTP chat is not enabled yet.'}
-    lock = open('/root/.openclaw-cloud/helm-chat.lock', 'a')
+    # Queued requests (the handler's server-side queue dispatched this
+    # turn, so per-session order is already guaranteed there) take a
+    # per-session lock: the lock guards the invariant it actually
+    # protects, one turn per session at the gateway, instead of
+    # re-serializing every session behind one global lock. Requests
+    # without the marker keep the legacy global lock, unchanged.
+    queued = bool(request.get('queued'))
+    if queued:
+        digest = hashlib.sha256(request['session'].encode()).hexdigest()[:16]
+        lock = open('/root/.openclaw-cloud/helm-chat-' + digest + '.lock', 'a')
+    else:
+        lock = open('/root/.openclaw-cloud/helm-chat.lock', 'a')
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -77,7 +89,11 @@ def main():
                        'messages': messages}).encode()
     headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token}
     req = urllib.request.Request(base + '/v1/chat/completions', data=body, headers=headers)
-    with urllib.request.urlopen(req, timeout=85) as response:
+    # A queued turn's budget sits above the gateway's own 180 s agent
+    # timeout, so the bridge never abandons a turn the gateway is still
+    # working on (the old 85 s is where "delivery is uncertain" came
+    # from). Unqueued requests keep the legacy 85 s.
+    with urllib.request.urlopen(req, timeout=200 if queued else 85) as response:
         if request.get('stream'):
             reply = read_stream(response, lambda text: print(
                 json.dumps({'type': 'delta', 'text': text}), flush=True))
