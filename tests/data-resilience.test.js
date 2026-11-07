@@ -29,7 +29,7 @@ describe('3DVR data resilience', () => {
     const gunService = await text('ops/systemd/3dvr-gun-snapshot.service');
     assert.match(pgTimer, /Persistent=true/);
     assert.match(gunTimer, /Persistent=true/);
-    assert.match(gunService, /gun-relay-3dvr\.fly\.dev/);
+    assert.match(gunService, /portal\.3dvr\.tech\/gun-relay/);
     assert.match(gunService, /backup-known-roots\.mjs/);
     assert.match(gunService, /GUN_BACKUP_OUT_DIR=\/var\/backups\/3dvr\/gun-snapshots/);
   });

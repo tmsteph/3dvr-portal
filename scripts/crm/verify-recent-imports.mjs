@@ -1,6 +1,6 @@
 import Gun from 'gun';
 
-const peer = process.env.THREEDVR_GUN_RELAY || 'https://gun-relay-3dvr.fly.dev/gun';
+const peer = process.env.THREEDVR_GUN_RELAY || 'https://portal.3dvr.tech/gun-relay';
 const expected = Number(process.env.EXPECTED_IMPORT_COUNT || 15);
 const recentWindowMs = Number(process.env.RECENT_WINDOW_MS || 2 * 60 * 60 * 1000);
 const collectMs = Number(process.env.COLLECT_MS || 9000);
