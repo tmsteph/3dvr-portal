@@ -1064,19 +1064,44 @@ main section[id] {
     padding: 10px 14px;
   }
 
-  .topbar__nav {
-    gap: 11px;
-    font-size: 0.76rem;
+  /* Phone: the brand keeps its corner and the nav becomes one
+     sideways-scrolling line, the same pattern the cast strip below
+     it (and the character pages) already use. Nothing wraps
+     mid-phrase, and no destination is hidden or cut off. */
+  .topbar__row {
+    gap: 14px;
   }
 
-  .topbar__nav a:first-child,
-  .topbar__nav a:nth-child(3),
-  .topbar__nav a:nth-child(4) {
-    display: none;
+  .brand {
+    flex: none;
+  }
+
+  .topbar__nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 11px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px 0;
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
+
+  .topbar__nav::-webkit-scrollbar { display: none; }
+
+  .topbar__nav a {
+    flex: none;
   }
 
   .topbar__portal {
     padding: 6px 9px;
+  }
+
+  /* In the scrolling cast strip the key link rides at the end of the
+     row: the auto margin that right-aligns it on wide screens can
+     push the strip's start out of reach in some phone browsers. */
+  .cast-strip__key {
+    margin-left: 0;
   }
 
   .hero__content,
