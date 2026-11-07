@@ -18,6 +18,12 @@
 // not clearly her stay out). The character page renders that list locked
 // behind the paywall in character/access.js; the public `gallery` list
 // stays SFW, always.
+//
+// Between the two sits `goldenHour`: the in-between shelf from the world
+// page — sexier than the scene archive, dressed enough for daylight, and
+// fully public. Same attribution rule: a frame (or clip, marked with
+// `video: true` and a `poster` still) is listed for every character it
+// clearly shows.
 
 export const characters = [
   {
@@ -159,6 +165,47 @@ export const characters = [
         title: 'Root Network',
         alt: '3DVR Girl and Kayla standing together on a wooded trail',
         copy: 'The first Woods Chapter frame: 3DVR Girl and Kayla beyond the last mapped node.'
+      }
+    ],
+    goldenHour: [
+      {
+        src: 'assets/golden-hour/duo-pool-swimsuits.webp',
+        mode: 'Water',
+        title: 'Pool rules',
+        alt: '3DVR Girl in a turquoise cutout swimsuit and Kayla in a black bikini laughing beside a sunlit pool',
+        copy: 'Turquoise cutouts, black bikini, and no plans until the light goes.'
+      },
+      {
+        src: 'assets/golden-hour/trio-linen-sundresses.webp',
+        mode: 'Sun',
+        title: 'Courtyard lemonade',
+        alt: '3DVR Girl, the garden muse, and the Explorer in linen sundresses laughing in a sunny courtyard',
+        copy: 'Three sundresses and a round of lemonade: golden hour in the courtyard.'
+      },
+      {
+        src: 'assets/golden-hour/solo-lavender-dress.webp',
+        mode: 'Sun',
+        title: 'Lavender twirl',
+        alt: '3DVR Girl twirling in a white linen sundress in a lavender field at golden hour',
+        copy: 'A white linen sundress, a lavender field, and one good spin.'
+      },
+      {
+        src: 'assets/golden-hour/video-pool-duo.mp4',
+        poster: 'assets/golden-hour/duo-pool-swimsuits.webp',
+        video: true,
+        mode: 'Water',
+        title: 'Pool rules, in motion',
+        alt: '3DVR Girl and Kayla laughing and splashing at the pool',
+        copy: 'The pool frame, moving: same laugh, with splashes.'
+      },
+      {
+        src: 'assets/golden-hour/video-sundress-trio.mp4',
+        poster: 'assets/golden-hour/trio-linen-sundresses.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Courtyard lemonade, in motion',
+        alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard',
+        copy: 'The courtyard frame, moving: lemonade up, everyone mid-laugh.'
       }
     ],
     afterDark: [
@@ -330,6 +377,31 @@ export const characters = [
         copy: 'The first Woods Chapter frame: 3DVR Girl and Kayla beyond the last mapped node.'
       }
     ],
+    goldenHour: [
+      {
+        src: 'assets/golden-hour/duo-pool-swimsuits.webp',
+        mode: 'Water',
+        title: 'Pool rules',
+        alt: '3DVR Girl in a turquoise cutout swimsuit and Kayla in a black bikini laughing beside a sunlit pool',
+        copy: 'Turquoise cutouts, black bikini, and no plans until the light goes.'
+      },
+      {
+        src: 'assets/golden-hour/duo-yoga-linen.webp',
+        mode: 'Movement',
+        title: 'Linen practice',
+        alt: 'Kayla and Muse in linen two-piece workout sets stretching on mats in a garden',
+        copy: 'Kayla and Muse take the practice outside: linen sets, bare feet, and mats on the grass.'
+      },
+      {
+        src: 'assets/golden-hour/video-pool-duo.mp4',
+        poster: 'assets/golden-hour/duo-pool-swimsuits.webp',
+        video: true,
+        mode: 'Water',
+        title: 'Pool rules, in motion',
+        alt: '3DVR Girl and Kayla laughing and splashing at the pool',
+        copy: 'The pool frame, moving: same laugh, with splashes.'
+      }
+    ],
     afterDark: [
       { src: 'assets/after-dark/kayla-forest-1.webp', title: 'Forest clearing', alt: 'Kayla nude in a sunlit forest clearing' },
       { src: 'assets/after-dark/kayla-forest-2.webp', title: 'Edge of the woods', alt: 'Kayla nude in tall grass at the edge of the woods' },
@@ -460,6 +532,24 @@ export const characters = [
         copy: 'The garden at full bloom, and her in the middle of it.'
       }
     ],
+    goldenHour: [
+      {
+        src: 'assets/golden-hour/trio-linen-sundresses.webp',
+        mode: 'Sun',
+        title: 'Courtyard lemonade',
+        alt: '3DVR Girl, the garden muse, and the Explorer in linen sundresses laughing in a sunny courtyard',
+        copy: 'Three sundresses and a round of lemonade: golden hour in the courtyard.'
+      },
+      {
+        src: 'assets/golden-hour/video-sundress-trio.mp4',
+        poster: 'assets/golden-hour/trio-linen-sundresses.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Courtyard lemonade, in motion',
+        alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard',
+        copy: 'The courtyard frame, moving: lemonade up, everyone mid-laugh.'
+      }
+    ],
     afterDark: [
       { src: 'assets/after-dark/brunette-jasmine.webp', title: 'Jasmine cliffs', alt: 'The garden muse nude among jasmine on coastal cliffs' },
       { src: 'assets/after-dark/brunette-hammock.webp', title: 'Hammock hour', alt: 'The garden muse reclining nude in a hammock above the cliffs' },
@@ -569,6 +659,31 @@ export const characters = [
         copy: 'Everyone in one frame: the whole crew on one picnic blanket, laughing above the cliffs at golden hour.'
       }
     ],
+    goldenHour: [
+      {
+        src: 'assets/golden-hour/trio-linen-sundresses.webp',
+        mode: 'Sun',
+        title: 'Courtyard lemonade',
+        alt: '3DVR Girl, the garden muse, and the Explorer in linen sundresses laughing in a sunny courtyard',
+        copy: 'Three sundresses and a round of lemonade: golden hour in the courtyard.'
+      },
+      {
+        src: 'assets/golden-hour/duo-beach-dresses.webp',
+        mode: 'Sun',
+        title: 'Shoreline hour',
+        alt: 'Muse and the Explorer in summer dresses walking a beach at golden hour',
+        copy: 'Muse and the Explorer walk the shoreline while the light does the work.'
+      },
+      {
+        src: 'assets/golden-hour/video-sundress-trio.mp4',
+        poster: 'assets/golden-hour/trio-linen-sundresses.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Courtyard lemonade, in motion',
+        alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard',
+        copy: 'The courtyard frame, moving: lemonade up, everyone mid-laugh.'
+      }
+    ],
     afterDark: [
       { src: 'assets/after-dark/asian-portrait.webp', title: 'Golden hour study', alt: 'The Explorer in golden light on the coast' },
       { src: 'assets/after-dark/asian-cliffs.webp', title: 'Cliff light', alt: 'The Explorer nude on coastal cliffs at sunset' },
@@ -663,6 +778,22 @@ export const characters = [
         title: 'Dusk sketchbook',
         alt: 'Muse with dark hair and purple streaks in messy buns and an oversized dark top, sketching in the garden at dusk',
         copy: 'Dusk in the garden: Muse mid sketch, halfway between the day she had and the one she is drawing.'
+      }
+    ],
+    goldenHour: [
+      {
+        src: 'assets/golden-hour/duo-yoga-linen.webp',
+        mode: 'Movement',
+        title: 'Linen practice',
+        alt: 'Kayla and Muse in linen two-piece workout sets stretching on mats in a garden',
+        copy: 'Kayla and Muse take the practice outside: linen sets, bare feet, and mats on the grass.'
+      },
+      {
+        src: 'assets/golden-hour/duo-beach-dresses.webp',
+        mode: 'Sun',
+        title: 'Shoreline hour',
+        alt: 'Muse and the Explorer in summer dresses walking a beach at golden hour',
+        copy: 'Muse and the Explorer walk the shoreline while the light does the work.'
       }
     ],
     afterDark: [

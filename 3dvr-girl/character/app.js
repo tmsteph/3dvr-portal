@@ -210,6 +210,74 @@ galleryCards.forEach(card => {
 });
 paginate($('galleryGrid'), galleryCards, 8);
 
+/* ---------- Golden hour: her in-between shelf. Public like her scenes
+   (no lock, no blur), sexier than them. Photos share the scene
+   lightbox; clips play in place, tap to play. ---------- */
+const goldenHourCards = (character.goldenHour || []).map(item => {
+  const caption = document.createElement('span');
+  caption.className = 'gallery-card__caption';
+  const mode = document.createElement('span');
+  mode.textContent = item.mode;
+  const strong = document.createElement('strong');
+  strong.textContent = item.title;
+  const copy = document.createElement('small');
+  copy.textContent = item.copy;
+  caption.append(mode, strong, copy);
+  if (item.video) {
+    const card = document.createElement('article');
+    card.className = 'gallery-card gallery-card--video';
+    const video = document.createElement('video');
+    video.src = asset(item.src);
+    video.poster = asset(item.poster);
+    video.controls = true;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = 'none';
+    video.setAttribute('aria-label', item.alt);
+    card.append(video, caption);
+    return card;
+  }
+  const link = document.createElement('a');
+  link.className = 'gallery-card';
+  link.href = asset(item.src);
+  link.rel = 'noopener';
+  const img = document.createElement('img');
+  img.src = asset(item.src);
+  img.alt = item.alt;
+  img.loading = 'lazy';
+  link.append(img, caption);
+  return link;
+});
+if (!goldenHourCards.length) {
+  document.querySelector('[data-tab-panel="goldenhour"]')?.remove();
+  document.querySelectorAll('[data-tab="goldenhour"]').forEach(link => link.remove());
+} else {
+  $('goldenHourGrid').replaceChildren(...goldenHourCards);
+  goldenHourCards.forEach(card => {
+    if (card.tagName !== 'A') return;
+    card.addEventListener('click', event => {
+      event.preventDefault();
+      const photos = goldenHourCards.filter(entry => entry.tagName === 'A');
+      const items = visibleItems(photos, link => {
+        const img = link.querySelector('img');
+        const mode = link.querySelector('.gallery-card__caption span')?.textContent || '';
+        const strong = link.querySelector('.gallery-card__caption strong')?.textContent || '';
+        const small = link.querySelector('.gallery-card__caption small')?.textContent || '';
+        return {
+          src: link.getAttribute('href'),
+          alt: img?.getAttribute('alt') || '',
+          label: [mode, strong].filter(Boolean).join(' · '),
+          copy: small
+        };
+      });
+      const visible = photos.filter(entry => !entry.hidden);
+      openLightbox(items, visible.indexOf(card));
+    });
+  });
+  paginate($('goldenHourGrid'), goldenHourCards, 8);
+}
+
 
 // After Dark: her private frames. The paywall decision lives in
 // access.js (resolveAfterDarkAccess); this only renders its answer.
@@ -334,6 +402,7 @@ $('chatMessage').placeholder = character.chat.placeholder;
 const TAB_BY_SECTION = {
   worlds: 'about',
   gallery: 'scenes',
+  'golden-hour': 'goldenhour',
   'after-dark': 'afterdark',
   stories: 'stories',
   chat: 'chat'
@@ -341,6 +410,7 @@ const TAB_BY_SECTION = {
 const SECTION_BY_TAB = {
   about: 'worlds',
   scenes: 'gallery',
+  goldenhour: 'golden-hour',
   afterdark: 'after-dark',
   stories: 'stories',
   chat: 'chat'

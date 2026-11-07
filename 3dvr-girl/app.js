@@ -489,6 +489,171 @@ if (sceneFilters) {
   setFilter('all');
 }
 
+/* ---------- Golden hour: the in-between shelf. Sexier than the scene
+   archive, dressed enough for daylight, and fully public: no lock, no
+   blur. Photos open in the shared viewer; the clips ride the same
+   living-card handling as the cast videos further down the page. The
+   shelf reveals in chunks, like the archive above it. ---------- */
+const goldenHour = [
+  {
+    kind: 'photo',
+    id: 'gh-pool-duo',
+    title: 'Pool rules',
+    mode: 'Water',
+    image: 'assets/golden-hour/duo-pool-swimsuits.webp',
+    alt: '3DVR Girl in a turquoise cutout swimsuit and Kayla in a black bikini laughing beside a sunlit pool',
+    copy: 'Turquoise cutouts, black bikini, and no plans until the light goes.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-yoga-linen',
+    title: 'Linen practice',
+    mode: 'Movement',
+    image: 'assets/golden-hour/duo-yoga-linen.webp',
+    alt: 'Kayla and Muse in linen two-piece workout sets stretching on mats in a garden',
+    copy: 'Kayla and Muse take the practice outside: linen sets, bare feet, and mats on the grass.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-courtyard-trio',
+    title: 'Courtyard lemonade',
+    mode: 'Sun',
+    image: 'assets/golden-hour/trio-linen-sundresses.webp',
+    alt: '3DVR Girl, the garden muse, and the Explorer in linen sundresses laughing in a sunny courtyard',
+    copy: 'Three sundresses and a round of lemonade: golden hour in the courtyard.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-beach-duo',
+    title: 'Shoreline hour',
+    mode: 'Sun',
+    image: 'assets/golden-hour/duo-beach-dresses.webp',
+    alt: 'Muse and the Explorer in summer dresses walking a beach at golden hour',
+    copy: 'Muse and the Explorer walk the shoreline while the light does the work.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-lavender-solo',
+    title: 'Lavender twirl',
+    mode: 'Sun',
+    image: 'assets/golden-hour/solo-lavender-dress.webp',
+    alt: '3DVR Girl twirling in a white linen sundress in a lavender field at golden hour',
+    copy: 'A white linen sundress, a lavender field, and one good spin.'
+  },
+  {
+    kind: 'video',
+    id: 'gh-pool-video',
+    title: 'Pool rules, in motion',
+    video: 'assets/golden-hour/video-pool-duo.mp4',
+    poster: 'assets/golden-hour/duo-pool-swimsuits.webp',
+    alt: '3DVR Girl and Kayla laughing and splashing at the pool'
+  },
+  {
+    kind: 'video',
+    id: 'gh-courtyard-video',
+    title: 'Courtyard lemonade, in motion',
+    video: 'assets/golden-hour/video-sundress-trio.mp4',
+    poster: 'assets/golden-hour/trio-linen-sundresses.webp',
+    alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard'
+  }
+];
+
+const goldenHourGrid = document.querySelector('#goldenHourGrid');
+const GOLDEN_HOUR_PAGE = 6;
+let goldenHourShown = GOLDEN_HOUR_PAGE;
+let goldenHourMoreRow = null;
+
+function createGoldenHourCard(item) {
+  if (item.kind === 'video') {
+    const card = document.createElement('article');
+    card.className = 'living-card';
+    card.dataset.goldenId = item.id;
+    const video = document.createElement('video');
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = 'none';
+    video.poster = item.poster;
+    video.setAttribute('aria-label', item.alt);
+    const source = document.createElement('source');
+    source.src = item.video;
+    source.type = 'video/mp4';
+    video.append(source);
+    const caption = document.createElement('span');
+    caption.className = 'living-card__caption';
+    const shelf = document.createElement('span');
+    shelf.textContent = 'Golden hour';
+    const title = document.createElement('strong');
+    title.textContent = item.title;
+    caption.append(shelf, title);
+    card.append(video, caption);
+    return card;
+  }
+  const button = document.createElement('button');
+  button.className = 'archive-card';
+  button.type = 'button';
+  button.dataset.goldenId = item.id;
+  button.setAttribute('aria-label', `Open ${item.title}`);
+  const image = document.createElement('img');
+  image.src = item.image;
+  image.alt = item.alt;
+  image.loading = 'lazy';
+  const caption = document.createElement('span');
+  caption.className = 'archive-card__caption';
+  const mode = document.createElement('span');
+  mode.textContent = item.mode;
+  const title = document.createElement('strong');
+  title.textContent = item.title;
+  caption.append(mode, title);
+  button.append(image, caption);
+  button.addEventListener('click', () => openGoldenHour(item));
+  return button;
+}
+
+function openGoldenHour(item) {
+  if (!window.PortalViewer) return;
+  const photos = goldenHour.filter(entry => entry.kind === 'photo');
+  const visible = photos.filter(entry => {
+    const card = goldenHourGrid?.querySelector(`[data-golden-id="${entry.id}"]`);
+    return !card || !card.hidden;
+  });
+  const list = visible.length ? visible : photos;
+  window.PortalViewer.open(list.map(entry => ({
+    src: entry.image,
+    alt: entry.alt,
+    label: `Golden hour \u00b7 ${entry.title}`,
+    copy: entry.copy
+  })), Math.max(0, list.indexOf(item)));
+}
+
+function applyGoldenHourVisibility() {
+  if (!goldenHourGrid) return;
+  const cards = [...goldenHourGrid.children];
+  cards.forEach((card, i) => { card.hidden = i >= goldenHourShown; });
+  if (goldenHourMoreRow) {
+    goldenHourMoreRow.hidden = cards.length <= goldenHourShown;
+    const button = goldenHourMoreRow.querySelector('button');
+    if (button) button.textContent = `Show more · ${cards.length - goldenHourShown} more`;
+  }
+}
+
+if (goldenHourGrid) {
+  goldenHour.forEach(item => goldenHourGrid.append(createGoldenHourCard(item)));
+  goldenHourMoreRow = document.createElement('div');
+  goldenHourMoreRow.className = 'show-more-row';
+  goldenHourMoreRow.hidden = true;
+  const goldenHourMoreButton = document.createElement('button');
+  goldenHourMoreButton.type = 'button';
+  goldenHourMoreButton.className = 'button';
+  goldenHourMoreButton.addEventListener('click', () => {
+    goldenHourShown += GOLDEN_HOUR_PAGE;
+    applyGoldenHourVisibility();
+  });
+  goldenHourMoreRow.append(goldenHourMoreButton);
+  goldenHourGrid.after(goldenHourMoreRow);
+  applyGoldenHourVisibility();
+}
+
 dialogClose?.addEventListener('click', () => sceneDialog?.close());
 sceneDialog?.addEventListener('click', event => {
   if (event.target === sceneDialog) sceneDialog.close();
