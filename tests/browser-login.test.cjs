@@ -38,6 +38,23 @@ test('Portal login matches the Bitwarden item even when its URI has no scheme', 
   assert.equal(scoreVaultItem(match, SITE_CONFIG.portal) >= 100, true);
 });
 
+test('4over login matches the mirrored 4over.com item by exact host', () => {
+  const index = {
+    items: [
+      { key: 'VAULT_ITEM__LOGIN__EXAMPLE__AAA', type: 'login', name: 'Example', uris: ['https://example.com/'] },
+      { key: 'VAULT_ITEM__LOGIN__4OVER_COM__BBB', type: 'login', name: '4over.com', uris: ['https://4over.com/'] },
+    ],
+  };
+  const match = chooseVaultItem(index, SITE_CONFIG['4over']);
+  assert.equal(match?.key, 'VAULT_ITEM__LOGIN__4OVER_COM__BBB');
+  assert.equal(scoreVaultItem(match, SITE_CONFIG['4over']) >= 100, true);
+});
+
+test('browser login command accepts the 4over site on the general lane', () => {
+  const cli = fs.readFileSync(path.join(root, 'scripts/ops/3dvr-browser-login.mjs'), 'utf8');
+  assert.match(cli, /'4over': 'general'/);
+});
+
 test('Lighthouse never reuses a provider password after the identity step', () => {
   const index = {
     items: [
@@ -92,12 +109,13 @@ test('browser login route is local-only and precedes bearer-authenticated broker
   assert.ok(browserRoute > 0);
   assert.ok(bearerAuth > browserRoute);
   assert.match(server, /LOCAL_BROWSER_AGENT/);
+  assert.match(server, /'site:4over'/);
   assert.match(server, /this server listens on a Unix socket/);
 });
 
 test('browser login is restricted to named sites and never returns credentials', () => {
   const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
-  assert.deepEqual(Object.keys(SITE_CONFIG).sort(), ['iatse', 'lighthouse', 'portal', 'ukg']);
+  assert.deepEqual(Object.keys(SITE_CONFIG).sort(), ['4over', 'iatse', 'lighthouse', 'portal', 'ukg']);
   assert.match(source, /unsupported_site/);
   assert.match(source, /never|credential/i);
   assert.doesNotMatch(source, /body:\s*\{[^}]*password\s*:/);
