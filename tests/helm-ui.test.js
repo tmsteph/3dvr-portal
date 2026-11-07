@@ -94,12 +94,42 @@ test('queued messages from an earlier conversation remain cancellable in history
   await ui.ready;
   await ui.submit('Do not lose my cancel button');
   ui.newChat();
-  const card = ui.element('history-list').children[0];
+  const card = ui.element('history-list').children.find(child => child?.children?.some(item => item?.textContent === 'Cancel'));
+  assert.ok(card);
   const cancel = card.children.find(child => child?.textContent === 'Cancel');
   assert.ok(cancel);
   cancel.events.click();
   await flush();
   assert.equal(ui.saved.at(-1).status, 'cancelled');
+});
+
+test('new chat closes the history panel and clears an unsent draft', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
+  await ui.ready;
+  ui.element('history').hidden = false;
+  ui.element('message').value = 'Unsent draft text';
+  ui.newChat();
+  assert.equal(ui.element('history').hidden, true);
+  assert.equal(ui.element('message').value, '');
+});
+
+test('history resume returns to the earlier conversation session', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
+  await ui.ready;
+  await ui.submit('First conversation message');
+  const firstChat = ui.requests.filter(item => item.action === 'chat').at(-1);
+  ui.newChat();
+  await ui.submit('Second conversation message');
+  const secondChat = ui.requests.filter(item => item.action === 'chat').at(-1);
+  assert.notEqual(firstChat.sessionId, secondChat.sessionId);
+  const resume = ui.element('history-list').children.find(child => child?.textContent === 'Resume this chat');
+  assert.ok(resume);
+  resume.events.click();
+  await flush(); await flush();
+  assert.equal(ui.element('history').hidden, true);
+  await ui.submit('Third conversation message');
+  const thirdChat = ui.requests.filter(item => item.action === 'chat').at(-1);
+  assert.equal(thirdChat.sessionId, firstChat.sessionId);
 });
 
 test('HTTP busy rejection stays retryable while unknown delivery stays uncertain', async () => {

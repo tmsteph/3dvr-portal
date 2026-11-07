@@ -224,12 +224,53 @@ function messageCard(record, history = false) {
   return article;
 }
 
+function resumeChat(resumeSessionId, resumeEngine) {
+  // Same state updates as an engine switch, except the session id is the
+  // resumed chat's own: its gateway session is keyed by that id, so the
+  // conversation's context follows it.
+  engine = resumeEngine;
+  globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
+  sessionId = resumeSessionId;
+  globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+  connected = false;
+  $('dot').classList.remove('connected');
+  showEngine();
+  renderMessages(); updateControls();
+  $('history').hidden = true;
+  $('show-history').setAttribute('aria-expanded', 'false');
+  $('activity').textContent = 'Conversation resumed. Its earlier messages are shown above.';
+  $('message').focus();
+  void checkConnection({ automatic: true });
+}
+
 function renderMessages() {
   const records = outbox.snapshot();
   const active = records.filter(record => record.sessionId === sessionId && (record.engine ?? 'openclaw') === engine && !['stale', 'uncertain', 'cancelled'].includes(record.status));
   $('messages').replaceChildren(...active.map(record => messageCard(record)));
   $('welcome').hidden = active.length > 0;
-  $('history-list').replaceChildren(...records.map(record => messageCard(record, true)));
+  // History groups records by conversation (session + engine). Every group
+  // other than the active one gets a Resume button: restoring its session id
+  // reopens that chat, because the gateway keys context by session id.
+  const groups = new Map();
+  for (const record of records) {
+    const groupEngine = record.engine ?? 'openclaw';
+    const key = `${record.sessionId}::${groupEngine}`;
+    if (!groups.has(key)) groups.set(key, { groupSessionId: record.sessionId, groupEngine, records: [] });
+    groups.get(key).records.push(record);
+  }
+  const historyNodes = [];
+  for (const group of groups.values()) {
+    if (group.groupSessionId !== sessionId || group.groupEngine !== engine) {
+      const resume = document.createElement('button');
+      resume.type = 'button';
+      resume.textContent = 'Resume this chat';
+      const { groupSessionId, groupEngine } = group;
+      resume.addEventListener('click', () => resumeChat(groupSessionId, groupEngine));
+      historyNodes.push(resume);
+    }
+    historyNodes.push(...group.records.map(record => messageCard(record, true)));
+  }
+  $('history-list').replaceChildren(...historyNodes);
   $('show-history').textContent = records.length ? `History (${records.length})` : 'History';
   const pending = records.filter(record => ['queued', 'deferred'].includes(record.status)).length;
   $('queue-summary').textContent = pending ? `${pending} queued · sends when ready · expires after 10 minutes` : '';
@@ -317,8 +358,12 @@ $('chat-form').addEventListener('submit', async event => {
 $('new-chat').addEventListener('click', () => {
   sessionId = crypto.randomUUID();
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+  $('history').hidden = true;
+  $('show-history').setAttribute('aria-expanded', 'false');
+  $('message').value = '';
   renderMessages();
   $('activity').textContent = 'New conversation. Saved messages remain in history.';
+  $('message').focus();
 });
 $('show-history').addEventListener('click', () => {
   $('history').hidden = !$('history').hidden;
