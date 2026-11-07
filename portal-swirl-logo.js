@@ -60,11 +60,6 @@
   const MAX_WOBBLE_Z = 0.11;
   const SPARK_BURST_MAX = 26;
   const SPARK_LIFETIME_MS = 800;
-  const REST_TILT_X = 0.34;
-  const REST_TILT_Y = -0.62;
-  const IDLE_SWAY_SPEED = 0.00055;
-  const IDLE_SWAY_X = 0.07;
-  const IDLE_SWAY_Y = 0.17;
   const ROOT_SELECTOR = '[data-portal-swirl-logo]';
   const CANVAS_SELECTOR = '[data-portal-swirl-canvas]';
 
@@ -394,17 +389,14 @@
       lastTapStimulatedAt: 0,
       holdPauseTimer: 0,
       lastTimestamp: 0,
-      idlePhase: 0,
-      idleX: 0,
-      idleY: 0,
       faceSpin: 0,
       extraFaceSpin: 0,
       pullWindupSpin: 0,
       targetX: 0,
       targetY: 0,
       targetZ: 0,
-      currentX: REST_TILT_X,
-      currentY: REST_TILT_Y,
+      currentX: 0,
+      currentY: 0,
       currentZ: 0,
       flipX: 0,
       flipY: 0,
@@ -878,9 +870,9 @@
       const centerY = height / 2;
       const size = Math.min(width, height);
       const radius = size * 0.42;
-      const surfaceY = state.currentY + state.idleY + state.flipY + state.wobbleY;
+      const surfaceY = state.currentY + state.flipY + state.wobbleY;
       const tiltScaleX = Math.max(0.2, Math.abs(Math.cos(surfaceY)) * 0.76 + 0.24);
-      const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.idleX + state.flipX + state.wobbleX) * 0.2 + 0.78);
+      const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.flipX + state.wobbleX) * 0.2 + 0.78);
 
       context.clearRect(0, 0, width, height);
       context.save();
@@ -965,8 +957,8 @@
     };
 
     const render = () => {
-      const rotationX = state.currentX + state.idleX + state.flipX + state.wobbleX;
-      const rotationY = state.currentY + state.idleY + state.flipY + state.wobbleY;
+      const rotationX = state.currentX + state.flipX + state.wobbleX;
+      const rotationY = state.currentY + state.flipY + state.wobbleY;
       const rotationZ = state.currentZ + state.wobbleZ;
 
       if (state.renderer && state.scene && state.camera && state.token) {
@@ -995,8 +987,8 @@
       const currentSettle = 1 - Math.pow(CURRENT_SETTLE_BASE, frames);
 
       if (!state.dragging) {
-        state.targetX = lerp(state.targetX, REST_TILT_X, targetSettle);
-        state.targetY = lerp(state.targetY, REST_TILT_Y, targetSettle);
+        state.targetX = lerp(state.targetX, 0, targetSettle);
+        state.targetY = lerp(state.targetY, 0, targetSettle);
         state.targetZ = lerp(state.targetZ, 0, targetSettle);
         state.pullWindupSpin = lerp(state.pullWindupSpin, 0, currentSettle);
         state.extraFaceSpin *= Math.pow(SPIN_DECAY, frames);
@@ -1033,10 +1025,6 @@
       const extraSpin = state.paused || state.dragging ? 0 : state.extraFaceSpin;
       const pullWindupSpin = state.dragging ? state.pullWindupSpin : 0;
       state.faceSpin += (baseSpin + extraSpin + pullWindupSpin) * spinElapsed;
-      state.idlePhase += rawElapsed;
-      const swayScale = reducedMotion ? 0 : 1;
-      state.idleX = Math.sin(state.idlePhase * IDLE_SWAY_SPEED * 0.77 + 1.2) * IDLE_SWAY_X * swayScale;
-      state.idleY = Math.sin(state.idlePhase * IDLE_SWAY_SPEED) * IDLE_SWAY_Y * swayScale;
       render();
     };
 
