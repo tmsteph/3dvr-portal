@@ -53,10 +53,13 @@ function makeOutbox() {
       busy = true;
       updateControls();
       const started = Date.now();
+      let queuePosition = null;
       liveReply = { id: record.id, text: '' };
       const showWaiting = () => {
         if (currentEpoch !== epoch) return;
-        const label = liveReply?.text ? 'Receiving agent reply' : 'Waiting for agent reply';
+        const label = liveReply?.text ? 'Receiving agent reply'
+          : queuePosition !== null ? (queuePosition > 0 ? `Queued · ${queuePosition} ahead` : 'Queued · next up')
+          : 'Waiting for agent reply';
         $('connection').textContent = label;
         $('activity').textContent = `${label} · ${Math.floor((Date.now() - started) / 1000)}s elapsed`;
       };
@@ -68,6 +71,10 @@ function makeOutbox() {
           liveReply.text += text;
           showWaiting();
           renderMessages();
+        }, position => {
+          if (currentEpoch !== epoch) return;
+          queuePosition = typeof position === 'number' ? position : null;
+          showWaiting();
         });
         if (currentEpoch === epoch) {
           $('connection').textContent = 'Agent replied';
@@ -118,23 +125,40 @@ function showAccount(identity) {
     account.title = signedIn ? 'Signed in · checking agent access automatically' : 'Sign in to use Helm';
   } catch { account.textContent = 'Sign in'; }
 }
-async function request(action, record, onDelta) {
+async function request(action, record, onDelta, onQueue) {
   const requestEpoch = epoch;
   const payload = record
     ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt, engine: record.engine ?? 'openclaw' }
     : { requestId: crypto.randomUUID(), sessionId, engine };
-  const proof = await createSignedPortalProof('openclaw-helm', action, payload);
-  if (requestEpoch !== epoch) throw new Error('Account changed.');
-  if (!proof) throw new Error('Sign in with your owner account, then retry.');
-  const response = await fetch('/api/openclaw', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', ...(onDelta ? { Accept: 'text/event-stream' } : {}) },
-    body: JSON.stringify({ ...payload, action, ...proof }),
-    signal: AbortSignal.timeout(110000)
-  });
-  const result = await readHelmResponse(response, text => {
-    if (requestEpoch === epoch) onDelta?.(text);
-  });
-  if (requestEpoch !== epoch) throw new Error('Account changed.');
+  // Server-side queue: a chat submit can answer 202 with a queue
+  // position instead of a result. Poll by resubmitting the identical
+  // signed payload (the receipt fingerprint makes each poll a safe
+  // replay of the same message, never a second send) with a fresh proof,
+  // because proofs age out after 120 s while a queue wait can run
+  // longer. A server without the queue never sends 202, so this loop is
+  // inert until the queue is enabled there.
+  let response;
+  let result;
+  for (;;) {
+    const proof = await createSignedPortalProof('openclaw-helm', action, payload);
+    if (requestEpoch !== epoch) throw new Error('Account changed.');
+    if (!proof) throw new Error('Sign in with your owner account, then retry.');
+    response = await fetch('/api/openclaw', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(onDelta ? { Accept: 'text/event-stream' } : {}) },
+      body: JSON.stringify({ ...payload, action, ...proof }),
+      signal: AbortSignal.timeout(110000)
+    });
+    result = await readHelmResponse(response, text => {
+      if (requestEpoch === epoch) onDelta?.(text);
+    });
+    if (requestEpoch !== epoch) throw new Error('Account changed.');
+    if (response.status !== 202 || !result?.queued) break;
+    onQueue?.(result.position);
+    if (record && Date.now() > record.expiresAt + 30000) {
+      throw new Error('The wait outlasted the message lifetime. Check History before sending again.');
+    }
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
   if (result.identity?.verified) showAccount(result.identity);
   if (response.status === 401) {
     verifiedAccount = false;
