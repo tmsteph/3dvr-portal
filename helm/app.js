@@ -6,8 +6,11 @@ const $ = id => document.getElementById(id);
 let sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
 let sessionId = globalThis.sessionStorage?.getItem(sessionKey) || crypto.randomUUID();
 globalThis.sessionStorage?.setItem(sessionKey, sessionId);
-const savedEngine = globalThis.sessionStorage?.getItem(`${sessionKey}.engine`);
-let engine = ['openclaw', 'codex', 'codex-backup'].includes(savedEngine) ? savedEngine : 'codex';
+// OpenClaw is the default engine: a fresh visit always starts on it, no
+// matter which engine an earlier chat used. The picker still switches the
+// engine for the current chat, and History resume restores that chat's own.
+let engine = 'openclaw';
+globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
 const engineNames = { openclaw: 'OpenClaw', codex: 'Codex', 'codex-backup': 'Codex backup' };
 let busy = false;
 let saving = false;
@@ -243,35 +246,89 @@ function resumeChat(resumeSessionId, resumeEngine) {
   void checkConnection({ automatic: true });
 }
 
+const expandedHistory = new Set();
+
+function previewText(text) {
+  const clean = String(text).replace(/\s+/g, ' ').trim();
+  return clean.length > 64 ? `${clean.slice(0, 61)}…` : clean;
+}
+
+function relativeTime(timestamp) {
+  const elapsed = Date.now() - timestamp;
+  if (elapsed < 45 * 1000) return 'just now';
+  const minutes = Math.round(elapsed / 60000);
+  if (minutes < 60) return `${Math.max(1, minutes)}m ago`;
+  const hours = Math.round(elapsed / 3600000);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(elapsed / 86400000);
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function historyRow(group) {
+  const isActive = group.groupSessionId === sessionId && group.groupEngine === engine;
+  const row = document.createElement('section');
+  row.className = isActive ? 'history-chat current' : 'history-chat';
+  const preview = document.createElement('p');
+  preview.className = 'history-preview';
+  preview.textContent = previewText(group.records[0].text);
+  const meta = document.createElement('small');
+  meta.className = 'history-meta';
+  meta.textContent = `${relativeTime(group.lastActivity)} · ${engineNames[group.groupEngine]}${isActive ? ' · Current conversation' : ''}`;
+  row.append(preview, meta);
+  const actions = document.createElement('div');
+  actions.className = 'history-actions';
+  const expanded = expandedHistory.has(group.key);
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.textContent = expanded ? 'Hide messages' : `Show messages (${group.records.length})`;
+  toggle.setAttribute('aria-expanded', String(expanded));
+  toggle.addEventListener('click', () => {
+    if (expandedHistory.has(group.key)) expandedHistory.delete(group.key);
+    else expandedHistory.add(group.key);
+    renderMessages();
+  });
+  actions.append(toggle);
+  if (!isActive) {
+    const resume = document.createElement('button');
+    resume.type = 'button';
+    resume.textContent = 'Resume this chat';
+    const { groupSessionId, groupEngine } = group;
+    resume.addEventListener('click', () => resumeChat(groupSessionId, groupEngine));
+    actions.append(resume);
+  }
+  row.append(actions);
+  if (expanded) {
+    const detail = document.createElement('div');
+    detail.className = 'history-detail';
+    detail.append(...group.records.map(record => messageCard(record, true)));
+    row.append(detail);
+  }
+  return row;
+}
+
 function renderMessages() {
   const records = outbox.snapshot();
   const active = records.filter(record => record.sessionId === sessionId && (record.engine ?? 'openclaw') === engine && !['stale', 'uncertain', 'cancelled'].includes(record.status));
   $('messages').replaceChildren(...active.map(record => messageCard(record)));
   $('welcome').hidden = active.length > 0;
-  // History groups records by conversation (session + engine). Every group
-  // other than the active one gets a Resume button: restoring its session id
-  // reopens that chat, because the gateway keys context by session id.
+  // History is a picker of conversations, not a second message log: one row
+  // per conversation (session + engine), newest activity at the top, each
+  // row labelled by its first message. Expanding a row shows its records
+  // with their actions; Resume restores its session id, and the gateway
+  // keys context by session id, so the conversation continues where it left.
   const groups = new Map();
   for (const record of records) {
     const groupEngine = record.engine ?? 'openclaw';
     const key = `${record.sessionId}::${groupEngine}`;
-    if (!groups.has(key)) groups.set(key, { groupSessionId: record.sessionId, groupEngine, records: [] });
+    if (!groups.has(key)) groups.set(key, { key, groupSessionId: record.sessionId, groupEngine, records: [] });
     groups.get(key).records.push(record);
   }
-  const historyNodes = [];
-  for (const group of groups.values()) {
-    if (group.groupSessionId !== sessionId || group.groupEngine !== engine) {
-      const resume = document.createElement('button');
-      resume.type = 'button';
-      resume.textContent = 'Resume this chat';
-      const { groupSessionId, groupEngine } = group;
-      resume.addEventListener('click', () => resumeChat(groupSessionId, groupEngine));
-      historyNodes.push(resume);
-    }
-    historyNodes.push(...group.records.map(record => messageCard(record, true)));
-  }
-  $('history-list').replaceChildren(...historyNodes);
-  $('show-history').textContent = records.length ? `History (${records.length})` : 'History';
+  const ordered = [...groups.values()]
+    .map(group => ({ ...group, lastActivity: Math.max(...group.records.map(record => record.updatedAt ?? record.createdAt)) }))
+    .sort((a, b) => b.lastActivity - a.lastActivity || a.key.localeCompare(b.key));
+  $('history-list').replaceChildren(...ordered.map(group => historyRow(group)));
+  $('show-history').textContent = ordered.length ? `History (${ordered.length})` : 'History';
   const pending = records.filter(record => ['queued', 'deferred'].includes(record.status)).length;
   $('queue-summary').textContent = pending ? `${pending} queued · sends when ready · expires after 10 minutes` : '';
 }
@@ -358,12 +415,22 @@ $('chat-form').addEventListener('submit', async event => {
 $('new-chat').addEventListener('click', () => {
   sessionId = crypto.randomUUID();
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+  // A new chat also returns to the default engine.
+  const engineChanged = engine !== 'openclaw';
+  engine = 'openclaw';
+  globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
+  if (engineChanged) {
+    connected = false;
+    $('dot').classList.remove('connected');
+    showEngine();
+  }
   $('history').hidden = true;
   $('show-history').setAttribute('aria-expanded', 'false');
   $('message').value = '';
   renderMessages();
   $('activity').textContent = 'New conversation. Saved messages remain in history.';
   $('message').focus();
+  if (engineChanged) void checkConnection({ automatic: true });
 });
 $('show-history').addEventListener('click', () => {
   $('history').hidden = !$('history').hidden;
@@ -377,7 +444,7 @@ window.addEventListener('storage', event => {
   epoch += 1;
   sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
   sessionId = crypto.randomUUID();
-  engine = 'codex';
+  engine = 'openclaw';
   globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
   showEngine();
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
