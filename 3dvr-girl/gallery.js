@@ -295,7 +295,7 @@
      frame belongs to (each card's data-set, derived from its batch:
      the eve- frames split into the evening's dancing, yoga, and
      tantric themes; srv- is the Nov 4 serverless batch; anc- the
-     Nov 5 anchored batch; fst- and fn- the Nov 6 festival batches; ang-, dev- and mix- the Nov 6 angels, devils and mixes batches; the rest
+     Nov 5 anchored batch; fst- and fn- the Nov 6 festival batches; ang-, dev- and mix- the Nov 6 angels, devils and mixes batches; mrt- the Nov 7 Martha rig test; the rest
      follow their recorded tags). */
   const AD_FILTERS = [
     ['all', 'All'],
@@ -303,7 +303,8 @@
     ['kayla', 'Kayla'],
     ['garden', 'Garden muse'],
     ['explorer', 'Explorer'],
-    ['muse', 'Muse']
+    ['muse', 'Muse'],
+    ['martha', 'Martha']
   ];
 
   const AD_SET_FILTERS = [
@@ -321,6 +322,7 @@
     ['angels', 'Angels'],
     ['devils', 'Devils'],
     ['mixes', 'Mixes'],
+    ['martha', 'Martha'],
     ['first-takes', 'First takes']
   ];
 

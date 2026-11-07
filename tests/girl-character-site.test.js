@@ -218,11 +218,12 @@ test('After Dark is organized by who and by set, derived from the batches', asyn
 
   const cards = [...html.matchAll(/<figure class="private-card" data-tags="([^"]*)" data-set="([^"]*)">/g)]
     .map(match => ({ tags: match[1].split(/\s+/), set: match[2] }));
-  assert.equal(cards.length, 146, 'every After Dark card carries a data-set');
+  assert.equal(cards.length, 151, 'every After Dark card carries a data-set');
   // Set membership follows the recorded batches: eve- frames split by
   // their dancing/yoga/tantric themes, srv- is the Nov 4 serverless
   // batch, anc- the Nov 5 anchored batch, fst- and fn- the Nov 6 festival
   // batches, ang-/dev-/mix- the Nov 6 angels, devils and mixes
+  // batches, mrt- the Nov 7 Martha rig test
   // batches, then the recorded tags.
   const counts = {};
   for (const card of cards) counts[card.set] = (counts[card.set] || 0) + 1;
@@ -237,6 +238,7 @@ test('After Dark is organized by who and by set, derived from the batches', asyn
     angels: 6,
     devils: 5,
     mixes: 6,
+    martha: 5,
     dancing: 6,
     machine: 6,
     yoga: 5,
