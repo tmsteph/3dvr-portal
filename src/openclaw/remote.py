@@ -69,12 +69,27 @@ def main():
     if queued:
         digest = hashlib.sha256(request['session'].encode()).hexdigest()[:16]
         lock = open('/root/.openclaw-cloud/helm-chat-' + digest + '.lock', 'a')
+        # The dispatcher's per-session lane already serialized this
+        # turn, so a held session lock means an earlier bridge process
+        # for the same session is still finishing (an orphan left by a
+        # portal restart is the realistic case). The queued contract
+        # is to wait, not to fail the turn: poll for the lock inside
+        # the transport budget, then give up with the busy error.
+        deadline = time.time() + 190
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.time() >= deadline:
+                    return {'ok': False, 'error': 'OpenClaw is handling another Helm message. Wait before sending.'}
+                time.sleep(0.25)
     else:
         lock = open('/root/.openclaw-cloud/helm-chat.lock', 'a')
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        return {'ok': False, 'error': 'OpenClaw is handling another Helm message. Wait before sending.'}
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return {'ok': False, 'error': 'OpenClaw is handling another Helm message. Wait before sending.'}
     if request.get('expiresAt') is not None and time.time() * 1000 >= request['expiresAt']:
         return {'ok': False, 'stale': True, 'error': 'Message expired before dispatch. Kept in history.'}
     token = gateway.get('auth', {}).get('token', '')
