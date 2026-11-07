@@ -262,16 +262,42 @@ test('After Dark is organized by who and by set, derived from the batches', asyn
 test('golden hour attribution follows who each frame shows', () => {
   const counts = Object.fromEntries(characters.map(character => [character.id, character.goldenHour.length]));
   assert.deepEqual(counts, {
-    '3dvr-girl': 7,
-    kayla: 4,
-    'garden-muse': 3,
-    explorer: 4,
-    muse: 3
+    '3dvr-girl': 16,
+    kayla: 12,
+    'garden-muse': 11,
+    explorer: 8,
+    muse: 11
   });
   // Every shelf asset is attributed to at least one character, and the
-  // videos are marked as videos wherever they appear.
+  // videos are marked as videos wherever they appear. The dance- clips
+  // are the 2026-11-07 dance video set: each is filed on the page of
+  // every girl the render actually shows (group clips verified frame
+  // by frame; the Explorer is not identifiable in the circle clips, so
+  // those are not filed under her).
   const attributed = new Set(characters.flatMap(character => character.goldenHour.map(item => item.src)));
   assert.deepEqual([...attributed].sort(), [
+    'assets/golden-hour/dance-3dvr-back.mp4',
+    'assets/golden-hour/dance-3dvr-solo.mp4',
+    'assets/golden-hour/dance-beach-crew.mp4',
+    'assets/golden-hour/dance-beach-kayla-garden.mp4',
+    'assets/golden-hour/dance-beach-martha-3dvr.mp4',
+    'assets/golden-hour/dance-beach-muse-explorer.mp4',
+    'assets/golden-hour/dance-crew-back.mp4',
+    'assets/golden-hour/dance-crew-finale.mp4',
+    'assets/golden-hour/dance-field-thomas-3dvr.mp4',
+    'assets/golden-hour/dance-field-thomas-crew.mp4',
+    'assets/golden-hour/dance-field-thomas-kayla-garden.mp4',
+    'assets/golden-hour/dance-field-thomas-muse-explorer.mp4',
+    'assets/golden-hour/dance-garden-explorer-cliff.mp4',
+    'assets/golden-hour/dance-kayla-back.mp4',
+    'assets/golden-hour/dance-kayla-solo.mp4',
+    'assets/golden-hour/dance-martha-3dvr-festival.mp4',
+    'assets/golden-hour/dance-martha-explorer-cliff.mp4',
+    'assets/golden-hour/dance-martha-garden-lavender.mp4',
+    'assets/golden-hour/dance-martha-kayla-garden.mp4',
+    'assets/golden-hour/dance-martha-muse-lights.mp4',
+    'assets/golden-hour/dance-muse-back.mp4',
+    'assets/golden-hour/dance-muse-solo.mp4',
     'assets/golden-hour/duo-beach-dresses.webp',
     'assets/golden-hour/duo-festival-golden.webp',
     'assets/golden-hour/duo-pool-swimsuits.webp',

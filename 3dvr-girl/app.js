@@ -699,6 +699,196 @@ if (goldenHourGrid) {
   applyGoldenHourVisibility();
 }
 
+/* ---------- Dance videos: the golden hour shelf, in motion. Twenty-two
+   short clips shot across one long evening: the festival, the garden
+   party, the beach in linen, and the meadow at sunset. Martha (staff,
+   not cast) dances in several; Thomas joins the meadow set. Same
+   living-card handling as the shelf above; the clips keep their own
+   music and voices. ----------------------------------------------- */
+const danceVideos = [
+  {
+    kind: 'video',
+    id: 'gh-dance-martha-3dvr-festival',
+    title: 'Festival gold, with Martha',
+    video: 'assets/golden-hour/dance-martha-3dvr-festival.mp4',
+    poster: 'assets/golden-hour/dance-martha-3dvr-festival-poster.webp',
+    alt: 'Martha in her black dress with red embroidery dancing with 3DVR Girl, blonde with blue streaks in a bright festival dress, at golden hour'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-martha-kayla-garden',
+    title: 'Garden party, with Martha',
+    video: 'assets/golden-hour/dance-martha-kayla-garden.mp4',
+    poster: 'assets/golden-hour/dance-martha-kayla-garden-poster.webp',
+    alt: 'Martha dancing with Kayla, dark wavy hair in a sage sundress, at a garden party at dusk under lanterns'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-crew-finale',
+    title: 'The whole circle',
+    video: 'assets/golden-hour/dance-crew-finale.mp4',
+    poster: 'assets/golden-hour/dance-crew-finale-poster.webp',
+    alt: 'Martha at the centre of a festival dance circle with 3DVR Girl, Muse, and the garden muse, flower crowns on, at dusk'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-martha-muse-lights',
+    title: 'String lights, with Martha',
+    video: 'assets/golden-hour/dance-martha-muse-lights.mp4',
+    poster: 'assets/golden-hour/dance-martha-muse-lights-poster.webp',
+    alt: 'Martha dancing with Muse, dark hair with purple highlights, under string lights at dusk'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-martha-garden-lavender',
+    title: 'Lavender, with Martha',
+    video: 'assets/golden-hour/dance-martha-garden-lavender.mp4',
+    poster: 'assets/golden-hour/dance-martha-garden-lavender-poster.webp',
+    alt: 'Martha dancing through a lavender garden with the garden muse in a sage linen dress'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-martha-explorer-cliff',
+    title: 'Cliff sunset, with Martha',
+    video: 'assets/golden-hour/dance-martha-explorer-cliff.mp4',
+    poster: 'assets/golden-hour/dance-martha-explorer-cliff-poster.webp',
+    alt: 'Martha dancing with the Explorer in a festival outfit on a coastal cliff at sunset'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-3dvr-solo',
+    title: 'Come dance with me',
+    video: 'assets/golden-hour/dance-3dvr-solo.mp4',
+    poster: 'assets/golden-hour/dance-3dvr-solo-poster.webp',
+    alt: '3DVR Girl speaking to the camera at a festival at golden hour: she says come dance with me'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-kayla-solo',
+    title: 'Stay a while',
+    video: 'assets/golden-hour/dance-kayla-solo.mp4',
+    poster: 'assets/golden-hour/dance-kayla-solo-poster.webp',
+    alt: 'Kayla speaking and dancing at a garden party: she says the garden is beautiful tonight, stay a while'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-muse-solo',
+    title: 'I dreamed this dance',
+    video: 'assets/golden-hour/dance-muse-solo.mp4',
+    poster: 'assets/golden-hour/dance-muse-solo-poster.webp',
+    alt: 'Muse speaking softly to the camera under string lights at dusk: she says she dreamed about this dance'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-garden-explorer-cliff',
+    title: 'Perfect sunset',
+    video: 'assets/golden-hour/dance-garden-explorer-cliff.mp4',
+    poster: 'assets/golden-hour/dance-garden-explorer-cliff-poster.webp',
+    alt: 'The garden muse and the Explorer chatting and dancing on a coastal cliff at sunset'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-3dvr-back',
+    title: 'Over her shoulder',
+    video: 'assets/golden-hour/dance-3dvr-back.mp4',
+    poster: 'assets/golden-hour/dance-3dvr-back-poster.webp',
+    alt: '3DVR Girl dancing in a backless sundress at a festival, laughing over her shoulder'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-kayla-back',
+    title: 'The garden from behind',
+    video: 'assets/golden-hour/dance-kayla-back.mp4',
+    poster: 'assets/golden-hour/dance-kayla-back-poster.webp',
+    alt: 'Kayla dancing in a backless pink dress at a garden party, seen from behind'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-muse-back',
+    title: 'Lattice back, string lights',
+    video: 'assets/golden-hour/dance-muse-back.mp4',
+    poster: 'assets/golden-hour/dance-muse-back-poster.webp',
+    alt: 'Muse dancing in a lattice-back dress under string lights at dusk, seen from behind'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-crew-back',
+    title: 'Four backs, one beat',
+    video: 'assets/golden-hour/dance-crew-back.mp4',
+    poster: 'assets/golden-hour/dance-crew-back-poster.webp',
+    alt: 'Martha, 3DVR Girl, Kayla, and the garden muse dancing together at a festival, seen from behind'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-beach-martha-3dvr',
+    title: 'Beach linen, with Martha',
+    video: 'assets/golden-hour/dance-beach-martha-3dvr.mp4',
+    poster: 'assets/golden-hour/dance-beach-martha-3dvr-poster.webp',
+    alt: 'Martha in a cream linen dress with red embroidery and 3DVR Girl in a white linen dress dancing barefoot on the beach, holding hands'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-beach-kayla-garden',
+    title: 'Shoreline at sunset',
+    video: 'assets/golden-hour/dance-beach-kayla-garden.mp4',
+    poster: 'assets/golden-hour/dance-beach-kayla-garden-poster.webp',
+    alt: 'Kayla and the garden muse walking and dancing along the shoreline in linen dresses at sunset'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-beach-muse-explorer',
+    title: 'Sand and sunset',
+    video: 'assets/golden-hour/dance-beach-muse-explorer.mp4',
+    poster: 'assets/golden-hour/dance-beach-muse-explorer-poster.webp',
+    alt: 'Muse and the Explorer dancing on the sand at sunset in linen, holding hands'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-beach-crew',
+    title: 'The beach circle',
+    video: 'assets/golden-hour/dance-beach-crew.mp4',
+    poster: 'assets/golden-hour/dance-beach-crew-poster.webp',
+    alt: 'Martha in a cream linen dress dancing in a circle on the beach at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, all in linen'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-field-thomas-3dvr',
+    title: 'Dance with me, Thomas',
+    video: 'assets/golden-hour/dance-field-thomas-3dvr.mp4',
+    poster: 'assets/golden-hour/dance-field-thomas-3dvr-poster.webp',
+    alt: 'Thomas in a linen shirt dancing hand in hand with 3DVR Girl in a lavender dress in a wildflower field; she says dance with me, Thomas'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-field-thomas-kayla-garden',
+    title: 'Thomas, this way',
+    video: 'assets/golden-hour/dance-field-thomas-kayla-garden.mp4',
+    poster: 'assets/golden-hour/dance-field-thomas-kayla-garden-poster.webp',
+    alt: 'Thomas dancing in a meadow with Kayla, who calls to him, and the garden muse beside them'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-field-thomas-muse-explorer',
+    title: 'We saved you a dance',
+    video: 'assets/golden-hour/dance-field-thomas-muse-explorer.mp4',
+    poster: 'assets/golden-hour/dance-field-thomas-muse-explorer-poster.webp',
+    alt: 'Thomas holding hands with Muse and the Explorer in a flower field at golden hour; Muse says they saved him a dance'
+  },
+  {
+    kind: 'video',
+    id: 'gh-dance-field-thomas-crew',
+    title: 'His name, in the meadow',
+    video: 'assets/golden-hour/dance-field-thomas-crew.mp4',
+    poster: 'assets/golden-hour/dance-field-thomas-crew-poster.webp',
+    alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name'
+  }
+];
+
+const danceVideoGrid = document.querySelector('#danceVideoGrid');
+if (danceVideoGrid) {
+  danceVideos.forEach(item => danceVideoGrid.append(createGoldenHourCard(item)));
+}
+
 dialogClose?.addEventListener('click', () => sceneDialog?.close());
 sceneDialog?.addEventListener('click', event => {
   if (event.target === sceneDialog) sceneDialog.close();
