@@ -68,7 +68,7 @@ async function main() {
   if (!allowEnqueue) throw new Error('Refusing to enqueue: set OPERATOR_RUNTIME_E2E_ALLOW_ENQUEUE=true in an explicitly approved isolated test environment');
   if (!ownerAlias || ownerAlias === '3dvr-managed') throw new Error('Refusing shared/default queue: set THREEDVR_AGENT_OWNER_ALIAS to an isolated test worker owner');
   if (!peers.length) throw new Error('Refusing enqueue without an explicitly configured isolated Gun relay');
-  if (peers.some(peer => /gun-relay-3dvr\.fly\.dev/i.test(peer))) throw new Error('Refusing shared public Gun relay; use an isolated test relay');
+  if (peers.some(peer => /(?:gun-relay-3dvr\.fly\.dev|(?:^|\/)portal\.3dvr\.tech|relay\.3dvr\.tech)/i.test(peer))) throw new Error('Refusing known production/shared Gun relay; use an isolated test relay');
   // Do not construct Gun until all opt-in and relay guards have passed.
   // Constructing it earlier can establish peer connections before refusal.
   const gun = Gun({ peers, radisk: false, localStorage: false });
