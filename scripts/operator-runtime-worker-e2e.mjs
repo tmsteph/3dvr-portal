@@ -1,6 +1,7 @@
 import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
+import { writeQueueRecords } from './operator-queue-write.mjs';
 
 const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || '')
   .split(',')
@@ -80,14 +81,14 @@ async function main() {
   gun.on('hi', peer => console.log(`E2E_PEER_HI=${peer?.url || peer || 'unknown'}`));
   gun.on('bye', peer => console.log(`E2E_PEER_BYE=${peer?.url || peer || 'unknown'}`));
 
-  const writes = await Promise.all([
-    put(queue.get('tasks').get(taskId), built.record),
-    put(queue.get('latest').get(taskId), built.summary),
-    put(queue.get('runtime').get(taskId), built.runtime)
-  ]);
-  console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
-  if (writes.some(write => !write.acknowledged || write.timedOut)) {
-    throw new Error('Queue write acknowledgment failed; execution cannot be verified');
+  const writeOutcome = await writeQueueRecords([
+    ['tasks', built.record],
+    ['latest', built.summary],
+    ['runtime', built.runtime]
+  ], (key, value) => put(queue.get(key).get(taskId), value));
+  console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writeOutcome.results)}`);
+  if (!writeOutcome.acknowledged) {
+    throw new Error('Queue write acknowledgment failed; partial state may exist. Do not blindly retry or assume execution');
   }
   console.log('E2E_ENQUEUE_ACKNOWLEDGED=true');
 
