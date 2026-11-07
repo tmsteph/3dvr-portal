@@ -47,11 +47,16 @@ test('Helm installs as its own app, separate from Operator and the portal', asyn
   const html = await readFile(new URL('helm/index.html', root), 'utf8');
   assert.ok(html.includes('href="/helm/helm.webmanifest"'));
   assert.ok(html.includes('href="/icons/helm-192.png"'));
-  assert.ok(html.includes('id="helm-install"'));
   assert.ok(html.includes('>Install Helm</button>'));
+  assert.ok(html.includes('data-install-banner'));
+  assert.ok(html.includes('data-install-button'));
+  assert.ok(html.includes('src="/pwa-install.js"'));
+  assert.ok(html.includes('data-sw-url="/helm/service-worker.js"'));
+  assert.ok(html.includes('data-sw-scope="/helm/"'));
+  assert.ok(!html.includes('helm-install-help'));
+  assert.ok(!html.includes('<dialog'));
   assert.ok(!html.includes('operator.webmanifest'));
-  const installer = await readFile(new URL('helm/install.js', root), 'utf8');
-  assert.ok(installer.includes("register('/helm/service-worker.js', { scope: '/helm/' })"));
+  await assert.rejects(readFile(new URL('helm/install.js', root), 'utf8'));
 
   const operatorManifest = JSON.parse(
     await readFile(new URL('operator/operator.webmanifest', root), 'utf8')
