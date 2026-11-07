@@ -34,9 +34,10 @@ const KEY=accountKey?`${BASE_KEY}.account.${encodeURIComponent(accountKey)}`:BAS
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const now=()=>new Date().toISOString();
 let store={activeId:makeId(),conversations:[]};
+let restoredSavedStore=false;
 try {
   const saved=JSON.parse(localStorage.getItem(KEY)||(KEY!==BASE_KEY?localStorage.getItem(BASE_KEY):'')||'null');
-  if(saved?.activeId&&Array.isArray(saved.conversations)) store=saved;
+  if(saved?.activeId&&Array.isArray(saved.conversations)) { store=saved; restoredSavedStore=true; }
   else {
     const legacy=JSON.parse(localStorage.getItem(LEGACY_KEY)||'[]');
     if(legacy.length) store.conversations=[{id:store.activeId,createdAt:now(),updatedAt:now(),messages:legacy}];
@@ -58,6 +59,7 @@ if(handoff.path&&contextPanel&&contextLink){
   contextPanel.hidden=false;
 }
 if(requestedConversation&&store.conversations.some(item=>item.id===requestedConversation)) store.activeId=requestedConversation;
+else if(restoredSavedStore) { store.conversations=store.conversations.filter(item=>item.messages.length); store.activeId=makeId(); }
 function activeConversation(){let conversation=store.conversations.find(item=>item.id===store.activeId);if(!conversation){conversation={id:store.activeId,createdAt:now(),updatedAt:now(),messages:[]};store.conversations.push(conversation)}ensureConversationTree(conversation,{makeId,now});return conversation}
 function refreshHistory(){history=activeConversationPath(activeConversation());return history}
 let history=activeConversationPath(activeConversation());
