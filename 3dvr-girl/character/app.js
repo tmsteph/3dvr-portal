@@ -137,30 +137,49 @@ lightbox.image.addEventListener('pointerup', event => {
   if (Math.abs(dx) > 42) stepLightbox(dx < 0 ? 1 : -1);
 });
 
-/* ---------- Show more: long grids reveal in chunks instead of one
-   endless scroll. Cards past the chunk stay hidden (and unloaded)
-   until the visitor asks for them. ---------- */
-function paginate(grid, cards, pageSize) {
-  grid.parentElement?.querySelector(':scope > .show-more-row')?.remove();
+/* ---------- Scroll reveal: long grids reveal in chunks as the
+   visitor scrolls instead of hiding behind a button. Cards past the
+   current chunk stay hidden (and unloaded) until the bottom of the
+   grid approaches, then the next chunk renders on its own. ------- */
+const revealCleanups = new WeakMap();
+
+function autoReveal(grid, cards, pageSize) {
+  revealCleanups.get(grid)?.();
+  revealCleanups.delete(grid);
+  grid.parentElement?.querySelector(':scope > .scroll-sentinel')?.remove();
   let shown = Math.min(pageSize, cards.length);
-  const apply = () => cards.forEach((card, i) => { card.hidden = i >= shown; });
+  const revealAll = !('IntersectionObserver' in window);
+  const apply = () => cards.forEach((card, i) => { card.hidden = !revealAll && i >= shown; });
   apply();
-  if (cards.length <= pageSize) return;
-  const row = document.createElement('div');
-  row.className = 'show-more-row';
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'button button--quiet';
-  const update = () => { button.textContent = `Show more · ${cards.length - shown} more`; };
-  update();
-  button.addEventListener('click', () => {
+  if (revealAll || cards.length <= pageSize) return;
+  const sentinel = document.createElement('div');
+  sentinel.className = 'scroll-sentinel';
+  sentinel.setAttribute('aria-hidden', 'true');
+  grid.after(sentinel);
+  /* Reveal the next chunk whenever the grid's end is near the viewport
+     or already past it, so continuous scrolling, tab switches, and
+     jumps to the bottom all keep the frames coming. A hidden tab
+     panel reports no client rects, and its grid simply waits. */
+  const finish = () => {
+    observer.disconnect();
+    window.removeEventListener('scroll', check);
+    sentinel.remove();
+    revealCleanups.delete(grid);
+  };
+  const check = () => {
+    if (shown >= cards.length) return;
+    if (!sentinel.getClientRects().length) return;
+    const rect = sentinel.getBoundingClientRect();
+    if (rect.top > window.innerHeight + 900) return;
     shown = Math.min(cards.length, shown + pageSize);
     apply();
-    update();
-    if (shown >= cards.length) row.remove();
-  });
-  row.append(button);
-  grid.after(row);
+    if (shown >= cards.length) finish();
+    else check();
+  };
+  const observer = new IntersectionObserver(() => check(), { rootMargin: '900px 0px' });
+  observer.observe(sentinel);
+  window.addEventListener('scroll', check, { passive: true });
+  revealCleanups.set(grid, finish);
 }
 
 function visibleItems(cards, read) {
@@ -208,7 +227,7 @@ galleryCards.forEach(card => {
     openLightbox(items, visible.indexOf(card));
   });
 });
-paginate($('galleryGrid'), galleryCards, 8);
+autoReveal($('galleryGrid'), galleryCards, 8);
 
 /* ---------- Golden hour: her in-between shelf. Public like her scenes
    (no lock, no blur), sexier than them. Photos share the scene
@@ -275,7 +294,7 @@ if (!goldenHourCards.length) {
       openLightbox(items, visible.indexOf(card));
     });
   });
-  paginate($('goldenHourGrid'), goldenHourCards, 8);
+  autoReveal($('goldenHourGrid'), goldenHourCards, 8);
 }
 
 
@@ -367,7 +386,7 @@ function renderAfterDark() {
       });
     });
   }
-  paginate($('afterDarkGrid'), afterDarkCards, 12);
+  autoReveal($('afterDarkGrid'), afterDarkCards, 12);
 }
 renderAfterDark();
 window.addEventListener('storage', renderAfterDark);

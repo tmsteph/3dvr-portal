@@ -171,6 +171,69 @@ test('golden hour is a public shelf between the scenes and After Dark', async ()
   assert.match(characterApp, /'golden-hour': 'goldenhour'/);
 });
 
+test('galleries reveal by scrolling: no show-more buttons remain', async () => {
+  const [app, gallery, characterApp] = await Promise.all([
+    read('3dvr-girl/app.js'),
+    read('3dvr-girl/gallery.js'),
+    read('3dvr-girl/character/app.js')
+  ]);
+  for (const [name, source] of [['app.js', app], ['gallery.js', gallery], ['character/app.js', characterApp]]) {
+    assert.equal(/Show more/.test(source), false, `${name} must not render a Show more button`);
+    assert.equal(/show-more-row/.test(source), false, `${name} must not build show-more rows`);
+    assert.equal(/paginate\(/.test(source), false, `${name} must not paginate behind a button`);
+    // The next chunk arrives on its own as the grid bottom approaches.
+    assert.match(source, /IntersectionObserver/, `${name} must auto-append on scroll`);
+    assert.match(source, /scroll-sentinel/, `${name} must watch a scroll sentinel`);
+  }
+});
+
+test('After Dark is organized by who and by set, derived from the batches', async () => {
+  const [html, gallery] = await Promise.all([
+    read('3dvr-girl/index.html'),
+    read('3dvr-girl/gallery.js')
+  ]);
+  // Two chip rows: who is in the frame, and which set it belongs to.
+  assert.match(html, /id="afterDarkFilters"/);
+  assert.match(html, /id="afterDarkSetFilters"/);
+  assert.match(gallery, /AD_SET_FILTERS/);
+  // The two filters combine: a card must match its girl tag AND its set.
+  assert.match(gallery, /card\.dataset\.set === adSetFilter/);
+  assert.match(gallery, /cardTags\(card\)\.includes\(adFilter\)/);
+
+  const cards = [...html.matchAll(/<figure class="private-card" data-tags="([^"]*)" data-set="([^"]*)">/g)]
+    .map(match => ({ tags: match[1].split(/\s+/), set: match[2] }));
+  assert.equal(cards.length, 116, 'every After Dark card carries a data-set');
+  // Set membership follows the recorded batches: eve- frames split by
+  // their dancing/yoga/tantric themes, srv- is the Nov 4 serverless
+  // batch, anc- the Nov 5 anchored batch, then the recorded tags.
+  const counts = {};
+  for (const card of cards) counts[card.set] = (counts[card.set] || 0) + 1;
+  assert.deepEqual(counts, {
+    portraits: 28,
+    duos: 23,
+    fantasy: 20,
+    serverless: 8,
+    anchored: 8,
+    'first-takes': 7,
+    dancing: 6,
+    machine: 6,
+    yoga: 5,
+    tantric: 5
+  });
+  // The who filter follows the captions: duo frames whose caption names
+  // both girls carry both girl tags.
+  const byFile = file => {
+    const at = html.indexOf(`assets/after-dark/${file}`);
+    assert.ok(at > -1, `${file} is on the page`);
+    const figureAt = html.lastIndexOf('<figure class="private-card"', at);
+    return html.slice(figureAt, html.indexOf('>', figureAt));
+  };
+  assert.match(byFile('duo-forest-kiss.webp'), /data-tags="[^"]*\bkayla\b[^"]*"/);
+  assert.match(byFile('eve-tantric-cushions.webp'), /data-tags="[^"]*\bgarden\b[^"]*"/);
+  assert.match(byFile('eve-tantric-foreheads.webp'), /data-tags="[^"]*\bexplorer\b[^"]*"/);
+  assert.match(byFile('machine-vr-1.webp'), /data-tags="[^"]*\bgirl\b[^"]*"/);
+});
+
 test('golden hour attribution follows who each frame shows', () => {
   const counts = Object.fromEntries(characters.map(character => [character.id, character.goldenHour.length]));
   assert.deepEqual(counts, {
