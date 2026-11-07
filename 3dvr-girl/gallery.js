@@ -11,6 +11,7 @@
   const grid = document.querySelector('#afterDarkGrid');
   const lock = document.querySelector('#afterDarkLock');
   const filterBar = document.querySelector('#afterDarkFilters');
+  const setFilterBar = document.querySelector('#afterDarkSetFilters');
   if (!grid) return;
 
   const dialog = document.querySelector('#galleryDialog');
@@ -202,44 +203,66 @@
   /* ---------- After Dark: lock, filters, cards ---------- */
   const cards = [...grid.querySelectorAll('.private-card')];
 
-  /* The private set reveals in chunks, like the public archive: the
-     filter picks the set, only the first chunk renders until asked.
-     Locked visitors never see the grid or the button at all — the
-     curtain behavior is unchanged. */
+  /* The private set reveals itself as you scroll, like the public
+     archive: the filters pick who and which set, and the next chunk
+     renders on its own as the bottom of the grid approaches — nobody
+     has to click to see more frames. Only the first chunk renders up
+     front, so the page stays light. Locked visitors never see the
+     grid or the sentinel at all — the curtain behavior is unchanged. */
   const AD_PAGE = 12;
   let adFilter = 'all';
+  let adSetFilter = 'all';
   let adShown = AD_PAGE;
-  const adMoreRow = document.createElement('div');
-  adMoreRow.className = 'show-more-row';
-  adMoreRow.hidden = true;
-  const adMoreButton = document.createElement('button');
-  adMoreButton.type = 'button';
-  adMoreButton.className = 'button';
-  adMoreButton.addEventListener('click', () => {
-    adShown += AD_PAGE;
-    applyAdVisibility();
-  });
-  adMoreRow.append(adMoreButton);
-  grid.after(adMoreRow);
+  /* Without IntersectionObserver there is no scroll trigger, so the
+     gallery simply shows everything the filters select. */
+  const adRevealAll = !('IntersectionObserver' in window);
+  const adSentinel = document.createElement('div');
+  adSentinel.className = 'scroll-sentinel';
+  adSentinel.hidden = true;
+  adSentinel.setAttribute('aria-hidden', 'true');
+  grid.after(adSentinel);
+
+  function cardTags(card) {
+    return (card.dataset.tags || '').split(/\s+/).filter(Boolean);
+  }
+
+  function cardMatches(card) {
+    const whoMatches = adFilter === 'all' || cardTags(card).includes(adFilter);
+    const setMatches = adSetFilter === 'all' || card.dataset.set === adSetFilter;
+    return whoMatches && setMatches;
+  }
 
   function applyAdVisibility() {
     let seen = 0;
+    let total = 0;
     cards.forEach(card => {
-      const tags = (card.dataset.tags || '').split(/\s+/).filter(Boolean);
-      const matches = adFilter === 'all' || tags.includes(adFilter);
-      if (!matches) {
+      if (!cardMatches(card)) {
         card.hidden = true;
         return;
       }
-      card.hidden = seen >= adShown;
+      total += 1;
+      card.hidden = !adRevealAll && seen >= adShown;
       seen += 1;
     });
-    const total = cards.filter(card => {
-      const tags = (card.dataset.tags || '').split(/\s+/).filter(Boolean);
-      return adFilter === 'all' || tags.includes(adFilter);
-    }).length;
-    adMoreRow.hidden = total <= adShown;
-    adMoreButton.textContent = `Show more frames · ${total - adShown} more`;
+    adSentinel.hidden = adRevealAll || total <= adShown;
+  }
+
+  /* Reveal the next chunk whenever the grid's end is near the
+     viewport or already past it, so continuous scrolling and jumps
+     to the bottom both keep the frames coming. */
+  function revealAdChunks() {
+    if (adRevealAll || adSentinel.hidden || !adSentinel.getClientRects().length) return;
+    const rect = adSentinel.getBoundingClientRect();
+    if (rect.top > window.innerHeight + 900) return;
+    adShown += AD_PAGE;
+    applyAdVisibility();
+    revealAdChunks();
+  }
+
+  if (!adRevealAll) {
+    const adObserver = new IntersectionObserver(() => revealAdChunks(), { rootMargin: '900px 0px' });
+    adObserver.observe(adSentinel);
+    window.addEventListener('scroll', revealAdChunks, { passive: true });
   }
 
   function visibleCards() {
@@ -267,43 +290,83 @@
     });
   });
 
+  /* Two rows of chips, and they combine: who is in the frame (from
+     each card's tags, which follow its caption) and which set the
+     frame belongs to (each card's data-set, derived from its batch:
+     the eve- frames split into the evening's dancing, yoga, and
+     tantric themes; srv- is the Nov 4 serverless batch; anc- the
+     Nov 5 anchored batch; the rest follow their recorded tags). */
   const AD_FILTERS = [
     ['all', 'All'],
     ['girl', '3DVR Girl'],
     ['kayla', 'Kayla'],
     ['garden', 'Garden muse'],
     ['explorer', 'Explorer'],
-    ['muse', 'Muse'],
-    ['duo', 'Duo'],
-    ['machine', 'Machine'],
-    ['fantasy', 'Fantasy']
+    ['muse', 'Muse']
   ];
+
+  const AD_SET_FILTERS = [
+    ['all', 'All sets'],
+    ['dancing', 'Dancing'],
+    ['yoga', 'Yoga'],
+    ['tantric', 'Tantric'],
+    ['portraits', 'Portraits'],
+    ['duos', 'Duos'],
+    ['fantasy', 'Fantasy'],
+    ['machine', 'The machine'],
+    ['serverless', 'Serverless batch'],
+    ['anchored', 'Anchored batch'],
+    ['first-takes', 'First takes']
+  ];
+
+  function syncFilterBar(bar, current) {
+    bar?.querySelectorAll('.filter-button').forEach(button => {
+      const active = button.dataset.tag === current;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
 
   function setAdFilter(tag) {
     adFilter = tag;
     adShown = AD_PAGE;
-    filterBar?.querySelectorAll('.filter-button').forEach(button => {
-      const active = button.dataset.tag === tag;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', String(active));
-    });
+    syncFilterBar(filterBar, adFilter);
     applyAdVisibility();
+    revealAdChunks();
   }
 
-  function buildFilters() {
-    if (!filterBar || filterBar.childElementCount) return;
-    AD_FILTERS.forEach(([tag, label]) => {
-      if (tag !== 'all' && !cards.some(card => (card.dataset.tags || '').split(/\s+/).includes(tag))) return;
+  function setAdSetFilter(set) {
+    adSetFilter = set;
+    adShown = AD_PAGE;
+    syncFilterBar(setFilterBar, adSetFilter);
+    applyAdVisibility();
+    revealAdChunks();
+  }
+
+  function buildFilterBar(bar, options, countFor, onPick) {
+    if (!bar || bar.childElementCount) return;
+    options.forEach(([tag, label]) => {
+      const count = countFor(tag);
+      if (tag !== 'all' && !count) return;
       const button = document.createElement('button');
       button.className = 'filter-button';
       button.type = 'button';
       button.dataset.tag = tag;
       button.setAttribute('aria-pressed', String(tag === 'all'));
       if (tag === 'all') button.classList.add('is-active');
-      button.textContent = label;
-      button.addEventListener('click', () => setAdFilter(tag));
-      filterBar.append(button);
+      button.textContent = count ? `${label} · ${count}` : label;
+      button.addEventListener('click', () => onPick(tag));
+      bar.append(button);
     });
+  }
+
+  function buildFilters() {
+    buildFilterBar(filterBar, AD_FILTERS,
+      tag => (tag === 'all' ? cards.length : cards.filter(card => cardTags(card).includes(tag)).length),
+      setAdFilter);
+    buildFilterBar(setFilterBar, AD_SET_FILTERS,
+      set => (set === 'all' ? cards.length : cards.filter(card => card.dataset.set === set).length),
+      setAdSetFilter);
   }
 
   function signedIn() {
@@ -324,11 +387,13 @@
     grid.hidden = !open;
     if (lock) lock.hidden = open;
     if (filterBar) filterBar.hidden = !open;
+    if (setFilterBar) setFilterBar.hidden = !open;
     if (open) {
       buildFilters();
       applyAdVisibility();
+      revealAdChunks();
     } else {
-      adMoreRow.hidden = true;
+      adSentinel.hidden = true;
     }
     openFromHash();
   }
@@ -346,6 +411,7 @@
     if (!card) return;
     lastAutoOpenedHash = location.hash;
     setAdFilter('all');
+    setAdSetFilter('all');
     adShown = cards.length;
     applyAdVisibility();
     openViewer(cards.map(cardItem), cards.indexOf(card));

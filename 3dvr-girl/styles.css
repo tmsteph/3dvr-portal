@@ -1380,14 +1380,14 @@ main section[id] {
   cursor: grabbing;
 }
 
-/* Show-more rows under the chunked grids (scene archive, After Dark). */
-.show-more-row {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
+/* Scroll sentinels under the auto-revealing grids (scene archive,
+   Golden Hour, After Dark): invisible markers the scripts watch so
+   the next chunk renders as the bottom of the grid approaches. */
+.scroll-sentinel {
+  height: 1px;
 }
 
-.show-more-row[hidden] {
+.scroll-sentinel[hidden] {
   display: none;
 }
 

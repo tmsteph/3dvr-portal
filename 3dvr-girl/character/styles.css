@@ -651,11 +651,11 @@ button, textarea { font: inherit; color: inherit; }
   background: rgba(211, 185, 143, 0.1);
 }
 
-/* Show-more rows under the long grids. */
-.show-more-row {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
+/* Scroll sentinels under the auto-revealing grids: invisible markers
+   the script watches so the next chunk renders as the visitor
+   scrolls toward the bottom of the grid. */
+.scroll-sentinel {
+  height: 1px;
 }
 
 /* Lightbox: same full-screen viewer language as the world page. */

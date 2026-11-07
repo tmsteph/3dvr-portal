@@ -414,14 +414,20 @@ function openScene(scene) {
   sceneDialog.showModal();
 }
 
-/* The scene archive reveals in chunks: the filter picks the set, and
-   only the first chunk of it is in view (and loading) until the visitor
-   asks for more. Scoped to the archive grid so the workshop cards in
-   the machine section are never caught by it. */
+/* The scene archive reveals itself as you scroll: the filter picks
+   the set, only the first chunk of it is in view (and loading) up
+   front, and the next chunk renders on its own as the bottom of the
+   grid approaches — no button to click. Scoped to the archive grid
+   so the workshop cards in the machine section are never caught
+   by it. */
 const ARCHIVE_PAGE = 12;
 let archiveFilter = 'all';
 let archiveShown = ARCHIVE_PAGE;
-let archiveMoreRow = null;
+let archiveSentinel = null;
+/* Without IntersectionObserver there is no scroll trigger, so the
+   archive simply shows everything the filter selects. */
+const archiveRevealAll = !('IntersectionObserver' in window);
+let revealArchiveChunks = () => {};
 
 function archiveCards() {
   return archiveGrid ? [...archiveGrid.querySelectorAll('.archive-card')] : [];
@@ -429,6 +435,7 @@ function archiveCards() {
 
 function applyArchiveVisibility() {
   let seen = 0;
+  let total = 0;
   const cards = archiveCards();
   cards.forEach(card => {
     const matches = archiveFilter === 'all' || card.dataset.collection === archiveFilter;
@@ -436,15 +443,11 @@ function applyArchiveVisibility() {
       card.hidden = true;
       return;
     }
-    card.hidden = seen >= archiveShown;
+    total += 1;
+    card.hidden = !archiveRevealAll && seen >= archiveShown;
     seen += 1;
   });
-  if (archiveMoreRow) {
-    const total = cards.filter(card => archiveFilter === 'all' || card.dataset.collection === archiveFilter).length;
-    archiveMoreRow.hidden = total <= archiveShown;
-    const button = archiveMoreRow.querySelector('button');
-    if (button) button.textContent = `Show more scenes · ${total - archiveShown} more`;
-  }
+  if (archiveSentinel) archiveSentinel.hidden = archiveRevealAll || total <= archiveShown;
 }
 
 function setFilter(collection) {
@@ -457,22 +460,32 @@ function setFilter(collection) {
   archiveFilter = collection;
   archiveShown = ARCHIVE_PAGE;
   applyArchiveVisibility();
+  revealArchiveChunks();
 }
 
 if (archiveGrid) {
   scenes.forEach(scene => archiveGrid.append(createArchiveCard(scene)));
-  archiveMoreRow = document.createElement('div');
-  archiveMoreRow.className = 'show-more-row';
-  archiveMoreRow.hidden = true;
-  const archiveMoreButton = document.createElement('button');
-  archiveMoreButton.type = 'button';
-  archiveMoreButton.className = 'button';
-  archiveMoreButton.addEventListener('click', () => {
-    archiveShown += ARCHIVE_PAGE;
-    applyArchiveVisibility();
-  });
-  archiveMoreRow.append(archiveMoreButton);
-  archiveGrid.after(archiveMoreRow);
+  archiveSentinel = document.createElement('div');
+  archiveSentinel.className = 'scroll-sentinel';
+  archiveSentinel.hidden = true;
+  archiveSentinel.setAttribute('aria-hidden', 'true');
+  archiveGrid.after(archiveSentinel);
+  if (!archiveRevealAll) {
+    /* Reveal the next chunk whenever the grid's end is near the
+       viewport or already past it, so continuous scrolling and
+       jumps to the bottom both keep the scenes coming. */
+    revealArchiveChunks = () => {
+      if (archiveSentinel.hidden || !archiveSentinel.getClientRects().length) return;
+      const rect = archiveSentinel.getBoundingClientRect();
+      if (rect.top > window.innerHeight + 900) return;
+      archiveShown += ARCHIVE_PAGE;
+      applyArchiveVisibility();
+      revealArchiveChunks();
+    };
+    const archiveObserver = new IntersectionObserver(() => revealArchiveChunks(), { rootMargin: '900px 0px' });
+    archiveObserver.observe(archiveSentinel);
+    window.addEventListener('scroll', revealArchiveChunks, { passive: true });
+  }
 }
 
 if (sceneFilters) {
@@ -493,7 +506,7 @@ if (sceneFilters) {
    archive, dressed enough for daylight, and fully public: no lock, no
    blur. Photos open in the shared viewer; the clips ride the same
    living-card handling as the cast videos further down the page. The
-   shelf reveals in chunks, like the archive above it. ---------- */
+   shelf reveals itself as you scroll, like the archive above it. --- */
 const goldenHour = [
   {
     kind: 'photo',
@@ -588,7 +601,8 @@ const goldenHour = [
 const goldenHourGrid = document.querySelector('#goldenHourGrid');
 const GOLDEN_HOUR_PAGE = 6;
 let goldenHourShown = GOLDEN_HOUR_PAGE;
-let goldenHourMoreRow = null;
+let goldenHourSentinel = null;
+const goldenHourRevealAll = !('IntersectionObserver' in window);
 
 function createGoldenHourCard(item) {
   if (item.kind === 'video') {
@@ -656,28 +670,32 @@ function openGoldenHour(item) {
 function applyGoldenHourVisibility() {
   if (!goldenHourGrid) return;
   const cards = [...goldenHourGrid.children];
-  cards.forEach((card, i) => { card.hidden = i >= goldenHourShown; });
-  if (goldenHourMoreRow) {
-    goldenHourMoreRow.hidden = cards.length <= goldenHourShown;
-    const button = goldenHourMoreRow.querySelector('button');
-    if (button) button.textContent = `Show more · ${cards.length - goldenHourShown} more`;
+  cards.forEach((card, i) => { card.hidden = !goldenHourRevealAll && i >= goldenHourShown; });
+  if (goldenHourSentinel) {
+    goldenHourSentinel.hidden = goldenHourRevealAll || cards.length <= goldenHourShown;
   }
 }
 
 if (goldenHourGrid) {
   goldenHour.forEach(item => goldenHourGrid.append(createGoldenHourCard(item)));
-  goldenHourMoreRow = document.createElement('div');
-  goldenHourMoreRow.className = 'show-more-row';
-  goldenHourMoreRow.hidden = true;
-  const goldenHourMoreButton = document.createElement('button');
-  goldenHourMoreButton.type = 'button';
-  goldenHourMoreButton.className = 'button';
-  goldenHourMoreButton.addEventListener('click', () => {
-    goldenHourShown += GOLDEN_HOUR_PAGE;
-    applyGoldenHourVisibility();
-  });
-  goldenHourMoreRow.append(goldenHourMoreButton);
-  goldenHourGrid.after(goldenHourMoreRow);
+  goldenHourSentinel = document.createElement('div');
+  goldenHourSentinel.className = 'scroll-sentinel';
+  goldenHourSentinel.hidden = true;
+  goldenHourSentinel.setAttribute('aria-hidden', 'true');
+  goldenHourGrid.after(goldenHourSentinel);
+  if (!goldenHourRevealAll) {
+    const revealGoldenHourChunks = () => {
+      if (goldenHourSentinel.hidden || !goldenHourSentinel.getClientRects().length) return;
+      const rect = goldenHourSentinel.getBoundingClientRect();
+      if (rect.top > window.innerHeight + 900) return;
+      goldenHourShown += GOLDEN_HOUR_PAGE;
+      applyGoldenHourVisibility();
+      revealGoldenHourChunks();
+    };
+    const goldenHourObserver = new IntersectionObserver(() => revealGoldenHourChunks(), { rootMargin: '900px 0px' });
+    goldenHourObserver.observe(goldenHourSentinel);
+    window.addEventListener('scroll', revealGoldenHourChunks, { passive: true });
+  }
   applyGoldenHourVisibility();
 }
 
