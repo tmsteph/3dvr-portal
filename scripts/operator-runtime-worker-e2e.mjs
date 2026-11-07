@@ -1,12 +1,14 @@
 import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
+import { writeQueueRecords } from './operator-queue-write.mjs';
 
-const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun')
+const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
-const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
+const ownerAlias = String(process.env.THREEDVR_AGENT_OWNER_ALIAS || '').trim();
+const allowEnqueue = process.env.OPERATOR_RUNTIME_E2E_ALLOW_ENQUEUE === 'true';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
 const readTimeoutMs = 5000;
@@ -25,17 +27,6 @@ const built = buildOperatorDelegatedTask({
   tenantAlias: 'operator-runtime-e2e'
 });
 
-const gun = Gun({
-  peers,
-  radisk: false,
-  localStorage: false
-});
-const queue = gun
-  .get('3dvr-portal')
-  .get('agentOps')
-  .get(ownerAlias)
-  .get('taskQueue');
-
 function put(node, value) {
   return new Promise(resolve => {
     let settled = false;
@@ -49,7 +40,7 @@ function put(node, value) {
       settled = true;
       clearTimeout(timer);
       resolve({
-        acknowledged: !ack?.err,
+        acknowledged: Boolean(ack && !ack.err && typeof ack.ok === 'number' && ack.ok > 0),
         error: ack?.err ? String(ack.err) : '',
         ack: ack || {}
       });
@@ -75,6 +66,14 @@ function once(node) {
 }
 
 async function main() {
+  if (!allowEnqueue) throw new Error('Refusing to enqueue: set OPERATOR_RUNTIME_E2E_ALLOW_ENQUEUE=true in an explicitly approved isolated test environment');
+  if (!ownerAlias || ownerAlias === '3dvr-managed') throw new Error('Refusing shared/default queue: set THREEDVR_AGENT_OWNER_ALIAS to an isolated test worker owner');
+  if (!peers.length) throw new Error('Refusing enqueue without an explicitly configured isolated Gun relay');
+  if (peers.some(peer => /(?:gun-relay-3dvr\.fly\.dev|(?:^|\/)portal\.3dvr\.tech|relay\.3dvr\.tech)/i.test(peer))) throw new Error('Refusing known production/shared Gun relay; use an isolated test relay');
+  // Do not construct Gun until all opt-in and relay guards have passed.
+  // Constructing it earlier can establish peer connections before refusal.
+  const gun = Gun({ peers, radisk: false, localStorage: false });
+  const queue = gun.get('3dvr-portal').get('agentOps').get(ownerAlias).get('taskQueue');
   console.log(`E2E_TASK_ID=${taskId}`);
   console.log(`E2E_PEERS=${peers.join(',')}`);
   console.log(`E2E_OWNER=${ownerAlias}`);
@@ -82,13 +81,16 @@ async function main() {
   gun.on('hi', peer => console.log(`E2E_PEER_HI=${peer?.url || peer || 'unknown'}`));
   gun.on('bye', peer => console.log(`E2E_PEER_BYE=${peer?.url || peer || 'unknown'}`));
 
-  const writes = await Promise.all([
-    put(queue.get('tasks').get(taskId), built.record),
-    put(queue.get('latest').get(taskId), built.summary),
-    put(queue.get('runtime').get(taskId), built.runtime)
-  ]);
-  console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
-  console.log('E2E_ENQUEUE_ATTEMPTED=true');
+  const writeOutcome = await writeQueueRecords([
+    ['tasks', built.record],
+    ['latest', built.summary],
+    ['runtime', built.runtime]
+  ], (key, value) => put(queue.get(key).get(taskId), value));
+  console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writeOutcome.results)}`);
+  if (!writeOutcome.acknowledged) {
+    throw new Error('Queue write acknowledgment failed; partial state may exist. Do not blindly retry or assume execution');
+  }
+  console.log('E2E_ENQUEUE_ACKNOWLEDGED=true');
 
   const transitions = [];
   const deadline = Date.now() + maxWaitMs;
@@ -113,6 +115,9 @@ async function main() {
     workerDeviceId: record?.workerDeviceId || ''
   })}`);
 
+  if ((record?.status || record?.state) === 'completed' && (!String(record?.workerDeviceId || '').trim() || !String(record?.resultSummary || '').trim())) {
+    throw new Error('Task marked completed without worker identity and nonempty result summary');
+  }
   if ((record?.status || record?.state) !== 'completed') {
     throw new Error(`Operator runtime task did not complete: ${record?.status || record?.state || 'timeout'} ${record?.error || ''}`);
   }
