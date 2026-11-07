@@ -295,7 +295,8 @@
      frame belongs to (each card's data-set, derived from its batch:
      the eve- frames split into the evening's dancing, yoga, and
      tantric themes; srv- is the Nov 4 serverless batch; anc- the
-     Nov 5 anchored batch; the rest follow their recorded tags). */
+     Nov 5 anchored batch; fst- the Nov 6 festival batch; the rest
+     follow their recorded tags). */
   const AD_FILTERS = [
     ['all', 'All'],
     ['girl', '3DVR Girl'],
@@ -316,6 +317,7 @@
     ['machine', 'The machine'],
     ['serverless', 'Serverless batch'],
     ['anchored', 'Anchored batch'],
+    ['festival', 'Festival'],
     ['first-takes', 'First takes']
   ];
 
