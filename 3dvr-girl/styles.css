@@ -834,6 +834,14 @@ main section[id] {
   min-height: 240px;
 }
 
+.dance-videos-heading {
+  margin-top: 48px;
+}
+
+.dance-videos-heading h2 {
+  font-size: clamp(2.2rem, 5vw, 4rem);
+}
+
 .archive-card img {
   width: 100%;
   height: auto;

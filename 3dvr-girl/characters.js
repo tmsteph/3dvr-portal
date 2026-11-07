@@ -220,6 +220,87 @@ export const characters = [
         title: 'Courtyard lemonade, in motion',
         alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard',
         copy: 'The courtyard frame, moving: lemonade up, everyone mid-laugh.'
+      },
+      {
+        src: 'assets/golden-hour/dance-martha-3dvr-festival.mp4',
+        poster: 'assets/golden-hour/dance-martha-3dvr-festival-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Festival gold, with Martha',
+        alt: 'Martha in her black dress with red embroidery dancing with 3DVR Girl in a bright festival dress at golden hour',
+        copy: 'Martha joins the festival set: black dress, red embroidery, and the light going gold.'
+      },
+      {
+        src: 'assets/golden-hour/dance-crew-finale.mp4',
+        poster: 'assets/golden-hour/dance-crew-finale-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'The whole circle',
+        alt: 'Martha at the centre of a festival dance circle with 3DVR Girl, Muse, and the garden muse, flower crowns on, at dusk',
+        copy: 'The whole circle, hands linked: Martha in the middle and the set just starting.'
+      },
+      {
+        src: 'assets/golden-hour/dance-3dvr-solo.mp4',
+        poster: 'assets/golden-hour/dance-3dvr-solo-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Come dance with me',
+        alt: '3DVR Girl speaking to the camera at a festival at golden hour',
+        copy: 'She says it herself: come dance with me.'
+      },
+      {
+        src: 'assets/golden-hour/dance-3dvr-back.mp4',
+        poster: 'assets/golden-hour/dance-3dvr-back-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Over her shoulder',
+        alt: '3DVR Girl dancing in a backless sundress at a festival, laughing over her shoulder',
+        copy: 'Backless sundress, blue streaks down her back, and a laugh over her shoulder.'
+      },
+      {
+        src: 'assets/golden-hour/dance-crew-back.mp4',
+        poster: 'assets/golden-hour/dance-crew-back-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Four backs, one beat',
+        alt: 'Martha, 3DVR Girl, Kayla, and the garden muse dancing together at a festival, seen from behind',
+        copy: 'Four backs, one beat: the crew from behind, mid-dance.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-martha-3dvr.mp4',
+        poster: 'assets/golden-hour/dance-beach-martha-3dvr-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Beach linen, with Martha',
+        alt: 'Martha in a cream linen dress with red embroidery and 3DVR Girl in a white linen dress dancing barefoot on the beach, holding hands',
+        copy: 'Linen on the sand: Martha takes her hand and the beach does the rest.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-crew.mp4',
+        poster: 'assets/golden-hour/dance-beach-crew-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'The beach circle',
+        alt: 'Martha in a cream linen dress dancing in a circle on the beach at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, all in linen',
+        copy: 'The whole crew in linen, circling on the sand as the sun goes down.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-3dvr.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-3dvr-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'Dance with me, Thomas',
+        alt: 'Thomas in a linen shirt dancing hand in hand with 3DVR Girl in a lavender dress in a wildflower field',
+        copy: 'In the wildflowers, she asks him herself: dance with me, Thomas.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-crew.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-crew-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'His name, in the meadow',
+        alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
+        copy: 'The girls chant his name and the meadow keeps the beat.'
       }
     ],
     afterDark: [
@@ -439,6 +520,78 @@ export const characters = [
         title: 'Pool rules, in motion',
         alt: '3DVR Girl and Kayla laughing and splashing at the pool',
         copy: 'The pool frame, moving: same laugh, with splashes.'
+      },
+      {
+        src: 'assets/golden-hour/dance-martha-kayla-garden.mp4',
+        poster: 'assets/golden-hour/dance-martha-kayla-garden-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Garden party, with Martha',
+        alt: 'Martha dancing with Kayla in a sage sundress at a garden party at dusk under lanterns',
+        copy: 'Lanterns up, music on: Martha pulls her into the garden party.'
+      },
+      {
+        src: 'assets/golden-hour/dance-kayla-solo.mp4',
+        poster: 'assets/golden-hour/dance-kayla-solo-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Stay a while',
+        alt: 'Kayla speaking and dancing at a garden party at dusk',
+        copy: 'Her invitation, in her own voice: the garden is beautiful tonight, stay a while.'
+      },
+      {
+        src: 'assets/golden-hour/dance-kayla-back.mp4',
+        poster: 'assets/golden-hour/dance-kayla-back-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'The garden from behind',
+        alt: 'Kayla dancing in a backless pink dress at a garden party, seen from behind',
+        copy: 'A backless pink dress and the whole garden behind her.'
+      },
+      {
+        src: 'assets/golden-hour/dance-crew-back.mp4',
+        poster: 'assets/golden-hour/dance-crew-back-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Four backs, one beat',
+        alt: 'Martha, 3DVR Girl, Kayla, and the garden muse dancing together at a festival, seen from behind',
+        copy: 'The crew from behind: Kayla in green paisley, mid-dance.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-kayla-garden.mp4',
+        poster: 'assets/golden-hour/dance-beach-kayla-garden-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Shoreline at sunset',
+        alt: 'Kayla and the garden muse walking and dancing along the shoreline in linen dresses at sunset',
+        copy: 'Two linen dresses at the water line, walking the light down.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-crew.mp4',
+        poster: 'assets/golden-hour/dance-beach-crew-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'The beach circle',
+        alt: 'Martha in a cream linen dress dancing in a circle on the beach at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, all in linen',
+        copy: 'Kayla circles up in linen with the whole crew on the sand.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-kayla-garden.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-kayla-garden-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'Thomas, this way',
+        alt: 'Thomas dancing in a meadow with Kayla, who calls to him, and the garden muse beside them',
+        copy: 'She calls him over: Thomas, this way, and the meadow opens up.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-crew.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-crew-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'His name, in the meadow',
+        alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
+        copy: 'Kayla in the circle, chanting his name at sunset.'
       }
     ],
     afterDark: [
@@ -609,6 +762,78 @@ export const characters = [
         title: 'Courtyard lemonade, in motion',
         alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard',
         copy: 'The courtyard frame, moving: lemonade up, everyone mid-laugh.'
+      },
+      {
+        src: 'assets/golden-hour/dance-martha-garden-lavender.mp4',
+        poster: 'assets/golden-hour/dance-martha-garden-lavender-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Lavender, with Martha',
+        alt: 'Martha dancing through a lavender garden with the garden muse in a sage linen dress',
+        copy: 'Martha finds her in the lavender, and the garden approves.'
+      },
+      {
+        src: 'assets/golden-hour/dance-garden-explorer-cliff.mp4',
+        poster: 'assets/golden-hour/dance-garden-explorer-cliff-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Perfect sunset',
+        alt: 'The garden muse and the Explorer chatting and dancing on a coastal cliff at sunset',
+        copy: 'This sunset is perfect, one says. Only because we are dancing in it, says the other.'
+      },
+      {
+        src: 'assets/golden-hour/dance-crew-finale.mp4',
+        poster: 'assets/golden-hour/dance-crew-finale-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'The whole circle',
+        alt: 'Martha at the centre of a festival dance circle with 3DVR Girl, Muse, and the garden muse, flower crowns on, at dusk',
+        copy: 'The garden muse in lavender, holding the circle together.'
+      },
+      {
+        src: 'assets/golden-hour/dance-crew-back.mp4',
+        poster: 'assets/golden-hour/dance-crew-back-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Four backs, one beat',
+        alt: 'Martha, 3DVR Girl, Kayla, and the garden muse dancing together at a festival, seen from behind',
+        copy: 'Red curls and white lace at the end of the line, mid-dance.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-kayla-garden.mp4',
+        poster: 'assets/golden-hour/dance-beach-kayla-garden-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Shoreline at sunset',
+        alt: 'Kayla and the garden muse walking and dancing along the shoreline in linen dresses at sunset',
+        copy: 'She walks the shoreline with Kayla, both in linen, both laughing.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-crew.mp4',
+        poster: 'assets/golden-hour/dance-beach-crew-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'The beach circle',
+        alt: 'Martha in a cream linen dress dancing in a circle on the beach at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, all in linen',
+        copy: 'Back to the camera, curls down, circling in white linen.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-kayla-garden.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-kayla-garden-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'Thomas, this way',
+        alt: 'Thomas dancing in a meadow with Kayla, who calls to him, and the garden muse beside them',
+        copy: 'She stands with Kayla and calls Thomas into the meadow.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-crew.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-crew-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'His name, in the meadow',
+        alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
+        copy: 'The garden muse chanting along as the sun drops.'
       }
     ],
     afterDark: [
@@ -761,6 +986,42 @@ export const characters = [
         title: 'Courtyard lemonade, in motion',
         alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard',
         copy: 'The courtyard frame, moving: lemonade up, everyone mid-laugh.'
+      },
+      {
+        src: 'assets/golden-hour/dance-martha-explorer-cliff.mp4',
+        poster: 'assets/golden-hour/dance-martha-explorer-cliff-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Cliff sunset, with Martha',
+        alt: 'Martha dancing with the Explorer in a festival outfit on a coastal cliff at sunset',
+        copy: 'Martha meets her where the land ends: cliffs, sunset, dancing.'
+      },
+      {
+        src: 'assets/golden-hour/dance-garden-explorer-cliff.mp4',
+        poster: 'assets/golden-hour/dance-garden-explorer-cliff-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Perfect sunset',
+        alt: 'The garden muse and the Explorer chatting and dancing on a coastal cliff at sunset',
+        copy: 'The Explorer trades lines with the garden muse over the cliff sunset.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-muse-explorer.mp4',
+        poster: 'assets/golden-hour/dance-beach-muse-explorer-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Sand and sunset',
+        alt: 'Muse and the Explorer dancing on the sand at sunset in linen, holding hands',
+        copy: 'Linen, sand, and Muse’s hand in hers at sunset.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-muse-explorer.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-muse-explorer-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'We saved you a dance',
+        alt: 'Thomas holding hands with Muse and the Explorer in a flower field at golden hour',
+        copy: 'She and Muse hold a place in the circle for Thomas.'
       }
     ],
     afterDark: [
@@ -893,6 +1154,78 @@ export const characters = [
         title: 'Festival dusk',
         alt: '3DVR Girl, Kayla, and Muse with flower crowns and crochet tops at an outdoor festival at dusk, arms around each other laughing',
         copy: 'Flower crowns, crochet tops, and the stage lighting up: the set starts at dusk.'
+      },
+      {
+        src: 'assets/golden-hour/dance-martha-muse-lights.mp4',
+        poster: 'assets/golden-hour/dance-martha-muse-lights-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'String lights, with Martha',
+        alt: 'Martha dancing with Muse, dark hair with purple highlights, under string lights at dusk',
+        copy: 'Martha and Muse under the string lights, right where the evening starts.'
+      },
+      {
+        src: 'assets/golden-hour/dance-crew-finale.mp4',
+        poster: 'assets/golden-hour/dance-crew-finale-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'The whole circle',
+        alt: 'Martha at the centre of a festival dance circle with 3DVR Girl, Muse, and the garden muse, flower crowns on, at dusk',
+        copy: 'Muse in the circle, purple in her hair and a flower crown on.'
+      },
+      {
+        src: 'assets/golden-hour/dance-muse-solo.mp4',
+        poster: 'assets/golden-hour/dance-muse-solo-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'I dreamed this dance',
+        alt: 'Muse speaking softly to the camera under string lights at dusk',
+        copy: 'Softly, like everything she says: I dreamed about this dance.'
+      },
+      {
+        src: 'assets/golden-hour/dance-muse-back.mp4',
+        poster: 'assets/golden-hour/dance-muse-back-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Lattice back, string lights',
+        alt: 'Muse dancing in a lattice-back dress under string lights at dusk, seen from behind',
+        copy: 'Purple down her back, lights overhead: Muse from behind.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-muse-explorer.mp4',
+        poster: 'assets/golden-hour/dance-beach-muse-explorer-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'Sand and sunset',
+        alt: 'Muse and the Explorer dancing on the sand at sunset in linen, holding hands',
+        copy: 'She takes the Explorer’s hand and the sunset keeps time.'
+      },
+      {
+        src: 'assets/golden-hour/dance-beach-crew.mp4',
+        poster: 'assets/golden-hour/dance-beach-crew-poster.webp',
+        video: true,
+        mode: 'Sun',
+        title: 'The beach circle',
+        alt: 'Martha in a cream linen dress dancing in a circle on the beach at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, all in linen',
+        copy: 'Muse in green linen, circling with the crew on the sand.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-muse-explorer.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-muse-explorer-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'We saved you a dance',
+        alt: 'Thomas holding hands with Muse and the Explorer in a flower field at golden hour',
+        copy: 'Her line, and she means it: we saved you a dance, Thomas.'
+      },
+      {
+        src: 'assets/golden-hour/dance-field-thomas-crew.mp4',
+        poster: 'assets/golden-hour/dance-field-thomas-crew-poster.webp',
+        video: true,
+        mode: 'Field',
+        title: 'His name, in the meadow',
+        alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
+        copy: 'Muse chanting his name with the rest of the circle.'
       }
     ],
     afterDark: [
