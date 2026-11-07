@@ -1,0 +1,29 @@
+name: Operator offline refusal tests
+on:
+  pull_request:
+    paths:
+      - 'scripts/operator-runtime-worker-e2e.mjs'
+      - 'tests/operator-runtime-e2e-refusal.test.mjs'
+      - '.github/workflows/operator-offline-refusal.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  refusal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies without scripts
+        run: npm ci --ignore-scripts
+      - name: Verify refusal without any relay or credentials
+        env:
+          OPERATOR_RUNTIME_E2E_ALLOW_ENQUEUE: ''
+          THREEDVR_GUN_PEERS: ''
+          THREEDVR_GUN_RELAY: ''
+          THREEDVR_AGENT_OWNER_ALIAS: ''
+        run: node --test tests/operator-runtime-e2e-refusal.test.mjs
