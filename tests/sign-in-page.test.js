@@ -111,4 +111,15 @@ describe('sign-in page', () => {
     assert.match(html, /guestAccountMigrations/);
     assert.match(html, /guestIdentityLinks/);
   });
+
+  it('honors returnTo and allowlisted app origins after sign-in', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /params\.get\('redirect'\) \|\| params\.get\('next'\) \|\| params\.get\('returnTo'\)/);
+    assert.match(html, /ALLOWED_POST_SIGN_IN_ORIGINS/);
+    assert.match(html, /'https:\/\/portal\.3dvr\.tech'/);
+    assert.match(html, /'https:\/\/helm\.3dvr\.tech'/);
+    assert.match(html, /'https:\/\/operator\.3dvr\.tech'/);
+    assert.match(html, /'https:\/\/girl\.3dvr\.tech'/);
+    assert.match(html, /ALLOWED_POST_SIGN_IN_ORIGINS\.has\(resolved\.origin\)/);
+  });
 });
