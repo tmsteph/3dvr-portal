@@ -541,6 +541,33 @@ const goldenHour = [
     copy: 'A white linen sundress, a lavender field, and one good spin.'
   },
   {
+    kind: 'photo',
+    id: 'gh-festival-trio',
+    title: 'Festival dusk',
+    mode: 'Festival',
+    image: 'assets/golden-hour/trio-festival-dusk.webp',
+    alt: '3DVR Girl, Kayla, and Muse with flower crowns and crochet tops at an outdoor festival at dusk, arms around each other laughing',
+    copy: 'Flower crowns, crochet tops, and the stage lighting up: the set starts at dusk.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-festival-duo',
+    title: 'Glitter hour',
+    mode: 'Festival',
+    image: 'assets/golden-hour/duo-festival-golden.webp',
+    alt: 'The garden muse and the Explorer laughing at an outdoor festival at golden hour, flower crowns and glitter on their cheeks',
+    copy: 'Glitter on their cheeks and the light going gold over the festival flags.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-festival-solo',
+    title: 'Festival spin',
+    mode: 'Festival',
+    image: 'assets/golden-hour/solo-festival-dress.webp',
+    alt: '3DVR Girl twirling in a flowing embroidered festival dress, flower crown on, fairy lights glowing behind her at dusk',
+    copy: 'Hair out, skirt out: she spins while the fairy lights come on.'
+  },
+  {
     kind: 'video',
     id: 'gh-pool-video',
     title: 'Pool rules, in motion',

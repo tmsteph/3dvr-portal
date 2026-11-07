@@ -190,6 +190,20 @@ export const characters = [
         copy: 'A white linen sundress, a lavender field, and one good spin.'
       },
       {
+        src: 'assets/golden-hour/trio-festival-dusk.webp',
+        mode: 'Festival',
+        title: 'Festival dusk',
+        alt: '3DVR Girl, Kayla, and Muse with flower crowns and crochet tops at an outdoor festival at dusk, arms around each other laughing',
+        copy: 'Flower crowns, crochet tops, and the stage lighting up: the set starts at dusk.'
+      },
+      {
+        src: 'assets/golden-hour/solo-festival-dress.webp',
+        mode: 'Festival',
+        title: 'Festival spin',
+        alt: '3DVR Girl twirling in a flowing embroidered festival dress, flower crown on, fairy lights glowing behind her at dusk',
+        copy: 'Hair out, skirt out: she spins while the fairy lights come on.'
+      },
+      {
         src: 'assets/golden-hour/video-pool-duo.mp4',
         poster: 'assets/golden-hour/duo-pool-swimsuits.webp',
         video: true,
@@ -393,6 +407,13 @@ export const characters = [
         copy: 'Kayla and Muse take the practice outside: linen sets, bare feet, and mats on the grass.'
       },
       {
+        src: 'assets/golden-hour/trio-festival-dusk.webp',
+        mode: 'Festival',
+        title: 'Festival dusk',
+        alt: '3DVR Girl, Kayla, and Muse with flower crowns and crochet tops at an outdoor festival at dusk, arms around each other laughing',
+        copy: 'Flower crowns, crochet tops, and the stage lighting up: the set starts at dusk.'
+      },
+      {
         src: 'assets/golden-hour/video-pool-duo.mp4',
         poster: 'assets/golden-hour/duo-pool-swimsuits.webp',
         video: true,
@@ -541,6 +562,13 @@ export const characters = [
         copy: 'Three sundresses and a round of lemonade: golden hour in the courtyard.'
       },
       {
+        src: 'assets/golden-hour/duo-festival-golden.webp',
+        mode: 'Festival',
+        title: 'Glitter hour',
+        alt: 'The garden muse and the Explorer laughing at an outdoor festival at golden hour, flower crowns and glitter on their cheeks',
+        copy: 'Glitter on their cheeks and the light going gold over the festival flags.'
+      },
+      {
         src: 'assets/golden-hour/video-sundress-trio.mp4',
         poster: 'assets/golden-hour/trio-linen-sundresses.webp',
         video: true,
@@ -675,6 +703,13 @@ export const characters = [
         copy: 'Muse and the Explorer walk the shoreline while the light does the work.'
       },
       {
+        src: 'assets/golden-hour/duo-festival-golden.webp',
+        mode: 'Festival',
+        title: 'Glitter hour',
+        alt: 'The garden muse and the Explorer laughing at an outdoor festival at golden hour, flower crowns and glitter on their cheeks',
+        copy: 'Glitter on their cheeks and the light going gold over the festival flags.'
+      },
+      {
         src: 'assets/golden-hour/video-sundress-trio.mp4',
         poster: 'assets/golden-hour/trio-linen-sundresses.webp',
         video: true,
@@ -794,6 +829,13 @@ export const characters = [
         title: 'Shoreline hour',
         alt: 'Muse and the Explorer in summer dresses walking a beach at golden hour',
         copy: 'Muse and the Explorer walk the shoreline while the light does the work.'
+      },
+      {
+        src: 'assets/golden-hour/trio-festival-dusk.webp',
+        mode: 'Festival',
+        title: 'Festival dusk',
+        alt: '3DVR Girl, Kayla, and Muse with flower crowns and crochet tops at an outdoor festival at dusk, arms around each other laughing',
+        copy: 'Flower crowns, crochet tops, and the stage lighting up: the set starts at dusk.'
       }
     ],
     afterDark: [

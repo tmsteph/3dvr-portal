@@ -161,6 +161,7 @@ test('golden hour is a public shelf between the scenes and After Dark', async ()
   // The shelf renders from app.js data, photos and clips alike.
   assert.match(app, /goldenHourGrid/);
   assert.match(app, /assets\/golden-hour\/duo-pool-swimsuits\.webp/);
+  assert.match(app, /assets\/golden-hour\/trio-festival-dusk\.webp/);
   assert.match(app, /assets\/golden-hour\/video-sundress-trio\.mp4/);
   // Character pages get the shelf as its own tab next to After Dark,
   // rendered from the same per-character data.
@@ -173,20 +174,23 @@ test('golden hour is a public shelf between the scenes and After Dark', async ()
 test('golden hour attribution follows who each frame shows', () => {
   const counts = Object.fromEntries(characters.map(character => [character.id, character.goldenHour.length]));
   assert.deepEqual(counts, {
-    '3dvr-girl': 5,
-    kayla: 3,
-    'garden-muse': 2,
-    explorer: 3,
-    muse: 2
+    '3dvr-girl': 7,
+    kayla: 4,
+    'garden-muse': 3,
+    explorer: 4,
+    muse: 3
   });
   // Every shelf asset is attributed to at least one character, and the
   // videos are marked as videos wherever they appear.
   const attributed = new Set(characters.flatMap(character => character.goldenHour.map(item => item.src)));
   assert.deepEqual([...attributed].sort(), [
     'assets/golden-hour/duo-beach-dresses.webp',
+    'assets/golden-hour/duo-festival-golden.webp',
     'assets/golden-hour/duo-pool-swimsuits.webp',
     'assets/golden-hour/duo-yoga-linen.webp',
+    'assets/golden-hour/solo-festival-dress.webp',
     'assets/golden-hour/solo-lavender-dress.webp',
+    'assets/golden-hour/trio-festival-dusk.webp',
     'assets/golden-hour/trio-linen-sundresses.webp',
     'assets/golden-hour/video-pool-duo.mp4',
     'assets/golden-hour/video-sundress-trio.mp4'
