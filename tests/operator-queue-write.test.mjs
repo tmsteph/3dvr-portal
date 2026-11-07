@@ -29,3 +29,25 @@ test('thrown write fails closed without retry', async () => {
   assert.deepEqual(called, ['tasks', 'latest']);
   assert.equal(result.acknowledged, false);
 });
+
+test('first write timeout reports uncertain persistence without retry', async () => {
+  const called = [];
+  const result = await writeQueueRecords(entries, async key => {
+    called.push(key);
+    return { acknowledged: false, timedOut: true };
+  });
+  assert.deepEqual(called, ['tasks']);
+  assert.equal(result.acknowledged, false);
+  assert.equal(result.partial, true);
+  assert.equal(result.uncertain, true);
+});
+test('first missing acknowledgment reports uncertain persistence', async () => {
+  const result = await writeQueueRecords(entries, async () => ({}));
+  assert.equal(result.partial, true);
+  assert.equal(result.uncertain, true);
+});
+test('first explicit rejection is not misclassified as uncertain', async () => {
+  const result = await writeQueueRecords(entries, async () => ({ acknowledged: false, error: 'rejected' }));
+  assert.equal(result.partial, false);
+  assert.equal(result.uncertain, false);
+});
