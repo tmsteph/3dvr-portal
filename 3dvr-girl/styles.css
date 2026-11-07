@@ -109,6 +109,11 @@ button {
   border-color: var(--line-strong);
 }
 
+.cast-strip__staff {
+  border-color: rgba(119, 185, 192, 0.45);
+  color: var(--cyan);
+}
+
 .cast-strip__key {
   margin-left: auto;
   border-color: rgba(211, 185, 143, 0.56);
@@ -934,6 +939,51 @@ main section[id] {
   cursor: pointer;
   font-size: 1.6rem;
   line-height: 1;
+}
+
+/* Martha, the assistant: staff card at the foot of the world page.
+   She is crew, not cast, so the card borrows the identity-card shell
+   and gives her the cyan the brand mark uses. */
+.staff-card {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: clamp(20px, 4vw, 44px);
+  align-items: center;
+  padding: clamp(20px, 3.4vw, 36px);
+  border: 1px solid rgba(119, 185, 192, 0.32);
+  border-radius: 28px;
+  background: linear-gradient(165deg, var(--panel) 0%, var(--bg-soft) 100%);
+  box-shadow: var(--shadow);
+}
+
+.staff-card__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+}
+
+.staff-card__copy h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.staff-card__copy p:not(.eyebrow) {
+  max-width: 36rem;
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .staff-card {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-card__image {
+    max-width: 240px;
+  }
 }
 
 .footer {
