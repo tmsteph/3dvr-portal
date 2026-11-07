@@ -199,7 +199,7 @@ document.querySelector('.quick-prompts').addEventListener('click',event=>{const 
 log.addEventListener('click',event=>{const suggestion=event.target.closest('[data-suggestion]');if(suggestion){input.value=suggestion.dataset.suggestion;form.requestSubmit();return}const branch=event.target.closest('[data-branch-from]');if(branch){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),branch.dataset.branchFrom);refreshHistory();save();status.textContent='Branch point selected · your next message starts a new branch';input.focus();return}const switcher=event.target.closest('[data-switch-node]');if(switcher?.dataset.switchNode){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),switcher.dataset.switchNode,{followDescendants:true});refreshHistory();save();status.textContent='Switched branch';}});
 if(copyButton)copyButton.onclick=()=>{void copyConversation()};
 document.querySelector('.copy-close')?.addEventListener('click',()=>copyDialog?.close());
-document.querySelector('#clear-chat').onclick=()=>{store.conversations=store.conversations.filter(item=>item.messages.length);store.activeId=makeId();refreshHistory();save();closeHistory();closeTree();input.focus()};
+document.querySelector('#clear-chat').onclick=()=>{store.conversations=store.conversations.filter(item=>item.messages.length);store.activeId=makeId();refreshHistory();save();closeHistory();closeTree();input.value='';input.focus()};
 showHistory.onclick=openHistory;
 document.querySelector('#close-history').onclick=()=>{closeHistory();showHistory.focus()};
 showTree.onclick=openTree;
