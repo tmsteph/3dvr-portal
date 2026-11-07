@@ -7,7 +7,8 @@ export async function writeQueueRecords(entries, write) {
     catch (error) { result = { acknowledged: false, error: String(error) }; }
     results.push({ key, ...result });
     if (!result?.acknowledged || result?.timedOut) {
-      return { acknowledged: false, partial: results.length > 1, results };
+      const uncertain = Boolean(result?.timedOut || result?.acknowledged == null);
+      return { acknowledged: false, partial: results.length > 1 || uncertain, uncertain, results };
     }
   }
   return { acknowledged: true, partial: false, results };
