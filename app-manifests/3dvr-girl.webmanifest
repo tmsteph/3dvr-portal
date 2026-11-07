@@ -1,0 +1,29 @@
+{
+  "id": "/3dvr-girl/",
+  "name": "3DVR Girl",
+  "short_name": "3DVR Girl",
+  "description": "The evolving visual world of 3DVR Girl: nature, movement, open technology, and the stories between them.",
+  "start_url": "/3dvr-girl/?source=pwa",
+  "scope": "/3dvr-girl/",
+  "display": "standalone",
+  "background_color": "#0b0f0d",
+  "theme_color": "#0b0f0d",
+  "icons": [
+    {
+      "sizes": "192x192",
+      "src": "/icons/3dvr-girl-192.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "512x512",
+      "src": "/icons/3dvr-girl-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "/icons/3dvr-girl-maskable-512.png",
+      "type": "image/png"
+    }
+  ]
+}
