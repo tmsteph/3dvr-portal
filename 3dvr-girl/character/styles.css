@@ -454,6 +454,21 @@ button, textarea { font: inherit; color: inherit; }
 
 .gallery-card__caption small { color: #c1bbb0; font-size: 0.8rem; }
 
+/* Golden hour clips: the caption sits under the video instead of over
+   it, so the native play controls stay clear. */
+.gallery-card--video::after { display: none; }
+
+.gallery-card--video video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.gallery-card--video .gallery-card__caption {
+  position: static;
+  padding: 10px 14px 12px;
+}
+
 .story-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

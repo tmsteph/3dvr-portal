@@ -817,6 +817,23 @@ main section[id] {
   display: none;
 }
 
+/* Golden hour shelf: the clips sit in the archive masonry as living
+   cards, so they take the masonry rhythm (full column width, same
+   gaps, no breaking across columns) instead of the living grid's. */
+.golden-hour .living-card {
+  width: 100%;
+  margin: 0 0 12px;
+  break-inside: avoid;
+}
+
+.golden-hour .living-card[hidden] {
+  display: none;
+}
+
+.golden-hour .living-card video {
+  min-height: 240px;
+}
+
 .archive-card img {
   width: 100%;
   height: auto;

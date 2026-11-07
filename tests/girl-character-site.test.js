@@ -22,6 +22,8 @@ test('character data is well-formed and ids are unique', () => {
     assert.ok(character.gallery.length >= 1);
     assert.ok(Array.isArray(character.afterDark));
     assert.ok(character.afterDark.length >= 1);
+    assert.ok(Array.isArray(character.goldenHour));
+    assert.ok(character.goldenHour.length >= 1);
     assert.ok(character.stories.length >= 1);
     assert.ok(character.chat.greeting.length > 0);
     assert.ok(character.chat.placeholder.length > 0);
@@ -44,6 +46,8 @@ test('character data only references assets that exist in the repo', () => {
       character.heroImage.src,
       ...character.worlds.map(world => world.image),
       ...character.gallery.map(scene => scene.src),
+      ...character.goldenHour.map(item => item.src),
+      ...character.goldenHour.filter(item => item.poster).map(item => item.poster),
       ...character.afterDark.map(frame => frame.src),
       ...character.stories.map(story => story.cover)
     ];
@@ -67,6 +71,16 @@ test('SFW and After Dark material stay strictly separate', () => {
       assert.equal(publicSrcs.has(frame.src), false, `${character.id} frame ${frame.src} appears in both galleries`);
       assert.ok(frame.title.length > 0);
       assert.ok(frame.alt.length > 0);
+    }
+    // Golden hour is its own shelf: public like the gallery, never an
+    // After Dark asset, and never double-filed as a private frame.
+    const privateSrcs = new Set(character.afterDark.map(frame => frame.src));
+    for (const item of character.goldenHour) {
+      assert.ok(item.src.startsWith('assets/golden-hour/'), `${character.id} golden hour item ${item.src} must live on the golden hour shelf`);
+      assert.equal(privateSrcs.has(item.src), false, `${character.id} golden hour item ${item.src} is also filed as a private frame`);
+      assert.ok(item.title.length > 0);
+      assert.ok(item.alt.length > 0);
+      if (item.video) assert.ok(item.poster?.startsWith('assets/golden-hour/'), `${character.id} golden hour clip ${item.src} needs a shelf poster`);
     }
   }
 });
@@ -122,4 +136,64 @@ test('character page renders from the data module and hosts the chat panel', asy
 test('the world page links into her site', async () => {
   const html = await read('3dvr-girl/index.html');
   assert.match(html, /href="character\/"/);
+});
+
+test('golden hour is a public shelf between the scenes and After Dark', async () => {
+  const [html, app, characterHtml, characterApp] = await Promise.all([
+    read('3dvr-girl/index.html'),
+    read('3dvr-girl/app.js'),
+    read('3dvr-girl/character/index.html'),
+    read('3dvr-girl/character/app.js')
+  ]);
+  // The section sits between the scene archive and After Dark, with its
+  // own anchor, and carries no lock or blur of its own: the shelf is
+  // public, so the only lock markup on the page stays in After Dark.
+  const archiveAt = html.indexOf('id="archive"');
+  const goldenAt = html.indexOf('id="golden-hour"');
+  const afterDarkAt = html.indexOf('id="after-dark"');
+  assert.ok(archiveAt > -1 && goldenAt > archiveAt && afterDarkAt > goldenAt,
+    'golden hour section must sit between the archive and After Dark');
+  assert.match(html, /id="goldenHourGrid"/);
+  assert.match(html, /href="#golden-hour"/);
+  const section = html.slice(goldenAt, afterDarkAt);
+  assert.equal(/afterDarkLock|is-blurred|private-card/.test(section), false,
+    'the golden hour section must not carry lock or blur markup');
+  // The shelf renders from app.js data, photos and clips alike.
+  assert.match(app, /goldenHourGrid/);
+  assert.match(app, /assets\/golden-hour\/duo-pool-swimsuits\.webp/);
+  assert.match(app, /assets\/golden-hour\/video-sundress-trio\.mp4/);
+  // Character pages get the shelf as its own tab next to After Dark,
+  // rendered from the same per-character data.
+  assert.match(characterHtml, /id="goldenHourGrid"/);
+  assert.match(characterHtml, /data-tab="goldenhour"/);
+  assert.match(characterApp, /character\.goldenHour/);
+  assert.match(characterApp, /'golden-hour': 'goldenhour'/);
+});
+
+test('golden hour attribution follows who each frame shows', () => {
+  const counts = Object.fromEntries(characters.map(character => [character.id, character.goldenHour.length]));
+  assert.deepEqual(counts, {
+    '3dvr-girl': 5,
+    kayla: 3,
+    'garden-muse': 2,
+    explorer: 3,
+    muse: 2
+  });
+  // Every shelf asset is attributed to at least one character, and the
+  // videos are marked as videos wherever they appear.
+  const attributed = new Set(characters.flatMap(character => character.goldenHour.map(item => item.src)));
+  assert.deepEqual([...attributed].sort(), [
+    'assets/golden-hour/duo-beach-dresses.webp',
+    'assets/golden-hour/duo-pool-swimsuits.webp',
+    'assets/golden-hour/duo-yoga-linen.webp',
+    'assets/golden-hour/solo-lavender-dress.webp',
+    'assets/golden-hour/trio-linen-sundresses.webp',
+    'assets/golden-hour/video-pool-duo.mp4',
+    'assets/golden-hour/video-sundress-trio.mp4'
+  ]);
+  for (const character of characters) {
+    for (const item of character.goldenHour) {
+      assert.equal(Boolean(item.video), item.src.endsWith('.mp4'), `${character.id} item ${item.src}: video flag must match the file type`);
+    }
+  }
 });
