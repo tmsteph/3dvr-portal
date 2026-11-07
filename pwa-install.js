@@ -1,7 +1,7 @@
 (() => {
   const scriptEl = document.currentScript;
   // A page may set window.__pwaInstallConfig before this helper loads to pick
-  // its worker per origin (3DVR Girl does on girl.3dvr.tech); the script
+  // its worker per origin (3DVR Girl does on ladies.3dvr.tech); the script
   // tag's data attributes are the usual static route, and the portal root
   // worker is the default.
   const pageConfig = window.__pwaInstallConfig || {};

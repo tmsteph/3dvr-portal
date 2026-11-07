@@ -52,7 +52,7 @@ test('Helm accepts owner proofs from any production origin and preserves explici
     return { ...body, authPub: pair.pub, authProof: await SEA.sign({ ...body, scope: 'openclaw-helm', pub: pair.pub, iat: Date.now(), origin }, pair) };
   };
   const handler = createOpenClawHandler({ config, run });
-  for (const origin of ['https://portal.3dvr.tech', 'https://operator.3dvr.tech', 'https://helm.3dvr.tech', 'https://girl.3dvr.tech']) {
+  for (const origin of ['https://portal.3dvr.tech', 'https://operator.3dvr.tech', 'https://helm.3dvr.tech', 'https://ladies.3dvr.tech']) {
     assert.equal((await call(handler, await proof(origin), origin)).statusCode, 200);
   }
   assert.equal((await call(handler, await proof('https://operator.3dvr.tech'), 'https://portal.3dvr.tech')).statusCode, 401);

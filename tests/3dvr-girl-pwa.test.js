@@ -47,7 +47,7 @@ function girlWorker() {
   vm.runInNewContext(girlWorkerSource, {
     URL,
     self: {
-      location: { origin: 'https://girl.3dvr.tech' },
+      location: { origin: 'https://ladies.3dvr.tech' },
       addEventListener: (type, handler) => { handlers[type] = handler; },
       skipWaiting() {},
       clients: { claim: async () => {} }
@@ -62,7 +62,7 @@ function girlWorker() {
   return { handlers, deleted };
 }
 
-test('On girl.3dvr.tech the app uses her dedicated manifest, worker and install button', async () => {
+test('On ladies.3dvr.tech the app uses her dedicated manifest, worker and install button', async () => {
   const manifest = JSON.parse(
     await readFile(new URL('3dvr-girl/girl.webmanifest', root), 'utf8')
   );
@@ -82,7 +82,7 @@ test('On girl.3dvr.tech the app uses her dedicated manifest, worker and install 
 
   for (const page of ['3dvr-girl/index.html', '3dvr-girl/character/index.html']) {
     const html = await readFile(new URL(page, root), 'utf8');
-    assert.ok(html.includes("window.location.hostname === 'girl.3dvr.tech'"), page);
+    assert.ok(html.includes("window.location.hostname === 'ladies.3dvr.tech'"), page);
     assert.ok(html.includes('window.__pwaInstallConfig'), page);
     assert.ok(html.includes("swUrl: '/3dvr-girl/service-worker.js'"), page);
     assert.ok(html.includes("'/3dvr-girl/girl.webmanifest'"), page);
@@ -95,7 +95,7 @@ test('On girl.3dvr.tech the app uses her dedicated manifest, worker and install 
 test('Girl offline navigation returns the reconnect screen', async () => {
   const { handlers } = girlWorker();
   let response;
-  handlers.fetch({ request: { method: 'GET', mode: 'navigate', url: 'https://girl.3dvr.tech/3dvr-girl/' }, respondWith: (value) => { response = value; } });
+  handlers.fetch({ request: { method: 'GET', mode: 'navigate', url: 'https://ladies.3dvr.tech/3dvr-girl/' }, respondWith: (value) => { response = value; } });
   assert.equal(await response, offline);
 });
 
@@ -106,7 +106,7 @@ test('Girl worker leaves API, Gun, writes and other apps untouched', () => {
     ['/gun', 'GET', 'cors'], ['/3dvr-girl/app.js', 'GET', 'cors'],
     ['/helm/', 'GET', 'navigate'], ['https://other.example/3dvr-girl/', 'GET', 'navigate']
   ]) {
-    handlers.fetch({ request: { url: new URL(path, 'https://girl.3dvr.tech').href, method, mode }, respondWith: () => assert.fail(`Intercepted ${path}`) });
+    handlers.fetch({ request: { url: new URL(path, 'https://ladies.3dvr.tech').href, method, mode }, respondWith: () => assert.fail(`Intercepted ${path}`) });
   }
 });
 

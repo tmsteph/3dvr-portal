@@ -9,10 +9,10 @@
   <link rel="manifest" href="/app-manifests/3dvr-girl.webmanifest">
   <link rel="apple-touch-icon" href="/icons/3dvr-girl-192.png">
   <script>
-    // On her own origin (girl.3dvr.tech) the app uses her dedicated manifest
+    // On her own origin (ladies.3dvr.tech) the app uses her dedicated manifest
     // and offline worker, registered through the shared /pwa-install.js
     // helper. The portal origin keeps the shared manifest and root worker.
-    if (window.location.hostname === 'girl.3dvr.tech') {
+    if (window.location.hostname === 'ladies.3dvr.tech') {
       window.__pwaInstallConfig = { swUrl: '/3dvr-girl/service-worker.js', swScope: '/3dvr-girl/' };
       document.querySelector('link[rel="manifest"]').href = '/3dvr-girl/girl.webmanifest';
     }

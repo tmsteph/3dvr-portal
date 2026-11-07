@@ -42,7 +42,7 @@ function setup({ standalone = false, config, withServiceWorker = false } = {}) {
     addEventListener: (type, handler) => { windowEvents[type] = handler; },
     matchMedia: () => ({ matches: standalone }),
     navigator: navigatorObj,
-    location: { origin: 'https://girl.3dvr.tech', pathname: '/3dvr-girl/' },
+    location: { origin: 'https://ladies.3dvr.tech', pathname: '/3dvr-girl/' },
     __pwaInstallConfig: config
   };
   vm.runInNewContext(source, {

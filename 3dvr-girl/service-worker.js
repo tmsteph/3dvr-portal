@@ -1,4 +1,4 @@
-/* 3DVR Girl has its own install scope on girl.3dvr.tech; account data,
+/* 3DVR Girl has its own install scope on ladies.3dvr.tech; account data,
    chat and gallery traffic stay outside this cache. */
 const CACHE_NAME = 'girl-offline-v1';
 const OFFLINE_URL = '/3dvr-girl/offline.html';
