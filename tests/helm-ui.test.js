@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm';
 import { randomUUID } from 'node:crypto';
 import { createOutbox } from '../helm/outbox.js';
 import { readHelmResponse } from '../helm/stream.js';
+import { paintOperatorMarkdown } from '../operator/markdown.js';
 
 const source = (await readFile(new URL('../helm/app.js', import.meta.url), 'utf8')).replace(/^import .*;\n/gm, '');
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -16,6 +17,15 @@ function findAll(node, predicate, found = []) {
   return found;
 }
 const findByText = (root, text) => findAll(root, item => item.textContent === text)[0];
+
+// Visible text of a fake-DOM subtree: plain textContent assignments plus
+// the string children and element text the markdown painter builds.
+const textOf = node => {
+  if (typeof node === 'string') return node;
+  if (!node || typeof node !== 'object') return '';
+  return (typeof node.textContent === 'string' ? node.textContent : '')
+    + (node.children || []).map(textOf).join('');
+};
 
 const seedRecord = ({ id, sessionId, engine = 'openclaw', text, at, status = 'completed' }) => ({
   id, sessionId, engine, text, status,
@@ -35,20 +45,25 @@ function screen(result, status = 200, signedIn = true, gate, sessions = new Map(
   const makeElement = () => ({ dataset: {}, value: '', children: [], classList: { toggle() {}, remove() {} },
     append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
     addEventListener(event, fn) { this.events ||= {}; this.events[event] = fn; }, setAttribute() {}, focus() {} });
+  const createElement = tag => { const node = makeElement(); node.tagName = String(tag || '').toUpperCase(); return node; };
+  // The shared markdown renderer resolves `document` in this realm (it is
+  // imported here, not in the sandbox), so bridge it to the same fake DOM
+  // the app code sees, with tags recorded for structure assertions.
+  globalThis.document = { createElement, createTextNode: text => text };
   const element = id => {
     if (!elements.has(id)) elements.set(id, { ...makeElement(),
       addEventListener(event, fn) { events.set(`${id}:${event}`, fn); } });
     return elements.get(id);
   };
   runInNewContext(source, {
-    document: { getElementById: element, querySelectorAll: () => [], createElement: makeElement, createTextNode: text => text },
+    document: { getElementById: element, querySelectorAll: () => [], createElement, createTextNode: text => text },
     window: { addEventListener(event, fn) { events.set(`window:${event}`, fn); } },
     localStorage: { getItem: key => storage.get(key) }, crypto: { randomUUID }, AbortSignal,
     Date: Clock,
     sessionStorage: { getItem: key => sessions.get(key), setItem: (key, value) => sessions.set(key, value) },
     setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
     clearInterval: id => intervals.delete(id),
-    setTimeout: fn => { queueMicrotask(fn); return 0; }, clearTimeout: () => {}, createOutbox, readHelmResponse,
+    setTimeout: fn => { queueMicrotask(fn); return 0; }, clearTimeout: () => {}, createOutbox, readHelmResponse, paintOperatorMarkdown,
     openHelmMessageStore: async callbacks => { storeCallbacks = callbacks; return { save: async record => saved.push(structuredClone(record)), close() {} }; },
     createSignedPortalProof: async () => ({ authProof: 'signed' }),
     fetch: async (_url, options) => {
@@ -431,7 +446,9 @@ test('a queued turn shows the receipt preview in its bubble until the final repl
   assert.equal(ui.saved.at(-1).reply, 'Final answer');
   const doneCard = ui.element('messages').children[0];
   assert.equal(findAll(doneCard, item => item.className === 'working-note').length, 0);
-  assert.ok(doneCard.children.some(item => item?.textContent === 'Final answer'));
+  const doneReply = findAll(doneCard, item => item.className === 'saved-reply')[0];
+  assert.ok(doneReply);
+  assert.equal(textOf(doneReply), 'Final answer');
 });
 
 test('a page reload reattaches to a turn still in flight and lands its reply', async () => {
@@ -449,4 +466,45 @@ test('a page reload reattaches to a turn still in flight and lands its reply', a
   assert.equal(poll.requestId, 'seed-flight-001');
   assert.equal(ui.saved.at(-1).status, 'completed');
   assert.equal(ui.saved.at(-1).reply, 'Recovered reply');
+});
+
+test('assistant replies render markdown while the user message stays plain text', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true,
+    reply: 'Yes. I am **Helm** here, front door to **Operator**.\n\n- one\n- two\n\nSee [the portal](https://portal.3dvr.tech/helm/) and run `helm status`.' });
+  await ui.ready;
+  await ui.submit('You are **helm** right now?');
+  const card = ui.element('messages').children[0];
+  // The user's own words stay a raw text node, asterisks untouched.
+  assert.ok(card.children.includes('You are **helm** right now?'));
+  const reply = findAll(card, item => item.className === 'saved-reply')[0];
+  assert.ok(reply);
+  const strongs = findAll(reply, item => item.tagName === 'STRONG');
+  assert.deepEqual(strongs.map(textOf), ['Helm', 'Operator']);
+  assert.equal(findAll(reply, item => item.tagName === 'LI').length, 2);
+  const code = findAll(reply, item => item.tagName === 'CODE')[0];
+  assert.equal(textOf(code), 'helm status');
+  const link = findAll(reply, item => item.tagName === 'A')[0];
+  assert.equal(link.href, 'https://portal.3dvr.tech/helm/');
+  assert.equal(link.target, '_blank');
+  assert.equal(link.rel, 'noopener noreferrer');
+  assert.equal(textOf(link), 'the portal');
+  // No literal markdown markers survive in the rendered reply text.
+  assert.ok(!textOf(reply).includes('**'));
+});
+
+test('assistant replies render hostile markup as inert text', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true,
+    reply: 'Safe <script>alert(1)</script> and <img src=x onerror=alert(2)> plus [click](javascript:alert(3))' });
+  await ui.ready;
+  await ui.submit('Show me the payload');
+  const card = ui.element('messages').children[0];
+  const reply = findAll(card, item => item.className === 'saved-reply')[0];
+  assert.ok(reply);
+  assert.equal(findAll(reply, item => item.tagName === 'SCRIPT').length, 0);
+  assert.equal(findAll(reply, item => item.tagName === 'IMG').length, 0);
+  assert.equal(findAll(reply, item => item.tagName === 'A').length, 0);
+  const visible = textOf(reply);
+  assert.ok(visible.includes('<script>alert(1)</script>'));
+  assert.ok(visible.includes('<img src=x onerror=alert(2)>'));
+  assert.ok(visible.includes('click'));
 });

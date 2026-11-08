@@ -1,4 +1,5 @@
 import { createSignedPortalProof, openHelmMessageStore } from '/operator/forge.js';
+import { paintOperatorMarkdown } from '/operator/markdown.js';
 import { createOutbox } from './outbox.js';
 import { readHelmResponse } from './stream.js';
 
@@ -241,9 +242,19 @@ function messageCard(record, history = false) {
   const live = liveReply?.id === record.id && record.status === 'sending' && !record.reply ? liveReply : null;
   const partial = live ? live.text : '';
   if (record.reply || partial) {
-    const reply = document.createElement('p');
+    const reply = document.createElement('div');
     reply.className = live ? 'saved-reply live' : 'saved-reply';
-    reply.textContent = record.reply || partial;
+    if (record.reply) {
+      // Settled replies render as markdown through the renderer shared
+      // with Operator. It builds DOM nodes only (never innerHTML), so
+      // model output stays inert text plus safe elements and links.
+      paintOperatorMarkdown(reply, record.reply);
+    } else {
+      // The in-flight preview stays plain text: fragments land
+      // mid-token, and the settled reply repaints as markdown in the
+      // same position when it arrives.
+      reply.textContent = partial;
+    }
     if (live) reply.setAttribute('aria-label', 'Reply arriving; completion not yet confirmed');
     article.append(reply);
   }
