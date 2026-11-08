@@ -161,3 +161,37 @@ test('backup queue preserves its engine and cannot drain primary messages', asyn
   await box.drain();
   assert.deepEqual(sent, ['codex-backup', 'codex']);
 });
+
+test('the sending state is persisted before the send is invoked', async () => {
+  const saved = new Map();
+  let statusAtSend = null;
+  const box = createOutbox({ isReady: () => true,
+    save: async record => saved.set(record.id, structuredClone(record)),
+    send: async record => { statusAtSend = saved.get(record.id)?.status; return { reply: 'Done' }; } });
+  await box.enqueue(first);
+  await box.drain();
+  // If the page dies during the send, the record the next page life
+  // restores already says 'sending', so it is reattached by polling
+  // instead of being dispatched as a fresh message.
+  assert.equal(statusAtSend, 'sending');
+  assert.equal(box.snapshot()[0].status, 'completed');
+});
+
+test('a page that dies after enqueue but before drain loses nothing: the next life sends it once', async () => {
+  const saved = new Map();
+  const save = async record => saved.set(record.id, structuredClone(record));
+  const dead = createOutbox({ isReady: () => false, save, send: async () => assert.fail('a dead page sends nothing') });
+  const record = await dead.enqueue(first);
+  assert.equal(saved.get(first.id).status, 'queued');
+  // Reload: a new outbox over the same persisted states restores the
+  // queued record and drains it under its original id and timestamps.
+  const sent = [];
+  const restored = createOutbox({ isReady: () => true, save,
+    send: async item => { sent.push(item); return { reply: 'Done' }; } });
+  restored.merge(saved.get(first.id));
+  await restored.drain();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].id, record.id);
+  assert.equal(sent[0].createdAt, record.createdAt);
+  assert.equal(restored.snapshot()[0].status, 'completed');
+});

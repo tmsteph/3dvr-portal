@@ -1,6 +1,6 @@
 import { createSignedPortalProof, openHelmMessageStore } from '/operator/forge.js';
 import { paintOperatorMarkdown } from '/operator/markdown.js';
-import { createOutbox } from './outbox.js';
+import { createOutbox, MESSAGE_TTL_MS, validMessage } from './outbox.js';
 import { readHelmResponse } from './stream.js';
 
 const $ = id => document.getElementById(id);
@@ -22,6 +22,46 @@ let store;
 let epoch = 0;
 let liveReply = null;
 let outbox = makeOutbox();
+
+// Leave-quickly journal: tapping Queue must make the message durable
+// in that same instant, before the encrypted store (Gun context, SEA
+// encrypt, IndexedDB open and cache replay) has finished, which can
+// take seconds on a cold page. The submit handler writes the record
+// here with a synchronous localStorage setItem before its first await,
+// so leaving the page at any later point cannot lose it. On load,
+// entries the store never saved are merged back into the outbox and
+// sent; the first successful store save for a record retires its
+// journal entry, so the journal only ever bridges the tap-to-save gap
+// and can never replay a message the store already holds. Entries are
+// keyed per account, like the session key above.
+const journalKey = () => `3dvr.helm.outbox-journal.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
+function journalRead() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(journalKey()) || '[]');
+    return Array.isArray(parsed) ? parsed.filter(validMessage) : [];
+  } catch { return []; }
+}
+function journalWrite(record) {
+  try {
+    const entries = journalRead().filter(entry => entry.id !== record.id);
+    entries.push(record);
+    localStorage.setItem(journalKey(), JSON.stringify(entries));
+  } catch {}
+}
+function journalRemove(id) {
+  try {
+    const entries = journalRead().filter(entry => entry.id !== id);
+    if (entries.length) localStorage.setItem(journalKey(), JSON.stringify(entries));
+    else localStorage.removeItem(journalKey());
+  } catch {}
+}
+function restoreJournal() {
+  for (const record of journalRead()) outbox.merge(record);
+}
+// The first restore runs at the bottom of this module, not here:
+// merging renders the message list, which reads state declared
+// further down, and journaled records must be in the outbox before
+// the first connection check drains it.
 
 function signedIn() { return localStorage.getItem('signedIn') === 'true'; }
 
@@ -51,6 +91,10 @@ function makeOutbox() {
     const target = await ensureMessages();
     if (currentEpoch !== epoch) throw new Error('Account changed.');
     await target.save(record);
+    // The store now holds this record durably, so its leave-quickly
+    // journal entry has done its job; retiring it here keeps the
+    // journal from ever resurrecting a copy the store already has.
+    journalRemove(record.id);
   };
   // One turn driver serves both dispatch and reattach: the outbox
   // calls it as send for fresh messages and as poll for records an
@@ -197,6 +241,13 @@ async function request(action, record, onDelta, onQueue, onPreview, onActivity) 
     response = await fetch('/api/openclaw', {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(onDelta ? { Accept: 'text/event-stream' } : {}) },
       body: JSON.stringify({ ...payload, action, ...proof }),
+      // A chat submit must survive the page going away mid-send: with
+      // keepalive the browser finishes delivering it after unload, so
+      // the server records its durable receipt even when the user
+      // leaves at the worst moment. The polls below resubmit the same
+      // signed payload, and the receipt fingerprint makes any replay
+      // answer the same one turn, never a second send.
+      ...(record ? { keepalive: true } : {}),
       signal: AbortSignal.timeout(110000)
     });
     result = await readHelmResponse(response, text => {
@@ -547,11 +598,20 @@ $('chat-form').addEventListener('submit', async event => {
   event.preventDefault();
   const text = $('message').value.trim();
   if (!text || saving || !signedIn()) return;
+  // The journal write is synchronous and comes before every await in
+  // this handler: from this line on, the tapped message survives the
+  // page being closed, however quickly that happens. The outbox record
+  // below is stamped with the same id and timestamps, so the journal
+  // copy and the store copy are one record.
+  const createdAt = Date.now();
+  const journaled = { id: crypto.randomUUID(), sessionId, text, engine, createdAt,
+    expiresAt: createdAt + MESSAGE_TTL_MS, updatedAt: createdAt, status: 'queued' };
+  journalWrite(journaled);
   saving = true;
   updateControls();
   $('activity').textContent = 'Saving your message…';
   try {
-    await outbox.enqueue({ id: crypto.randomUUID(), sessionId, text, engine });
+    await outbox.enqueue({ id: journaled.id, sessionId, text, engine, createdAt });
     if ($('message').value.trim() === text) $('message').value = '';
     $('queue-storage').textContent = 'Saved encrypted here · syncing with your GunJS account';
     $('activity').textContent = connected ? 'Saved. Sending when the agent is free.' : 'Saved. It will send when the agent is ready.';
@@ -613,6 +673,7 @@ window.addEventListener('storage', event => {
   store?.close(); store = null; storePromise = null;
   busy = false; liveReply = null;
   connected = false; verifiedAccount = false; outbox = makeOutbox();
+  restoreJournal();
   showAccount(); renderMessages(); updateControls();
   void checkConnection({ automatic: true });
 });
@@ -639,5 +700,6 @@ setInterval(() => {
     else void drain();
   }
 }, 15000);
+restoreJournal();
 showAccount(); updateControls();
 void checkConnection({ automatic: true });
