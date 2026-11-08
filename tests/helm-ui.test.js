@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import { randomUUID } from 'node:crypto';
-import { createOutbox } from '../helm/outbox.js';
+import { createOutbox, MESSAGE_TTL_MS, validMessage } from '../helm/outbox.js';
 import { readHelmResponse } from '../helm/stream.js';
 import { paintOperatorMarkdown } from '../operator/markdown.js';
 
@@ -32,16 +32,17 @@ const seedRecord = ({ id, sessionId, engine = 'openclaw', text, at, status = 'co
   createdAt: at, expiresAt: at + 10 * 60 * 1000, updatedAt: at
 });
 
-function screen(result, status = 200, signedIn = true, gate, sessions = new Map()) {
+function screen(result, status = 200, signedIn = true, gate, sessions = new Map(), harness = {}) {
   const elements = new Map();
   const events = new Map();
   const saved = [];
   const requests = [];
+  const fetches = [];
   const intervals = new Map();
   let storeCallbacks;
   let clock = Date.now();
   class Clock extends Date { static now() { return clock; } }
-  const storage = new Map([['signedIn', signedIn ? 'true' : 'false'], ['alias', 'tmsteph@3dvr'], ['username', 'tmsteph']]);
+  const storage = harness.storage || new Map([['signedIn', signedIn ? 'true' : 'false'], ['alias', 'tmsteph@3dvr'], ['username', 'tmsteph']]);
   const makeElement = () => ({ dataset: {}, value: '', children: [], classList: { toggle() {}, remove() {} },
     append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
     addEventListener(event, fn) { this.events ||= {}; this.events[event] = fn; }, setAttribute() {}, focus() {} });
@@ -58,15 +59,17 @@ function screen(result, status = 200, signedIn = true, gate, sessions = new Map(
   runInNewContext(source, {
     document: { getElementById: element, querySelectorAll: () => [], createElement, createTextNode: text => text },
     window: { addEventListener(event, fn) { events.set(`window:${event}`, fn); } },
-    localStorage: { getItem: key => storage.get(key) }, crypto: { randomUUID }, AbortSignal,
+    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, String(value)),
+      removeItem: key => storage.delete(key) }, crypto: { randomUUID }, AbortSignal,
     Date: Clock,
     sessionStorage: { getItem: key => sessions.get(key), setItem: (key, value) => sessions.set(key, value) },
     setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
     clearInterval: id => intervals.delete(id),
-    setTimeout: fn => { queueMicrotask(fn); return 0; }, clearTimeout: () => {}, createOutbox, readHelmResponse, paintOperatorMarkdown,
-    openHelmMessageStore: async callbacks => { storeCallbacks = callbacks; return { save: async record => saved.push(structuredClone(record)), close() {} }; },
+    setTimeout: fn => { queueMicrotask(fn); return 0; }, clearTimeout: () => {}, createOutbox, MESSAGE_TTL_MS, validMessage, readHelmResponse, paintOperatorMarkdown,
+    openHelmMessageStore: async callbacks => { if (harness.storeGate) await harness.storeGate; storeCallbacks = callbacks; return { save: async record => saved.push(structuredClone(record)), close() {} }; },
     createSignedPortalProof: async () => ({ authProof: 'signed' }),
     fetch: async (_url, options) => {
+      fetches.push({ url: _url, options });
       const payload = JSON.parse(options.body); requests.push(payload);
       if (payload.action === 'status' && gate) await gate;
       const reply = await (typeof result === 'function' ? result(payload) : { status, body: result });
@@ -74,7 +77,8 @@ function screen(result, status = 200, signedIn = true, gate, sessions = new Map(
       return { ok: reply.status === 200, status: reply.status, json: async () => reply.body };
     }
   });
-  return { element, saved, requests, sessions, ready: flush(),
+  return { element, saved, requests, fetches, sessions, storage, ready: flush(),
+    journal: () => { for (const [key, value] of storage) if (key.startsWith('3dvr.helm.outbox-journal.')) return JSON.parse(value); return []; },
     seed: record => storeCallbacks.onRecord(record),
     activeProgress: () => [...intervals.values()].filter(item => item.delay === 1000).length,
     advance: ms => { clock += ms; for (const item of intervals.values()) if (item.delay === 1000) item.fn(); },
@@ -645,4 +649,87 @@ test('assistant replies render hostile markup as inert text', async () => {
   assert.ok(visible.includes('<script>alert(1)</script>'));
   assert.ok(visible.includes('<img src=x onerror=alert(2)>'));
   assert.ok(visible.includes('click'));
+});
+
+test('tapping Queue journals the message synchronously, before the store save lands', async () => {
+  let releaseStore;
+  const storeGate = new Promise(resolve => { releaseStore = resolve; });
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' }, 200, true, null, new Map(), { storeGate });
+  await ui.ready;
+  const submitted = ui.submit('Do not lose this one');
+  await flush(); await flush();
+  // The encrypted store has not opened yet, so nothing reached it and
+  // no request was made; the journal already holds the message, which
+  // is what makes leaving the page right now safe.
+  assert.equal(ui.saved.length, 0);
+  assert.equal(ui.requests.filter(request => request.action === 'chat').length, 0);
+  const journaled = ui.journal();
+  assert.equal(journaled.length, 1);
+  assert.equal(journaled[0].text, 'Do not lose this one');
+  assert.equal(journaled[0].status, 'queued');
+  releaseStore();
+  await submitted; await flush(); await flush();
+  // Once the store save lands, the journal entry is retired: the store
+  // copy is the one record from here on.
+  assert.equal(ui.journal().length, 0);
+  assert.equal(ui.saved[0].id, journaled[0].id);
+  assert.equal(ui.saved[0].createdAt, journaled[0].createdAt);
+  assert.equal(ui.saved.at(-1).status, 'completed');
+});
+
+test('chat submits are sent with fetch keepalive so leaving mid-send cannot abort them', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
+  await ui.ready;
+  await ui.submit('Survive my exit');
+  const chatFetch = ui.fetches.find(item => JSON.parse(item.options.body).action === 'chat');
+  assert.ok(chatFetch);
+  assert.equal(chatFetch.options.keepalive, true);
+  const statusFetch = ui.fetches.find(item => JSON.parse(item.options.body).action === 'status');
+  assert.equal(statusFetch.options.keepalive, undefined);
+});
+
+test('a journaled message from a page that died before saving is sent exactly once after reload', async () => {
+  const storage = new Map([['signedIn', 'true'], ['alias', 'tmsteph@3dvr'], ['username', 'tmsteph']]);
+  const neverOpens = new Promise(() => {});
+  const dead = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' }, 200, true, null, new Map(), { storage, storeGate: neverOpens });
+  await dead.ready;
+  void dead.submit('Sent while leaving');
+  await flush(); await flush();
+  assert.equal(dead.saved.length, 0);
+  const journaled = dead.journal();
+  assert.equal(journaled.length, 1);
+  // A fresh page life over the same local storage: the store never saw
+  // the message, so the journal is the only copy. It must be picked up
+  // and sent once, under its original id, and then retired.
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { status: 200, body: { ok: true, reply: 'Landed after all' } }, 200, true, null, new Map(), { storage });
+  await ui.ready; await flush(); await flush(); await flush(); await flush();
+  const chats = ui.requests.filter(request => request.action === 'chat');
+  assert.equal(chats.length, 1);
+  assert.equal(chats[0].requestId, journaled[0].id);
+  assert.equal(chats[0].message, 'Sent while leaving');
+  assert.equal(chats[0].createdAt, journaled[0].createdAt);
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.saved.at(-1).reply, 'Landed after all');
+  assert.equal(ui.journal().length, 0);
+});
+
+test('a sending record restored on reload resubmits its identical payload, never a new message', async () => {
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { status: 200, body: { ok: true, reply: 'Recovered reply' } });
+  await ui.ready; await flush(); await flush();
+  const now = Date.now();
+  ui.seed(seedRecord({ id: 'seed-flight-002', sessionId: 'chat-flight-002', text: 'Long task', at: now - 60000, status: 'sending' }));
+  ui.focus();
+  await flush(); await flush(); await flush();
+  // The resubmission is the receipt query: same request id, same
+  // createdAt, so the server fingerprint matches the original send and
+  // the turn can only ever run once.
+  const chats = ui.requests.filter(item => item.action === 'chat');
+  assert.equal(chats.length, 1);
+  assert.equal(chats[0].requestId, 'seed-flight-002');
+  assert.equal(chats[0].createdAt, now - 60000);
+  assert.equal(ui.saved.at(-1).status, 'completed');
 });

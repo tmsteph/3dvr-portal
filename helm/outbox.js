@@ -34,8 +34,12 @@ export function createOutbox({ save, send, poll, isReady, onChange = () => {}, c
       records.set(record.id, record);
       changed();
     },
-    async enqueue({ id, sessionId, text, engine = 'openclaw' }) {
-      const createdAt = now();
+    async enqueue({ id, sessionId, text, engine = 'openclaw', createdAt: providedAt }) {
+      // A caller that already stamped the record (the leave-quickly
+      // journal in app.js writes it synchronously at tap time) keeps
+      // its timestamps, so the journaled copy and the outbox record are
+      // the same record, not two near-identical ones.
+      const createdAt = Number.isSafeInteger(providedAt) ? providedAt : now();
       const record = { id, sessionId, text, engine, createdAt, expiresAt: createdAt + MESSAGE_TTL_MS,
         updatedAt: createdAt, status: 'queued' };
       if (!validMessage(record)) throw new Error('Invalid message.');
