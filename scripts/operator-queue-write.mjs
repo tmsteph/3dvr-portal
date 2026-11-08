@@ -4,10 +4,10 @@ export async function writeQueueRecords(entries, write) {
   for (const [key, value] of entries) {
     let result;
     try { result = await write(key, value); }
-    catch (error) { result = { acknowledged: false, error: String(error) }; }
+    catch (error) { result = { acknowledged: false, uncertain: true, error: String(error) }; }
     results.push({ key, ...result });
     if (!result?.acknowledged || result?.timedOut) {
-      const uncertain = Boolean(result?.timedOut || result?.acknowledged == null);
+      const uncertain = Boolean(result?.uncertain || result?.timedOut || result?.acknowledged == null);
       return { acknowledged: false, partial: results.length > 1 || uncertain, uncertain, results };
     }
   }
