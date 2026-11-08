@@ -99,15 +99,19 @@
   const installBanner = document.querySelector('[data-install-banner]');
   const installButton = installBanner?.querySelector('[data-install-button]');
   const dismissButton = installBanner?.querySelector('[data-install-dismiss]');
-  const dismissKey = installBanner?.dataset.installDismissKey || '';
+  const dismissKey = installBanner?.dataset.installDismissKey
+    || `3dvr-pwa-install-dismissed:${scopePath}`;
+  const dismissalHorizonMs = 180 * 24 * 60 * 60 * 1000;
   let deferredPrompt = null;
 
   if (!installBanner || !installButton) return;
 
   const wasDismissed = () => {
-    if (!dismissKey) return false;
     try {
-      return localStorage.getItem(dismissKey) === 'true';
+      const value = localStorage.getItem(dismissKey);
+      if (value === 'true') return true;
+      const dismissedAt = Number(value || 0);
+      return dismissedAt > 0 && Date.now() - dismissedAt < dismissalHorizonMs;
     } catch (error) {
       console.warn('Unable to read install banner dismissal', error);
       return false;
@@ -151,12 +155,10 @@
   };
 
   const dismissBanner = () => {
-    if (dismissKey) {
-      try {
-        localStorage.setItem(dismissKey, 'true');
-      } catch (error) {
-        console.warn('Unable to store install banner dismissal', error);
-      }
+    try {
+      localStorage.setItem(dismissKey, String(Date.now()));
+    } catch (error) {
+      console.warn('Unable to store install banner dismissal', error);
     }
     hideBanner();
   };
@@ -180,7 +182,19 @@
     markInstalled();
     hideBanner();
   });
-  dismissButton?.addEventListener('click', dismissBanner);
+  // Pages that ship no dismiss control get the same quiet × the other
+  // surfaces use, added by the helper.
+  let resolvedDismissButton = dismissButton;
+  if (!resolvedDismissButton && installBanner && typeof document.createElement === 'function') {
+    resolvedDismissButton = document.createElement('button');
+    resolvedDismissButton.type = 'button';
+    resolvedDismissButton.className = 'install-banner__dismiss';
+    resolvedDismissButton.setAttribute('data-install-dismiss', '');
+    resolvedDismissButton.setAttribute('aria-label', 'Dismiss install prompt');
+    resolvedDismissButton.textContent = '×';
+    installBanner.appendChild(resolvedDismissButton);
+  }
+  resolvedDismissButton?.addEventListener('click', dismissBanner);
 
   installButton.addEventListener('click', async () => {
     if (!deferredPrompt) return;

@@ -1,6 +1,6 @@
 /* crm/service-worker.js */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `crm-static-${CACHE_VERSION}`;
 const HTML_CACHE = `crm-html-${CACHE_VERSION}`;
 const SCOPE_URL = new URL(self.registration.scope);

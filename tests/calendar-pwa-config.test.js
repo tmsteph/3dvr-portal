@@ -39,7 +39,7 @@ describe('calendar PWA configuration', () => {
   it('registers a calendar-scoped worker and local manifest from the calendar app shell', async () => {
     const html = await readProjectFile('calendar/index.html');
 
-    assert.match(html, /src="\.\/*pwa-install\.js"/);
+    assert.match(html, /src="\.\/*pwa-install\.js\?v=2026-11-07-quiet1"/);
     assert.match(html, /data-sw-url="\.\/*service-worker\.js"/);
     assert.match(html, /data-sw-scope="\.\//);
     assert.match(html, /href="\.\/*calendar\.webmanifest"/);
@@ -55,7 +55,7 @@ describe('calendar PWA configuration', () => {
   it('ships a calendar-specific service worker', async () => {
     const workerSource = await readProjectFile('calendar/service-worker.js');
 
-    assert.match(workerSource, /const CACHE_VERSION = 'v8';/);
+    assert.match(workerSource, /const CACHE_VERSION = 'v9';/);
     assert.match(workerSource, /calendar-static-/);
     assert.match(workerSource, /calendar-html-/);
     assert.match(workerSource, /scopeAsset\('global\.css'\)/);

@@ -245,6 +245,36 @@
     }
   };
 
+
+  // Dismissal is the other half of remembering: platform detection
+  // cannot see an install made in another browser, and a home-screen
+  // shortcut is not an install at all, so the prompt can keep firing
+  // legitimately. A dismissal is remembered on this browser for a long
+  // while (180 days), keyed per app scope unless the page names its
+  // own key, and it never claims an install happened.
+  const dismissedFlagKey = installBanner.dataset?.installDismissKey
+    || `3dvr-pwa-install-dismissed:${scopePath}`;
+  const dismissalHorizonMs = 180 * 24 * 60 * 60 * 1000;
+
+  const isDismissed = () => {
+    try {
+      const value = localStorage.getItem(dismissedFlagKey);
+      if (value === 'true') return true;
+      const dismissedAt = Number(value || 0);
+      return dismissedAt > 0 && Date.now() - dismissedAt < dismissalHorizonMs;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const markDismissed = () => {
+    try {
+      localStorage.setItem(dismissedFlagKey, String(Date.now()));
+    } catch (error) {
+      console.warn('Unable to remember install banner dismissal', error);
+    }
+  };
+
   const isInstalled = () => {
     return window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone
@@ -266,7 +296,7 @@
     event.preventDefault();
     deferredPrompt = event;
 
-    if (!isInstalled()) {
+    if (!isInstalled() && !isDismissed()) {
       showBanner();
     }
   });
@@ -296,6 +326,27 @@
       hideBanner();
     }
   });
+
+
+  // A small × rides along with the banner: pages may ship their own
+  // [data-install-dismiss] control; otherwise the helper adds one so
+  // every surface gets the same quiet escape hatch. No copy, no dialog.
+  let installDismissButton = installBanner.querySelector('[data-install-dismiss]');
+  if (!installDismissButton && typeof document.createElement === 'function') {
+    installDismissButton = document.createElement('button');
+    installDismissButton.type = 'button';
+    installDismissButton.className = 'install-banner__dismiss';
+    installDismissButton.setAttribute('data-install-dismiss', '');
+    installDismissButton.setAttribute('aria-label', 'Dismiss install prompt');
+    installDismissButton.textContent = '×';
+    installBanner.appendChild(installDismissButton);
+  }
+  installDismissButton?.addEventListener('click', () => {
+    markDismissed();
+    hideBanner();
+  });
+
+  if (isDismissed()) hideBanner();
 
   if (isInstalled()) hideBanner();
 

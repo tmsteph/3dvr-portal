@@ -71,3 +71,51 @@
     display: none;
   }
 }
+
+/* Quiet install affordance (2026-11-07): a small pill, not a banner
+   strip. Same contract as the other apps: findable, soft-spoken, gone
+   when installed or dismissed. */
+.install-banner {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  margin: 16px auto 8px;
+  max-width: max-content;
+  padding: 6px 8px 6px 14px;
+}
+
+.install-banner__action {
+  border-radius: 999px;
+  margin-left: 4px;
+  padding: 6px 12px;
+}
+
+.install-banner__dismiss {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted, #7f8b98);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.install-banner__dismiss:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 640px) {
+  .install-banner {
+    max-width: calc(100% - 24px);
+  }
+
+  .install-banner__meta {
+    display: none;
+  }
+}
