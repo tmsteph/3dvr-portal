@@ -263,11 +263,11 @@ test('After Dark is organized by who and by set, derived from the batches', asyn
 test('golden hour attribution follows who each frame shows', () => {
   const counts = Object.fromEntries(characters.map(character => [character.id, character.goldenHour.length]));
   assert.deepEqual(counts, {
-    '3dvr-girl': 17,
-    kayla: 13,
-    'garden-muse': 12,
-    explorer: 9,
-    muse: 12
+    '3dvr-girl': 20,
+    kayla: 15,
+    'garden-muse': 14,
+    explorer: 11,
+    muse: 13
   });
   // Every shelf asset is attributed to at least one character, and the
   // videos are marked as videos wherever they appear. The dance- clips
@@ -277,6 +277,8 @@ test('golden hour attribution follows who each frame shows', () => {
   // those are not filed under her).
   const attributed = new Set(characters.flatMap(character => character.goldenHour.map(item => item.src)));
   assert.deepEqual([...attributed].sort(), [
+    'assets/golden-hour/beach-3dvr-girl.webp',
+    'assets/golden-hour/cliffs-garden.webp',
     'assets/golden-hour/dance-3dvr-back.mp4',
     'assets/golden-hour/dance-3dvr-solo.mp4',
     'assets/golden-hour/dance-beach-crew.mp4',
@@ -303,6 +305,12 @@ test('golden hour attribution follows who each frame shows', () => {
     'assets/golden-hour/duo-festival-golden.webp',
     'assets/golden-hour/duo-pool-swimsuits.webp',
     'assets/golden-hour/duo-yoga-linen.webp',
+    'assets/golden-hour/food-burrito-3dvr.webp',
+    'assets/golden-hour/food-burrito-explorer.webp',
+    'assets/golden-hour/food-pizza-garden.webp',
+    'assets/golden-hour/food-sandwich-kayla.webp',
+    'assets/golden-hour/gown-kayla.webp',
+    'assets/golden-hour/gown-muse.webp',
     'assets/golden-hour/lollipop-3dvr-girl.webp',
     'assets/golden-hour/lollipop-explorer.webp',
     'assets/golden-hour/lollipop-garden.webp',
@@ -312,6 +320,8 @@ test('golden hour attribution follows who each frame shows', () => {
     'assets/golden-hour/solo-lavender-dress.webp',
     'assets/golden-hour/trio-festival-dusk.webp',
     'assets/golden-hour/trio-linen-sundresses.webp',
+    'assets/golden-hour/video-beach-explorer.mp4',
+    'assets/golden-hour/video-gown-3dvr.mp4',
     'assets/golden-hour/video-pool-duo.mp4',
     'assets/golden-hour/video-sundress-trio.mp4'
   ]);

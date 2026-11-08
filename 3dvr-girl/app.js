@@ -642,6 +642,94 @@ const goldenHour = [
     video: 'assets/golden-hour/video-sundress-trio.mp4',
     poster: 'assets/golden-hour/trio-linen-sundresses.webp',
     alt: '3DVR Girl, the garden muse, and the Explorer laughing together in a sunny courtyard'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-beach-3dvr',
+    title: 'Golden waterline',
+    mode: 'Water',
+    image: 'assets/golden-hour/beach-3dvr-girl.webp',
+    alt: '3DVR Girl with blonde hair and blue streaks in a navy swimsuit and cream sarong, smiling at the waterline as the sun sets',
+    copy: 'Navy suit, cream sarong, and the whole shoreline going gold behind her.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-gown-kayla',
+    title: 'Gala green',
+    mode: 'Festival',
+    image: 'assets/golden-hour/gown-kayla.webp',
+    alt: 'Kayla with long dark wavy hair in a deep green satin gown with leaf embroidery, smiling at a beachside gala under string lights',
+    copy: 'Deep green satin and string lights: the gala ran long and she did not mind.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-cliffs-garden',
+    title: 'Lavender coast',
+    mode: 'Sun',
+    image: 'assets/golden-hour/cliffs-garden.webp',
+    alt: 'The garden muse with long auburn hair and freckles in a lavender floral sundress, her skirt lifting in the breeze on coastal cliffs above the sea',
+    copy: 'Lavender in front of her, lavender on her dress, and the sea doing the rest.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-gown-muse',
+    title: 'Gallery midnight',
+    mode: 'Festival',
+    image: 'assets/golden-hour/gown-muse.webp',
+    alt: 'Muse with dark hair and purple highlights in a navy satin dress, holding a champagne flute and smiling over her shoulder on a gallery terrace above the beach',
+    copy: 'A glass in hand and the gallery behind her: she came for the art and stayed for the view.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-food-burrito-3dvr',
+    title: 'San Diego rules',
+    mode: 'Sun',
+    image: 'assets/golden-hour/food-burrito-3dvr.webp',
+    alt: '3DVR Girl with blonde hair and blue streaks laughing as she holds a huge foil wrapped burrito at a San Diego beach taco stand',
+    copy: 'Beans, rice, and guacamole at the beach stand: she ordered the big one and has no regrets.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-food-sandwich-kayla',
+    title: 'Trail lunch, her scale',
+    mode: 'Field',
+    image: 'assets/golden-hour/food-sandwich-kayla.webp',
+    alt: 'Kayla with long dark wavy hair taking a huge bite of a tall stacked sandwich on a picnic blanket with mountains behind her',
+    copy: 'The sandwich needed both hands and a strategy. The mountains approved.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-food-pizza-garden',
+    title: 'The cheese pull',
+    mode: 'Sun',
+    image: 'assets/golden-hour/food-pizza-garden.webp',
+    alt: 'The garden muse with long auburn hair lifting a margherita pizza slice with a long cheese pull at a garden table at golden hour',
+    copy: 'She lifted one slice and the cheese made its position clear.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-food-burrito-explorer',
+    title: 'Harbor bites',
+    mode: 'Sun',
+    image: 'assets/golden-hour/food-burrito-explorer.webp',
+    alt: 'The Explorer with long black hair taking a wide eyed bite of a big burrito at a harbor food stand with boats behind her',
+    copy: 'First bite at the harbor stand: the burrito was bigger than the plan.'
+  },
+  {
+    kind: 'video',
+    id: 'gh-beach-video-explorer',
+    title: 'Shoreline, in motion',
+    video: 'assets/golden-hour/video-beach-explorer.mp4',
+    poster: 'assets/golden-hour/video-beach-explorer-poster.webp',
+    alt: 'The Explorer walking the shoreline at golden hour in a swimsuit and light cover-up, laughing in the sea breeze'
+  },
+  {
+    kind: 'video',
+    id: 'gh-gown-video-3dvr',
+    title: 'Red arrival, in motion',
+    video: 'assets/golden-hour/video-gown-3dvr.mp4',
+    poster: 'assets/golden-hour/video-gown-3dvr-poster.webp',
+    alt: '3DVR Girl arriving at an evening gala in a red dress, turning to smile at the camera'
   }
 ];
 
