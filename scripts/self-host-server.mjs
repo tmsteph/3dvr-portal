@@ -549,6 +549,42 @@ const server = createServer(async (req, res) => {
   }
 });
 
+// Track sockets so the deadline also covers connections that HTTP close cannot drain.
+const connections = new Set();
+server.on('connection', socket => {
+  connections.add(socket);
+  socket.once('close', () => connections.delete(socket));
+});
+
+let shuttingDown = false;
+let activeResponses = 0;
+server.on('request', (req, res) => {
+  activeResponses++;
+  res.once('close', () => {
+    activeResponses--;
+    if (shuttingDown && activeResponses === 0) process.exit(0);
+  });
+});
+
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // Stop accepting connections, but let active responses (including SSE) finish.
+  const deadline = setTimeout(() => {
+    for (const socket of connections) socket.destroy();
+    process.exit(0);
+  }, 20000);
+  server.close(() => {
+    clearTimeout(deadline);
+    process.exit(0);
+  });
+  server.closeIdleConnections();
+  if (activeResponses === 0) process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 server.listen(PORT, HOST, () => {
   console.log(`3DVR self-host ${RELEASE_SHA || 'unknown'} listening on http://${HOST}:${PORT}`);
 });

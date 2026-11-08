@@ -35,7 +35,7 @@ jobs:
 
       - name: Verify signed Operator task delivery
         run: |
-          node --test tests/operator-dispatch.test.js tests/operator-delegate-task.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js tests/operator-action-receipt.test.js
+          node --test tests/operator-dispatch.test.js tests/operator-delegate-task.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js tests/self-host-shutdown.test.js tests/operator-action-receipt.test.js
           python3 tests/helm-native-python.py
 
       - name: Run Operator self-edit integration test
