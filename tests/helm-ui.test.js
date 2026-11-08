@@ -646,3 +646,19 @@ test('assistant replies render hostile markup as inert text', async () => {
   assert.ok(visible.includes('<img src=x onerror=alert(2)>'));
   assert.ok(visible.includes('click'));
 });
+
+test('an interrupted delivery stays visible in its conversation without replaying', async () => {
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { status: 503, body: { ok: false, error: 'Connection interrupted. Delivery is uncertain.' } });
+  await ui.ready;
+  await ui.submit('Keep this reply visible');
+  assert.equal(ui.saved.at(-1).status, 'uncertain');
+  assert.match(textOf(ui.element('messages')), /Keep this reply visible/);
+  assert.match(textOf(ui.element('messages')), /Delivery not confirmed/);
+  const reuse = findByText(ui.element('messages'), 'Use as new message');
+  assert.ok(reuse);
+  reuse.events.click();
+  assert.equal(ui.element('message').value, 'Keep this reply visible');
+  assert.equal(ui.requests.filter(request => request.action === 'chat').length, 1);
+});

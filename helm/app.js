@@ -247,7 +247,7 @@ function messageCard(record, history = false) {
   const label = document.createElement('span');
   label.className = 'label';
   const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Sending · waiting for the agent',
-    completed: 'Sent', stale: 'History · expired without sending', uncertain: 'History · check delivery before resending', cancelled: 'History · cancelled' };
+    completed: 'Sent', stale: 'Expired · not sent', uncertain: 'Delivery not confirmed · check before resending', cancelled: 'Cancelled · not sent' };
   label.textContent = `${engineNames[record.engine ?? 'openclaw']} · ${names[record.status]}`;
   article.append(label, document.createTextNode(record.text));
   // The working bubble: while this record's turn is in flight, its
@@ -303,7 +303,7 @@ function messageCard(record, history = false) {
     cancel.addEventListener('click', () => { void outbox.cancel(record.id).catch(showStorageError); });
     article.append(cancel);
   }
-  if (history && ['stale', 'uncertain', 'cancelled'].includes(record.status)) {
+  if (['stale', 'uncertain', 'cancelled'].includes(record.status)) {
     const reuse = document.createElement('button');
     reuse.type = 'button'; reuse.textContent = 'Use as new message';
     reuse.addEventListener('click', () => { $('message').value = record.text; $('message').focus(); });
@@ -436,7 +436,7 @@ function queueRow(record, firstOfChat, ahead) {
 
 function renderMessages() {
   const records = outbox.snapshot();
-  const active = records.filter(record => record.sessionId === sessionId && (record.engine ?? 'openclaw') === engine && !['stale', 'uncertain', 'cancelled'].includes(record.status));
+  const active = records.filter(record => record.sessionId === sessionId && (record.engine ?? 'openclaw') === engine);
   $('messages').replaceChildren(...active.map(record => messageCard(record)));
   $('welcome').hidden = active.length > 0;
   // History is a picker of conversations, not a second message log: one row
