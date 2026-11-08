@@ -5,7 +5,7 @@ import {
   createOperatorHandler,
   extractOperatorReplyPrefix
 } from '../src/operator/api.js';
-import { readOperatorStream } from '../operator/stream.js';
+import { fetchOperatorStream, readOperatorStream } from '../operator/stream.js';
 
 function streamFrom(chunks) {
   return new ReadableStream({
@@ -131,4 +131,70 @@ test('Operator returns a safe reason when the developer proof is rejected', asyn
   assert.equal(res.body.developerAccess.authenticated, false);
   assert.match(res.body.developerAccess.reason, /Sign in/);
   assert.equal(res.body.developerAccess.authProof, undefined);
+});
+
+function sseResponse(chunks) {
+  return {
+    ok: true,
+    headers: { get: key => key.toLowerCase() === 'content-type' ? 'text/event-stream; charset=utf-8' : '' },
+    body: streamFrom(chunks)
+  };
+}
+
+test('Operator stream client tags a stream cut off before its final response', async () => {
+  const response = sseResponse([
+    'event: reply_delta\ndata: {"delta":"Partial "}\n\n',
+    'event: reply_delta\ndata: {"delta":"reply"}\n\n'
+  ]);
+
+  await assert.rejects(
+    readOperatorStream(response, {}),
+    error => error.message === 'Operator finished without a final response.'
+      && error.code === 'OPERATOR_STREAM_INCOMPLETE'
+  );
+});
+
+test('fetchOperatorStream retries once when the stream is cut off mid-reply', async () => {
+  const final = { reply: 'Hello world', suggestions: [], action: { type: 'none' } };
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return sseResponse(['event: reply_delta\ndata: {"delta":"Hel"}\n\n']);
+    }
+    return sseResponse([
+      'event: reply_delta\ndata: {"delta":"Hello world"}\n\n',
+      `event: result\ndata: ${JSON.stringify(final)}\n\n`
+    ]);
+  };
+  const deltas = [];
+  const statuses = [];
+  let resets = 0;
+
+  const result = await fetchOperatorStream({ prompt: 'Say hello.' }, {
+    fetchImpl,
+    onReplyDelta: delta => deltas.push(delta),
+    onStatus: message => statuses.push(message),
+    onReplyReset: () => { resets += 1; deltas.length = 0; }
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(resets, 1);
+  assert.deepEqual(statuses, ['Connection interrupted. Retrying…']);
+  assert.equal(deltas.join(''), 'Hello world');
+  assert.deepEqual(result, final);
+});
+
+test('fetchOperatorStream surfaces the failure when the retry is also cut off', async () => {
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    return sseResponse(['event: reply_delta\ndata: {"delta":"Hel"}\n\n']);
+  };
+
+  await assert.rejects(
+    fetchOperatorStream({ prompt: 'Say hello.' }, { fetchImpl }),
+    error => error.code === 'OPERATOR_STREAM_INCOMPLETE'
+  );
+  assert.equal(calls, 2);
 });
