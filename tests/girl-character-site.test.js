@@ -263,11 +263,11 @@ test('After Dark is organized by who and by set, derived from the batches', asyn
 test('golden hour attribution follows who each frame shows', () => {
   const counts = Object.fromEntries(characters.map(character => [character.id, character.goldenHour.length]));
   assert.deepEqual(counts, {
-    '3dvr-girl': 16,
-    kayla: 12,
-    'garden-muse': 11,
-    explorer: 8,
-    muse: 11
+    '3dvr-girl': 17,
+    kayla: 13,
+    'garden-muse': 12,
+    explorer: 9,
+    muse: 12
   });
   // Every shelf asset is attributed to at least one character, and the
   // videos are marked as videos wherever they appear. The dance- clips
@@ -303,6 +303,11 @@ test('golden hour attribution follows who each frame shows', () => {
     'assets/golden-hour/duo-festival-golden.webp',
     'assets/golden-hour/duo-pool-swimsuits.webp',
     'assets/golden-hour/duo-yoga-linen.webp',
+    'assets/golden-hour/lollipop-3dvr-girl.webp',
+    'assets/golden-hour/lollipop-explorer.webp',
+    'assets/golden-hour/lollipop-garden.webp',
+    'assets/golden-hour/lollipop-kayla.webp',
+    'assets/golden-hour/lollipop-muse.webp',
     'assets/golden-hour/solo-festival-dress.webp',
     'assets/golden-hour/solo-lavender-dress.webp',
     'assets/golden-hour/trio-festival-dusk.webp',
