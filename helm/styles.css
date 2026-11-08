@@ -231,7 +231,7 @@ textarea::placeholder {
   font-size:10px;
 }
 #send {
-  background:var(--accent);
+  background:#f87171;
   color:#17251b;
   border:0;
   font-size:12px;
