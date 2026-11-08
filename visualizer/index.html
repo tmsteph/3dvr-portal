@@ -130,10 +130,18 @@
     if (!BC || typeof BC.createVisualizer !== 'function') return;
     presets = butterchurnPresets.getPresets() || {};
     presetKeys = Object.keys(presets);
-    visualizer = BC.createVisualizer(audioCtx, canvas, {
-      width: window.innerWidth, height: window.innerHeight,
-      pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
-    });
+    try {
+      visualizer = BC.createVisualizer(audioCtx, canvas, {
+        width: window.innerWidth, height: window.innerHeight,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+      });
+    } catch (e) {
+      visualizer = null;
+      presetNameEl.textContent = "Visuals unavailable on this browser (no WebGL)";
+      setStatus("This browser could not start WebGL, so the picture cannot render here. Audio and station mode still work.");
+      startCycle();
+      return;
+    }
     visualizer.connectAudio(analyser);
     if (presetKeys.length) loadPreset(Math.floor(Math.random() * presetKeys.length), 0);
     (function loop() { if (visualizer) visualizer.render(); requestAnimationFrame(loop); })();
