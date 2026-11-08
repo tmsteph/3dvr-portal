@@ -583,6 +583,51 @@ const goldenHour = [
     copy: 'Hair out, skirt out: she spins while the fairy lights come on.'
   },
   {
+    kind: 'photo',
+    id: 'gh-lollipop-3dvr',
+    title: 'Candy hour',
+    mode: 'Festival',
+    image: 'assets/golden-hour/lollipop-3dvr-girl.webp',
+    alt: '3DVR Girl with long blonde hair in a pale blue top, holding a pink and blue swirled lollipop at her lips at a harbor festival',
+    copy: 'Pink and blue swirl at the harbor stalls: she picked the biggest one they had.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-lollipop-kayla',
+    title: 'Trail candy',
+    mode: 'Festival',
+    image: 'assets/golden-hour/lollipop-kayla.webp',
+    alt: 'Kayla with long dark wavy hair and freckles in a green embroidered dress, a red and white swirled lollipop in her mouth at an outdoor festival',
+    copy: 'Red and white swirl, festival dust on the path, and no intention of sharing.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-lollipop-muse',
+    title: 'Pastel study',
+    mode: 'Sun',
+    image: 'assets/golden-hour/lollipop-muse.webp',
+    alt: 'Muse with dark hair and purple highlights in a white blouse, tasting a pastel rainbow swirled lollipop above the coastal cliffs',
+    copy: 'A pastel rainbow over the cliffs: research, she insists, for a painting.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-lollipop-garden',
+    title: 'Lavender violet',
+    mode: 'Sun',
+    image: 'assets/golden-hour/lollipop-garden.webp',
+    alt: 'The garden muse with long auburn hair and freckles in a cream linen top, a violet lollipop in her mouth among lavender rows',
+    copy: 'Violet on violet: she matched her candy to the lavender again.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-lollipop-explorer',
+    title: 'Cove candy',
+    mode: 'Sun',
+    image: 'assets/golden-hour/lollipop-explorer.webp',
+    alt: 'The Explorer with long black hair in a khaki field shirt, grinning with an orange and pink swirled lollipop between her teeth above a coastal cove',
+    copy: 'An orange swirl held in her grin at the cove: provisions for the climb back.'
+  },
+  {
     kind: 'video',
     id: 'gh-pool-video',
     title: 'Pool rules, in motion',

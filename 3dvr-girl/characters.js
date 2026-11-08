@@ -301,6 +301,13 @@ export const characters = [
         title: 'His name, in the meadow',
         alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
         copy: 'The girls chant his name and the meadow keeps the beat.'
+      },
+      {
+        src: 'assets/golden-hour/lollipop-3dvr-girl.webp',
+        mode: 'Festival',
+        title: 'Candy hour',
+        alt: '3DVR Girl with long blonde hair in a pale blue top, holding a pink and blue swirled lollipop at her lips at a harbor festival',
+        copy: 'Pink and blue swirl at the harbor stalls: she picked the biggest one they had.'
       }
     ],
     afterDark: [
@@ -594,6 +601,13 @@ export const characters = [
         title: 'His name, in the meadow',
         alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
         copy: 'Kayla in the circle, chanting his name at sunset.'
+      },
+      {
+        src: 'assets/golden-hour/lollipop-kayla.webp',
+        mode: 'Festival',
+        title: 'Trail candy',
+        alt: 'Kayla with long dark wavy hair and freckles in a green embroidered dress, a red and white swirled lollipop in her mouth at an outdoor festival',
+        copy: 'Red and white swirl, festival dust on the path, and no intention of sharing.'
       }
     ],
     afterDark: [
@@ -837,6 +851,13 @@ export const characters = [
         title: 'His name, in the meadow',
         alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
         copy: 'The garden muse chanting along as the sun drops.'
+      },
+      {
+        src: 'assets/golden-hour/lollipop-garden.webp',
+        mode: 'Sun',
+        title: 'Lavender violet',
+        alt: 'The garden muse with long auburn hair and freckles in a cream linen top, a violet lollipop in her mouth among lavender rows',
+        copy: 'Violet on violet: she matched her candy to the lavender again.'
       }
     ],
     afterDark: [
@@ -1027,6 +1048,13 @@ export const characters = [
         title: 'We saved you a dance',
         alt: 'Thomas holding hands with Muse and the Explorer in a flower field at golden hour',
         copy: 'She and Muse hold a place in the circle for Thomas.'
+      },
+      {
+        src: 'assets/golden-hour/lollipop-explorer.webp',
+        mode: 'Sun',
+        title: 'Cove candy',
+        alt: 'The Explorer with long black hair in a khaki field shirt, grinning with an orange and pink swirled lollipop between her teeth above a coastal cove',
+        copy: 'An orange swirl held in her grin at the cove: provisions for the climb back.'
       }
     ],
     afterDark: [
@@ -1233,6 +1261,13 @@ export const characters = [
         title: 'His name, in the meadow',
         alt: 'Thomas in a circle dance in a wildflower meadow at sunset with 3DVR Girl, Kayla, Muse, and the garden muse, the girls chanting his name',
         copy: 'Muse chanting his name with the rest of the circle.'
+      },
+      {
+        src: 'assets/golden-hour/lollipop-muse.webp',
+        mode: 'Sun',
+        title: 'Pastel study',
+        alt: 'Muse with dark hair and purple highlights in a white blouse, tasting a pastel rainbow swirled lollipop above the coastal cliffs',
+        copy: 'A pastel rainbow over the cliffs: research, she insists, for a painting.'
       }
     ],
     afterDark: [
