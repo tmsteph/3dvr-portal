@@ -22,6 +22,15 @@ MAX_LINE = 1024 * 1024
 MAX_WIRE = 32 * 1024 * 1024
 MAX_REPLY = 120000
 
+# Human-scale activity lines for tool items, forwarded to the client as
+# live progress while a turn runs (the handler stores the latest one on
+# the turn's receipt as its preview activity). Only item kinds that mean
+# "the agent is doing something" get a label; message and reasoning
+# items stay silent, and the labels never include tool arguments or
+# output, so nothing sensitive rides the progress channel.
+ACTIVITY_LABELS = {'commandExecution': 'Running a command', 'fileChange': 'Editing files',
+                   'webSearch': 'Searching the web', 'dynamicToolCall': 'Using a tool'}
+
 
 def find_binary():
     # Reuse the installed executable, without depending on a generation-specific path.
@@ -160,7 +169,7 @@ def expired(request):
     return request.get('expiresAt') is not None and time.time() * 1000 >= request['expiresAt']
 
 
-def run_turn(client, thread_id, request, on_delta, model=MODEL):
+def run_turn(client, thread_id, request, on_delta, on_activity=None, model=MODEL):
     tools = tools_enabled(request)
     # Approvals stay 'never' in both postures: in agent posture the sandbox is
     # the wall, so workspace-internal commands run without a round-trip and
@@ -201,6 +210,8 @@ def run_turn(client, thread_id, request, on_delta, model=MODEL):
                 raise RuntimeError('MCP tools are disabled in Helm')
             if not tools and kind in ['commandExecution', 'dynamicToolCall', 'fileChange']:
                 raise RuntimeError('Tools unavailable in chat pilot')
+            if on_activity and kind in ACTIVITY_LABELS:
+                on_activity(ACTIVITY_LABELS[kind])
         elif method == 'item/completed':
             item = params.get('item', {})
             if item.get('type') == 'agentMessage' and item.get('phase') in [None, 'final_answer']:
@@ -293,7 +304,10 @@ def main(request):
             def on_delta(text):
                 if request.get('stream'):
                     print(json.dumps({'type': 'delta', 'text': text}), flush=True)
-            reply = run_turn(client, thread_id, request, on_delta, model)
+            def on_activity(text):
+                if request.get('stream'):
+                    print(json.dumps({'type': 'activity', 'text': text}), flush=True)
+            reply = run_turn(client, thread_id, request, on_delta, on_activity, model)
             write_state(state_file, {'threadId': thread_id, 'pending': False, 'tools': tools})
             return {'ok': True, 'reply': reply, 'engine': 'Codex', 'session': request['session']}
         finally:

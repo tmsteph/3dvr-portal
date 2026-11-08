@@ -54,6 +54,21 @@ test('restored sending record is never replayed; concurrent drains only dispatch
   assert.equal(another.sent.length, 1);
 });
 
+test('with a poll function, a restored sending record is reattached, never redispatched', async () => {
+  const sent = [];
+  const polled = [];
+  const box = createOutbox({ isReady: () => true, save: async () => {},
+    send: async record => { sent.push(record); return { reply: 'Resent' }; },
+    poll: async record => { polled.push(record); return { reply: 'Recovered' }; } });
+  const record = await box.enqueue(first);
+  box.merge({ ...record, status: 'sending', updatedAt: record.updatedAt + 1 });
+  await box.drain();
+  assert.equal(sent.length, 0);
+  assert.deepEqual(polled.map(item => item.id), [first.id]);
+  assert.equal(box.snapshot()[0].status, 'completed');
+  assert.equal(box.snapshot()[0].reply, 'Recovered');
+});
+
 test('unknown delivery becomes history and a late queued snapshot cannot replay it', async () => {
   const states = [];
   const box = createOutbox({ isReady: () => true, save: async record => states.push(record),

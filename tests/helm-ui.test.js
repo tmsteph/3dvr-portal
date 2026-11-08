@@ -47,7 +47,8 @@ function screen(result, status = 200, signedIn = true, gate, sessions = new Map(
     Date: Clock,
     sessionStorage: { getItem: key => sessions.get(key), setItem: (key, value) => sessions.set(key, value) },
     setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
-    clearInterval: id => intervals.delete(id), createOutbox, readHelmResponse,
+    clearInterval: id => intervals.delete(id),
+    setTimeout: fn => { queueMicrotask(fn); return 0; }, clearTimeout: () => {}, createOutbox, readHelmResponse,
     openHelmMessageStore: async callbacks => { storeCallbacks = callbacks; return { save: async record => saved.push(structuredClone(record)), close() {} }; },
     createSignedPortalProof: async () => ({ authProof: 'signed' }),
     fetch: async (_url, options) => {
@@ -63,6 +64,7 @@ function screen(result, status = 200, signedIn = true, gate, sessions = new Map(
     activeProgress: () => [...intervals.values()].filter(item => item.delay === 1000).length,
     advance: ms => { clock += ms; for (const item of intervals.values()) if (item.delay === 1000) item.fn(); },
     changeAccount: () => events.get('window:storage')({ key: 'userPubKey' }),
+    focus: () => events.get('window:focus')(),
     newChat: () => events.get('new-chat:click')(),
     changeEngine: value => { element('engine').value = value; events.get('engine:change')(); },
     submit: async text => { element('message').value = text; await events.get('chat-form:submit')({ preventDefault() {} }); } };
@@ -401,4 +403,50 @@ test('history lists conversations newest first with previews and expandable reco
   assert.ok(reuse);
   reuse.events.click();
   assert.equal(ui.element('message').value, 'Delta expired message');
+});
+
+test('a queued turn shows the receipt preview in its bubble until the final reply replaces it', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let chatCalls = 0;
+  const ui = screen(async payload => {
+    if (payload.action === 'status') return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } };
+    chatCalls++;
+    if (chatCalls === 1) return { status: 202, body: { queued: true, status: 'running', position: 0,
+      preview: { text: 'Partial answer', activity: 'Running a command', startedAt: Date.now(), updatedAt: Date.now() } } };
+    await gate;
+    return { status: 200, body: { ok: true, reply: 'Final answer' } };
+  });
+  await ui.ready;
+  const submitted = ui.submit('Preview diagnostic');
+  await flush(); await flush(); await flush(); await flush();
+  const card = ui.element('messages').children[0];
+  assert.ok(card.children.some(item => item?.textContent === 'Partial answer'));
+  const note = findAll(card, item => item.className === 'working-note')[0];
+  assert.ok(note);
+  assert.match(note.textContent, /Running a command/);
+  assert.equal(ui.element('connection').textContent, 'Running a command');
+  release(); await submitted;
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.saved.at(-1).reply, 'Final answer');
+  const doneCard = ui.element('messages').children[0];
+  assert.equal(findAll(doneCard, item => item.className === 'working-note').length, 0);
+  assert.ok(doneCard.children.some(item => item?.textContent === 'Final answer'));
+});
+
+test('a page reload reattaches to a turn still in flight and lands its reply', async () => {
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { status: 200, body: { ok: true, reply: 'Recovered reply' } });
+  await ui.ready; await flush(); await flush();
+  const now = Date.now();
+  ui.seed(seedRecord({ id: 'seed-flight-001', sessionId: 'chat-flight-001', text: 'Long task', at: now - 60000, status: 'sending' }));
+  assert.equal(ui.saved.length, 0);
+  ui.focus();
+  await flush(); await flush(); await flush();
+  const poll = ui.requests.find(item => item.action === 'chat');
+  assert.ok(poll);
+  assert.equal(poll.requestId, 'seed-flight-001');
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.saved.at(-1).reply, 'Recovered reply');
 });

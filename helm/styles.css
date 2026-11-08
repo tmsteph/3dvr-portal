@@ -681,6 +681,28 @@ header {
   padding-top: 12px;
   color: var(--text);
 }
+.saved-reply.live {
+  opacity: .8;
+}
+.working-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+.working-note::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: helm-working-pulse 1.2s ease-in-out infinite;
+}
+@keyframes helm-working-pulse {
+  0%, 100% { opacity: .25; }
+  50% { opacity: 1; }
+}
 @media (max-width: 450px) {
   header { flex-wrap: wrap; gap: 7px; }
   .account { max-width: 100px; }

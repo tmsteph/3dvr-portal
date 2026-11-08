@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createOpenClawHandler, helmConcurrency, helmQueueEnabled } from '../src/openclaw/handler.js';
@@ -338,4 +338,57 @@ test('queued gateway runs carry the queued marker and the long transport budget'
   assert.equal((await call(handler, await sign())).statusCode, 200);
   assert.equal(seen[0].request.queued, true);
   assert.equal(seen[0].runOptions.timeoutMs, 220000);
+});
+
+test('a running turn publishes a rolling preview on its receipt until the result replaces it', async t => {
+  const { config, sign, state } = await setup(t);
+  const gate = deferred();
+  let emit;
+  const began = new Promise(resolve => { emit = resolve; });
+  const handler = createOpenClawHandler({ config, verify: verifySignedSeaPayload,
+    run: async (_request, runOptions) => {
+      // Preview capture is wired for every queued turn, not only for a
+      // submitter holding its connection open.
+      assert.equal(typeof runOptions.onDelta, 'function');
+      assert.equal(typeof runOptions.onActivity, 'function');
+      runOptions.onActivity('Running a command');
+      runOptions.onDelta('Hello ');
+      runOptions.onDelta('world');
+      emit();
+      await gate.promise;
+      return { ok: true, reply: 'Hello world' };
+    } });
+  const body = await sign({ requestId: 'preview-req-001' });
+  const held = call(handler, body);
+  await began;
+  // A poll while the turn runs answers 202 with the live preview.
+  const poll = await call(handler, body);
+  assert.equal(poll.statusCode, 202);
+  assert.equal(poll.body.preview.text, 'Hello world');
+  assert.equal(poll.body.preview.activity, 'Running a command');
+  assert.equal(typeof poll.body.preview.startedAt, 'number');
+  // The preview is durable: within the persist throttle it reaches the
+  // receipt file itself, so it survives the process, not just polls.
+  const receiptPath = async () => join(state, (await readdir(state)).find(name => name.endsWith('.json')));
+  const readReceipt = async () => JSON.parse(await readFile(await receiptPath(), 'utf8'));
+  let receipt;
+  for (let i = 0; i < 80; i++) {
+    receipt = await readReceipt();
+    if (receipt.previewText === 'Hello world') break;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  assert.equal(receipt.status, 'running');
+  assert.equal(receipt.previewText, 'Hello world');
+  assert.equal(receipt.previewActivity, 'Running a command');
+  assert.equal(typeof receipt.startedAt, 'number');
+  gate.resolve();
+  const done = await held;
+  assert.equal(done.statusCode, 200);
+  assert.equal(done.body.reply, 'Hello world');
+  assert.equal(done.body.preview, undefined);
+  // Terminal persist clears the preview from the receipt.
+  const after = await readReceipt();
+  assert.equal(after.status, 'completed');
+  assert.equal(after.previewText, undefined);
+  assert.equal(after.previewActivity, undefined);
 });

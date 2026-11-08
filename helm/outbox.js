@@ -12,7 +12,7 @@ export function validMessage(record) {
     && Object.hasOwn(RANK, record.status);
 }
 
-export function createOutbox({ save, send, isReady, onChange = () => {}, canSend = () => true, now = Date.now }) {
+export function createOutbox({ save, send, poll, isReady, onChange = () => {}, canSend = () => true, now = Date.now }) {
   const records = new Map();
   let draining = false;
   const snapshot = () => [...records.values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
@@ -58,15 +58,27 @@ export function createOutbox({ save, send, isReady, onChange = () => {}, canSend
       try {
         await this.expire();
         while (isReady()) {
-          const queued = snapshot().find(record => ['queued', 'deferred'].includes(record.status) && canSend(record));
-          if (!queued) break;
-          if (now() >= queued.expiresAt) { await this.expire(); continue; }
-          const active = await commit({ ...queued, status: 'sending', updatedAt: Math.max(now(), queued.updatedAt + 1) });
-          // Save the fixed request id before dispatch. A restored sending record is never replayed.
+          const next = snapshot().find(record => (['queued', 'deferred'].includes(record.status)
+            || (record.status === 'sending' && poll)) && canSend(record));
+          if (!next) break;
+          if (next.status !== 'sending' && now() >= next.expiresAt) { await this.expire(); continue; }
+          // A restored 'sending' record is never dispatched again: its
+          // message already reached the server in an earlier page life.
+          // When a poll function is provided, drain reattaches to that
+          // turn instead: resubmitting the identical signed payload is
+          // answered by the server receipt as a query (its live preview
+          // or its terminal result), never as a second send. Without a
+          // poll function the record is left untouched, exactly as
+          // before, so a restored send can never be replayed blind.
+          const restored = next.status === 'sending';
+          // Save the fixed request id before dispatch.
+          const active = restored ? next
+            : await commit({ ...next, status: 'sending', updatedAt: Math.max(now(), next.updatedAt + 1) });
           try {
-            const result = await send(active);
+            const result = await (restored ? poll : send)(active);
             await commit({ ...active, status: 'completed', updatedAt: now(), reply: result.reply });
           } catch (error) {
+            if (restored && error.retryable) break; // Still unknown; a later drain polls again.
             await commit({ ...active, status: error.stale ? 'stale' : error.retryable ? 'deferred' : 'uncertain', updatedAt: Math.max(now(), active.updatedAt + 1),
               note: error.stale ? 'Expired · kept in history, not sent' : error.retryable ? 'Agent busy · waiting to retry' : `${error.message} Check before resending.` });
             break;
