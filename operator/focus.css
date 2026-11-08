@@ -4,7 +4,6 @@ header>a{font-size:.86rem;letter-spacing:.08em}
 .header-actions{gap:.35rem}
 .header-actions button{padding:.45rem .7rem;border-radius:999px;background:transparent;color:var(--muted);font-size:.78rem}
 .header-actions button:hover,.header-actions button:focus-visible{color:var(--text);border-color:#3b526b;outline:none}
-#clear-chat{width:2rem;height:2rem;padding:0!important;font-size:1.05rem!important}
 .welcome{padding:1.2rem .5rem 1rem}
 .welcome p{margin:.2rem 0;font-size:.64rem;opacity:.85}
 .welcome h1{font-size:clamp(2rem,7vw,3.35rem);line-height:1.05;margin:.35rem 0 .55rem}
@@ -116,7 +115,7 @@ main>header{min-height:72px;gap:12px;border-bottom:1px solid #30404477}
 .header-actions button:hover,.header-actions button:focus-visible{background:#233331;color:var(--text)}
 .header-actions a{display:inline-flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid transparent;border-radius:999px;font-size:.76rem;font-weight:600;color:var(--muted);text-decoration:none}
 .header-actions a:hover,.header-actions a:focus-visible{background:#233331;color:var(--text)}
-#clear-chat{width:44px;height:44px;font-size:1.35rem!important;border:1px solid var(--line)}
+#clear-chat{width:auto;height:auto;min-height:44px;border:1px solid var(--line)}
 .operator-empty-portal{flex:1;display:grid;place-items:center;padding:24px 0;pointer-events:auto;overflow-y:auto;animation:none}
 .operator-start{max-width:560px;width:100%;text-align:left}
 .operator-eyebrow{margin:0 0 14px;color:var(--mint);font-size:.67rem;letter-spacing:.13em;font-weight:700}
@@ -177,8 +176,8 @@ main:has(#app-search-results:not([hidden])) .operator-empty-portal,main:has(#app
   .operator-brand a{font-size:.9rem}
   .operator-mini-spinner{width:24px;height:24px;flex-basis:24px}
   .header-actions button{padding:8px;font-size:.7rem}
-  .header-actions{overflow-x:auto;scrollbar-width:none;max-width:100%}
-  .header-actions::-webkit-scrollbar{display:none}
+  .header-nav{overflow-x:auto;scrollbar-width:none;max-width:100%}
+  .header-nav::-webkit-scrollbar{display:none}
   .operator-empty-portal{padding:24px 4px}
   .operator-start__description{font-size:.92rem}
   .operator-start__tools{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:24px}

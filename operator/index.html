@@ -50,13 +50,15 @@
         <a href="/sign-in.html?redirect=%2Foperator%2F" data-operator-external="true">Sign in</a>
       </div>
       <div class="header-actions">
-        <a href="/helm/" aria-label="Helm OpenClaw workspace">Helm</a>
-        <a href="/operator/open/" aria-label="About the open-source Operator">About</a>
-        <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">Chats</button>
-        <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Branches</button>
-        <button id="copy-conversation" type="button" aria-label="Copy conversation" title="Copy conversation">Copy</button>
-        <button id="toggle-view" type="button" aria-label="Switch to chat view" aria-pressed="false" title="Switch to chat view">Chat view</button>
-        <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
+        <nav class="header-nav" aria-label="Operator sections">
+          <a href="/helm/" aria-label="Helm OpenClaw workspace">Helm</a>
+          <a href="/operator/open/" aria-label="About the open-source Operator">About</a>
+          <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">Chats</button>
+          <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Branches</button>
+          <button id="copy-conversation" type="button" aria-label="Copy conversation" title="Copy conversation">Copy</button>
+          <button id="toggle-view" type="button" aria-label="Switch to chat view" aria-pressed="false" title="Switch to chat view">Chat view</button>
+        </nav>
+        <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋ New chat</button>
       </div>
     </header>
     <div class="install-banner" data-install-banner hidden>
