@@ -262,7 +262,9 @@
   if (!adRevealAll) {
     const adObserver = new IntersectionObserver(() => revealAdChunks(), { rootMargin: '900px 0px' });
     adObserver.observe(adSentinel);
-    window.addEventListener('scroll', revealAdChunks, { passive: true });
+    /* Scrolls can come from the window or from the HUD stage panel;
+       a capturing document listener hears both. */
+    document.addEventListener('scroll', revealAdChunks, { passive: true, capture: true });
   }
 
   function visibleCards() {
