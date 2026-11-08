@@ -125,10 +125,12 @@
   }
 
   function initVisualizer() {
-    if (visualizer || typeof butterchurn === 'undefined' || typeof butterchurnPresets === 'undefined') return;
+    if (visualizer || typeof butterchurnPresets === 'undefined') return;
+    var BC = window.butterchurn && (window.butterchurn.default || window.butterchurn);
+    if (!BC || typeof BC.createVisualizer !== 'function') return;
     presets = butterchurnPresets.getPresets() || {};
     presetKeys = Object.keys(presets);
-    visualizer = butterchurn.createVisualizer(audioCtx, canvas, {
+    visualizer = BC.createVisualizer(audioCtx, canvas, {
       width: window.innerWidth, height: window.innerHeight,
       pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
     });
