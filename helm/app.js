@@ -326,6 +326,8 @@ function resumeChat(resumeSessionId, resumeEngine) {
   renderMessages(); updateControls();
   $('history').hidden = true;
   $('show-history').setAttribute('aria-expanded', 'false');
+  $('queue').hidden = true;
+  $('show-queue').setAttribute('aria-expanded', 'false');
   $('activity').textContent = 'Conversation resumed. Its earlier messages are shown above.';
   $('message').focus();
   void checkConnection({ automatic: true });
@@ -392,6 +394,46 @@ function historyRow(group) {
   return row;
 }
 
+// One row of the cross-chat queue view: a turn that has not finished
+// yet, whichever conversation it belongs to. Status words match the
+// labels on the message cards themselves; position counts only the
+// turns still waiting to send, in send order.
+function queueRow(record, firstOfChat, ahead) {
+  const recordEngine = record.engine ?? 'openclaw';
+  const isActive = record.sessionId === sessionId && recordEngine === engine;
+  const row = document.createElement('section');
+  row.className = isActive ? 'history-chat current' : 'history-chat';
+  const preview = document.createElement('p');
+  preview.className = 'history-preview';
+  preview.textContent = previewText(record.text);
+  const names = { queued: 'Queued', deferred: 'Queued · agent busy', sending: 'Sending · waiting for the agent' };
+  const parts = [names[record.status]];
+  if (ahead !== null) parts.push(ahead === 0 ? 'Next up' : `${ahead} ahead of it`);
+  parts.push(relativeTime(record.createdAt), engineNames[recordEngine]);
+  if (firstOfChat && firstOfChat.id !== record.id) parts.push(`Chat starts “${previewText(firstOfChat.text)}”`);
+  if (isActive) parts.push('Current conversation');
+  const meta = document.createElement('small');
+  meta.className = 'history-meta';
+  meta.textContent = parts.join(' · ');
+  row.append(preview, meta);
+  const actions = document.createElement('div');
+  actions.className = 'history-actions';
+  if (['queued', 'deferred'].includes(record.status)) {
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => { void outbox.cancel(record.id).catch(showStorageError); });
+    actions.append(cancel);
+  }
+  if (!isActive) {
+    const open = document.createElement('button');
+    open.type = 'button'; open.textContent = 'Open chat';
+    open.addEventListener('click', () => resumeChat(record.sessionId, recordEngine));
+    actions.append(open);
+  }
+  if (actions.children.length) row.append(actions);
+  return row;
+}
+
 function renderMessages() {
   const records = outbox.snapshot();
   const active = records.filter(record => record.sessionId === sessionId && (record.engine ?? 'openclaw') === engine && !['stale', 'uncertain', 'cancelled'].includes(record.status));
@@ -414,6 +456,26 @@ function renderMessages() {
     .sort((a, b) => b.lastActivity - a.lastActivity || a.key.localeCompare(b.key));
   $('history-list').replaceChildren(...ordered.map(group => historyRow(group)));
   $('show-history').textContent = ordered.length ? `History (${ordered.length})` : 'History';
+  // The queue view answers a different question than History: what is
+  // still waiting, across every conversation, in send order. It reads
+  // the same outbox records, so a cancel here lands on the same record
+  // the originating chat shows, and finished turns simply drop out.
+  const firstOfChat = new Map([...groups.values()].map(group => [group.key, group.records[0]]));
+  const waiting = records.filter(record => ['queued', 'deferred', 'sending'].includes(record.status));
+  let ahead = 0;
+  const queueRows = waiting.map(record => {
+    const count = record.status === 'sending' ? null : ahead;
+    if (count !== null) ahead += 1;
+    return queueRow(record, firstOfChat.get(`${record.sessionId}::${record.engine ?? 'openclaw'}`), count);
+  });
+  if (!queueRows.length) {
+    const empty = document.createElement('p');
+    empty.className = 'history-meta';
+    empty.textContent = 'Nothing is waiting right now.';
+    queueRows.push(empty);
+  }
+  $('queue-list').replaceChildren(...queueRows);
+  $('show-queue').textContent = waiting.length ? `Queued (${waiting.length})` : 'Queued';
   const pending = records.filter(record => ['queued', 'deferred'].includes(record.status)).length;
   $('queue-summary').textContent = pending ? `${pending} queued · sends when ready · expires after 10 minutes` : '';
 }
@@ -511,6 +573,8 @@ $('new-chat').addEventListener('click', () => {
   }
   $('history').hidden = true;
   $('show-history').setAttribute('aria-expanded', 'false');
+  $('queue').hidden = true;
+  $('show-queue').setAttribute('aria-expanded', 'false');
   $('message').value = '';
   renderMessages();
   $('activity').textContent = 'New conversation. Saved messages remain in history.';
@@ -520,6 +584,19 @@ $('new-chat').addEventListener('click', () => {
 $('show-history').addEventListener('click', () => {
   $('history').hidden = !$('history').hidden;
   $('show-history').setAttribute('aria-expanded', String(!$('history').hidden));
+  if (!$('history').hidden) {
+    $('queue').hidden = true;
+    $('show-queue').setAttribute('aria-expanded', 'false');
+  }
+});
+$('show-queue').addEventListener('click', () => {
+  $('queue').hidden = !$('queue').hidden;
+  $('show-queue').setAttribute('aria-expanded', String(!$('queue').hidden));
+  if (!$('queue').hidden) {
+    $('history').hidden = true;
+    $('show-history').setAttribute('aria-expanded', 'false');
+    renderMessages();
+  }
 });
 for (const button of document.querySelectorAll('[data-prompt]')) {
   button.addEventListener('click', () => { $('message').value = button.dataset.prompt; $('message').focus(); });
@@ -553,7 +630,10 @@ window.addEventListener('offline', () => {
 // Only queued work causes periodic status retries; no inference or chat replay occurs here.
 setInterval(() => {
   if (!signedIn()) return;
-  void outbox.expire().catch(showStorageError);
+  void outbox.expire().then(() => {
+    // Keep the open queue view's elapsed times and counts honest.
+    if (!$('queue').hidden) renderMessages();
+  }).catch(showStorageError);
   if (outbox.snapshot().some(record => ['queued', 'deferred'].includes(record.status))) {
     if (!connected) void checkConnection({ automatic: true });
     else void drain();

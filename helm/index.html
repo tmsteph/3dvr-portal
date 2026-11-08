@@ -35,7 +35,7 @@
       <div class="sidebar-note"><span class="eyebrow">ONE PLACE TO STEER</span><p>Your agent, connected to the tools you already use.</p><a href="/auth/sign-in.html?returnTo=%2Fhelm%2F">Account & sign in ↗</a></div>
     </aside>
     <main>
-      <header><a id="account" class="account" href="/auth/sign-in.html?returnTo=%2Fhelm%2F" aria-label="Account status">Sign in</a><div class="agent-title"><span class="eyebrow">HELM</span><h1>Agent chat <span class="badge">Private · tmsteph</span> <span class="badge">Agent test ✓</span></h1></div><button id="show-history" class="quiet" type="button" aria-expanded="false" aria-controls="history">History</button><button id="new-chat" class="quiet" type="button">＋ New chat</button></header>
+      <header><a id="account" class="account" href="/auth/sign-in.html?returnTo=%2Fhelm%2F" aria-label="Account status">Sign in</a><div class="agent-title"><span class="eyebrow">HELM</span><h1>Agent chat <span class="badge">Private · tmsteph</span> <span class="badge">Agent test ✓</span></h1></div><button id="show-history" class="quiet" type="button" aria-expanded="false" aria-controls="history">History</button><button id="show-queue" class="quiet" type="button" aria-expanded="false" aria-controls="queue">Queued</button><button id="new-chat" class="quiet" type="button">＋ New chat</button></header>
       <div class="install-banner" data-install-banner hidden>
         <div class="install-banner__text">
           <p class="install-banner__title">Install Helm</p>
@@ -44,6 +44,7 @@
         <button type="button" class="install-banner__action" data-install-button>Install Helm</button>
       </div>
       <aside id="history" hidden aria-label="Conversation history"><h2>Conversations</h2><p>Your conversations, newest first. Open one to read its messages, or resume it to keep going.</p><div id="history-list"></div></aside>
+      <aside id="queue" hidden aria-label="Queued messages"><h2>Queued</h2><p>Messages still waiting, from every conversation, in the order they will send. Open one to go to its chat.</p><div id="queue-list"></div></aside>
       <div class="content">
         <section class="conversation" aria-label="Agent conversation">
           <div class="welcome" id="welcome"><span class="orbit" aria-hidden="true">✳</span><p class="eyebrow">A CLEARER COURSE</p><h2>What shall we move forward?</h2><p>Your private agent workspace.<br>Keep the work in view.</p>
