@@ -51,3 +51,12 @@ test('first explicit rejection is not misclassified as uncertain', async () => {
   assert.equal(result.partial, false);
   assert.equal(result.uncertain, false);
 });
+
+test('first thrown write is uncertain and never retried', async () => {
+  const called = [];
+  const result = await writeQueueRecords(entries, async key => { called.push(key); throw Error('transport disconnected'); });
+  assert.deepEqual(called, ['tasks']);
+  assert.equal(result.acknowledged, false);
+  assert.equal(result.partial, true);
+  assert.equal(result.uncertain, true);
+});
