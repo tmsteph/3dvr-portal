@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3DVR Visualizer</title>
+<meta name="description" content="MilkDrop-style music visualizer for 3DVR. Play a file, or join a station and every device dances to the same track.">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #f2f2f2; }
+  #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .bar { position: fixed; left: 50%; transform: translateX(-50%); width: min(880px, calc(100% - 16px));
+    background: rgba(12,12,16,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 14px;
+    backdrop-filter: blur(10px); padding: 10px 12px; z-index: 5; }
+  #topbar { top: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #topbar .brand { font-weight: 700; letter-spacing: .04em; }
+  #topbar .brand span { color: #ffd75e; }
+  #presetName { font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; flex: 1 1 160px; min-width: 120px; }
+  #controls { bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  button, .filebtn { background: #1d1d26; color: #f2f2f2; border: 1px solid rgba(255,255,255,.2);
+    border-radius: 10px; padding: 8px 12px; font-size: 14px; cursor: pointer; }
+  button:hover, .filebtn:hover { background: #2a2a38; }
+  button.active { background: #ffd75e; color: #111; border-color: #ffd75e; font-weight: 600; }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type="text"] { background: #101016; color: #f2f2f2; border: 1px solid rgba(255,255,255,.2);
+    border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+  input[type="range"] { flex: 1 1 140px; accent-color: #ffd75e; }
+  input[type="file"] { display: none; }
+  #seek { flex: 1 1 200px; }
+  .hint { font-size: 12px; opacity: .75; line-height: 1.45; }
+  #status { font-size: 12px; color: #ffd75e; min-height: 15px; }
+  #stationPanel { display: none; }
+  #stationPanel.open { display: flex; }
+  .grow { flex: 1 1 180px; }
+  @media (max-width: 560px) { #presetName { flex-basis: 100%; order: 3; } }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div class="bar" id="topbar">
+  <div class="brand">3DVR <span>VISUALIZER</span></div>
+  <div id="presetName">Pick a track to start the show</div>
+  <button id="prevPreset" title="Previous visual">&#9664; Visual</button>
+  <button id="nextPreset" title="Next visual">Visual &#9654;</button>
+  <button id="cycleBtn" class="active" title="Auto-cycle visuals">Auto-cycle</button>
+  <button id="fullBtn" title="Fullscreen">Fullscreen</button>
+</div>
+
+<div class="bar" id="controls">
+  <div class="row">
+    <label class="filebtn" for="fileInput">Open audio file</label>
+    <input type="file" id="fileInput" accept="audio/*">
+    <button id="playBtn" disabled>Play</button>
+    <input type="range" id="seek" min="0" max="1000" value="0" disabled>
+    <span id="clock" class="hint">0:00 / 0:00</span>
+  </div>
+  <div class="row">
+    <button id="stationBtn">Station mode</button>
+    <button id="demoBtn">Demo stream</button>
+    <span class="hint">Station mode: one device DJs a track link, every other device that joins hears it in sync and dances to the same visuals.</span>
+  </div>
+  <div class="row" id="stationPanel">
+    <input type="text" id="stationCode" placeholder="Station code (e.g. main-stage)" class="grow">
+    <button id="joinBtn">Join station</button>
+    <button id="djBtn">DJ this station</button>
+  </div>
+  <div class="row" id="djPanel" style="display:none">
+    <input type="text" id="trackUrl" placeholder="Paste an audio file or stream link to broadcast" class="grow">
+    <button id="setTrackBtn">Set track</button>
+    <button id="directBtn" title="If a track plays silently on some device, direct sound bypasses the visualizer feed">Direct sound: off</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<audio id="player" preload="auto" playsinline></audio>
+
+<script src="https://unpkg.com/butterchurn@2.6.7/lib/butterchurn.min.js"></script>
+<script src="https://unpkg.com/butterchurn-presets@2.4.7/lib/butterchurnPresetsMinimal.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+<script src="/gun-init.js"></script>
+<script>
+(function () {
+  'use strict';
+  var canvas = document.getElementById('stage');
+  var audio = document.getElementById('player');
+  var playBtn = document.getElementById('playBtn');
+  var seek = document.getElementById('seek');
+  var clock = document.getElementById('clock');
+  var presetNameEl = document.getElementById('presetName');
+  var statusEl = document.getElementById('status');
+  var fileInput = document.getElementById('fileInput');
+
+  var audioCtx = null, analyser = null, sourceNode = null, visualizer = null;
+  var directSound = false;
+  var presets = {}, presetKeys = [], presetIdx = 0, cycleTimer = null, cycleOn = true;
+  var station = { code: null, isDJ: false, joined: false, node: null, lastState: null, heartbeat: null, driftTimer: null };
+
+  function setStatus(msg) { statusEl.textContent = msg || ''; }
+  function fmt(t) { if (!isFinite(t) || t < 0) t = 0; var m = Math.floor(t / 60), s = Math.floor(t % 60); return m + ':' + (s < 10 ? '0' : '') + s; }
+
+  function ensureAudioGraph() {
+    if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AC();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    sourceNode = audioCtx.createMediaElementSource(audio);
+    if (!directSound) { sourceNode.connect(analyser); analyser.connect(audioCtx.destination); }
+    else { sourceNode.connect(audioCtx.destination); sourceNode.connect(analyser); }
+    initVisualizer();
+  }
+
+  function initVisualizer() {
+    if (visualizer || typeof butterchurn === 'undefined') return;
+    presets = butterchurnPresets.getPresets() || {};
+    presetKeys = Object.keys(presets);
+    visualizer = butterchurn.createVisualizer(audioCtx, canvas, {
+      width: window.innerWidth, height: window.innerHeight,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+    });
+    visualizer.connectAudio(analyser);
+    if (presetKeys.length) loadPreset(Math.floor(Math.random() * presetKeys.length), 0);
+    (function loop() { if (visualizer) visualizer.render(); requestAnimationFrame(loop); })();
+    startCycle();
+  }
+
+  function loadPreset(idx, blend) {
+    if (!visualizer || !presetKeys.length) return;
+    presetIdx = ((idx % presetKeys.length) + presetKeys.length) % presetKeys.length;
+    var name = presetKeys[presetIdx];
+    visualizer.loadPreset(presets[name], blend == null ? 2.7 : blend);
+    presetNameEl.textContent = name;
+    presetNameEl.title = name;
+    if (station.isDJ) publishState();
+  }
+
+  function startCycle() {
+    stopCycle();
+    if (!cycleOn) return;
+    cycleTimer = setInterval(function () {
+      if (audio.paused || !presetKeys.length) return;
+      if (station.joined && !station.isDJ) return;
+      loadPreset(Math.floor(Math.random() * presetKeys.length));
+    }, 20000);
+  }
+  function stopCycle() { if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; } }
+
+  window.addEventListener('resize', function () {
+    if (visualizer) visualizer.setRendererSize(window.innerWidth, window.innerHeight);
+  });
+
+  document.getElementById('nextPreset').addEventListener('click', function () { loadPreset(presetIdx + 1); });
+  document.getElementById('prevPreset').addEventListener('click', function () { loadPreset(presetIdx - 1); });
+  document.getElementById('cycleBtn').addEventListener('click', function () {
+    cycleOn = !cycleOn; this.classList.toggle('active', cycleOn); startCycle();
+  });
+  document.getElementById('fullBtn').addEventListener('click', function () {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  });
+
+  function setTrack(src, cors) {
+    ensureAudioGraph();
+    if (cors) audio.crossOrigin = 'anonymous'; else audio.removeAttribute('crossorigin');
+    audio.src = src;
+    playBtn.disabled = false; seek.disabled = false;
+  }
+
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    leaveStation();
+    setTrack(URL.createObjectURL(f), false);
+    audio.play();
+    setStatus('Playing your file. Visuals react to the sound on this device.');
+  });
+  document.addEventListener('dragover', function (e) { e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) { leaveStation(); setTrack(URL.createObjectURL(f), false); audio.play(); }
+  });
+
+  document.getElementById('demoBtn').addEventListener('click', function () {
+    leaveStation();
+    setTrack('https://ice1.somafm.com/groovesalad-128-mp3', true);
+    audio.play().catch(function () { setStatus('Demo stream blocked by the browser. Press Play.'); });
+    setStatus('Demo stream: SomaFM Groove Salad. If it stays silent, a station admin can flip Direct sound.');
+  });
+
+  playBtn.addEventListener('click', function () {
+    ensureAudioGraph();
+    if (audio.paused) audio.play(); else audio.pause();
+    if (station.isDJ) publishState();
+  });
+  audio.addEventListener('play', function () { playBtn.textContent = 'Pause'; if (station.isDJ) publishState(); });
+  audio.addEventListener('pause', function () { playBtn.textContent = 'Play'; if (station.isDJ) publishState(); });
+  audio.addEventListener('timeupdate', function () {
+    clock.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration);
+    if (audio.duration > 0 && document.activeElement !== seek) seek.value = Math.round(audio.currentTime / audio.duration * 1000);
+  });
+  seek.addEventListener('input', function () {
+    if (audio.duration > 0) { audio.currentTime = seek.value / 1000 * audio.duration; if (station.isDJ) publishState(); }
+  });
+
+  /* ---------- Station mode (Gun sync-play) ---------- */
+  var gun = null;
+  function getGun() {
+    if (gun) return gun;
+    gun = Gun({ peers: window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'] });
+    return gun;
+  }
+  function stationNode(code) { return getGun().get('3dvr-visualizer/station/' + code); }
+
+  function publishState() {
+    if (!station.isDJ || !station.node) return;
+    station.node.put({
+      url: audio.getAttribute('src') && audio.src.indexOf('blob:') !== 0 ? audio.src : (station.lastState && station.lastState.url) || '',
+      playing: !audio.paused,
+      pos: audio.currentTime || 0,
+      at: Date.now(),
+      preset: presetKeys[presetIdx] || '',
+      dj: 'this device'
+    });
+  }
+
+  function expectedPos(st) {
+    if (!st) return 0;
+    return st.playing ? (st.pos || 0) + (Date.now() - (st.at || Date.now())) / 1000 : (st.pos || 0);
+  }
+
+  function applyState(st) {
+    if (!st || station.isDJ) return;
+    station.lastState = st;
+    var want = expectedPos(st);
+    if (st.url && audio.src !== st.url) {
+      setTrack(st.url, true);
+      audio.addEventListener('loadedmetadata', function once() {
+        audio.removeEventListener('loadedmetadata', once);
+        if (isFinite(audio.duration) && want > 0 && want < audio.duration) audio.currentTime = want;
+        if (st.playing) audio.play().catch(function () {});
+      });
+    } else if (st.url) {
+      if (st.playing && audio.paused) { audio.play().catch(function () {}); }
+      if (!st.playing && !audio.paused) audio.pause();
+      if (isFinite(audio.duration) && Math.abs(audio.currentTime - want) > 2 && want < audio.duration) audio.currentTime = want;
+    }
+    if (st.preset && presetKeys.length) {
+      var idx = presetKeys.indexOf(st.preset);
+      if (idx >= 0 && idx !== presetIdx) loadPreset(idx);
+    }
+  }
+
+  function joinStation(code, asDJ) {
+    leaveStation();
+    station.code = code; station.joined = true; station.isDJ = !!asDJ;
+    station.node = stationNode(code);
+    document.getElementById('djPanel').style.display = asDJ ? 'flex' : 'none';
+    document.getElementById('djBtn').classList.toggle('active', asDJ);
+    document.getElementById('joinBtn').classList.toggle('active', !asDJ);
+    var link = location.origin + location.pathname + '?station=' + encodeURIComponent(code);
+    if (asDJ) {
+      publishState();
+      station.heartbeat = setInterval(publishState, 4000);
+      setStatus('You are the DJ of station "' + code + '". Set a track link, press Play, and share this page link: ' + link);
+    } else {
+      station.node.on(applyState);
+      station.driftTimer = setInterval(function () { if (station.lastState) applyState(station.lastState); }, 3000);
+      setStatus('Joined station "' + code + '". Waiting for the DJ track. Keep this page open; visuals follow the station.');
+    }
+  }
+
+  function leaveStation() {
+    if (station.node && !station.isDJ) station.node.off();
+    if (station.heartbeat) clearInterval(station.heartbeat);
+    if (station.driftTimer) clearInterval(station.driftTimer);
+    station = { code: null, isDJ: false, joined: false, node: null, lastState: null, heartbeat: null, driftTimer: null };
+    document.getElementById('djPanel').style.display = 'none';
+    document.getElementById('djBtn').classList.remove('active');
+    document.getElementById('joinBtn').classList.remove('active');
+  }
+
+  document.getElementById('stationBtn').addEventListener('click', function () {
+    document.getElementById('stationPanel').classList.toggle('open');
+  });
+  document.getElementById('joinBtn').addEventListener('click', function () {
+    var code = (document.getElementById('stationCode').value || 'main-stage').trim();
+    ensureAudioGraph(); joinStation(code, false);
+  });
+  document.getElementById('djBtn').addEventListener('click', function () {
+    var code = (document.getElementById('stationCode').value || 'main-stage').trim();
+    ensureAudioGraph(); joinStation(code, true);
+  });
+  document.getElementById('setTrackBtn').addEventListener('click', function () {
+    var url = (document.getElementById('trackUrl').value || '').trim();
+    if (!url) { setStatus('Paste an audio link first.'); return; }
+    setTrack(url, true);
+    audio.play().catch(function () {});
+    publishState();
+  });
+  document.getElementById('directBtn').addEventListener('click', function () {
+    directSound = !directSound;
+    this.textContent = 'Direct sound: ' + (directSound ? 'on' : 'off');
+    if (sourceNode && analyser && audioCtx) {
+      try { sourceNode.disconnect(); analyser.disconnect(); } catch (e) {}
+      sourceNode.connect(audioCtx.destination);
+      if (!directSound) { sourceNode.connect(analyser); analyser.connect(audioCtx.destination); }
+      else { sourceNode.connect(analyser); }
+    }
+  });
+
+  var params = new URLSearchParams(location.search);
+  if (params.get('station')) {
+    document.getElementById('stationPanel').classList.add('open');
+    document.getElementById('stationCode').value = params.get('station');
+    setStatus('Station "' + params.get('station') + '" linked. Tap Join station, then Play if the browser asks.');
+  }
+})();
+</script>
+</body>
+</html>
