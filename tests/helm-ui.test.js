@@ -81,6 +81,7 @@ function screen(result, status = 200, signedIn = true, gate, sessions = new Map(
     changeAccount: () => events.get('window:storage')({ key: 'userPubKey' }),
     focus: () => events.get('window:focus')(),
     newChat: () => events.get('new-chat:click')(),
+    showQueue: () => events.get('show-queue:click')(),
     changeEngine: value => { element('engine').value = value; events.get('engine:change')(); },
     submit: async text => { element('message').value = text; await events.get('chat-form:submit')({ preventDefault() {} }); } };
 }
@@ -134,6 +135,88 @@ test('queued messages from an earlier conversation remain cancellable in history
   cancel.events.click();
   await flush();
   assert.equal(ui.saved.at(-1).status, 'cancelled');
+});
+
+test('queued messages stay visible in the queue view after starting a new chat', async () => {
+  const ui = screen({ ok: false, error: 'Offline' }, 503);
+  await ui.ready;
+  const now = Date.now();
+  ui.seed(seedRecord({ id: 'seed-queue-1001', sessionId: 'chat-queue-1001', text: 'First chat opener', at: now - 180000, status: 'queued' }));
+  ui.seed(seedRecord({ id: 'seed-queue-1002', sessionId: 'chat-queue-1001', text: 'First chat follow-up', at: now - 120000, status: 'queued' }));
+  ui.seed(seedRecord({ id: 'seed-queue-1003', sessionId: 'chat-queue-1003', text: 'Second chat message', at: now - 60000, status: 'queued' }));
+  ui.newChat();
+  await flush();
+  assert.equal(ui.element('show-queue').textContent, 'Queued (3)');
+  const rows = ui.element('queue-list').children;
+  assert.equal(rows.length, 3);
+  const previews = rows.map(row => findAll(row, item => item.className === 'history-preview')[0]?.textContent);
+  assert.deepEqual(previews, ['First chat opener', 'First chat follow-up', 'Second chat message']);
+  const metas = rows.map(row => findAll(row, item => item.className === 'history-meta')[0]?.textContent);
+  assert.match(metas[0], /Queued · Next up/);
+  assert.match(metas[1], /Queued · 1 ahead of it/);
+  assert.match(metas[1], /Chat starts “First chat opener”/);
+  assert.match(metas[2], /Queued · 2 ahead of it/);
+  ui.element('queue').hidden = true;
+  ui.showQueue();
+  assert.equal(ui.element('queue').hidden, false);
+});
+
+test('cancelling in the queue view cancels the same record in its chat', async () => {
+  const ui = screen({ ok: false, error: 'Offline' }, 503);
+  await ui.ready;
+  await ui.submit('Cancel me from the queue view');
+  ui.newChat();
+  assert.equal(ui.element('show-queue').textContent, 'Queued (1)');
+  const cancel = findByText(ui.element('queue-list'), 'Cancel');
+  assert.ok(cancel);
+  cancel.events.click();
+  await flush();
+  assert.equal(ui.saved.at(-1).status, 'cancelled');
+  assert.equal(ui.element('show-queue').textContent, 'Queued');
+  const rows = ui.element('queue-list').children;
+  assert.equal(rows.length, 1);
+  assert.match(textOf(rows[0]), /Nothing is waiting/);
+});
+
+test('opening a queued turn from the queue view returns to its chat', async () => {
+  const ui = screen({ ok: false, error: 'Offline' }, 503);
+  await ui.ready;
+  const now = Date.now();
+  ui.seed(seedRecord({ id: 'seed-queue-0001', sessionId: 'chat-queue-0001', text: 'Earlier chat opener', at: now - 120000 }));
+  ui.seed(seedRecord({ id: 'seed-queue-0002', sessionId: 'chat-queue-0001', text: 'Still waiting turn', at: now - 60000, status: 'queued' }));
+  await flush();
+  const open = findByText(ui.element('queue-list'), 'Open chat');
+  assert.ok(open);
+  open.events.click();
+  await flush(); await flush();
+  assert.equal(ui.element('queue').hidden, true);
+  await ui.submit('Back in the earlier chat');
+  assert.equal(ui.saved.at(-1).sessionId, 'chat-queue-0001');
+});
+
+test('queue view shows a sending turn as waiting for the agent, without a cancel button', async () => {
+  const ui = screen({ ok: false, error: 'Offline' }, 503);
+  await ui.ready;
+  const now = Date.now();
+  ui.seed(seedRecord({ id: 'seed-queue-0003', sessionId: 'chat-queue-0003', text: 'Turn already sent', at: now - 30000, status: 'sending' }));
+  await flush();
+  assert.equal(ui.element('show-queue').textContent, 'Queued (1)');
+  const rows = ui.element('queue-list').children;
+  assert.equal(rows.length, 1);
+  const meta = findAll(rows[0], item => item.className === 'history-meta')[0];
+  assert.match(meta.textContent, /Sending · waiting for the agent/);
+  assert.equal(findByText(ui.element('queue-list'), 'Cancel'), undefined);
+});
+
+test('completed turns leave the queue view', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
+  await ui.ready;
+  await ui.submit('Finish and clear');
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.element('show-queue').textContent, 'Queued');
+  const rows = ui.element('queue-list').children;
+  assert.equal(rows.length, 1);
+  assert.match(textOf(rows[0]), /Nothing is waiting/);
 });
 
 test('new chat closes the history panel and clears an unsent draft', async () => {

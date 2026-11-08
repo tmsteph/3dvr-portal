@@ -617,17 +617,17 @@ header {
     min-width: 0;
   }
 }
-#history {
+#history, #queue {
   padding: 18px;
   border-bottom: 1px solid var(--line);
   max-height: 50dvh;
   overflow-y: auto;
 }
-#history > p, #queue-summary {
+#history > p, #queue > p, #queue-summary {
   font-size: 12px;
   color: var(--muted);
 }
-#history-list {
+#history-list, #queue-list {
   display: grid;
   gap: 8px;
 }
