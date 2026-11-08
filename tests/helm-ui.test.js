@@ -451,6 +451,61 @@ test('a queued turn shows the receipt preview in its bubble until the final repl
   assert.equal(textOf(doneReply), 'Final answer');
 });
 
+test('a turn bubble names each state: queued, waiting for the agent to start, receiving, done', async () => {
+  const gates = [];
+  const gated = () => new Promise(resolve => gates.push(resolve));
+  let chatCalls = 0;
+  const startedAt = Date.now();
+  const ui = screen(async payload => {
+    if (payload.action === 'status') return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } };
+    chatCalls++;
+    if (chatCalls === 1) return { status: 202, body: { queued: true, status: 'queued', position: 2, preview: null } };
+    await gated();
+    if (chatCalls === 2) return { status: 202, body: { queued: true, status: 'running', position: 0,
+      preview: { text: '', activity: null, startedAt, updatedAt: null } } };
+    if (chatCalls === 3) return { status: 202, body: { queued: true, status: 'running', position: 0,
+      preview: { text: 'Partial answer', activity: null, startedAt, updatedAt: Date.now() } } };
+    return { status: 200, body: { ok: true, reply: 'Final answer' } };
+  });
+  await ui.ready;
+  const submitted = ui.submit('State tour diagnostic');
+  await flush(); await flush(); await flush(); await flush();
+  const note = () => findAll(ui.element('messages').children[0], item => item.className === 'working-note')[0];
+  // Still in the server queue: the bubble names the position, not work.
+  assert.match(note().textContent, /^Queued · 2 ahead · \d+s$/);
+  gates.shift()(); await flush(); await flush(); await flush(); await flush();
+  // Dispatched and running on the receipt, but the agent has produced
+  // nothing yet: the bubble says so instead of claiming it is working.
+  assert.match(note().textContent, /^Waiting for the agent to start · \d+s$/);
+  gates.shift()(); await flush(); await flush(); await flush(); await flush();
+  // First fragment in the preview: the bubble switches to receiving.
+  assert.match(note().textContent, /^Receiving reply · \d+s$/);
+  assert.ok(ui.element('messages').children[0].children.some(item => item?.textContent === 'Partial answer'));
+  gates.shift()(); await submitted;
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.saved.at(-1).reply, 'Final answer');
+  assert.equal(findAll(ui.element('messages').children[0], item => item.className === 'working-note').length, 0);
+});
+
+test('a dispatched turn with no output yet reads as waiting for the agent to start, not working', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ui = screen(async payload => {
+    if (payload.action === 'status') return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } };
+    await gate;
+    return { status: 200, body: { ok: true, reply: 'Done' } };
+  });
+  await ui.ready;
+  const submitted = ui.submit('Held diagnostic');
+  await flush();
+  const card = ui.element('messages').children[0];
+  const note = findAll(card, item => item.className === 'working-note')[0];
+  assert.ok(note);
+  assert.match(note.textContent, /^Waiting for the agent to start · \d+s$/);
+  release(); await submitted;
+  assert.equal(ui.saved.at(-1).status, 'completed');
+});
+
 test('a page reload reattaches to a turn still in flight and lands its reply', async () => {
   const ui = screen(payload => payload.action === 'status'
     ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }

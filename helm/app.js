@@ -64,7 +64,7 @@ function makeOutbox() {
       updateControls();
       const started = Date.now();
       let queuePosition = null;
-      liveReply = { id: record.id, text: '', activity: null, startedAt: null };
+      liveReply = { id: record.id, text: '', activity: null, startedAt: null, position: null };
       const showWaiting = () => {
         if (currentEpoch !== epoch) return;
         const label = liveReply?.activity ? liveReply.activity
@@ -75,6 +75,10 @@ function makeOutbox() {
         $('activity').textContent = `${label} · ${Math.floor((Date.now() - started) / 1000)}s elapsed`;
       };
       showWaiting();
+      // Paint the working bubble now, in its truthful starting state,
+      // instead of waiting for the first stream fragment or poll to
+      // trigger a render.
+      if (currentEpoch === epoch) renderMessages();
       const progress = setInterval(showWaiting, 1000);
       try {
         const result = await request('chat', record, text => {
@@ -82,9 +86,19 @@ function makeOutbox() {
           liveReply.text += text;
           showWaiting();
           renderMessages();
-        }, position => {
+        }, (position, status) => {
           if (currentEpoch !== epoch) return;
-          queuePosition = typeof position === 'number' ? position : null;
+          // The receipt's status is the truth about where the turn
+          // sits: 'running' means the dispatcher has picked it up, so
+          // its queue position is spent; anything else means it still
+          // waits in the server queue at the reported position.
+          if (status === 'running') {
+            queuePosition = null;
+            liveReply.position = null;
+          } else {
+            queuePosition = typeof position === 'number' ? position : null;
+            liveReply.position = queuePosition;
+          }
           showWaiting();
         }, preview => {
           if (currentEpoch !== epoch) return;
@@ -94,6 +108,9 @@ function makeOutbox() {
           // agent is doing right now. This is what keeps the working
           // bubble alive across queued waits and page reloads.
           if (preview) {
+            // A preview exists only once the turn is running, so any
+            // queue position from an earlier poll no longer applies.
+            liveReply.position = null;
             if (typeof preview.text === 'string') liveReply.text = preview.text;
             liveReply.activity = preview.activity ?? null;
             if (preview.startedAt) liveReply.startedAt = preview.startedAt;
@@ -189,7 +206,7 @@ async function request(action, record, onDelta, onQueue, onPreview, onActivity) 
     });
     if (requestEpoch !== epoch) throw new Error('Account changed.');
     if (response.status !== 202 || !result?.queued) break;
-    onQueue?.(result.position);
+    onQueue?.(result.position, result.status);
     onPreview?.(result.preview ?? null);
     if (record && Date.now() > record.expiresAt + 30000) {
       throw new Error('The wait outlasted the message lifetime. Check History before sending again.');
@@ -262,7 +279,17 @@ function messageCard(record, history = false) {
     const working = document.createElement('small');
     working.className = 'working-note';
     const elapsed = Math.max(0, Math.floor((Date.now() - (live.startedAt ?? record.createdAt)) / 1000));
-    working.textContent = `${live.activity || (partial ? 'Receiving reply' : 'Working')} · ${elapsed}s`;
+    // The note names the turn's actual state, never a generic
+    // "working": the activity line while the agent does something,
+    // the growing reply while it streams, the queue position while
+    // the turn still waits for dispatch, and otherwise the honest
+    // state in between: dispatched, but the agent has not started
+    // producing anything yet. That gap can run long, because the
+    // gateway works one agent run at a time across all sessions.
+    const state = live.activity || (partial ? 'Receiving reply'
+      : live.position != null ? (live.position > 0 ? `Queued · ${live.position} ahead` : 'Queued · next up')
+      : 'Waiting for the agent to start');
+    working.textContent = `${state} · ${elapsed}s`;
     article.append(working);
   }
   if (record.note) {
