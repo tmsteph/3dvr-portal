@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="/styles/install-banner.css">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="hud">
   <header class="topbar">
     <div class="topbar__row">
       <a class="brand" href="#top" aria-label="3DVR Girl home">
@@ -52,11 +52,18 @@
       <a class="cast-strip__staff" href="../martha/">Martha &middot; the assistant</a>
       <a class="cast-strip__key" href="character/">Her site &amp; chat →</a>
     </nav>
+    <nav class="hud-tabs" aria-label="Stage select">
+      <button type="button" class="hud-tab is-active" data-stage-tab="world" aria-pressed="true">World</button>
+      <button type="button" class="hud-tab" data-stage-tab="archive" aria-pressed="false">Archive <span class="hud-tab__count" data-stage-count="archive"></span></button>
+      <button type="button" class="hud-tab" data-stage-tab="goldenhour" aria-pressed="false">Golden hour <span class="hud-tab__count" data-stage-count="goldenhour"></span></button>
+      <button type="button" class="hud-tab" data-stage-tab="afterdark" aria-pressed="false">After dark <span class="hud-tab__count" data-stage-count="afterdark"></span></button>
+    </nav>
   </header>
 
-
-  <main id="top">
-    <section class="hero" aria-labelledby="pageTitle">
+  <div class="hud-body">
+    <nav class="hud-rail" id="hudRail" aria-label="Character select"></nav>
+    <main id="top" class="hud-stage">
+    <section class="hero" data-stage="world" aria-labelledby="pageTitle">
       <video class="hero__image" autoplay muted loop playsinline preload="metadata" poster="assets/courtyard-warrior.jpg" aria-label="3DVR Girl flowing through a warrior pose in a sunlit courtyard">
         <source src="assets/courtyard-flow-loop.mp4" type="video/mp4">
         <source src="assets/courtyard-flow-loop.webm" type="video/webm">
@@ -75,7 +82,7 @@
       </div>
     </section>
 
-  <div class="install-banner" data-install-banner hidden>
+  <div class="install-banner" data-stage="world" data-install-banner hidden>
     <div class="install-banner__text">
       <p class="install-banner__title">Install 3DVR Girl</p>
       <p class="install-banner__meta">Keep her world one tap away.</p>
@@ -83,7 +90,7 @@
     <button type="button" class="install-banner__action" data-install-button>Install</button>
   </div>
 
-    <section class="intro section" aria-labelledby="introTitle">
+    <section class="intro section" data-stage="world" aria-labelledby="introTitle">
       <div class="intro__copy">
         <p class="eyebrow">Who she is</p>
         <h2 id="introTitle">Not a mascot.<br>A point of view.</h2>
@@ -101,7 +108,7 @@
       </aside>
     </section>
 
-    <section class="motion section" id="motion" aria-labelledby="motionTitle">
+    <section class="motion section" id="motion" data-stage="world" aria-labelledby="motionTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Living portraits</p>
@@ -128,7 +135,7 @@
       </div>
     </section>
 
-    <section class="carousel-section section" id="carousel" aria-labelledby="carouselTitle">
+    <section class="carousel-section section" id="carousel" data-stage="world" aria-labelledby="carouselTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Her and the others</p>
@@ -177,7 +184,7 @@
       </div>
     </section>
 
-    <section class="worlds section" id="worlds" aria-labelledby="worldsTitle">
+    <section class="worlds section" id="worlds" data-stage="world" aria-labelledby="worldsTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Four modes</p>
@@ -206,7 +213,7 @@
       </div>
     </section>
 
-    <section class="woods section" id="woods" aria-labelledby="woodsTitle">
+    <section class="woods section" id="woods" data-stage="world" aria-labelledby="woodsTitle">
       <div class="woods__media">
         <img src="assets/3dvr-girl-kala-forest.webp" alt="3DVR Girl and Kayla standing together on a wooded trail" loading="lazy">
       </div>
@@ -225,7 +232,7 @@
       </div>
     </section>
 
-    <section class="archive section" id="archive" aria-labelledby="archiveTitle">
+    <section class="archive section" id="archive" data-stage="archive" aria-labelledby="archiveTitle">
       <div class="section-heading archive__heading">
         <div>
           <p class="eyebrow">Scene archive</p>
@@ -237,7 +244,7 @@
       <div class="archive-grid" id="archiveGrid"></div>
     </section>
 
-    <section class="archive section golden-hour" id="golden-hour" aria-labelledby="goldenHourTitle">
+    <section class="archive section golden-hour" id="golden-hour" data-stage="goldenhour" aria-labelledby="goldenHourTitle">
       <div class="section-heading archive__heading">
         <div>
           <p class="eyebrow">Golden hour</p>
@@ -256,7 +263,7 @@
       <div class="archive-grid" id="danceVideoGrid"></div>
     </section>
 
-    <section class="living section" id="girls-alive" aria-labelledby="girlsAliveTitle">
+    <section class="living section" id="girls-alive" data-stage="world" aria-labelledby="girlsAliveTitle">
       <div class="section-heading archive__heading">
         <div>
           <p class="eyebrow">The cast</p>
@@ -298,7 +305,7 @@
       </div>
     </section>
 
-    <section class="archive section" id="storybook" aria-labelledby="storybookTitle">
+    <section class="archive section" id="storybook" data-stage="world" aria-labelledby="storybookTitle">
       <div class="section-heading archive__heading">
         <div>
           <p class="eyebrow">Storybook</p>
@@ -313,7 +320,7 @@
       </div>
     </section>
 
-    <section class="living section" id="living-stories" aria-labelledby="livingStoriesTitle">
+    <section class="living section" id="living-stories" data-stage="world" aria-labelledby="livingStoriesTitle">
       <div class="section-heading archive__heading">
         <div>
           <p class="eyebrow">Storybook</p>
@@ -349,7 +356,7 @@
       </div>
     </section>
 
-    <section class="after-dark section" id="after-dark" aria-labelledby="afterDarkTitle">
+    <section class="after-dark section" id="after-dark" data-stage="afterdark" aria-labelledby="afterDarkTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Private gallery</p>
@@ -1113,7 +1120,7 @@
         </figure>
       </div>
     </section>
-    <section class="machine section" id="machine" aria-labelledby="machineTitle">
+    <section class="machine section" id="machine" data-stage="world" aria-labelledby="machineTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Workshop</p>
@@ -1128,7 +1135,7 @@
       </div>
     </section>
 
-    <section class="staff section" aria-labelledby="staffTitle">
+    <section class="staff section" data-stage="world" aria-labelledby="staffTitle">
       <div class="staff-card">
         <img class="staff-card__image" src="../martha/assets/martha-avatar.webp" alt="Martha, a pineapple character with a green leafy crown, wearing a black dress with red and gold trim" loading="lazy" width="640" height="640">
         <div class="staff-card__copy">
@@ -1139,7 +1146,8 @@
         </div>
       </div>
     </section>
-  </main>
+    </main>
+  </div>
 
   <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" hidden>↑ Top</button>
 
@@ -1174,6 +1182,7 @@
   <script src="app.js"></script>
   <script src="../auth-identity.js"></script>
   <script src="gallery.js"></script>
+  <script type="module" src="hud.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
