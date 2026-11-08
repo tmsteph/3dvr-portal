@@ -50,7 +50,7 @@ test('Helm installs as its own app, separate from Operator and the portal', asyn
   assert.ok(html.includes('>Install Helm</button>'));
   assert.ok(html.includes('data-install-banner'));
   assert.ok(html.includes('data-install-button'));
-  assert.ok(html.includes('src="/pwa-install.js"'));
+  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-quiet1"'));
   assert.ok(html.includes('data-sw-url="/helm/service-worker.js"'));
   assert.ok(html.includes('data-sw-scope="/helm/"'));
   assert.ok(!html.includes('helm-install-help'));

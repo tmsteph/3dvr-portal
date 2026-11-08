@@ -2487,3 +2487,73 @@ footer a {
     gap: 0.75rem;
   }
 }
+
+/* Quiet install affordance (2026-11-07): the install prompt is a small
+   pill people can find, not a hero card they cannot miss. It stays
+   where the page already places it, speaks softly, and leaves for good
+   once the app is installed or the pill is dismissed. */
+.install-banner {
+  gap: 8px;
+  margin: 0 auto 12px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  max-width: max-content;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.install-banner__text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.3;
+}
+
+.install-banner__title {
+  font-size: 0.9rem;
+}
+
+.install-banner__meta {
+  font-size: 0.85rem;
+}
+
+.install-banner__action {
+  margin-left: 4px;
+  padding: 7px 13px;
+  font-size: 0.9rem;
+  box-shadow: none;
+}
+
+.install-banner__action:hover {
+  transform: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.install-banner__dismiss {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted, #4b5563);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.install-banner__dismiss:hover {
+  background: rgba(128, 128, 128, 0.12);
+}
+
+@media (max-width: 640px) {
+  .install-banner {
+    max-width: calc(100% - 24px);
+  }
+
+  .install-banner__meta {
+    display: none;
+  }
+}

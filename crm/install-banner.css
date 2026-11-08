@@ -123,3 +123,51 @@
     padding-right: 2.5rem;
   }
 }
+
+/* Quiet install affordance (2026-11-07): the bottom card becomes a
+   compact pill in the corner. Same dismissal, smaller voice. */
+.install-banner--bottom {
+  left: auto;
+  right: max(16px, env(safe-area-inset-right));
+  width: auto;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+}
+
+.install-banner--bottom .install-banner__text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.3;
+}
+
+.install-banner--bottom .install-banner__meta {
+  display: none;
+}
+
+.install-banner--bottom .install-banner__action {
+  margin-left: 4px;
+  padding: 7px 13px;
+}
+
+@media (max-width: 640px) {
+  .install-banner--bottom {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .install-banner--bottom .install-banner__action {
+    width: auto;
+    margin-left: 4px;
+  }
+
+  .install-banner--bottom .install-banner__dismiss {
+    position: static;
+  }
+
+  .install-banner--bottom .install-banner__text {
+    padding-right: 0;
+  }
+}

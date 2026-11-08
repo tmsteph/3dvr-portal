@@ -3,7 +3,7 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v20';
+const CACHE_VERSION = 'v21';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
@@ -24,7 +24,7 @@ const STATIC_ASSETS = [
   '/style.css?v=notes-refresh-20240204',
   '/navbar.js',
   '/score.js',
-  '/pwa-install.js',
+  '/pwa-install.js?v=2026-11-07-quiet1',
   '/chat/notification-routing.js',
   '/styles/install-banner.css',
   '/manifest.webmanifest',

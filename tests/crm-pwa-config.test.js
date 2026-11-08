@@ -55,7 +55,7 @@ describe('CRM PWA configuration', () => {
     assert.match(html, /\? '\/crm\.webmanifest'/);
     assert.match(html, /: '\/crm\/crm\.webmanifest'/);
     assert.match(html, /href="\/crm\/install-banner\.css"/);
-    assert.match(html, /src="\/crm\/pwa-install\.js"/);
+    assert.match(html, /src="\/crm\/pwa-install\.js\?v=2026-11-07-quiet1"/);
     assert.match(html, /data-sw-url="\/crm\/service-worker\.js"/);
     assert.match(html, /data-sw-scope="\/crm\/"/);
     assert.match(html, /data-sw-standalone-host="crm\.3dvr\.tech"/);
@@ -74,7 +74,7 @@ describe('CRM PWA configuration', () => {
   it('ships a CRM-specific service worker', async () => {
     const workerSource = await readProjectFile('crm/service-worker.js');
 
-    assert.match(workerSource, /const CACHE_VERSION = 'v1';/);
+    assert.match(workerSource, /const CACHE_VERSION = 'v2';/);
     assert.match(workerSource, /crm-static-/);
     assert.match(workerSource, /crm-html-/);
     assert.match(workerSource, /const APP_BASE_URL = new URL\('\/crm\/', ORIGIN_URL\);/);

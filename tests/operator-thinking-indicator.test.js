@@ -33,7 +33,7 @@ test('install is the shared real-prompt button, with no instructions dialog', as
   const html = await read('operator/index.html');
   assert.match(html, /data-install-banner/);
   assert.match(html, /data-install-button/);
-  assert.match(html, /src="\/pwa-install\.js" data-sw-url="\/operator\/service-worker\.js" data-sw-scope="\/operator\/"/);
+  assert.match(html, /src="\/pwa-install\.js\?v=2026-11-07-quiet1" data-sw-url="\/operator\/service-worker\.js" data-sw-scope="\/operator\/"/);
   assert.doesNotMatch(html, /operator-install-help/);
   assert.doesNotMatch(html, /Add to Home screen/);
 });
