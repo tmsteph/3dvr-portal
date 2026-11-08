@@ -114,10 +114,35 @@
     }
   };
 
+  // Install state has to survive the visit where it happened: the browser
+  // offers a fresh beforeinstallprompt on later tab visits (and other
+  // browsers on the same device never saw the install at all), so a banner
+  // keyed only on the live prompt nags people who already installed.
+  // Remember the install on this origin, and ask the platform what it
+  // knows when it can answer.
+  const installedFlagKey = `3dvr-pwa-installed:${scopePath}`;
+
+  const hasInstalledFlag = () => {
+    try {
+      return localStorage.getItem(installedFlagKey) === 'true';
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const markInstalled = () => {
+    try {
+      localStorage.setItem(installedFlagKey, 'true');
+    } catch (error) {
+      console.warn('Unable to remember install state', error);
+    }
+  };
+
   const isInstalled = () => {
     return window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone
-      || document.referrer.startsWith('android-app://');
+      || document.referrer.startsWith('android-app://')
+      || hasInstalledFlag();
   };
 
   const hideBanner = () => {
@@ -151,7 +176,10 @@
     }
   });
 
-  window.addEventListener('appinstalled', hideBanner);
+  window.addEventListener('appinstalled', () => {
+    markInstalled();
+    hideBanner();
+  });
   dismissButton?.addEventListener('click', dismissBanner);
 
   installButton.addEventListener('click', async () => {
@@ -163,9 +191,34 @@
     deferredPrompt = null;
     installButton.disabled = false;
 
-    if (outcome === 'accepted') hideBanner();
+    if (outcome === 'accepted') {
+      markInstalled();
+      hideBanner();
+    }
   });
 
   if (isInstalled()) hideBanner();
   if (wasDismissed()) hideBanner();
+
+  // Running inside the installed app proves the install; remember it so a
+  // later tab visit on this origin stays quiet too.
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+    markInstalled();
+  }
+
+  // Where the platform can name installed related apps (the manifest
+  // declares this app as its own related webapp), trust that answer even
+  // when this browser never saw the install happen.
+  if (typeof navigator.getInstalledRelatedApps === 'function') {
+    navigator.getInstalledRelatedApps()
+      .then((relatedApps) => {
+        if (Array.isArray(relatedApps) && relatedApps.length > 0) {
+          markInstalled();
+          hideBanner();
+        }
+      })
+      .catch((error) => {
+        console.warn('Installed apps check skipped', error);
+      });
+  }
 })();

@@ -8,7 +8,7 @@ const source = await readFile(new URL('../pwa-install.js', import.meta.url), 'ut
 // The shared install pattern for every 3DVR app surface: the button exists
 // only while the browser holds a deferred install prompt, clicking it fires
 // that prompt, and there is no instructions fallback anywhere.
-function setup({ standalone = false, config, withServiceWorker = false } = {}) {
+function setup({ standalone = false, config, withServiceWorker = false, storage, relatedApps } = {}) {
   const windowEvents = {};
   const classes = new Set();
   let hiddenAttr = true;
@@ -27,7 +27,11 @@ function setup({ standalone = false, config, withServiceWorker = false } = {}) {
     querySelector: () => button
   };
   let registered = null;
+  const store = storage || new Map();
   const navigatorObj = {};
+  if (relatedApps) {
+    navigatorObj.getInstalledRelatedApps = async () => relatedApps;
+  }
   if (withServiceWorker) {
     navigatorObj.serviceWorker = {
       addEventListener: () => {},
@@ -54,7 +58,10 @@ function setup({ standalone = false, config, withServiceWorker = false } = {}) {
       querySelector: (selector) => (selector === '[data-install-banner]' ? banner : null)
     },
     navigator: navigatorObj,
-    localStorage: { getItem: () => '2026-06-30-auth-cache-v2', setItem: () => {} },
+    localStorage: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => { store.set(key, String(value)); }
+    },
     sessionStorage: { getItem: () => null, setItem: () => {} },
     console,
     URL,
@@ -128,4 +135,61 @@ test('a page-level per-origin worker config wins over the defaults', async () =>
   const registration = ui.registered();
   assert.equal(registration.url, '/3dvr-girl/service-worker.js');
   assert.equal(registration.options.scope, '/3dvr-girl/');
+});
+
+test('an install is remembered on later tab visits', async () => {
+  const storage = new Map();
+  const first = setup({ storage });
+  const counter = { prompts: 0 };
+  first.events.beforeinstallprompt(installEvent('accepted', counter));
+  assert.equal(first.visible(), true);
+  first.events.appinstalled();
+  assert.equal(first.visible(), false);
+
+  const later = setup({ storage });
+  later.events.beforeinstallprompt(installEvent('accepted', counter));
+  assert.equal(later.visible(), false);
+});
+
+test('accepting the prompt remembers the install for later visits', async () => {
+  const storage = new Map();
+  const first = setup({ storage });
+  const counter = { prompts: 0 };
+  first.events.beforeinstallprompt(installEvent('accepted', counter));
+  await first.click();
+  assert.equal(counter.prompts, 1);
+
+  const later = setup({ storage });
+  later.events.beforeinstallprompt(installEvent('accepted', counter));
+  assert.equal(later.visible(), false);
+});
+
+test('dismissing the prompt does not mark the app installed', async () => {
+  const storage = new Map();
+  const first = setup({ storage });
+  const counter = { prompts: 0 };
+  first.events.beforeinstallprompt(installEvent('dismissed', counter));
+  await first.click();
+  assert.equal(first.visible(), false);
+
+  const later = setup({ storage });
+  later.events.beforeinstallprompt(installEvent('dismissed', counter));
+  assert.equal(later.visible(), true);
+});
+
+test('a platform-reported installed related app suppresses the banner', async () => {
+  const storage = new Map();
+  const ui = setup({
+    storage,
+    relatedApps: [{ platform: 'webapp', url: 'https://helm.3dvr.tech/helm/helm.webmanifest' }]
+  });
+  const counter = { prompts: 0 };
+  ui.events.beforeinstallprompt(installEvent('accepted', counter));
+  assert.equal(ui.visible(), true);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(ui.visible(), false);
+
+  const later = setup({ storage });
+  later.events.beforeinstallprompt(installEvent('accepted', counter));
+  assert.equal(later.visible(), false);
 });
