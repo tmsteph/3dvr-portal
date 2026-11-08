@@ -773,3 +773,153 @@ button, textarea { font: inherit; color: inherit; }
 @media (max-width: 640px) {
   .back-to-top { bottom: 96px; right: 12px; }
 }
+
+/* ================= The HUD shell =================
+   The same game frame as the world page: fixed top bar, a roster
+   rail of character-select portrait chips, and a stage that holds
+   the hero banner and the tab panels. The page itself never
+   scrolls; the stage is the only scroller. */
+body.hud {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.hud .topbar {
+  position: relative;
+  inset: auto;
+  flex: none;
+}
+
+.hud-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.hud-rail {
+  flex: 0 0 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border-right: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(21, 28, 24, 0.55), rgba(11, 15, 13, 0.2));
+}
+
+.hud-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.hud-chip img {
+  width: 62px;
+  height: 62px;
+  object-fit: cover;
+  border-radius: 13px;
+  border: 1px solid var(--line-strong);
+  margin-bottom: 5px;
+}
+
+.hud-chip small {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.hud-chip:hover,
+.hud-chip:focus-visible {
+  color: var(--text);
+  transform: translateY(-2px);
+}
+
+.hud-chip.is-active {
+  color: var(--text);
+  border-color: rgba(119, 185, 192, 0.55);
+  background: rgba(119, 185, 192, 0.08);
+  box-shadow: 0 0 0 1px rgba(119, 185, 192, 0.35), 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+.hud-stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  box-shadow: inset 0 1px 0 rgba(241, 232, 219, 0.05);
+}
+
+body.hud .tab-panel {
+  scroll-margin-top: 14px;
+}
+
+/* Her banner fits the stage: a character header, not a full
+   viewport title screen. */
+body.hud .hero {
+  min-height: 46dvh;
+}
+
+body.hud .hero h1 {
+  font-size: clamp(2.5rem, 7.5vw, 5rem);
+}
+
+/* The footer becomes the frame's status strip. */
+body.hud .footer {
+  flex: none;
+  width: 100%;
+  margin: 0;
+  padding: 9px clamp(18px, 4vw, 56px);
+  font-size: 0.8rem;
+}
+
+body.hud .footer p {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .hud-body {
+    flex-direction: column;
+  }
+
+  .hud-rail {
+    flex: none;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 10px;
+  }
+
+  .hud-rail::-webkit-scrollbar { display: none; }
+
+  .hud-chip {
+    flex: none;
+    width: 76px;
+  }
+
+  .hud-chip img {
+    width: 50px;
+    height: 50px;
+  }
+
+  body.hud .hero {
+    min-height: 40dvh;
+  }
+}

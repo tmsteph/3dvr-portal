@@ -484,7 +484,9 @@ if (archiveGrid) {
     };
     const archiveObserver = new IntersectionObserver(() => revealArchiveChunks(), { rootMargin: '900px 0px' });
     archiveObserver.observe(archiveSentinel);
-    window.addEventListener('scroll', revealArchiveChunks, { passive: true });
+    /* Scrolls can come from the window or from the HUD stage panel;
+       a capturing document listener hears both. */
+    document.addEventListener('scroll', revealArchiveChunks, { passive: true, capture: true });
   }
 }
 
@@ -694,7 +696,7 @@ if (goldenHourGrid) {
     };
     const goldenHourObserver = new IntersectionObserver(() => revealGoldenHourChunks(), { rootMargin: '900px 0px' });
     goldenHourObserver.observe(goldenHourSentinel);
-    window.addEventListener('scroll', revealGoldenHourChunks, { passive: true });
+    document.addEventListener('scroll', revealGoldenHourChunks, { passive: true, capture: true });
   }
   applyGoldenHourVisibility();
 }
@@ -970,11 +972,17 @@ if (carousel && carouselSlides.length) {
   startCarousel();
 }
 
-/* Back to top: the page is long; give the thumb a way home. */
+/* Back to top: the stage is long; give the thumb a way home. The
+   scroller is the HUD stage panel when the shell is up, the window
+   otherwise. */
 const backToTop = document.querySelector('#backToTop');
 if (backToTop) {
-  window.addEventListener('scroll', () => {
-    backToTop.hidden = window.scrollY < 600;
-  }, { passive: true });
-  backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  const hudStage = document.querySelector('.hud-stage');
+  const stageTop = () => (hudStage ? hudStage.scrollTop : window.scrollY);
+  document.addEventListener('scroll', () => {
+    backToTop.hidden = stageTop() < 600;
+  }, { passive: true, capture: true });
+  backToTop.addEventListener('click', () => {
+    (hudStage || window).scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }

@@ -27,7 +27,7 @@
   <script type="module" src="app.js"></script>
   <script type="module" src="chat.js"></script>
 </head>
-<body>
+<body class="hud">
   <header class="topbar">
     <div class="topbar__row">
       <a class="brand" href="../" aria-label="Back to the 3DVR Girl world page">
@@ -37,7 +37,6 @@
       <a class="topbar__portal" href="../../index.html">Portal ↗</a>
     </div>
     <div class="topbar__strip">
-      <nav class="switcher" id="characterSwitcher" aria-label="More character sites" hidden></nav>
       <nav class="topbar__nav" aria-label="Page navigation">
         <a href="#worlds" data-tab="about">Worlds</a>
         <a href="#gallery" data-tab="scenes">Scenes</a>
@@ -51,7 +50,9 @@
   </header>
 
 
-  <main id="top">
+  <div class="hud-body">
+    <nav class="hud-rail" id="characterRail" aria-label="Character select"></nav>
+    <main id="top" class="hud-stage">
     <section class="hero" aria-labelledby="pageTitle">
       <img class="hero__image" id="heroImage" alt="">
       <div class="hero__veil" aria-hidden="true"></div>
@@ -169,7 +170,8 @@
         </div>
       </section>
     </div>
-  </main>
+    </main>
+  </div>
 
   <footer class="footer">
     <p>Part of the <a href="../../index.html">3DVR portal</a> · Back to <a href="../">her world page</a> · Meet <a href="../../characters/">the Portal Crew</a> · <a href="#" data-install-link hidden>Install 3DVR Girl</a></p>

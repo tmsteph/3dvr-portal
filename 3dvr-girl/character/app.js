@@ -22,18 +22,30 @@ $('heroTags').replaceChildren(...character.tags.map(tag => {
   return span;
 }));
 
-const switcher = $('characterSwitcher');
-if (characters.length > 1) {
-  switcher.hidden = false;
-  const label = document.createElement('span');
-  label.textContent = 'Character sites:';
-  switcher.append(label);
+/* ---------- Roster rail: the HUD's character select. Portrait
+   chips for the whole cast; hers is lit, the others load their own
+   site into the same shell. ---------- */
+const rail = $('characterRail');
+if (rail && characters.length > 1) {
   for (const entry of characters) {
     const link = document.createElement('a');
+    link.className = 'hud-chip';
     link.href = `?c=${encodeURIComponent(entry.id)}`;
-    link.textContent = entry.name;
-    if (entry.id === character.id) link.setAttribute('aria-current', 'page');
-    switcher.append(link);
+    if (entry.id === character.id) {
+      link.classList.add('is-active');
+      link.setAttribute('aria-current', 'page');
+    }
+    const img = document.createElement('img');
+    img.src = asset(entry.heroImage.src);
+    img.alt = entry.heroImage.alt;
+    img.loading = 'lazy';
+    const name = document.createElement('span');
+    name.className = 'hud-chip__name';
+    name.textContent = entry.name;
+    const note = document.createElement('small');
+    note.textContent = entry.id === character.id ? 'on stage' : 'her site';
+    link.append(img, name, note);
+    rail.append(link);
   }
 }
 
@@ -162,7 +174,7 @@ function autoReveal(grid, cards, pageSize) {
      panel reports no client rects, and its grid simply waits. */
   const finish = () => {
     observer.disconnect();
-    window.removeEventListener('scroll', check);
+    document.removeEventListener('scroll', check, { capture: true });
     sentinel.remove();
     revealCleanups.delete(grid);
   };
@@ -178,7 +190,9 @@ function autoReveal(grid, cards, pageSize) {
   };
   const observer = new IntersectionObserver(() => check(), { rootMargin: '900px 0px' });
   observer.observe(sentinel);
-  window.addEventListener('scroll', check, { passive: true });
+  /* Scrolls can come from the window or from the HUD stage panel;
+     a capturing document listener hears both. */
+  document.addEventListener('scroll', check, { passive: true, capture: true });
   revealCleanups.set(grid, finish);
 }
 
@@ -477,9 +491,12 @@ window.addEventListener('hashchange', () => {
   if (tab) activateTab(tab, { scroll: true });
 });
 
-/* ---------- Back to top ---------- */
+/* ---------- Back to top of the stage ---------- */
 const backToTop = $('backToTop');
-window.addEventListener('scroll', () => {
-  backToTop.hidden = window.scrollY < 600;
-}, { passive: true });
-backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+const hudStage = document.querySelector('.hud-stage');
+document.addEventListener('scroll', () => {
+  backToTop.hidden = (hudStage ? hudStage.scrollTop : window.scrollY) < 600;
+}, { passive: true, capture: true });
+backToTop.addEventListener('click', () => {
+  (hudStage || window).scrollTo({ top: 0, behavior: 'smooth' });
+});
