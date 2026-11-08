@@ -308,6 +308,29 @@ export const characters = [
         title: 'Candy hour',
         alt: '3DVR Girl with long blonde hair in a pale blue top, holding a pink and blue swirled lollipop at her lips at a harbor festival',
         copy: 'Pink and blue swirl at the harbor stalls: she picked the biggest one they had.'
+      },
+      {
+        src: 'assets/golden-hour/beach-3dvr-girl.webp',
+        mode: 'Water',
+        title: 'Golden waterline',
+        alt: '3DVR Girl with blonde hair and blue streaks in a navy swimsuit and cream sarong, smiling at the waterline as the sun sets',
+        copy: 'Navy suit, cream sarong, and the whole shoreline going gold behind her.'
+      },
+      {
+        src: 'assets/golden-hour/food-burrito-3dvr.webp',
+        mode: 'Sun',
+        title: 'San Diego rules',
+        alt: '3DVR Girl with blonde hair and blue streaks laughing as she holds a huge foil wrapped burrito at a San Diego beach taco stand',
+        copy: 'Beans, rice, and guacamole at the beach stand: she ordered the big one and has no regrets.'
+      },
+      {
+        src: 'assets/golden-hour/video-gown-3dvr.mp4',
+        poster: 'assets/golden-hour/video-gown-3dvr-poster.webp',
+        video: true,
+        mode: 'Festival',
+        title: 'Red arrival, in motion',
+        alt: '3DVR Girl arriving at an evening gala in a red dress, turning to smile at the camera',
+        copy: 'Red dress, evening lights, and one turn for the camera on the way in.'
       }
     ],
     afterDark: [
@@ -608,6 +631,20 @@ export const characters = [
         title: 'Trail candy',
         alt: 'Kayla with long dark wavy hair and freckles in a green embroidered dress, a red and white swirled lollipop in her mouth at an outdoor festival',
         copy: 'Red and white swirl, festival dust on the path, and no intention of sharing.'
+      },
+      {
+        src: 'assets/golden-hour/gown-kayla.webp',
+        mode: 'Festival',
+        title: 'Gala green',
+        alt: 'Kayla with long dark wavy hair in a deep green satin gown with leaf embroidery, smiling at a beachside gala under string lights',
+        copy: 'Deep green satin and string lights: the gala ran long and she did not mind.'
+      },
+      {
+        src: 'assets/golden-hour/food-sandwich-kayla.webp',
+        mode: 'Field',
+        title: 'Trail lunch, her scale',
+        alt: 'Kayla with long dark wavy hair taking a huge bite of a tall stacked sandwich on a picnic blanket with mountains behind her',
+        copy: 'The sandwich needed both hands and a strategy. The mountains approved.'
       }
     ],
     afterDark: [
@@ -858,6 +895,20 @@ export const characters = [
         title: 'Lavender violet',
         alt: 'The garden muse with long auburn hair and freckles in a cream linen top, a violet lollipop in her mouth among lavender rows',
         copy: 'Violet on violet: she matched her candy to the lavender again.'
+      },
+      {
+        src: 'assets/golden-hour/cliffs-garden.webp',
+        mode: 'Sun',
+        title: 'Lavender coast',
+        alt: 'The garden muse with long auburn hair and freckles in a lavender floral sundress, her skirt lifting in the breeze on coastal cliffs above the sea',
+        copy: 'Lavender in front of her, lavender on her dress, and the sea doing the rest.'
+      },
+      {
+        src: 'assets/golden-hour/food-pizza-garden.webp',
+        mode: 'Sun',
+        title: 'The cheese pull',
+        alt: 'The garden muse with long auburn hair lifting a margherita pizza slice with a long cheese pull at a garden table at golden hour',
+        copy: 'She lifted one slice and the cheese made its position clear.'
       }
     ],
     afterDark: [
@@ -1055,6 +1106,22 @@ export const characters = [
         title: 'Cove candy',
         alt: 'The Explorer with long black hair in a khaki field shirt, grinning with an orange and pink swirled lollipop between her teeth above a coastal cove',
         copy: 'An orange swirl held in her grin at the cove: provisions for the climb back.'
+      },
+      {
+        src: 'assets/golden-hour/food-burrito-explorer.webp',
+        mode: 'Sun',
+        title: 'Harbor bites',
+        alt: 'The Explorer with long black hair taking a wide eyed bite of a big burrito at a harbor food stand with boats behind her',
+        copy: 'First bite at the harbor stand: the burrito was bigger than the plan.'
+      },
+      {
+        src: 'assets/golden-hour/video-beach-explorer.mp4',
+        poster: 'assets/golden-hour/video-beach-explorer-poster.webp',
+        video: true,
+        mode: 'Water',
+        title: 'Shoreline, in motion',
+        alt: 'The Explorer walking the shoreline at golden hour in a swimsuit and light cover-up, laughing in the sea breeze',
+        copy: 'Bare feet, warm water, and the light going gold around her.'
       }
     ],
     afterDark: [
@@ -1268,6 +1335,13 @@ export const characters = [
         title: 'Pastel study',
         alt: 'Muse with dark hair and purple highlights in a white blouse, tasting a pastel rainbow swirled lollipop above the coastal cliffs',
         copy: 'A pastel rainbow over the cliffs: research, she insists, for a painting.'
+      },
+      {
+        src: 'assets/golden-hour/gown-muse.webp',
+        mode: 'Festival',
+        title: 'Gallery midnight',
+        alt: 'Muse with dark hair and purple highlights in a navy satin dress, holding a champagne flute and smiling over her shoulder on a gallery terrace above the beach',
+        copy: 'A glass in hand and the gallery behind her: she came for the art and stayed for the view.'
       }
     ],
     afterDark: [
