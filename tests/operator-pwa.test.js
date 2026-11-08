@@ -42,10 +42,10 @@ test('Operator installs as a distinct app and references available public assets
   for (const icon of manifest.icons) await readFile(new URL(`.${icon.src}`, root));
   const html = await readFile(new URL('operator/index.html', root), 'utf8');
   assert.ok(html.includes('href="/operator/operator.webmanifest"'));
-  assert.ok(html.includes('>Install Operator</button>'));
-  assert.ok(html.includes('data-install-banner'));
-  assert.ok(html.includes('data-install-button'));
-  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-quiet1"'));
+  assert.ok(html.includes('>Install Operator</a>'));
+  assert.ok(html.includes('data-install-link'));
+  assert.ok(!html.includes('data-install-banner'));
+  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-footer1"'));
   assert.ok(html.includes('data-sw-url="/operator/service-worker.js"'));
   assert.ok(html.includes('data-sw-scope="/operator/"'));
   assert.ok(!html.includes('operator-install-help'));

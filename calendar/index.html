@@ -9,13 +9,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./global.css">
   <link rel="stylesheet" href="./calendar-v2.css">
-  <link rel="stylesheet" href="./install-banner.css">
+  <link rel="stylesheet" href="./install-link.css">
   <link rel="manifest" href="./calendar.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png">
   <meta name="theme-color" content="#0b1017">
-  <script src="./pwa-install.js?v=2026-11-07-quiet1" data-sw-url="./service-worker.js" data-sw-scope="./" defer></script>
+  <script src="./pwa-install.js?v=2026-11-07-footer1" data-sw-url="./service-worker.js" data-sw-scope="./" defer></script>
 </head>
 <body>
   <header class="calendar-header">
@@ -354,13 +354,7 @@
   </main>
 
 
-  <div class="install-banner" data-install-banner hidden>
-    <div class="install-banner__text">
-      <p class="install-banner__title">Install Calendar</p>
-      <p class="install-banner__meta">Keep it one tap away.</p>
-    </div>
-    <button type="button" class="install-banner__action" data-install-button>Install</button>
-  </div>
+  <footer class="install-footer"><a href="#" data-install-link hidden>Install Calendar</a></footer>
 
   <template id="event-template">
     <li class="event-card">

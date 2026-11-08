@@ -21,7 +21,7 @@
       document.head.append(manifest);
     })();
   </script>
-  <link rel="stylesheet" href="/crm/install-banner.css" />
+  <link rel="stylesheet" href="/crm/install-link.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
@@ -30,7 +30,7 @@
   <script src="/score.js"></script>
   <script src="/oauth.js"></script>
   <script
-    src="/crm/pwa-install.js?v=2026-11-07-quiet1"
+    src="/crm/pwa-install.js?v=2026-11-07-footer1"
     data-sw-url="/crm/service-worker.js"
     data-sw-scope="/crm/"
     data-sw-standalone-host="crm.3dvr.tech"
@@ -728,19 +728,7 @@
     </section>
   </main>
 
-  <div
-    class="install-banner install-banner--bottom"
-    data-install-banner
-    data-install-dismiss-key="3dvr:crm-install-dismissed"
-    hidden
-  >
-    <div class="install-banner__text">
-      <p class="install-banner__title">Install CRM</p>
-      <p class="install-banner__meta">Open your people pipeline quickly from your phone or desktop.</p>
-    </div>
-    <button type="button" class="install-banner__action" data-install-button>Install CRM</button>
-    <button type="button" class="install-banner__dismiss" data-install-dismiss aria-label="Dismiss install prompt">×</button>
-  </div>
+  <footer class="install-footer"><a href="#" data-install-link hidden>Install CRM</a></footer>
 
   <div id="crmCreateOverlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-8 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="crmCreateTitle">
     <div class="w-full max-w-2xl mx-auto bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl p-6">

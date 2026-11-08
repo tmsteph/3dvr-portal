@@ -17,8 +17,8 @@
   <script defer src="/gun-init.js"></script>
   <script defer src="/auth-identity.js"></script>
   <script type="module" src="app.js"></script>
-  <link rel="stylesheet" href="/styles/install-banner.css">
-  <script src="/pwa-install.js?v=2026-11-07-quiet1" data-sw-url="/helm/service-worker.js" data-sw-scope="/helm/" defer></script>
+  <link rel="stylesheet" href="/styles/install-link.css">
+  <script src="/pwa-install.js?v=2026-11-07-footer1" data-sw-url="/helm/service-worker.js" data-sw-scope="/helm/" defer></script>
 </head>
 <body>
   <div class="workspace">
@@ -36,13 +36,6 @@
     </aside>
     <main>
       <header><a id="account" class="account" href="/auth/sign-in.html?returnTo=%2Fhelm%2F" aria-label="Account status">Sign in</a><div class="agent-title"><span class="eyebrow">HELM</span><h1>Agent chat <span class="badge">Private · tmsteph</span> <span class="badge">Agent test ✓</span></h1></div><button id="show-history" class="quiet" type="button" aria-expanded="false" aria-controls="history">History</button><button id="show-queue" class="quiet" type="button" aria-expanded="false" aria-controls="queue">Queued</button><button id="new-chat" class="quiet" type="button">＋ New chat</button></header>
-      <div class="install-banner" data-install-banner hidden>
-        <div class="install-banner__text">
-          <p class="install-banner__title">Install Helm</p>
-          <p class="install-banner__meta">Keep your agent one tap away.</p>
-        </div>
-        <button type="button" class="install-banner__action" data-install-button>Install Helm</button>
-      </div>
       <aside id="history" hidden aria-label="Conversation history"><h2>Conversations</h2><p>Your conversations, newest first. Open one to read its messages, or resume it to keep going.</p><div id="history-list"></div></aside>
       <aside id="queue" hidden aria-label="Queued messages"><h2>Queued</h2><p>Messages still waiting, from every conversation, in the order they will send. Open one to go to its chat.</p><div id="queue-list"></div></aside>
       <div class="content">
@@ -56,6 +49,7 @@
         <aside class="details" aria-label="Connection details"><div class="section-heading"><h2>Agent connection</h2><span class="dot" id="dot"></span></div><p id="connection" role="status">Not checked</p><label for="engine">Engine</label><select id="engine" aria-describedby="engine-note"><option value="openclaw">OpenClaw · tools</option><option value="codex">Native Codex · chat</option><option value="codex-backup">Codex · backup server</option></select><p id="engine-note">OpenClaw · your existing tools and integrations.</p><details class="connection-info"><summary>Connection details</summary><dl><div><dt>Runtime</dt><dd>Selected engine</dd></div><div><dt>Home</dt><dd id="engine-home">Hetzner</dd></div><div><dt>Profile</dt><dd>cloud</dd></div><div><dt>Transport</dt><dd>Private SSH bridge</dd></div></dl></details><button id="connect" type="button">Retry connection</button><div class="detail-note"><span class="eyebrow">KEEP YOUR BEARINGS</span><p>A reachable gateway and a completed task are different things. Helm confirms completion only when the selected engine returns a final result.</p><a href="/operator/">Continue in Operator →</a></div><a class="telegram" href="https://t.me/tmstephOpenClawBot" target="_blank" rel="noopener noreferrer">Open existing Telegram chat ↗</a></aside>
       </div>
     </main>
+    <footer class="install-footer"><a href="#" data-install-link hidden>Install Helm</a></footer>
   </div>
 </body>
 </html>

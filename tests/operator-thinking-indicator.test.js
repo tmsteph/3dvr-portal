@@ -29,11 +29,11 @@ test('empty streaming bubble shows a live thinking indicator that clears on firs
   assert.match(css, /prefers-reduced-motion:reduce/);
 });
 
-test('install is the shared real-prompt button, with no instructions dialog', async () => {
+test('install is the shared footer link, with no instructions dialog', async () => {
   const html = await read('operator/index.html');
-  assert.match(html, /data-install-banner/);
-  assert.match(html, /data-install-button/);
-  assert.match(html, /src="\/pwa-install\.js\?v=2026-11-07-quiet1" data-sw-url="\/operator\/service-worker\.js" data-sw-scope="\/operator\/"/);
+  assert.match(html, /data-install-link/);
+  assert.doesNotMatch(html, /data-install-banner/);
+  assert.match(html, /src="\/pwa-install\.js\?v=2026-11-07-footer1" data-sw-url="\/operator\/service-worker\.js" data-sw-scope="\/operator\/"/);
   assert.doesNotMatch(html, /operator-install-help/);
   assert.doesNotMatch(html, /Add to Home screen/);
 });

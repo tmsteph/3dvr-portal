@@ -1,6 +1,6 @@
 /* crm/service-worker.js */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `crm-static-${CACHE_VERSION}`;
 const HTML_CACHE = `crm-html-${CACHE_VERSION}`;
 const SCOPE_URL = new URL(self.registration.scope);
@@ -15,7 +15,7 @@ const STATIC_ASSETS = [
   appAsset('index.html'),
   appAsset('app.js'),
   appAsset('crm-editing.js'),
-  appAsset('install-banner.css'),
+  appAsset('install-link.css'),
   appAsset('pwa-install.js'),
   appAsset('crm.webmanifest'),
   appAsset('root.webmanifest'),

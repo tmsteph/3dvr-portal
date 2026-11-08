@@ -1,6 +1,6 @@
 /* calendar/service-worker.js */
 
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const STATIC_CACHE = `calendar-static-${CACHE_VERSION}`;
 const HTML_CACHE = `calendar-html-${CACHE_VERSION}`;
 const SCOPE_URL = new URL(self.registration.scope);
@@ -11,7 +11,7 @@ const STATIC_ASSETS = [
   scopeAsset('index.html'),
   scopeAsset('global.css'),
   scopeAsset('calendar-v2.css'),
-  scopeAsset('install-banner.css'),
+  scopeAsset('install-link.css'),
   scopeAsset('calendar.js'),
   scopeAsset('gun-init.js'),
   scopeAsset('oauth.js'),

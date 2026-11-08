@@ -5,54 +5,30 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../pwa-install.js', import.meta.url), 'utf8');
 
-const HELPER_VERSION = '2026-11-07-quiet1';
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HELPER_VERSION = '2026-11-07-footer1';
 
-// The shared install pattern for every 3DVR app surface: a small, quiet
-// pill exists only while the browser holds a deferred install prompt,
-// clicking it fires that prompt, there is no instructions fallback
-// anywhere, and a discreet dismiss control silences the pill on this
-// browser for a long while without claiming an install happened.
-function makeElement() {
+// The shared install pattern for every 3DVR app surface: installing is a
+// plain link in the page footer, at the end of the page. The link exists
+// in the markup from the start but stays hidden until the browser holds
+// a deferred install prompt for an app that is not installed yet;
+// clicking it fires that prompt. Nothing floats, overlays, or interrupts,
+// and there is no instructions fallback anywhere.
+function makeLink() {
   const handlers = {};
+  let hidden = true;
   return {
-    type: '',
-    className: '',
-    textContent: '',
-    disabled: false,
-    attrs: {},
-    setAttribute(name, value) { this.attrs[name] = value; },
+    setAttribute(name) { if (name === 'hidden') hidden = true; },
+    removeAttribute(name) { if (name === 'hidden') hidden = false; },
     addEventListener(type, handler) { handlers[type] = handler; },
-    click: () => (handlers.click ? handlers.click() : undefined)
+    isHidden: () => hidden,
+    click: () => (handlers.click ? handlers.click({ preventDefault() {} }) : undefined)
   };
 }
 
-function setup({ standalone = false, config, withServiceWorker = false, storage, relatedApps, shipDismiss = false, dismissKey } = {}) {
+function setup({ standalone = false, config, withServiceWorker = false, storage, relatedApps } = {}) {
   const windowEvents = {};
-  const classes = new Set();
-  let hiddenAttr = true;
-  const button = makeElement();
-  const pageDismiss = shipDismiss ? makeElement() : null;
-  const appended = [];
-  const banner = {
-    dataset: dismissKey ? { installDismissKey: dismissKey } : {},
-    classList: {
-      add: (name) => classes.add(name),
-      remove: (name) => classes.delete(name)
-    },
-    setAttribute: (name) => { if (name === 'hidden') hiddenAttr = true; },
-    removeAttribute: (name) => { if (name === 'hidden') hiddenAttr = false; },
-    querySelector: (selector) => {
-      if (selector === '[data-install-button]') return button;
-      if (selector === '[data-install-dismiss]') {
-        return pageDismiss
-          || appended.find((el) => el.attrs['data-install-dismiss'] !== undefined)
-          || null;
-      }
-      return null;
-    },
-    appendChild: (el) => { appended.push(el); }
-  };
+  const link = makeLink();
+  let createdElements = 0;
   let registered = null;
   const store = storage || new Map();
   const navigatorObj = {};
@@ -82,8 +58,8 @@ function setup({ standalone = false, config, withServiceWorker = false, storage,
       currentScript: { dataset: {} },
       referrer: '',
       visibilityState: 'visible',
-      querySelector: (selector) => (selector === '[data-install-banner]' ? banner : null),
-      createElement: () => makeElement()
+      querySelector: (selector) => (selector === '[data-install-link]' ? link : null),
+      createElement: () => { createdElements += 1; return {}; }
     },
     navigator: navigatorObj,
     localStorage: {
@@ -97,17 +73,11 @@ function setup({ standalone = false, config, withServiceWorker = false, storage,
   });
   return {
     events: windowEvents,
-    click: () => button.click(),
-    visible: () => !hiddenAttr && !classes.has('is-hidden'),
+    click: () => link.click(),
+    visible: () => !link.isHidden(),
     registered: () => registered,
     store,
-    appendedCount: () => appended.length,
-    dismissControl: () => pageDismiss || appended[0] || null,
-    clickDismiss: () => {
-      const control = pageDismiss || appended[0];
-      assert.ok(control, 'expected a dismiss control to exist');
-      return control.click();
-    }
+    createdElements: () => createdElements
   };
 }
 
@@ -119,12 +89,12 @@ function installEvent(outcome, counter) {
   };
 }
 
-test('the button stays hidden until the browser offers an install prompt', () => {
+test('the footer link stays hidden until the browser offers an install prompt', () => {
   const ui = setup();
   assert.equal(ui.visible(), false);
 });
 
-test('clicking fires the native prompt once; dismissal hides the button until a fresh offer', async () => {
+test('clicking the link fires the native prompt once; it hides until a fresh offer', async () => {
   const ui = setup();
   const counter = { prompts: 0 };
   ui.events.beforeinstallprompt(installEvent('dismissed', counter));
@@ -140,7 +110,7 @@ test('clicking fires the native prompt once; dismissal hides the button until a 
   assert.equal(counter.prompts, 2);
 });
 
-test('acceptance and the appinstalled event keep the button hidden', async () => {
+test('acceptance and the appinstalled event keep the link hidden', async () => {
   const ui = setup();
   const counter = { prompts: 0 };
   ui.events.beforeinstallprompt(installEvent('accepted', counter));
@@ -151,7 +121,7 @@ test('acceptance and the appinstalled event keep the button hidden', async () =>
   assert.equal(ui.visible(), false);
 });
 
-test('no button is shown inside the installed app', () => {
+test('no link is shown inside the installed app', () => {
   const ui = setup({ standalone: true });
   const counter = { prompts: 0 };
   ui.events.beforeinstallprompt(installEvent('accepted', counter));
@@ -160,6 +130,17 @@ test('no button is shown inside the installed app', () => {
 
 test('the helper has no instructions fallback', () => {
   assert.ok(!source.includes('showModal'));
+});
+
+test('the helper builds no floating element of its own', () => {
+  const ui = setup();
+  const counter = { prompts: 0 };
+  ui.events.beforeinstallprompt(installEvent('accepted', counter));
+  assert.equal(ui.visible(), true);
+  assert.equal(ui.createdElements(), 0);
+  assert.ok(!source.includes('data-install-banner'));
+  assert.ok(!source.includes('data-install-button'));
+  assert.ok(!source.includes('data-install-dismiss'));
 });
 
 test('a page-level per-origin worker config wins over the defaults', async () => {
@@ -200,20 +181,21 @@ test('accepting the prompt remembers the install for later visits', async () => 
   assert.equal(later.visible(), false);
 });
 
-test('dismissing the prompt does not mark the app installed', async () => {
+test('dismissing the native prompt does not mark the app installed', async () => {
   const storage = new Map();
   const first = setup({ storage });
   const counter = { prompts: 0 };
   first.events.beforeinstallprompt(installEvent('dismissed', counter));
   await first.click();
   assert.equal(first.visible(), false);
+  assert.notEqual(storage.get('3dvr-pwa-installed:/'), 'true');
 
   const later = setup({ storage });
   later.events.beforeinstallprompt(installEvent('dismissed', counter));
   assert.equal(later.visible(), true);
 });
 
-test('a platform-reported installed related app suppresses the banner', async () => {
+test('a platform-reported installed related app suppresses the link', async () => {
   const storage = new Map();
   const ui = setup({
     storage,
@@ -230,81 +212,7 @@ test('a platform-reported installed related app suppresses the banner', async ()
   assert.equal(later.visible(), false);
 });
 
-test('the helper adds a quiet dismiss control when the page ships none', () => {
-  const ui = setup();
-  const counter = { prompts: 0 };
-  ui.events.beforeinstallprompt(installEvent('accepted', counter));
-  assert.equal(ui.visible(), true);
-  const control = ui.dismissControl();
-  assert.ok(control, 'expected the helper to add a dismiss control');
-  assert.equal(control.className, 'install-banner__dismiss');
-  assert.equal(control.textContent, '×');
-  assert.equal(control.attrs['aria-label'], 'Dismiss install prompt');
-});
-
-test('dismissing with the × hides the banner and is remembered on later visits', () => {
-  const storage = new Map();
-  const first = setup({ storage });
-  const counter = { prompts: 0 };
-  first.events.beforeinstallprompt(installEvent('accepted', counter));
-  assert.equal(first.visible(), true);
-  first.clickDismiss();
-  assert.equal(first.visible(), false);
-
-  const later = setup({ storage });
-  later.events.beforeinstallprompt(installEvent('accepted', counter));
-  assert.equal(later.visible(), false);
-});
-
-test('a page-shipped dismiss control is used instead of adding one', () => {
-  const ui = setup({ shipDismiss: true });
-  const counter = { prompts: 0 };
-  ui.events.beforeinstallprompt(installEvent('accepted', counter));
-  assert.equal(ui.visible(), true);
-  assert.equal(ui.appendedCount(), 0);
-  ui.clickDismiss();
-  assert.equal(ui.visible(), false);
-});
-
-test('a dismissal older than the 180-day horizon lets the banner return', () => {
-  const storage = new Map();
-  storage.set('3dvr-pwa-install-dismissed:/', String(Date.now() - 181 * DAY_MS));
-  const ui = setup({ storage });
-  const counter = { prompts: 0 };
-  ui.events.beforeinstallprompt(installEvent('accepted', counter));
-  assert.equal(ui.visible(), true);
-});
-
-test('a legacy permanent dismissal still counts', () => {
-  const storage = new Map();
-  storage.set('3dvr-pwa-install-dismissed:/', 'true');
-  const ui = setup({ storage });
-  const counter = { prompts: 0 };
-  ui.events.beforeinstallprompt(installEvent('accepted', counter));
-  assert.equal(ui.visible(), false);
-});
-
-test('a page-named dismissal key is honored', () => {
-  const storage = new Map();
-  storage.set('3dvr:crm-install-dismissed', String(Date.now()));
-  const ui = setup({ storage, dismissKey: '3dvr:crm-install-dismissed' });
-  const counter = { prompts: 0 };
-  ui.events.beforeinstallprompt(installEvent('accepted', counter));
-  assert.equal(ui.visible(), false);
-});
-
-test('dismissing does not mark the app installed', () => {
-  const storage = new Map();
-  const ui = setup({ storage });
-  const counter = { prompts: 0 };
-  ui.events.beforeinstallprompt(installEvent('accepted', counter));
-  ui.clickDismiss();
-  assert.notEqual(storage.get('3dvr-pwa-installed:/'), 'true');
-  const dismissedAt = Number(storage.get('3dvr-pwa-install-dismissed:/'));
-  assert.ok(dismissedAt > 0 && Date.now() - dismissedAt < DAY_MS);
-});
-
-test('every helper copy carries the dismissal wiring', async () => {
+test('every helper copy wires the footer link and carries no banner or dismissal code', async () => {
   const copies = [
     '../pwa-install.js',
     '../calendar/pwa-install.js',
@@ -313,17 +221,42 @@ test('every helper copy carries the dismissal wiring', async () => {
   ];
   for (const copy of copies) {
     const text = await readFile(new URL(copy, import.meta.url), 'utf8');
-    assert.ok(text.includes('data-install-dismiss'), `${copy} wires a dismiss control`);
-    assert.ok(text.includes('3dvr-pwa-install-dismissed'), `${copy} remembers dismissal per scope`);
-    assert.ok(text.includes('install-banner__dismiss'), `${copy} uses the shared dismiss styling`);
+    assert.ok(text.includes('data-install-link'), `${copy} wires the footer link`);
+    assert.ok(!text.includes('data-install-banner'), `${copy} has no banner hook`);
+    assert.ok(!text.includes('data-install-dismiss'), `${copy} has no dismiss control`);
+    assert.ok(!text.includes('install-dismissed'), `${copy} keeps no dismissal memory`);
   }
 });
 
-test('the shared stylesheet renders the banner as a quiet pill with a dismiss control', async () => {
-  const css = await readFile(new URL('../styles/install-banner.css', import.meta.url), 'utf8');
+test('the shared stylesheet styles a plain footer link, never a floating banner', async () => {
+  const css = await readFile(new URL('../styles/install-link.css', import.meta.url), 'utf8');
   assert.ok(css.includes('Quiet install affordance'));
-  assert.ok(css.includes('.install-banner__dismiss'));
-  assert.ok(css.includes('border-radius: 999px'));
+  assert.ok(css.includes('.install-footer'));
+  assert.ok(css.includes('[data-install-link]'));
+  assert.ok(!css.includes('.install-banner'));
+  assert.ok(!css.includes('position: fixed'));
+});
+
+test('every app page carries the footer link and no banner markup', async () => {
+  const pages = [
+    '../helm/index.html',
+    '../operator/index.html',
+    '../3dvr-girl/index.html',
+    '../3dvr-girl/character/index.html',
+    '../calendar/index.html',
+    '../contacts/index.html',
+    '../crm/index.html',
+    '../chat/index.html',
+    '../notes/index.html',
+    '../show-reset/index.html',
+    '../seated-spine-reset/index.html'
+  ];
+  for (const page of pages) {
+    const html = await readFile(new URL(page, import.meta.url), 'utf8');
+    assert.ok(html.includes('data-install-link'), `${page} carries the footer install link`);
+    assert.ok(!html.includes('data-install-banner'), `${page} has no install banner`);
+    assert.ok(!html.includes('data-install-dismiss'), `${page} has no install dismiss control`);
+  }
 });
 
 test('helper references are versioned and the root worker precaches the same version', async () => {
@@ -334,5 +267,6 @@ test('helper references are versioned and the root worker precaches the same ver
   }
   const worker = await readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   assert.ok(worker.includes(`'/pwa-install.js?v=${HELPER_VERSION}'`), 'root worker precaches the versioned helper');
-  assert.ok(worker.includes("CACHE_VERSION = 'v21'"), 'root worker cache version bumped');
+  assert.ok(worker.includes("'/styles/install-link.css'"), 'root worker precaches the footer-link stylesheet');
+  assert.ok(worker.includes("CACHE_VERSION = 'v22'"), 'root worker cache version bumped');
 });

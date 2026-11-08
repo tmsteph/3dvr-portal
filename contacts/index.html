@@ -14,13 +14,13 @@
   <script src="./score.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
-    src="./pwa-install.js?v=2026-11-07-quiet1"
+    src="./pwa-install.js?v=2026-11-07-footer1"
     data-sw-url="./service-worker.js"
     data-sw-scope="./"
     defer
   ></script>
   <meta name="color-scheme" content="dark light">
-  <link rel="stylesheet" href="./install-banner.css">
+  <link rel="stylesheet" href="./install-link.css">
   <link rel="manifest" href="./contacts.webmanifest">
   <meta name="theme-color" content="#0e1116">
 
@@ -55,14 +55,6 @@
     </div>
     <span class="text-xs text-gray-300">Profile →</span>
   </a>
-
-  <div class="install-banner" data-install-banner hidden>
-    <div class="install-banner__text">
-      <p class="install-banner__title">Install Contacts</p>
-      <p class="install-banner__meta">Open your Rolodex instantly and sync updates even when offline.</p>
-    </div>
-    <button type="button" class="install-banner__action" data-install-button>Install app</button>
-  </div>
 
   <div id="syncStatus" class="max-w-6xl mx-auto px-4 pt-3 text-sm text-amber-300 hidden">
     Changes pending sync. They'll upload automatically when online.
@@ -373,6 +365,7 @@
 
   <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-sm text-gray-400">
     Linked with 3DVR Portal auth. Roadmap: calendar bridge, org ACL, email sequences.
+    <div><a href="#" data-install-link hidden>Install Contacts</a></div>
   </footer>
 
   <script>

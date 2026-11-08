@@ -26,7 +26,7 @@ test('3DVR Girl installs as its own app, separate from the portal and Helm', asy
   const html = await readFile(new URL('3dvr-girl/index.html', root), 'utf8');
   assert.ok(html.includes('href="/app-manifests/3dvr-girl.webmanifest"'));
   assert.ok(html.includes('href="/icons/3dvr-girl-192.png"'));
-  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-quiet1"'));
+  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-footer1"'));
   assert.ok(!html.includes('href="/manifest.webmanifest"'));
   assert.ok(!html.includes('operator.webmanifest'));
 
@@ -62,7 +62,7 @@ function girlWorker() {
   return { handlers, deleted };
 }
 
-test('On ladies.3dvr.tech the app uses her dedicated manifest, worker and install button', async () => {
+test('On ladies.3dvr.tech the app uses her dedicated manifest, worker and install link', async () => {
   const manifest = JSON.parse(
     await readFile(new URL('3dvr-girl/girl.webmanifest', root), 'utf8')
   );
@@ -86,9 +86,9 @@ test('On ladies.3dvr.tech the app uses her dedicated manifest, worker and instal
     assert.ok(html.includes('window.__pwaInstallConfig'), page);
     assert.ok(html.includes("swUrl: '/3dvr-girl/service-worker.js'"), page);
     assert.ok(html.includes("'/3dvr-girl/girl.webmanifest'"), page);
-    assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-quiet1"'), page);
-    assert.ok(html.includes('data-install-banner'), page);
-    assert.ok(html.includes('data-install-button'), page);
+    assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-footer1"'), page);
+    assert.ok(html.includes('data-install-link'), page);
+    assert.ok(!html.includes('data-install-banner'), page);
   }
 });
 
