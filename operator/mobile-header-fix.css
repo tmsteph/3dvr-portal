@@ -1,5 +1,5 @@
 @media (max-width: 600px) {
-  .header-actions {
+  .header-nav {
     justify-content: flex-start;
     scroll-padding-inline: .05rem;
     -webkit-overflow-scrolling: touch;
