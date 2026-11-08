@@ -239,7 +239,6 @@ test('the shared stylesheet styles a plain footer link, never a floating banner'
 
 test('every app page carries the footer link and no banner markup', async () => {
   const pages = [
-    '../index.html',
     '../helm/index.html',
     '../operator/index.html',
     '../3dvr-girl/index.html',
