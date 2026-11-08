@@ -684,6 +684,64 @@ header {
 .saved-reply.live {
   opacity: .8;
 }
+/* Markdown painted by the shared renderer (settled replies only). */
+.saved-reply p,
+.saved-reply ul,
+.saved-reply ol,
+.saved-reply blockquote,
+.saved-reply pre {
+  margin: 8px 0;
+}
+.saved-reply > :first-child {
+  margin-top: 0;
+}
+.saved-reply > :last-child {
+  margin-bottom: 0;
+}
+.saved-reply ul,
+.saved-reply ol {
+  padding-left: 22px;
+}
+.saved-reply blockquote {
+  padding-left: 10px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+.saved-reply code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: #0a0f0f;
+  font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.saved-reply pre {
+  max-width: 100%;
+  padding: 10px;
+  overflow: auto;
+  white-space: pre;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0a0f0f;
+}
+.saved-reply pre code {
+  padding: 0;
+  background: transparent;
+}
+.saved-reply a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.saved-reply h1,
+.saved-reply h2,
+.saved-reply h3,
+.saved-reply h4,
+.saved-reply h5,
+.saved-reply h6 {
+  margin: 12px 0 6px;
+  line-height: 1.3;
+}
+.saved-reply h1 { font-size: 1.3em; }
+.saved-reply h2 { font-size: 1.18em; }
+.saved-reply h3 { font-size: 1.08em; }
 .working-note {
   display: flex;
   align-items: center;
