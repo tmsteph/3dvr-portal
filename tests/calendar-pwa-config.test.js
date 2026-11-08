@@ -39,12 +39,12 @@ describe('calendar PWA configuration', () => {
   it('registers a calendar-scoped worker and local manifest from the calendar app shell', async () => {
     const html = await readProjectFile('calendar/index.html');
 
-    assert.match(html, /src="\.\/*pwa-install\.js\?v=2026-11-07-quiet1"/);
+    assert.match(html, /src="\.\/*pwa-install\.js\?v=2026-11-07-footer1"/);
     assert.match(html, /data-sw-url="\.\/*service-worker\.js"/);
     assert.match(html, /data-sw-scope="\.\//);
     assert.match(html, /href="\.\/*calendar\.webmanifest"/);
     assert.match(html, /href="\.\/*global\.css"/);
-    assert.match(html, /href="\.\/*install-banner\.css"/);
+    assert.match(html, /href="\.\/*install-link\.css"/);
     assert.match(html, /src="\.\/*calendar\.js"/);
     assert.match(html, /src="\.\/*gun-init\.js"/);
     assert.match(html, /src="\.\/*oauth\.js"/);
@@ -55,12 +55,12 @@ describe('calendar PWA configuration', () => {
   it('ships a calendar-specific service worker', async () => {
     const workerSource = await readProjectFile('calendar/service-worker.js');
 
-    assert.match(workerSource, /const CACHE_VERSION = 'v9';/);
+    assert.match(workerSource, /const CACHE_VERSION = 'v10';/);
     assert.match(workerSource, /calendar-static-/);
     assert.match(workerSource, /calendar-html-/);
     assert.match(workerSource, /scopeAsset\('global\.css'\)/);
     assert.match(workerSource, /scopeAsset\('calendar-v2\.css'\)/);
-    assert.match(workerSource, /scopeAsset\('install-banner\.css'\)/);
+    assert.match(workerSource, /scopeAsset\('install-link\.css'\)/);
     assert.match(workerSource, /scopeAsset\('calendar\.js'\)/);
     assert.match(workerSource, /scopeAsset\('gun-init\.js'\)/);
     assert.match(workerSource, /scopeAsset\('oauth\.js'\)/);

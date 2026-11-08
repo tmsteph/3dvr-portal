@@ -1,6 +1,6 @@
 /* contacts/service-worker.js */
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE = `contacts-static-${CACHE_VERSION}`;
 const HTML_CACHE = `contacts-html-${CACHE_VERSION}`;
 const SCOPE_URL = new URL(self.registration.scope);
@@ -14,7 +14,7 @@ const STATIC_ASSETS = [
   scopeAsset('auth-identity.js'),
   scopeAsset('score.js'),
   scopeAsset('pwa-install.js'),
-  scopeAsset('install-banner.css'),
+  scopeAsset('install-link.css'),
   scopeAsset('contacts.webmanifest'),
   scopeAsset('icons/icon-192.png'),
   scopeAsset('icons/icon-512.png'),

@@ -48,11 +48,10 @@ test('CRM page exposes workflow filters and import controls for fast lead retrie
   assert.match(html, /id="crmPrimaryActions"/);
   assert.match(html, /href="https:\/\/portal\.3dvr\.tech\/index\.html"/);
   assert.match(html, /← Portal/);
-  assert.match(html, /data-install-banner/);
-  assert.match(html, /install-banner--bottom/);
+  assert.match(html, /data-install-link/);
   assert.match(html, /Install CRM/);
-  assert.match(html, /data-install-dismiss/);
-  assert.match(html, /3dvr:crm-install-dismissed/);
+  assert.doesNotMatch(html, /data-install-banner/);
+  assert.doesNotMatch(html, /data-install-dismiss/);
   assert.match(html, /Add person/);
   assert.match(html, /Open contacts/);
   assert.match(html, /Search people and saved notes/);

@@ -47,10 +47,10 @@ test('Helm installs as its own app, separate from Operator and the portal', asyn
   const html = await readFile(new URL('helm/index.html', root), 'utf8');
   assert.ok(html.includes('href="/helm/helm.webmanifest"'));
   assert.ok(html.includes('href="/icons/helm-192.png"'));
-  assert.ok(html.includes('>Install Helm</button>'));
-  assert.ok(html.includes('data-install-banner'));
-  assert.ok(html.includes('data-install-button'));
-  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-quiet1"'));
+  assert.ok(html.includes('>Install Helm</a>'));
+  assert.ok(html.includes('data-install-link'));
+  assert.ok(!html.includes('data-install-banner'));
+  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-footer1"'));
   assert.ok(html.includes('data-sw-url="/helm/service-worker.js"'));
   assert.ok(html.includes('data-sw-scope="/helm/"'));
   assert.ok(!html.includes('helm-install-help'));

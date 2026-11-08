@@ -54,8 +54,8 @@ describe('CRM PWA configuration', () => {
     assert.match(html, /manifest\.href = window\.location\.hostname === 'crm\.3dvr\.tech'/);
     assert.match(html, /\? '\/crm\.webmanifest'/);
     assert.match(html, /: '\/crm\/crm\.webmanifest'/);
-    assert.match(html, /href="\/crm\/install-banner\.css"/);
-    assert.match(html, /src="\/crm\/pwa-install\.js\?v=2026-11-07-quiet1"/);
+    assert.match(html, /href="\/crm\/install-link\.css"/);
+    assert.match(html, /src="\/crm\/pwa-install\.js\?v=2026-11-07-footer1"/);
     assert.match(html, /data-sw-url="\/crm\/service-worker\.js"/);
     assert.match(html, /data-sw-scope="\/crm\/"/);
     assert.match(html, /data-sw-standalone-host="crm\.3dvr\.tech"/);
@@ -67,14 +67,14 @@ describe('CRM PWA configuration', () => {
     assert.match(html, /rel="icon" type="image\/png" sizes="192x192" href="\/icons\/icon-192\.png"/);
     assert.doesNotMatch(html, /People CRM/);
     assert.doesNotMatch(html, /fav\.farm/);
-    assert.match(html, /data-install-banner/);
-    assert.match(html, /data-install-button/);
+    assert.match(html, /data-install-link/);
+    assert.doesNotMatch(html, /data-install-banner/);
   });
 
   it('ships a CRM-specific service worker', async () => {
     const workerSource = await readProjectFile('crm/service-worker.js');
 
-    assert.match(workerSource, /const CACHE_VERSION = 'v2';/);
+    assert.match(workerSource, /const CACHE_VERSION = 'v3';/);
     assert.match(workerSource, /crm-static-/);
     assert.match(workerSource, /crm-html-/);
     assert.match(workerSource, /const APP_BASE_URL = new URL\('\/crm\/', ORIGIN_URL\);/);
@@ -82,7 +82,7 @@ describe('CRM PWA configuration', () => {
     assert.match(workerSource, /appAsset\('index\.html'\)/);
     assert.match(workerSource, /appAsset\('app\.js'\)/);
     assert.match(workerSource, /appAsset\('crm-editing\.js'\)/);
-    assert.match(workerSource, /appAsset\('install-banner\.css'\)/);
+    assert.match(workerSource, /appAsset\('install-link\.css'\)/);
     assert.match(workerSource, /appAsset\('pwa-install\.js'\)/);
     assert.match(workerSource, /appAsset\('crm\.webmanifest'\)/);
     assert.match(workerSource, /appAsset\('root\.webmanifest'\)/);

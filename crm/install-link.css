@@ -1,0 +1,22 @@
+/* Quiet install affordance (2026-11-07): installing is a plain link
+   in the page footer, at the end of the page. The shared helper shows
+   it only while the browser offers an install prompt for an app that
+   is not installed yet. Nothing floats, overlays, or interrupts. */
+.install-footer {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  margin: 24px auto 8px;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+[data-install-link] {
+  color: #e2e8f0;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+[data-install-link][hidden] {
+  display: none;
+}

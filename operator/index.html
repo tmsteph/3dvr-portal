@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Operator">
-  <link rel="stylesheet" href="/styles/install-banner.css">
+  <link rel="stylesheet" href="/styles/install-link.css">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="mobile-header-fix.css">
   <link rel="stylesheet" href="app-search.css">
@@ -61,13 +61,6 @@
         <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋ New chat</button>
       </div>
     </header>
-    <div class="install-banner" data-install-banner hidden>
-      <div class="install-banner__text">
-        <p class="install-banner__title">Install Operator</p>
-        <p class="install-banner__meta">Keep Operator one tap away.</p>
-      </div>
-      <button type="button" class="install-banner__action" data-install-button>Install Operator</button>
-    </div>
     <section id="operator-context" hidden aria-label="Active Portal context">
       <small>Continuing from</small>
       <a id="operator-context-link" href="/"></a>
@@ -139,7 +132,8 @@
       </div>
     </dialog>
   </main>
-  <script src="/pwa-install.js?v=2026-11-07-quiet1" data-sw-url="/operator/service-worker.js" data-sw-scope="/operator/" defer></script>
+  <script src="/pwa-install.js?v=2026-11-07-footer1" data-sw-url="/operator/service-worker.js" data-sw-scope="/operator/" defer></script>
+  <footer class="install-footer"><a href="#" data-install-link hidden>Install Operator</a></footer>
   <footer aria-label="Portal feedback"></footer>
   <script src="teach-handoff.js"></script>
   <script defer src="/issue-launcher.js"></script>

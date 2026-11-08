@@ -96,34 +96,17 @@
 
   registerServiceWorker();
 
-  const installBanner = document.querySelector('[data-install-banner]');
-  const installButton = installBanner?.querySelector('[data-install-button]');
-  const dismissButton = installBanner?.querySelector('[data-install-dismiss]');
-  const dismissKey = installBanner?.dataset.installDismissKey
-    || `3dvr-pwa-install-dismissed:${scopePath}`;
-  const dismissalHorizonMs = 180 * 24 * 60 * 60 * 1000;
+  const installLink = document.querySelector('[data-install-link]');
   let deferredPrompt = null;
 
-  if (!installBanner || !installButton) return;
-
-  const wasDismissed = () => {
-    try {
-      const value = localStorage.getItem(dismissKey);
-      if (value === 'true') return true;
-      const dismissedAt = Number(value || 0);
-      return dismissedAt > 0 && Date.now() - dismissedAt < dismissalHorizonMs;
-    } catch (error) {
-      console.warn('Unable to read install banner dismissal', error);
-      return false;
-    }
-  };
+  if (!installLink) return;
 
   // Install state has to survive the visit where it happened: the browser
   // offers a fresh beforeinstallprompt on later tab visits (and other
-  // browsers on the same device never saw the install at all), so a banner
-  // keyed only on the live prompt nags people who already installed.
-  // Remember the install on this origin, and ask the platform what it
-  // knows when it can answer.
+  // browsers on the same device never saw the install at all), so a link
+  // keyed only on the live prompt would offer an install to people who
+  // already installed. Remember the install on this origin, and ask the
+  // platform what it knows when it can answer.
   const installedFlagKey = `3dvr-pwa-installed:${scopePath}`;
 
   const hasInstalledFlag = () => {
@@ -149,24 +132,12 @@
       || hasInstalledFlag();
   };
 
-  const hideBanner = () => {
-    installBanner.classList.add('is-hidden');
-    installBanner.setAttribute('hidden', '');
+  const hideInstallLink = () => {
+    installLink.setAttribute('hidden', '');
   };
 
-  const dismissBanner = () => {
-    try {
-      localStorage.setItem(dismissKey, String(Date.now()));
-    } catch (error) {
-      console.warn('Unable to store install banner dismissal', error);
-    }
-    hideBanner();
-  };
-
-  const showBanner = () => {
-    if (wasDismissed()) return;
-    installBanner.classList.remove('is-hidden');
-    installBanner.removeAttribute('hidden');
+  const showInstallLink = () => {
+    installLink.removeAttribute('hidden');
   };
 
   window.addEventListener('beforeinstallprompt', (event) => {
@@ -174,45 +145,36 @@
     deferredPrompt = event;
 
     if (!isInstalled()) {
-      showBanner();
+      showInstallLink();
     }
   });
 
   window.addEventListener('appinstalled', () => {
     markInstalled();
-    hideBanner();
+    hideInstallLink();
   });
-  // Pages that ship no dismiss control get the same quiet × the other
-  // surfaces use, added by the helper.
-  let resolvedDismissButton = dismissButton;
-  if (!resolvedDismissButton && installBanner && typeof document.createElement === 'function') {
-    resolvedDismissButton = document.createElement('button');
-    resolvedDismissButton.type = 'button';
-    resolvedDismissButton.className = 'install-banner__dismiss';
-    resolvedDismissButton.setAttribute('data-install-dismiss', '');
-    resolvedDismissButton.setAttribute('aria-label', 'Dismiss install prompt');
-    resolvedDismissButton.textContent = '×';
-    installBanner.appendChild(resolvedDismissButton);
-  }
-  resolvedDismissButton?.addEventListener('click', dismissBanner);
 
-  installButton.addEventListener('click', async () => {
+  installLink.addEventListener('click', async (event) => {
+    event.preventDefault();
     if (!deferredPrompt) return;
 
-    installButton.disabled = true;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    // The deferred prompt is single-use and is the whole interaction: there
+    // is no instructions fallback. Once it has been fired, accepted or
+    // dismissed, the link goes away until the browser offers a fresh one.
+    const prompt = deferredPrompt;
     deferredPrompt = null;
-    installButton.disabled = false;
-
-    if (outcome === 'accepted') {
-      markInstalled();
-      hideBanner();
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      if (choice?.outcome === 'accepted') markInstalled();
+    } catch (error) {
+      console.warn('Install prompt unavailable', error);
+    } finally {
+      hideInstallLink();
     }
   });
 
-  if (isInstalled()) hideBanner();
-  if (wasDismissed()) hideBanner();
+  if (isInstalled()) hideInstallLink();
 
   // Running inside the installed app proves the install; remember it so a
   // later tab visit on this origin stays quiet too.
@@ -228,7 +190,7 @@
       .then((relatedApps) => {
         if (Array.isArray(relatedApps) && relatedApps.length > 0) {
           markInstalled();
-          hideBanner();
+          hideInstallLink();
         }
       })
       .catch((error) => {

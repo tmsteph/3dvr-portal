@@ -53,7 +53,7 @@ describe('contacts PWA configuration', () => {
   it('registers the contacts service worker with contacts scope', async () => {
     const html = await readProjectFile('contacts/index.html');
 
-    assert.match(html, /src="\.\/*pwa-install\.js\?v=2026-11-07-quiet1"/);
+    assert.match(html, /src="\.\/*pwa-install\.js\?v=2026-11-07-footer1"/);
     assert.match(html, /data-sw-url="\.\/*service-worker\.js"/);
     assert.match(html, /data-sw-scope="\.\//);
     assert.match(html, /href="\.\/*contacts\.webmanifest"/);
@@ -101,7 +101,7 @@ describe('contacts PWA configuration', () => {
   it('ships an app-specific contacts service worker', async () => {
     const workerSource = await readProjectFile('contacts/service-worker.js');
 
-    assert.match(workerSource, /const CACHE_VERSION = 'v5';/);
+    assert.match(workerSource, /const CACHE_VERSION = 'v6';/);
     assert.match(workerSource, /contacts-static-/);
     assert.match(workerSource, /contacts-html-/);
     assert.match(workerSource, /scopeAsset\('index\.html'\)/);

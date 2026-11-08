@@ -7,10 +7,10 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
   <script src="/auth-identity.js"></script>
-  <script src="/pwa-install.js?v=2026-11-07-quiet1" defer></script>
+  <script src="/pwa-install.js?v=2026-11-07-footer1" defer></script>
   <link rel="stylesheet" href="../style.css?v=notes-refresh-20240204">
   <link rel="stylesheet" href="./styles.css?v=master-notes-dark-20260922">
-  <link rel="stylesheet" href="/styles/install-banner.css">
+  <link rel="stylesheet" href="/styles/install-link.css">
   <link rel="manifest" href="/app-manifests/notes.webmanifest">
   <meta name="theme-color" content="#101613">
 
@@ -26,14 +26,6 @@
       <a href="../profile.html">👤 Profile</a>
     </div>
     <div style="font-size: 0.9rem;">3DVR Portal</div>
-  </div>
-
-  <div class="install-banner" data-install-banner hidden>
-    <div class="install-banner__text">
-      <p class="install-banner__title">Install Master Notes</p>
-      <p class="install-banner__meta">Access your shared notes offline with a single tap.</p>
-    </div>
-    <button type="button" class="install-banner__action" data-install-button>Install app</button>
   </div>
 
   <div class="notes-shell">
@@ -134,6 +126,8 @@
       </div>
     </main>
   </div>
+
+  <footer class="install-footer"><a href="#" data-install-link hidden>Install Master Notes</a></footer>
 
   <script>
     function createLocalGunSubscriptionStub() {
