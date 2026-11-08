@@ -124,6 +124,7 @@ export async function runOpenClaw(request, options = {}) {
       const data = JSON.parse(line);
       if (result !== undefined) throw new Error('extra output');
       if (data.type === 'delta' && typeof data.text === 'string') options.onDelta?.(data.text);
+      else if (data.type === 'activity' && typeof data.text === 'string') options.onActivity?.(data.text);
       else if (typeof data.ok === 'boolean') result = data;
       else throw new Error('invalid output');
     };
@@ -202,6 +203,10 @@ export function createOpenClawHandler(options = {}) {
   async function persistRecord(record) {
     const stored = { fingerprint: record.fingerprint, status: record.status, queueSeq: record.queueSeq,
       pool: record.pool, request: record.request,
+      ...(record.startedAt ? { startedAt: record.startedAt } : {}),
+      ...(record.status === 'running' && record.previewUpdatedAt
+        ? { previewText: record.previewText || '', previewActivity: record.previewActivity ?? null,
+          previewUpdatedAt: record.previewUpdatedAt } : {}),
       ...(record.personaId ? { personaId: record.personaId } : {}),
       ...(record.history ? { history: record.history } : {}),
       ...(record.result ? { result: record.result } : {}) };
@@ -237,6 +242,7 @@ export function createOpenClawHandler(options = {}) {
           // interrupted-delivery semantics the pending receipt always had.
           stored.status = 'uncertain';
           stored.result = UNCERTAIN_RESULT;
+          delete stored.previewText; delete stored.previewActivity; delete stored.previewUpdatedAt;
           try {
             const temp = `${path}.tmp-${randomUUID()}`;
             await writeFile(temp, JSON.stringify(stored), { mode: 0o600 });
@@ -249,6 +255,10 @@ export function createOpenClawHandler(options = {}) {
     } catch {}
     pumpQueue();
   }
+  const previewOf = record => record.status === 'running'
+    ? { text: record.previewText || '', activity: record.previewActivity ?? null,
+      startedAt: record.startedAt ?? null, updatedAt: record.previewUpdatedAt ?? null }
+    : null;
   function positionOf(record) {
     if (record.status === 'running') return 0;
     // Turns that will run before this one: everything running in the
@@ -270,8 +280,45 @@ export function createOpenClawHandler(options = {}) {
       return { status: 'stale', result: STALE_RESULT };
     }
     try {
-      const onDelta = record.waiter?.onDelta;
-      const runOptions = onDelta ? { onDelta } : {};
+      // Preview capture: a turn's progress belongs on its durable
+      // record, not only on a live waiter's connection. The original
+      // wiring forwarded deltas solely to a held submitter, so the
+      // moment a client fell back to polling (a queued turn, a slow
+      // turn past the held request's lifetime, a page reload), every
+      // fragment the engines streamed was dropped and the chat showed
+      // nothing until the final reply landed. Now deltas and activity
+      // lines also accumulate into a rolling preview on the record,
+      // persisted at most about once a second; terminal persists omit
+      // the preview fields, so the preview clears itself when the
+      // receipt resolves. The waiter still receives everything live.
+      let lastPreviewPersist = 0;
+      let previewTimer = null;
+      const notePreview = () => {
+        record.previewUpdatedAt = (options.now ? options.now() : Date.now());
+        const wait = 1000 - (record.previewUpdatedAt - lastPreviewPersist);
+        if (wait <= 0) {
+          lastPreviewPersist = record.previewUpdatedAt;
+          void persistRecord(record).catch(() => {});
+        } else if (!previewTimer) {
+          previewTimer = setTimeout(() => {
+            previewTimer = null;
+            lastPreviewPersist = options.now ? options.now() : Date.now();
+            void persistRecord(record).catch(() => {});
+          }, wait);
+          previewTimer.unref?.();
+        }
+      };
+      const onDelta = text => {
+        record.waiter?.onDelta?.(text);
+        record.previewText = ((record.previewText || '') + text).slice(-4096);
+        notePreview();
+      };
+      const onActivity = text => {
+        record.waiter?.onActivity?.(text);
+        if (record.previewActivity !== text) { record.previewActivity = text; notePreview(); }
+      };
+      const runOptions = { onDelta, onActivity };
+      try {
       if (record.personaId) {
         const persona = resolveCharacterPersona(record.personaId);
         if (!persona) return { status: 'uncertain', result: UNCERTAIN_RESULT };
@@ -289,6 +336,9 @@ export function createOpenClawHandler(options = {}) {
       const result = await run(bridgeRequest,
         record.pool === 'gateway' ? { ...runOptions, timeoutMs: GATEWAY_TURN_TIMEOUT_MS } : runOptions);
       return { status: result && result.stale ? 'stale' : 'completed', result };
+      } finally {
+        if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+      }
     } catch {
       return { status: 'uncertain', result: UNCERTAIN_RESULT };
     }
@@ -298,6 +348,10 @@ export function createOpenClawHandler(options = {}) {
     lane.running = record;
     pool.running.add(record);
     record.status = 'running';
+    record.startedAt = options.now ? options.now() : Date.now();
+    record.previewText = '';
+    record.previewActivity = null;
+    record.previewUpdatedAt = null;
     void persistRecord(record).catch(() => {});
     void executeRecord(record).then(async outcome => {
       record.status = outcome.status;
@@ -497,7 +551,7 @@ export function createOpenClawHandler(options = {}) {
         pumpQueue();
         return json(res, 410, STALE_RESULT);
       }
-      return json(res, 202, { queued: true, status: record.status, position: positionOf(record), requestId });
+      return json(res, 202, { queued: true, status: record.status, position: positionOf(record), requestId, preview: previewOf(record) });
     }
     const poolName = persona ? 'character' : engine !== 'openclaw' ? 'native' : 'gateway';
     const laneKey = `${poolName}|${request.session}`;
@@ -522,7 +576,8 @@ export function createOpenClawHandler(options = {}) {
     let waiterOutcome = null;
     const waiterDone = new Promise(resolveWaiter => {
       record.waiter = { resolve: outcome => { waiterOutcome = outcome; resolveWaiter(outcome); },
-        onDelta: wantsStream ? text => { beginStream(); event('delta', { text }); } : undefined };
+        onDelta: wantsStream ? text => { beginStream(); event('delta', { text }); } : undefined,
+        onActivity: wantsStream ? text => { beginStream(); event('activity', { text }); } : undefined };
     });
     pumpQueue();
     if (record.status === 'running' || waiterOutcome) {
@@ -538,12 +593,13 @@ export function createOpenClawHandler(options = {}) {
       // cannot poll. The receipt still makes the outcome durable.
       const outcome = await new Promise(resolveWaiter => {
         record.waiter = { resolve: resolveWaiter,
-          onDelta: wantsStream ? text => { beginStream(); event('delta', { text }); } : undefined };
+          onDelta: wantsStream ? text => { beginStream(); event('delta', { text }); } : undefined,
+          onActivity: wantsStream ? text => { beginStream(); event('activity', { text }); } : undefined };
       });
       if (outcome.status === 'stale') return json(res, 410, outcome.result);
       if (outcome.status === 'uncertain') return json(res, 503, outcome.result);
       return finish(outcome.result.ok ? 200 : 503, outcome.result);
     }
-    return json(res, 202, { queued: true, status: record.status, position: positionOf(record), requestId });
+    return json(res, 202, { queued: true, status: record.status, position: positionOf(record), requestId, preview: previewOf(record) });
   };
 }

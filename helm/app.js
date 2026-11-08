@@ -45,22 +45,29 @@ function ensureMessages() {
 
 function makeOutbox() {
   const currentEpoch = epoch;
-  return createOutbox({
-    async save(record) {
-      if (currentEpoch !== epoch) throw new Error('Account changed.');
-      const target = await ensureMessages();
-      if (currentEpoch !== epoch) throw new Error('Account changed.');
-      await target.save(record);
-    },
-    async send(record) {
+  const saveRecord = async record => {
+    if (currentEpoch !== epoch) throw new Error('Account changed.');
+    const target = await ensureMessages();
+    if (currentEpoch !== epoch) throw new Error('Account changed.');
+    await target.save(record);
+  };
+  // One turn driver serves both dispatch and reattach: the outbox
+  // calls it as send for fresh messages and as poll for records an
+  // earlier page life already dispatched (restored in 'sending'
+  // state). Both paths resubmit the same signed payload; the server
+  // receipt decides what is still true, so a poll can never become a
+  // second send, and the live preview below is rebuilt from the
+  // receipt rather than from this page's memory.
+  const sendTurn = async record => {
       busy = true;
       updateControls();
       const started = Date.now();
       let queuePosition = null;
-      liveReply = { id: record.id, text: '' };
+      liveReply = { id: record.id, text: '', activity: null, startedAt: null };
       const showWaiting = () => {
         if (currentEpoch !== epoch) return;
-        const label = liveReply?.text ? 'Receiving agent reply'
+        const label = liveReply?.activity ? liveReply.activity
+          : liveReply?.text ? 'Receiving agent reply'
           : queuePosition !== null ? (queuePosition > 0 ? `Queued · ${queuePosition} ahead` : 'Queued · next up')
           : 'Waiting for agent reply';
         $('connection').textContent = label;
@@ -78,6 +85,25 @@ function makeOutbox() {
           if (currentEpoch !== epoch) return;
           queuePosition = typeof position === 'number' ? position : null;
           showWaiting();
+        }, preview => {
+          if (currentEpoch !== epoch) return;
+          // A poll answer carries the receipt's rolling preview: its
+          // accumulated text replaces (never appends to) any locally
+          // streamed fragments, and its activity line names what the
+          // agent is doing right now. This is what keeps the working
+          // bubble alive across queued waits and page reloads.
+          if (preview) {
+            if (typeof preview.text === 'string') liveReply.text = preview.text;
+            liveReply.activity = preview.activity ?? null;
+            if (preview.startedAt) liveReply.startedAt = preview.startedAt;
+          }
+          showWaiting();
+          renderMessages();
+        }, activity => {
+          if (currentEpoch !== epoch) return;
+          liveReply.activity = activity;
+          showWaiting();
+          renderMessages();
         });
         if (currentEpoch === epoch) {
           $('connection').textContent = 'Agent replied';
@@ -98,7 +124,11 @@ function makeOutbox() {
         clearInterval(progress);
         if (currentEpoch === epoch) { liveReply = null; busy = false; updateControls(); }
       }
-    },
+  };
+  return createOutbox({
+    save: saveRecord,
+    send: sendTurn,
+    poll: sendTurn,
     canSend: record => (record.engine ?? 'openclaw') === engine,
     isReady: () => currentEpoch === epoch && connected && !busy && signedIn(),
     onChange: () => { if (currentEpoch === epoch) renderMessages(); }
@@ -128,7 +158,7 @@ function showAccount(identity) {
     account.title = signedIn ? 'Signed in · checking agent access automatically' : 'Sign in to use Helm';
   } catch { account.textContent = 'Sign in'; }
 }
-async function request(action, record, onDelta, onQueue) {
+async function request(action, record, onDelta, onQueue, onPreview, onActivity) {
   const requestEpoch = epoch;
   const payload = record
     ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt, engine: record.engine ?? 'openclaw' }
@@ -153,10 +183,13 @@ async function request(action, record, onDelta, onQueue) {
     });
     result = await readHelmResponse(response, text => {
       if (requestEpoch === epoch) onDelta?.(text);
+    }, text => {
+      if (requestEpoch === epoch) onActivity?.(text);
     });
     if (requestEpoch !== epoch) throw new Error('Account changed.');
     if (response.status !== 202 || !result?.queued) break;
     onQueue?.(result.position);
+    onPreview?.(result.preview ?? null);
     if (record && Date.now() > record.expiresAt + 30000) {
       throw new Error('The wait outlasted the message lifetime. Check History before sending again.');
     }
@@ -195,17 +228,31 @@ function messageCard(record, history = false) {
   article.className = 'message user';
   const label = document.createElement('span');
   label.className = 'label';
-  const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Delivery pending · will not resend',
+  const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Sending · waiting for the agent',
     completed: 'Sent', stale: 'History · expired without sending', uncertain: 'History · check delivery before resending', cancelled: 'History · cancelled' };
   label.textContent = `${engineNames[record.engine ?? 'openclaw']} · ${names[record.status]}`;
   article.append(label, document.createTextNode(record.text));
-  const partial = liveReply?.id === record.id && record.status === 'sending' ? liveReply.text : '';
+  // The working bubble: while this record's turn is in flight, its
+  // reply area shows whatever progress is known (fragments streamed on
+  // a held connection, or the receipt's rolling preview when polling)
+  // above a quiet working line naming the current activity and the
+  // elapsed time. When the final reply lands it replaces the bubble
+  // in the same position.
+  const live = liveReply?.id === record.id && record.status === 'sending' && !record.reply ? liveReply : null;
+  const partial = live ? live.text : '';
   if (record.reply || partial) {
     const reply = document.createElement('p');
-    reply.className = 'saved-reply';
+    reply.className = live ? 'saved-reply live' : 'saved-reply';
     reply.textContent = record.reply || partial;
-    if (partial) reply.setAttribute('aria-label', 'Reply arriving; completion not yet confirmed');
+    if (live) reply.setAttribute('aria-label', 'Reply arriving; completion not yet confirmed');
     article.append(reply);
+  }
+  if (live) {
+    const working = document.createElement('small');
+    working.className = 'working-note';
+    const elapsed = Math.max(0, Math.floor((Date.now() - (live.startedAt ?? record.createdAt)) / 1000));
+    working.textContent = `${live.activity || (partial ? 'Receiving reply' : 'Working')} · ${elapsed}s`;
+    article.append(working);
   }
   if (record.note) {
     const note = document.createElement('small');

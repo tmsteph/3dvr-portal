@@ -238,6 +238,23 @@ test('SSH JSONL decoder handles fragmented UTF-8 and requires an authoritative f
   await assert.rejects(failed, /transport/);
 });
 
+test('SSH JSONL decoder forwards bridge activity lines to onActivity', async () => {
+  const child = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(),
+    kill() { this.emit('close', 1); }
+  });
+  const activities = [];
+  const deltas = [];
+  const task = runOpenClaw({ action: 'chat', message: 'Hello' }, { uid: 1000, spawn: () => child,
+    onDelta: text => deltas.push(text), onActivity: text => activities.push(text) });
+  await new Promise(resolve => child.stdin.once('data', resolve));
+  child.stdout.write('{"type":"activity","text":"Running a command"}\n{"type":"delta","text":"Hi"}\n{"ok":true,"reply":"Hi"}\n');
+  child.emit('close', 0);
+  assert.equal((await task).reply, 'Hi');
+  assert.deepEqual(deltas, ['Hi']);
+  assert.deepEqual(activities, ['Running a command']);
+});
+
 test('engine selection is signed; legacy proofs stay OpenClaw and receipts cannot cross engines', async t => {
   const { config, sign } = await setup(t);
   const requests = [];

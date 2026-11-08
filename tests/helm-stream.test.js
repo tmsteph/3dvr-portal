@@ -25,6 +25,51 @@ test('browser parser rejects missing completion and malformed terminal data', as
     { status: 429, headers: { 'Content-Type': 'application/json' } })), { ok: false, error: 'Busy' });
 });
 
+test('browser parser forwards activity events alongside deltas', async () => {
+  const text = 'event: activity\ndata: {"text":"Running a command"}\n\nevent: delta\ndata: {"text":"Hi"}\n\nevent: result\ndata: {"ok":true,"reply":"Hi"}\n\n';
+  const deltas = [];
+  const activities = [];
+  const result = await readHelmResponse(new Response(text,
+    { headers: { 'Content-Type': 'text/event-stream' } }),
+    value => deltas.push(value), value => activities.push(value));
+  assert.deepEqual(deltas, ['Hi']);
+  assert.deepEqual(activities, ['Running a command']);
+  assert.equal(result.reply, 'Hi');
+});
+
+test('native bridge labels tool activity and keeps chat posture fail-closed', () => {
+  const source = `
+import runpy
+native=runpy.run_path('src/openclaw/native.py',run_name='helm_test')
+def events():
+    return [
+      {'id': 7, 'result': {'turn': {'id': 'turn-1'}}},
+      {'method': 'item/started', 'params': {'threadId': 'thread-1', 'item': {'type': 'commandExecution'}}},
+      {'method': 'item/agentMessage/delta', 'params': {'threadId': 'thread-1', 'delta': 'Hi'}},
+      {'method': 'item/completed', 'params': {'threadId': 'thread-1', 'item': {'id': 'm1', 'type': 'agentMessage', 'text': 'Hi'}}},
+      {'method': 'turn/completed', 'params': {'threadId': 'thread-1', 'turn': {'id': 'turn-1', 'status': 'completed'}}},
+    ]
+class Client:
+    def __init__(self): self.queue=events()
+    def send(self, method, params, request=True): return 7
+    def read(self): return self.queue.pop(0)
+deltas, acts = [], []
+reply = native['run_turn'](Client(), 'thread-1', {'message': 'x', 'toolsEnabled': True}, deltas.append, acts.append)
+assert reply == 'Hi' and deltas == ['Hi'] and acts == ['Running a command'], (reply, deltas, acts)
+acts2 = []
+try:
+    native['run_turn'](Client(), 'thread-1', {'message': 'x'}, lambda text: None, acts2.append)
+    raise AssertionError('chat posture accepted a tool item')
+except RuntimeError:
+    pass
+assert acts2 == [], acts2
+print('native-activity-ok')
+`;
+  const result = spawnSync('python3', ['-c', source], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /native-activity-ok/);
+});
+
 test('remote SSE parser emits fragments but rejects upstream interruption, errors, and oversized output', () => {
   const source = `
 import runpy,io,json
