@@ -1,0 +1,4 @@
+node_modules/
+host-agent-state.json
+share/
+*.tmp
