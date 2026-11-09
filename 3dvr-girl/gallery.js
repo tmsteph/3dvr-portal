@@ -7,6 +7,8 @@
 // gallery and the public scene archive (app.js delegates its photo clicks
 // here). It supports swipe / arrow / keyboard navigation, pinch and
 // double-tap zoom, wheel zoom on desktop, and drag panning while zoomed.
+// The gestures, the in-viewer section bar and picture search come from
+// viewer.js, shared with the character pages.
 (() => {
   const grid = document.querySelector('#afterDarkGrid');
   const lock = document.querySelector('#afterDarkLock');
@@ -26,21 +28,17 @@
   /* ---------- shared full-screen viewer (After Dark + scene archive) ---------- */
   let items = [];
   let index = 0;
-  let scale = 1;
-  let panX = 0;
-  let panY = 0;
+  let currentSection = null;
+  let viewerChrome = null;
 
-  function applyTransform() {
-    if (!dialogImage) return;
-    dialogImage.style.transform = scale === 1 ? '' : `translate(${panX}px, ${panY}px) scale(${scale})`;
-    dialog?.classList.toggle('is-zoomed', scale > 1);
-  }
+  /* Zoom, pan and swipe come from viewer.js, shared with the
+     character pages; without it the viewer still opens and steps. */
+  const zoom = dialogImage && window.LadiesViewer
+    ? window.LadiesViewer.attachZoom(dialogImage, { onSwipe: dir => step(dir) })
+    : { reset() {}, isZoomed: () => false };
 
   function resetZoom() {
-    scale = 1;
-    panX = 0;
-    panY = 0;
-    applyTransform();
+    zoom.reset();
   }
 
   function slugOf(src) {
@@ -72,11 +70,13 @@
     });
   }
 
-  function openViewer(list, start) {
+  function openViewer(list, start, section) {
     if (!dialog || !dialogImage || !list.length) return;
     items = list;
     index = Math.min(Math.max(start || 0, 0), list.length - 1);
+    if (section) currentSection = section;
     render();
+    viewerChrome?.refresh();
     if (!dialog.open) dialog.showModal();
   }
 
@@ -102,102 +102,70 @@
   });
   document.addEventListener('keydown', event => {
     if (!dialog?.open) return;
+    const target = event.target;
+    if (target && (target.matches?.('input, textarea, select') || target.isContentEditable)) return;
     if (event.key === 'ArrowLeft') step(-1);
     if (event.key === 'ArrowRight') step(1);
   });
 
-  /* Pointer gestures on the photo: swipe to navigate, pinch / double-tap /
-     wheel to zoom, drag to pan while zoomed. */
-  if (dialogImage) {
-    dialogImage.draggable = false;
-    const pointers = new Map();
-    let pinchStartDist = 0;
-    let pinchStartScale = 1;
-    let dragStart = null;
-    let lastTap = 0;
+  /* ---------- In-viewer sections + search (viewer.js chrome) ----------
+     The bar jumps between the shelves without leaving full screen,
+     and search runs over the same catalogue. After dark only takes
+     part when the curtain is open for this visitor, exactly as the
+     stage treats it: while it is locked its pictures stay out of the
+     results, and picking its section lands on the curtain. */
+  function viewerSections() {
+    const data = window.LadiesGalleryData || {};
+    const sections = [];
+    if (data.archive?.length) sections.push({ id: 'archive', label: 'Archive', items: data.archive });
+    if (data.goldenHour?.length) sections.push({ id: 'goldenhour', label: 'Golden hour', items: data.goldenHour });
+    const open = signedIn();
+    sections.push({
+      id: 'afterdark',
+      label: 'After dark',
+      locked: !open,
+      items: open ? cards.map(card => {
+        const item = cardItem(card);
+        item.search = [card.dataset.tags || '', card.dataset.set || '', 'after dark'].join(' ');
+        return item;
+      }) : []
+    });
+    return sections;
+  }
 
-    const distance = () => {
-      const [a, b] = [...pointers.values()];
-      return Math.hypot(a.x - b.x, a.y - b.y);
-    };
-    const clampPan = () => {
-      const maxX = dialogImage.clientWidth * 0.6;
-      const maxY = dialogImage.clientHeight * 0.6;
-      panX = Math.min(Math.max(panX, -maxX), maxX);
-      panY = Math.min(Math.max(panY, -maxY), maxY);
-    };
-    const setScale = next => {
-      scale = Math.min(4, Math.max(1, next));
-      if (scale === 1) {
-        panX = 0;
-        panY = 0;
-      }
-      clampPan();
-      applyTransform();
-    };
+  function pickViewerSection(section) {
+    if (section.locked) {
+      dialog?.close();
+      window.LadiesHud?.activateStage('afterdark');
+      return;
+    }
+    if (!section.items?.length) return;
+    items = section.items;
+    index = 0;
+    currentSection = section.id;
+    render();
+    viewerChrome?.refresh();
+  }
 
-    dialogImage.addEventListener('pointerdown', event => {
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      dialogImage.setPointerCapture(event.pointerId);
-      if (pointers.size === 2) {
-        pinchStartDist = distance();
-        pinchStartScale = scale;
-        dragStart = null;
-      } else if (pointers.size === 1) {
-        dragStart = { x: event.clientX, y: event.clientY, panX, panY, moved: false };
+  function viewerSearch(query) {
+    const found = [];
+    for (const section of viewerSections()) {
+      if (section.locked || !section.items?.length) continue;
+      for (const item of window.LadiesViewer.searchItems(section.items, query)) {
+        found.push({ sectionId: section.id, index: section.items.indexOf(item), item });
       }
-    });
-    dialogImage.addEventListener('pointermove', event => {
-      if (!pointers.has(event.pointerId)) return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (pointers.size === 2 && pinchStartDist > 0) {
-        setScale(pinchStartScale * (distance() / pinchStartDist));
-      } else if (pointers.size === 1 && dragStart && scale > 1) {
-        panX = dragStart.panX + (event.clientX - dragStart.x);
-        panY = dragStart.panY + (event.clientY - dragStart.y);
-        if (Math.abs(event.clientX - dragStart.x) + Math.abs(event.clientY - dragStart.y) > 6) {
-          dragStart.moved = true;
-        }
-        clampPan();
-        applyTransform();
-      }
-    });
-    const endPointer = event => {
-      const wasPinch = pointers.size === 2;
-      pointers.delete(event.pointerId);
-      if (wasPinch) {
-        pinchStartDist = 0;
-        dragStart = null;
-        return;
-      }
-      if (!dragStart) return;
-      const dx = event.clientX - dragStart.x;
-      const dy = event.clientY - dragStart.y;
-      const isTap = Math.abs(dx) < 6 && Math.abs(dy) < 6;
-      if (scale === 1 && Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy)) {
-        step(dx < 0 ? 1 : -1);
-      } else if (isTap) {
-        const now = Date.now();
-        if (now - lastTap < 300) {
-          if (scale > 1) resetZoom();
-          else setScale(2.5);
-          lastTap = 0;
-        } else {
-          lastTap = now;
-        }
-      }
-      dragStart = null;
-    };
-    dialogImage.addEventListener('pointerup', endPointer);
-    dialogImage.addEventListener('pointercancel', endPointer);
-    dialogImage.addEventListener('wheel', event => {
-      event.preventDefault();
-      setScale(scale * Math.exp(-event.deltaY * 0.0015));
-    }, { passive: false });
-    dialogImage.addEventListener('dblclick', () => {
-      if (scale > 1) resetZoom();
-      else setScale(2.5);
-    });
+    }
+    return found;
+  }
+
+  function pickViewerResult(result) {
+    const section = viewerSections().find(entry => entry.id === result.sectionId);
+    if (!section || section.locked || !section.items?.length) return;
+    items = section.items;
+    index = Math.min(Math.max(result.index || 0, 0), items.length - 1);
+    currentSection = section.id;
+    render();
+    viewerChrome?.refresh();
   }
 
   /* ---------- After Dark: lock, filters, cards ---------- */
@@ -288,7 +256,7 @@
     link?.addEventListener('click', event => {
       event.preventDefault();
       const list = visibleCards();
-      openViewer(list.map(cardItem), list.indexOf(card));
+      openViewer(list.map(cardItem), list.indexOf(card), 'afterdark');
     });
   });
 
@@ -407,6 +375,7 @@
       adSentinel.hidden = true;
     }
     openFromHash();
+    viewerChrome?.refresh();
   }
 
   /* Deep links: #after-dark/<slug> opens the viewer on that photo, where
@@ -425,7 +394,17 @@
     setAdSetFilter('all');
     adShown = cards.length;
     applyAdVisibility();
-    openViewer(cards.map(cardItem), cards.indexOf(card));
+    openViewer(cards.map(cardItem), cards.indexOf(card), 'afterdark');
+  }
+
+  if (dialog && window.LadiesViewer) {
+    viewerChrome = window.LadiesViewer.mountChrome(dialog, {
+      sections: viewerSections,
+      activeSection: () => currentSection,
+      onSection: pickViewerSection,
+      search: viewerSearch,
+      onResult: pickViewerResult
+    });
   }
 
   refresh();
