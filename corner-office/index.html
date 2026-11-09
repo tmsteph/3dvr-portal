@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Corner Office — Office Mode</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #eceae6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #2b3440; }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; height: 100dvh; }
+
+  /* ===== top bar: reads like a work tool, not an arcade HUD ===== */
+  #topbar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 12px; background: rgba(255,255,255,.94); border-bottom: 1px solid #d5d9de; z-index: 5; }
+  #topbar .brand { font-weight: 650; font-size: .98rem; letter-spacing: .01em; color: #22304a; white-space: nowrap; }
+  #topbar .brand small { display: block; font-weight: 500; font-size: .66rem; color: #7c8794; letter-spacing: .08em; text-transform: uppercase; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+    background: #eef1f4; border: 1px solid #d8dde3; font-size: .8rem; color: #3c4756; white-space: nowrap; }
+  .chip.reminder { background: #faf5e6; border-color: #e4d9ae; color: #5d5322; font-variant-numeric: tabular-nums; }
+  .chip.reminder.soon { background: #f9ecec; border-color: #e0b4b4; color: #713b3b; }
+  .chip.boost { background: #e8f0e9; border-color: #b9d2bc; color: #33543a; }
+  #topbar .spacer { flex: 1 1 auto; }
+  .tbtn { appearance: none; border: 1px solid #c9d1da; background: #fff; color: #2f4156; border-radius: 8px;
+    padding: 6px 12px; font: inherit; font-size: .82rem; cursor: pointer; }
+  .tbtn:hover { background: #f2f5f8; }
+
+  #stageWrap { position: relative; flex: 1 1 auto; min-height: 0; }
+  canvas#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+
+  /* quiet status line, bottom-left, dismissible by time */
+  #say { position: absolute; left: 12px; bottom: 12px; max-width: min(78vw, 430px); z-index: 4;
+    background: rgba(38,48,62,.92); color: #eef1f4; font-size: .82rem; line-height: 1.35;
+    padding: 8px 12px; border-radius: 10px; opacity: 0; transition: opacity .35s; pointer-events: none; }
+  #say.show { opacity: 1; }
+  #hint { position: absolute; right: 12px; bottom: 12px; z-index: 4; font-size: .72rem; color: #66727f;
+    background: rgba(255,255,255,.8); padding: 4px 8px; border-radius: 6px; pointer-events: none; }
+
+  /* ===== character select: a calm white panel ===== */
+  #selectScreen { position: absolute; inset: 0; z-index: 10; overflow-y: auto;
+    background: rgba(43,52,64,.45); display: flex; align-items: flex-start; justify-content: center; padding: 18px 12px; }
+  #selectScreen[hidden] { display: none; }
+  .panel { background: #fff; border-radius: 14px; box-shadow: 0 18px 50px rgba(20,30,45,.35);
+    width: min(680px, 100%); padding: 20px 20px 16px; }
+  .panel h2 { margin: 0 0 4px; font-size: 1.25rem; color: #22304a; }
+  .panel .sub { margin: 0 0 16px; font-size: .88rem; color: #5c6875; line-height: 1.45; }
+  #roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .card { position: relative; appearance: none; border: 1px solid #d8dde3; background: #fbfcfd; border-radius: 12px;
+    padding: 10px 6px 8px; cursor: pointer; font: inherit; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .card:hover { border-color: #9fb2c8; }
+  .card.sel { border-color: #2f5d8a; box-shadow: 0 0 0 2px rgba(47,93,138,.25); background: #f2f7fc; }
+  .card .nm { font-size: .8rem; font-weight: 600; color: #2b3440; }
+  .card .del { position: absolute; top: 2px; right: 6px; color: #a33; font-weight: 700; cursor: pointer; }
+  .creator { border-top: 1px solid #e3e7ec; padding-top: 14px; }
+  .creator h3 { margin: 0 0 10px; font-size: .95rem; color: #22304a; }
+  .creator .grid { display: flex; gap: 16px; flex-wrap: wrap; }
+  .creator .previewBox { text-align: center; }
+  .creator .fields { flex: 1; min-width: 230px; display: flex; flex-direction: column; gap: 9px; }
+  .creator label { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #77828f; display: block; margin-bottom: 3px; }
+  .creator input[type=text], .creator select { width: 100%; background: #fff; color: #2b3440; border: 1px solid #c9d1da;
+    border-radius: 8px; padding: 7px 9px; font: inherit; font-size: .9rem; }
+  .swatches { display: flex; gap: 5px; flex-wrap: wrap; }
+  .sw { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #b9c2cc; cursor: pointer; padding: 0; }
+  .sw.sel { box-shadow: 0 0 0 2px #2f5d8a; }
+  #saveCustom { margin-top: 4px; appearance: none; border: 0; border-radius: 8px; background: #2f5d8a; color: #fff;
+    padding: 9px 14px; font: inherit; font-size: .88rem; cursor: pointer; }
+  #saveCustom:hover { background: #274e73; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="brand">Corner Office<small>Office mode</small></div>
+    <span class="chip" id="floorChip">Floor 12</span>
+    <span class="chip reminder" id="reminderChip">Meeting starts in --:--</span>
+    <span class="spacer"></span>
+    <span class="chip" id="deliverChip">Deliverables: 0 / 5 pages</span>
+    <span class="chip boost" id="boostChip" hidden>Coffee: 0:00</span>
+    <span class="chip" id="preppedChip">Meetings prepped: 0</span>
+    <button class="tbtn" id="crewBtn" type="button">Crew</button>
+  </div>
+  <div id="stageWrap">
+    <canvas id="stage"></canvas>
+    <div id="say" role="status"></div>
+    <div id="hint">Click or tap to walk · WASD / arrows work too</div>
+    <div id="selectScreen">
+      <div class="panel">
+        <h2>Corner Office</h2>
+        <p class="sub">The crew, in suits. Same characters as the other modes, dressed for the office.
+          Collect the deck pages scattered around the floor and bring them to the boardroom before the meeting starts.
+          Stop clicking for a bit and your person will get on with their day on their own.</p>
+        <div id="roster"></div>
+        <div class="creator">
+          <h3>Make your own</h3>
+          <div class="grid">
+            <div class="previewBox">
+              <canvas id="creatorPreview" width="84" height="84"></canvas>
+              <div style="font-size:.7rem;color:#77828f">preview</div>
+            </div>
+            <div class="fields">
+              <div><label for="cName">Name</label><input id="cName" type="text" maxlength="18" placeholder="New Hire"></div>
+              <div><label>Hair style</label>
+                <select id="cHairStyle">
+                  <option value="short">Short</option><option value="long">Long</option>
+                  <option value="bun">Bun</option><option value="curly">Curly</option>
+                  <option value="bald">Bald</option>
+                </select></div>
+              <div><label>Skin tone</label><div class="swatches" id="cSkin"></div></div>
+              <div><label>Hair color</label><div class="swatches" id="cHair"></div></div>
+              <div><label>Suit color</label><div class="swatches" id="cSuit"></div></div>
+              <div><label>Dress shirt</label><div class="swatches" id="cShirtC"></div></div>
+              <div><label>Tie color</label><div class="swatches" id="cTie"></div></div>
+              <div><label>Everyday shirt (other modes)</label><div class="swatches" id="cShirt"></div></div>
+              <div><label>Everyday pants (other modes)</label><div class="swatches" id="cPants"></div></div>
+              <button id="saveCustom" type="button">Save and walk in</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= Characters: the shared 3DVR character spec =================
+   One character definition object is shared by every mode of the combined
+   game: { id, name, skin, hairStyle, hairColor, streak, beard, hat, hatColor,
+   print, shirt, pants }. Corner Office adds three office-only fields on the
+   same object: suit, shirtC (dress shirt), tie. The other modes ignore them;
+   this mode ignores the hat and wears the suit instead.
+
+   Storage follows the family pattern (per-mode prefixed keys) AND stays in
+   sync with the sibling modes' real stores, so a character created anywhere
+   is the same character here:
+     this mode : corner-office.customs / corner-office.selectedDef (full def)
+     Preserve  : preserve.customs      / preserve.selectedDef      (full def)
+     Valley    : valley.customs.v1     / valley.selected.v1        (id)
+     Companion : companion-quest.customCharacters.v1 / .player.v1  (full def) */
+const LS = {
+  customs: 'corner-office.customs', selected: 'corner-office.selectedDef',
+  stats: 'corner-office.stats'
+};
+const SIBLING_STORES = [
+  { customs: 'preserve.customs', selected: 'preserve.selectedDef', selectedKind: 'def' },
+  { customs: 'valley.customs.v1', selected: 'valley.selected.v1', selectedKind: 'id' },
+  { customs: 'companion-quest.customCharacters.v1', selected: 'companion-quest.player.v1', selectedKind: 'def' }
+];
+function loadJSON(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+function saveJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode */ }
+}
+
+const SKIN_TONES = ['#ffe0bd', '#f2c79b', '#e8b08a', '#c98d5f', '#a06838', '#6f4423'];
+const HAIR_COLORS = ['#17130f', '#3a2a1a', '#7a5a38', '#b5854a', '#f0cf6e', '#d96f32', '#b03a2e', '#39b7ff', '#7e57c2', '#e8e8e8'];
+const SHIRT_COLORS = ['#17a398', '#d33f2e', '#3f9e4d', '#ef7d1a', '#232329', '#2f6fd0', '#7e57c2', '#e56b9f', '#f0b429', '#e8e8e8'];
+const PANTS_COLORS = ['#274156', '#3a4a5a', '#2e4053', '#1d1d22', '#31517d', '#6b5136', '#7a7a52', '#5b2d8e'];
+const SUIT_COLORS = ['#2e3d55', '#23272e', '#3a3f4a', '#37424e', '#4a4238', '#5a4632', '#513252', '#274e4a'];
+const DRESS_SHIRTS = ['#f4f6f8', '#eef1f4', '#f7f3ea', '#dfe9f2', '#efe3e8', '#e6ecdf'];
+const TIE_COLORS = ['#8c3226', '#2f5d8a', '#33543a', '#5b2d8e', '#0f7d8c', '#b05f1e', '#6b7280', '#22304a'];
+
+const PRESETS = [
+  { id: 'thomas',  name: 'Thomas',    skin: '#e8b08a', hairStyle: 'short', hairColor: '#7a5a38', beard: true,  shirt: '#17a398', pants: '#3a4a5a', suit: '#2e3d55', shirtC: '#f4f6f8', tie: '#8c3226' },
+  { id: 'girl',    name: '3DVR Girl', skin: '#f2c79b', hairStyle: 'long',  hairColor: '#f0cf6e', streak: '#39b7ff', shirt: '#17a398', pants: '#274156', suit: '#3a3f4a', shirtC: '#eef1f4', tie: '#2f6fd0' },
+  { id: 'mark',    name: 'Mark',      skin: '#d99e73', hairStyle: 'short', hairColor: '#2c2320', shirt: '#d33f2e', pants: '#2f3b52', suit: '#23272e', shirtC: '#f4f6f8', tie: '#5b2d8e' },
+  { id: 'esai',    name: 'Esai',      skin: '#b57a4e', hairStyle: 'short', hairColor: '#17130f', shirt: '#232329', pants: '#333a45', suit: '#4a4238', shirtC: '#f7f3ea', tie: '#0f7d8c' },
+  { id: 'david',   name: 'David',     skin: '#c98d5f', hairStyle: 'short', hairColor: '#191512', shirt: '#3f9e4d', pants: '#2e4053', suit: '#37424e', shirtC: '#eef1f4', tie: '#3e7d38' },
+  { id: 'brandon', name: 'Brandon',   skin: '#8a5a34', hairStyle: 'curly', hairColor: '#241a12', shirt: '#ef7d1a', pants: '#374151', suit: '#5a4632', shirtC: '#f4f6f8', tie: '#b05f1e' }
+];
+const DEFAULT_SUIT = { suit: '#37424e', shirtC: '#f4f6f8', tie: '#2f5d8a' };
+function withSuit(def) { return Object.assign({}, DEFAULT_SUIT, def); }
+function defKey(d) { return d.id || [d.name, d.skin, d.hairStyle, d.hairColor, d.shirt, d.pants].join('|'); }
+
+/* Merge customs from every mode's store so the crew follows the player. */
+function loadAllCustoms() {
+  const seen = new Map();
+  const add = (d) => { if (d && d.name) seen.set(defKey(d), withSuit(d)); };
+  (loadJSON(LS.customs, []) || []).forEach(add);
+  SIBLING_STORES.forEach((s) => { (loadJSON(s.customs, []) || []).forEach(add); });
+  return [...seen.values()];
+}
+let customs = loadAllCustoms();
+function persistCustoms() {
+  saveJSON(LS.customs, customs);
+  /* Mirror into the sibling stores in their own shapes so a character made
+     here walks into the other modes as the same person. */
+  SIBLING_STORES.forEach((s) => saveJSON(s.customs, customs));
+}
+function findCharacter(id) {
+  return PRESETS.find((c) => c.id === id) || customs.find((c) => c.id === id) || null;
+}
+function initialCharacter() {
+  const own = loadJSON(LS.selected, null);
+  if (own && own.name) return withSuit(own);
+  for (const s of SIBLING_STORES) {
+    const v = loadJSON(s.selected, null);
+    if (s.selectedKind === 'id' && v) { const f = findCharacter(v); if (f) return withSuit(f); }
+    if (s.selectedKind === 'def' && v && v.name) return withSuit(v);
+  }
+  return withSuit(PRESETS[0]);
+}
+let currentDef = initialCharacter();
+function persistSelection() {
+  saveJSON(LS.selected, currentDef);
+  SIBLING_STORES.forEach((s) => {
+    if (s.selectedKind === 'id') saveJSON(s.selected, currentDef.id || 'thomas');
+    else saveJSON(s.selected, currentDef);
+  });
+}
+
+/* ============ Top-down suited sprite renderer ============
+   Draws the shared character from above: shoulders and jacket, dress shirt
+   and tie at the chest, head with hair. pose: { angle (facing, rad),
+   walk: 0..1 phase while moving, sit: bool } */
+function drawSuited(g, def, x, y, pose) {
+  const angle = pose.angle || 0;
+  const walk = pose.walk || 0;
+  const moving = walk > 0;
+  const bob = moving ? Math.sin(walk * Math.PI * 2) * 1.1 : 0;
+  g.save();
+  g.translate(x, y);
+  // soft shadow
+  g.fillStyle = 'rgba(30,40,55,.18)';
+  g.beginPath(); g.ellipse(0, 3, 15, 10, 0, 0, Math.PI * 2); g.fill();
+  g.rotate(angle + Math.PI / 2);           // local +y becomes "forward"
+  g.translate(0, bob * 0.4);
+  // arms (sleeves) with a walking swing
+  const swing = moving ? Math.sin(walk * Math.PI * 2) * 4 : 0;
+  g.fillStyle = def.suit;
+  roundRectPath(g, -16.5, -6 + swing * 0.5, 6, 15, 3); g.fill();
+  roundRectPath(g, 10.5, -6 - swing * 0.5, 6, 15, 3); g.fill();
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(-13.5, 10.5 + swing * 0.5, 2.6, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(13.5, 10.5 - swing * 0.5, 2.6, 0, Math.PI * 2); g.fill();
+  // torso: jacket
+  g.fillStyle = def.suit;
+  roundRectPath(g, -13, -13, 26, 27, 9); g.fill();
+  // dress shirt wedge + tie
+  g.fillStyle = def.shirtC;
+  g.beginPath(); g.moveTo(-5.5, 2); g.lineTo(5.5, 2); g.lineTo(0, 13.5); g.closePath(); g.fill();
+  g.fillStyle = def.tie;
+  g.beginPath(); g.moveTo(0, 3.5); g.lineTo(2.4, 6.5); g.lineTo(1.1, 12); g.lineTo(-1.1, 12); g.lineTo(-2.4, 6.5); g.closePath(); g.fill();
+  g.beginPath(); g.arc(0, 3.2, 1.7, 0, Math.PI * 2); g.fill();
+  // lapels
+  g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(-5.5, 2); g.lineTo(-1.5, 8); g.moveTo(5.5, 2); g.lineTo(1.5, 8); g.stroke();
+  // head
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(0, -3, 8.6, 0, Math.PI * 2); g.fill();
+  // hair, on the back half of the head (away from facing)
+  g.fillStyle = def.hairColor;
+  if (def.hairStyle === 'long') {
+    g.beginPath(); g.arc(0, -3.6, 9.2, Math.PI * 0.95, Math.PI * 2.05); g.fill();
+    roundRectPath(g, -9.4, -4, 4.4, 15, 2); g.fill();
+    roundRectPath(g, 5, -4, 4.4, 15, 2); g.fill();
+    if (def.streak) { g.fillStyle = def.streak; roundRectPath(g, 5.8, -4, 2, 13, 1); g.fill(); }
+  } else if (def.hairStyle === 'bun') {
+    g.beginPath(); g.arc(0, -3.4, 8.9, Math.PI * 0.95, Math.PI * 2.05); g.fill();
+    g.beginPath(); g.arc(0, -12.6, 3.4, 0, Math.PI * 2); g.fill();
+  } else if (def.hairStyle === 'curly') {
+    for (let i = -2; i <= 2; i++) { g.beginPath(); g.arc(i * 3.6, -9.6 + Math.abs(i) * 0.8, 3.1, 0, Math.PI * 2); g.fill(); }
+    g.beginPath(); g.arc(0, -3.4, 8.9, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+  } else if (def.hairStyle !== 'bald') {   // short
+    g.beginPath(); g.arc(0, -3.4, 8.9, Math.PI * 0.92, Math.PI * 2.08); g.fill();
+  }
+  // beard hint at the chin (front edge)
+  if (def.beard) {
+    g.fillStyle = def.hairColor;
+    g.beginPath(); g.arc(0, -1.4, 7.6, Math.PI * 0.18, Math.PI * 0.82); g.fill();
+    g.fillStyle = def.skin;
+    g.beginPath(); g.arc(0, -0.6, 5.4, Math.PI * 0.25, Math.PI * 0.75); g.fill();
+  }
+  g.restore();
+}
+function roundRectPath(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/* ================= Roster + creator UI ================= */
+const rosterEl = document.getElementById('roster');
+const selectScreen = document.getElementById('selectScreen');
+function previewCanvas(def) {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e8edf1'; roundRectPath(g, 0, 0, 64, 64, 10); g.fill();
+  drawSuited(g, def, 32, 34, { angle: -Math.PI / 2, walk: 0 });
+  return c;
+}
+function buildRoster() {
+  rosterEl.innerHTML = '';
+  const addCard = (def, customIdx) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card' + (defKey(def) === defKey(currentDef) ? ' sel' : '');
+    card.append(previewCanvas(withSuit(def)));
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = def.name;
+    card.append(nm);
+    card.addEventListener('click', () => {
+      currentDef = withSuit(def);
+      persistSelection();
+      buildRoster();
+      closeSelect();
+      if (window.__coOnPick) window.__coOnPick();
+    });
+    if (customIdx !== null) {
+      const del = document.createElement('span');
+      del.className = 'del';
+      del.textContent = '×';
+      del.title = 'Delete ' + def.name;
+      del.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const removed = customs.splice(customIdx, 1)[0];
+        persistCustoms();
+        if (removed && defKey(removed) === defKey(currentDef)) {
+          currentDef = withSuit(PRESETS[0]);
+          persistSelection();
+        }
+        buildRoster();
+      });
+      card.append(del);
+    }
+    rosterEl.append(card);
+  };
+  PRESETS.forEach((d) => addCard(d, null));
+  customs.forEach((d, i) => addCard(d, i));
+}
+const draft = { name: '', skin: SKIN_TONES[2], hairStyle: 'short', hairColor: HAIR_COLORS[2],
+  shirt: SHIRT_COLORS[0], pants: PANTS_COLORS[0],
+  suit: SUIT_COLORS[0], shirtC: DRESS_SHIRTS[0], tie: TIE_COLORS[1], streak: null, beard: false };
+function swatchRow(elId, colors, get, set) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  colors.forEach((col) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw' + (get() === col ? ' sel' : '');
+    b.style.background = col;
+    b.title = col;
+    b.addEventListener('click', () => { set(col); refreshCreator(); });
+    el.append(b);
+  });
+}
+function refreshCreator() {
+  swatchRow('cSkin', SKIN_TONES, () => draft.skin, (v) => draft.skin = v);
+  swatchRow('cHair', HAIR_COLORS, () => draft.hairColor, (v) => draft.hairColor = v);
+  swatchRow('cSuit', SUIT_COLORS, () => draft.suit, (v) => draft.suit = v);
+  swatchRow('cShirtC', DRESS_SHIRTS, () => draft.shirtC, (v) => draft.shirtC = v);
+  swatchRow('cTie', TIE_COLORS, () => draft.tie, (v) => draft.tie = v);
+  swatchRow('cShirt', SHIRT_COLORS, () => draft.shirt, (v) => draft.shirt = v);
+  swatchRow('cPants', PANTS_COLORS, () => draft.pants, (v) => draft.pants = v);
+  const c = document.getElementById('creatorPreview');
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  g.fillStyle = '#e8edf1'; roundRectPath(g, 0, 0, c.width, c.height, 12); g.fill();
+  drawSuited(g, draft, c.width / 2, c.height / 2 + 4, { angle: -Math.PI / 2, walk: 0 });
+}
+document.getElementById('cName').addEventListener('input', (e) => { draft.name = e.target.value; });
+document.getElementById('cHairStyle').addEventListener('change', (e) => { draft.hairStyle = e.target.value; refreshCreator(); });
+document.getElementById('saveCustom').addEventListener('click', () => {
+  const def = Object.assign({}, draft, {
+    id: 'custom-' + Date.now().toString(36),
+    name: (draft.name || '').trim() || 'New Hire'
+  });
+  customs.push(def);
+  persistCustoms();
+  currentDef = withSuit(def);
+  persistSelection();
+  buildRoster();
+  closeSelect();
+  if (window.__coOnPick) window.__coOnPick();
+});
+let selectOpen = true;
+function openSelect() { selectOpen = true; selectScreen.hidden = false; buildRoster(); refreshCreator(); }
+function closeSelect() { selectOpen = false; selectScreen.hidden = true; }
+document.getElementById('crewBtn').addEventListener('click', openSelect);
+buildRoster();
+refreshCreator();
+</script>
+
+<script>
+'use strict';
+/* ================= Corner Office: the office mode =================
+   Top-down office floor. Primary control is the mouse: click anywhere and
+   your person walks there (touch is the same tap). WASD / arrows also work.
+   Gather the deck pages, mind the meeting countdown, deliver to the
+   boardroom. Leave it alone for ten seconds and your person gets on with
+   their day. Silent by design. */
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('stageWrap');
+let VW = 0, VH = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW = wrap.clientWidth; VH = wrap.clientHeight;
+  canvas.width = Math.round(VW * DPR); canvas.height = Math.round(VH * DPR);
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ---------- world geometry ---------- */
+const W = 1680, H = 1240;
+const WALLS = [
+  // printer room: right wall (door gap y 170..226), bottom wall (door gap x 170..240)
+  { x: 366, y: 40, w: 14, h: 130 }, { x: 366, y: 226, w: 14, h: 94 },
+  { x: 40, y: 306, w: 130, h: 14 }, { x: 240, y: 306, w: 140, h: 14 },
+  // boardroom: left wall (door gap y 190..256), bottom wall (door gap x 1300..1380)
+  { x: 1180, y: 40, w: 14, h: 150 }, { x: 1180, y: 256, w: 14, h: 144 },
+  { x: 1180, y: 386, w: 120, h: 14 }, { x: 1380, y: 386, w: 260, h: 14 },
+  // kitchen: right wall (door gap y 990..1056), top wall (door gap x 210..290)
+  { x: 426, y: 880, w: 14, h: 110 }, { x: 426, y: 1056, w: 14, h: 144 },
+  { x: 40, y: 880, w: 170, h: 14 }, { x: 290, y: 880, w: 150, h: 14 }
+];
+const FURNITURE = [
+  { x: 1270, y: 150, w: 280, h: 110 },              // boardroom table
+  { x: 76, y: 84, w: 110, h: 54 },                  // printer
+  { x: 240, y: 60, w: 110, h: 26 },                 // shelf
+  { x: 52, y: 916, w: 26, h: 180 },                 // kitchen counter
+  { x: 210, y: 1030, w: 130, h: 64 },               // kitchen table
+  { x: 372, y: 916, w: 44, h: 66 },                 // fridge
+  { x: 520, y: 952, w: 160, h: 52 }, { x: 740, y: 952, w: 160, h: 52 }, { x: 960, y: 952, w: 160, h: 52 }, // standing desks
+  { x: 1152, y: 918, w: 30, h: 30 },                // water cooler
+  { x: 1330, y: 1060, w: 170, h: 44 },              // lobby bench
+  { x: 1584, y: 1134, w: 32, h: 32 },               // lobby plant
+  { x: 440, y: 812, w: 28, h: 28 },                 // plant by the pods
+  { x: 1136, y: 96, w: 28, h: 28 }                  // plant, top aisle
+];
+const PODS = [];
+[486, 716, 946].forEach((px) => [150, 372, 594].forEach((py) => {
+  PODS.push({ x: px, y: py, w: 176, h: 58 });
+  FURNITURE.push({ x: px, y: py, w: 176, h: 58 });
+}));
+const OBSTACLES = WALLS.concat(FURNITURE);
+const BOARDROOM_ZONE = { x: 1206, y: 56, w: 418, h: 318 };
+const COFFEE_PT = { x: 128, y: 1006 };
+const COOLER_PT = { x: 1167, y: 982 };
+const HOME_DESK = { x: 575, y: 458 };
+const PAGE_SPOTS = [
+  [575, 300], [805, 300], [1035, 300], [575, 522], [805, 522], [1035, 522],
+  [575, 744], [805, 744], [1035, 744], [300, 190], [150, 770], [620, 856],
+  [1167, 1030], [1440, 480], [1520, 770], [770, 1090], [310, 1150],
+  [1470, 316], [1035, 116], [250, 560]
+];
+const AMBIENT_SPOTS = [
+  { x: 128, y: 1052, label: 'coffee' }, { x: 1167, y: 982, label: 'water cooler' },
+  { x: 322, y: 198, label: 'printer' }, { x: 575, y: 458, label: 'desk' },
+  { x: 1236, y: 452, label: 'boardroom window' }, { x: 1480, y: 1010, label: 'lobby' },
+  { x: 250, y: 560, label: 'west corridor' }
+];
+const HUBS = [{ x: 1140, y: 830 }, { x: 1140, y: 112 }, { x: 250, y: 830 }];
+
+/* ---------- collision + routing ---------- */
+function hitRect(px, py, r, rect, pad) {
+  const p = pad || 0;
+  return px > rect.x - r - p && px < rect.x + rect.w + r + p &&
+         py > rect.y - r - p && py < rect.y + rect.h + r + p;
+}
+function collides(px, py, r) {
+  if (px < 26 + r || px > W - 26 - r || py < 26 + r || py > H - 26 - r) return true;
+  for (const o of OBSTACLES) if (hitRect(px, py, r, o, 0)) return true;
+  return false;
+}
+function moveActor(a, dx, dy, dt) {
+  const dist = Math.hypot(dx, dy);
+  if (dist < 0.001) { a.moving = false; return; }
+  const steps = Math.max(1, Math.ceil(dist * dt / 5));
+  const sx = dx * dt / steps, sy = dy * dt / steps;
+  let moved = false;
+  for (let i = 0; i < steps; i++) {
+    if (!collides(a.x + sx, a.y, a.r)) { a.x += sx; moved = true; }
+    if (!collides(a.x, a.y + sy, a.r)) { a.y += sy; moved = true; }
+  }
+  a.moving = moved;
+  if (moved) {
+    a.angle = Math.atan2(dy, dx);
+    a.walk += dt * 2.6;
+  }
+}
+function segClear(x1, y1, x2, y2, r) {
+  const d = Math.hypot(x2 - x1, y2 - y1);
+  const n = Math.max(2, Math.ceil(d / 12));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    if (collides(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, r)) return false;
+  }
+  return true;
+}
+function routeTo(a, tx, ty) {
+  if (segClear(a.x, a.y, tx, ty, a.r)) return [{ x: tx, y: ty }];
+  const plans = [
+    [HUBS[0]], [HUBS[0], HUBS[1]], [HUBS[1]], [HUBS[2]], [HUBS[0], HUBS[2]], [HUBS[2], HUBS[0]]
+  ];
+  for (const plan of plans) {
+    const pts = plan.concat([{ x: tx, y: ty }]);
+    let ok = true, cx = a.x, cy = a.y;
+    for (const p of pts) { if (!segClear(cx, cy, p.x, p.y, a.r)) { ok = false; break; } cx = p.x; cy = p.y; }
+    if (ok) return pts;
+  }
+  return [{ x: tx, y: ty }];
+}
+function followRoute(a, speed, dt) {
+  if (!a.route || !a.route.length) { a.moving = false; return true; }
+  const t = a.route[0];
+  const dx = t.x - a.x, dy = t.y - a.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 7) { a.route.shift(); return a.route.length === 0; }
+  moveActor(a, dx / d * speed, dy / d * speed, dt);
+  return false;
+}
+function nearestClear(x, y, r) {
+  if (!collides(x, y, r)) return { x, y };
+  for (let rad = 16; rad <= 130; rad += 14) {
+    for (let k = 0; k < 10; k++) {
+      const an = (k / 10) * Math.PI * 2;
+      const nx = x + Math.cos(an) * rad, ny = y + Math.sin(an) * rad;
+      if (!collides(nx, ny, r)) return { x: nx, y: ny };
+    }
+  }
+  return { x, y };
+}
+
+/* ---------- state ---------- */
+const sayEl = document.getElementById('say');
+let sayTimer = null;
+function say(text, hold) {
+  sayEl.textContent = text;
+  sayEl.classList.add('show');
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(() => sayEl.classList.remove('show'), hold || 3400);
+}
+let stats = Object.assign({ meetings: 0 }, loadJSON(LS.stats, {}));
+const player = { x: HOME_DESK.x, y: HOME_DESK.y, r: 13, angle: -Math.PI / 2, walk: 0, moving: false, route: null };
+let round = 0, phase = 'prep';           // prep -> play -> banner -> play ...
+let pages = [], pagesGot = 0, pagesTotal = 5, timeLeft = 0, bannerT = 0;
+let boost = 0, coffeeReady = true, coffeeTimer = 0;
+let lastInputAt = performance.now(), ambient = false, ambientPause = 0;
+let clickMark = null;
+const keys = {};
+let camX = player.x, camY = player.y;
+
+function startRound() {
+  round += 1;
+  pagesTotal = Math.min(5 + (round - 1), 9);
+  timeLeft = Math.max(185 - (round - 1) * 18, 110);
+  pagesGot = 0;
+  const spots = PAGE_SPOTS.slice();
+  for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+  pages = spots.slice(0, pagesTotal).map((s) => ({ x: s[0], y: s[1], taken: false, ph: Math.random() * 6 }));
+  phase = 'play';
+  document.getElementById('floorChip').textContent = 'Floor ' + (11 + round);
+  say(round === 1
+    ? 'Meeting coming up. The deck pages are scattered around the floor; bring all ' + pagesTotal + ' to the boardroom.'
+    : 'Next meeting scheduled. ' + pagesTotal + ' pages this time.', 4200);
+}
+function endRound(delivered) {
+  phase = 'banner';
+  bannerT = 3.4;
+  player.route = null;
+  if (delivered) {
+    stats.meetings += 1;
+    saveJSON(LS.stats, stats);
+    say('Deck delivered with ' + fmtTime(timeLeft) + ' to spare. Meeting prepped.', 3000);
+  } else {
+    say('The meeting started without the full deck (' + pagesGot + ' of ' + pagesTotal + ' pages). A new one is already on the calendar.', 3000);
+  }
+}
+function fmtTime(s) {
+  s = Math.max(0, Math.ceil(s));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+/* ---------- NPC coworkers ---------- */
+const BUBBLE_LINES = ["Let's circle back", 'Per my last email', 'Synergy!', 'Taking this offline',
+  'Quick sync?', 'On my radar', 'Low-hanging fruit', 'Bandwidth check', 'Looping you in', 'Hard stop at 3'];
+const NPC_SEATS = [
+  { x: 530, y: 232 }, { x: 760, y: 454 }, { x: 990, y: 232 }, { x: 990, y: 676 }
+];
+let npcs = [], bubble = null, bubbleClock = 8;
+function buildNPCs() {
+  const others = PRESETS.filter((d) => d.id !== (currentDef.id || '')).slice(0, 4);
+  npcs = others.map((def, i) => ({
+    def: withSuit(def), x: NPC_SEATS[i].x, y: NPC_SEATS[i].y, r: 13,
+    angle: -Math.PI / 2, walk: 0, moving: false, route: null,
+    seat: NPC_SEATS[i], state: 'sit', timer: 6 + Math.random() * 22, dest: null
+  }));
+}
+buildNPCs();
+function updateNPC(n, dt) {
+  n.timer -= dt;
+  if (n.state === 'sit') {
+    n.moving = false;
+    n.angle = -Math.PI / 2;
+    if (n.timer <= 0) {
+      const spot = AMBIENT_SPOTS[Math.floor(Math.random() * AMBIENT_SPOTS.length)];
+      n.dest = spot;
+      n.route = routeTo(n, spot.x, spot.y);
+      n.state = 'go';
+    }
+  } else if (n.state === 'go') {
+    if (followRoute(n, 108, dt)) { n.state = 'pause'; n.timer = 3 + Math.random() * 5; }
+  } else if (n.state === 'pause') {
+    n.moving = false;
+    if (n.timer <= 0) { n.route = routeTo(n, n.seat.x, n.seat.y); n.state = 'back'; }
+  } else if (n.state === 'back') {
+    if (followRoute(n, 118, dt)) { n.state = 'sit'; n.timer = 14 + Math.random() * 26; }
+  }
+}
+
+/* ---------- input: mouse first, keys as the alternative ---------- */
+function poke() { lastInputAt = performance.now(); if (ambient) { ambient = false; } }
+function canvasWorld(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const z = zoom();
+  return { x: camX + (sx - VW / 2) / z, y: camY + (sy - VH / 2) / z, sx, sy };
+}
+canvas.addEventListener('pointerdown', (e) => {
+  if (selectOpen) return;
+  const w = canvasWorld(e);
+  const dest = nearestClear(w.x, w.y, player.r);
+  player.route = routeTo(player, dest.x, dest.y);
+  clickMark = { x: dest.x, y: dest.y, t: 0.5 };
+  poke();
+});
+window.addEventListener('keydown', (e) => {
+  if (selectOpen) return;
+  const k = e.key.toLowerCase();
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+  keys[k] = true;
+  if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { player.route = null; poke(); }
+});
+window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+window.__coOnPick = () => {
+  buildNPCs();
+  poke();
+  if (phase === 'prep') startRound();
+  else say(currentDef.name + ' is in. The meeting is still coming up.');
+};
+
+/* ---------- per-frame update ---------- */
+function update(dt, now) {
+  // countdown
+  if (phase === 'play') {
+    timeLeft -= dt;
+    if (timeLeft <= 0) endRound(false);
+  } else if (phase === 'banner') {
+    bannerT -= dt;
+    if (bannerT <= 0) startRound();
+  }
+  // ambient takeover after ~10 s without input
+  if (!selectOpen && now - lastInputAt > 10000) ambient = true;
+  // player movement
+  const kvx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
+  const kvy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
+  const speed = 178 * (boost > 0 ? 1.5 : 1);
+  if (kvx || kvy) {
+    const d = Math.hypot(kvx, kvy);
+    moveActor(player, kvx / d * speed, kvy / d * speed, dt);
+  } else if (player.route) {
+    followRoute(player, speed, dt);
+  } else if (ambient && phase !== 'banner' && !selectOpen) {
+    if (ambientPause > 0) { ambientPause -= dt; player.moving = false; }
+    else {
+      if (!player.route || !player.route.length) {
+        const spot = AMBIENT_SPOTS[Math.floor(Math.random() * AMBIENT_SPOTS.length)];
+        player.route = routeTo(player, spot.x, spot.y);
+        player.ambientDest = spot;
+      }
+      if (followRoute(player, 120, dt)) { player.route = null; ambientPause = 2.5 + Math.random() * 4; }
+    }
+  } else {
+    player.moving = false;
+  }
+  if (clickMark) { clickMark.t -= dt; if (clickMark.t <= 0) clickMark = null; }
+  // pickups + delivery (any locomotion counts, clicked or ambient)
+  if (phase === 'play') {
+    for (const p of pages) {
+      if (!p.taken && Math.hypot(p.x - player.x, p.y - player.y) < 27) {
+        p.taken = true; pagesGot += 1;
+        if (pagesGot === pagesTotal) say('Full deck, all ' + pagesTotal + ' pages. Boardroom, before the meeting starts.');
+        else if (pagesGot === 1) say('First page in hand.');
+      }
+    }
+    if (!coffeeReady) { coffeeTimer -= dt; if (coffeeTimer <= 0) coffeeReady = true; }
+    if (coffeeReady && Math.hypot(COFFEE_PT.x - player.x, COFFEE_PT.y - player.y) < 48) {
+      boost = 6; coffeeReady = false; coffeeTimer = 14;
+      say('Coffee. Briefly operating at stand-up speed.');
+    }
+    if (pagesGot === pagesTotal && pagesTotal > 0 &&
+        player.x > BOARDROOM_ZONE.x && player.x < BOARDROOM_ZONE.x + BOARDROOM_ZONE.w &&
+        player.y > BOARDROOM_ZONE.y && player.y < BOARDROOM_ZONE.y + BOARDROOM_ZONE.h) {
+      endRound(true);
+    }
+  }
+  if (boost > 0) boost -= dt;
+  npcs.forEach((n) => updateNPC(n, dt));
+  // speech bubbles, rare and brief
+  bubbleClock -= dt;
+  if (bubble) { bubble.t -= dt; if (bubble.t <= 0) bubble = null; }
+  else if (bubbleClock <= 0 && npcs.length) {
+    const n = npcs[Math.floor(Math.random() * npcs.length)];
+    bubble = { n, text: BUBBLE_LINES[Math.floor(Math.random() * BUBBLE_LINES.length)], t: 3 };
+    bubbleClock = 13 + Math.random() * 18;
+  }
+  // camera follows, clamped to the world
+  const z = zoom();
+  const hw = VW / 2 / z, hh = VH / 2 / z;
+  camX = W <= hw * 2 ? W / 2 : Math.min(Math.max(player.x, hw), W - hw);
+  camY = H <= hh * 2 ? H / 2 : Math.min(Math.max(player.y, hh), H - hh);
+  updateHUD();
+}
+function zoom() { return Math.min(Math.max(Math.min(VW / 640, VH / 600), 0.6), 1.35); }
+
+/* ---------- HUD ---------- */
+const reminderChip = document.getElementById('reminderChip');
+const deliverChip = document.getElementById('deliverChip');
+const boostChip = document.getElementById('boostChip');
+const preppedChip = document.getElementById('preppedChip');
+let hudCache = '';
+function updateHUD() {
+  const r = phase === 'prep' ? 'Meeting starts in --:--'
+    : phase === 'banner' ? 'Meeting in session'
+    : 'Meeting starts in ' + fmtTime(timeLeft);
+  const d = 'Deliverables: ' + pagesGot + ' / ' + pagesTotal + ' pages';
+  const b = boost > 0 ? 'Coffee: ' + fmtTime(boost) : '';
+  const key = r + '|' + d + '|' + b + '|' + stats.meetings;
+  if (key === hudCache) return;
+  hudCache = key;
+  reminderChip.textContent = r;
+  reminderChip.classList.toggle('soon', phase === 'play' && timeLeft < 45);
+  deliverChip.textContent = d;
+  boostChip.hidden = !b;
+  if (b) boostChip.textContent = b;
+  preppedChip.textContent = 'Meetings prepped: ' + stats.meetings;
+}
+
+/* ---------- drawing ---------- */
+function drawLabel(text, x, y, size, color) {
+  ctx.fillStyle = color || 'rgba(70,84,102,.5)';
+  ctx.font = '600 ' + (size || 13) + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, x, y);
+}
+function drawRoom() {
+  // carpet
+  ctx.fillStyle = '#dbd8d2'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(60,70,85,.05)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 42) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y <= H; y += 42) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  // boardroom wood
+  ctx.fillStyle = '#c9ae8d'; ctx.fillRect(1194, 40, 446, 346);
+  ctx.strokeStyle = 'rgba(90,64,32,.12)';
+  ctx.beginPath();
+  for (let y = 66; y < 386; y += 26) { ctx.moveTo(1194, y); ctx.lineTo(1640, y); }
+  ctx.stroke();
+  // kitchen tile
+  ctx.fillStyle = '#ccd4d8'; ctx.fillRect(40, 894, 386, 306);
+  ctx.strokeStyle = 'rgba(70,90,100,.14)';
+  ctx.beginPath();
+  for (let x = 78; x < 426; x += 38) { ctx.moveTo(x, 894); ctx.lineTo(x, 1200); }
+  for (let y = 932; y < 1200; y += 38) { ctx.moveTo(40, y); ctx.lineTo(426, y); }
+  ctx.stroke();
+  // lobby
+  ctx.fillStyle = '#d3d0ca'; ctx.fillRect(1180, 880, 460, 320);
+  // room labels (wayfinding, quiet)
+  drawLabel('B O A R D R O O M', 1417, 356, 15);
+  drawLabel('P R I N T E R', 210, 282, 12);
+  drawLabel('K I T C H E N', 233, 1168, 12);
+  drawLabel('E L E V A T O R', 1560, 940, 12);
+  drawLabel('FOCUS PODS', 805, 116, 12);
+  // elevator doors
+  ctx.fillStyle = '#9aa5b1'; ctx.fillRect(1606, 968, 15, 118); ctx.fillRect(1623, 968, 15, 118);
+  ctx.strokeStyle = '#6d7885'; ctx.strokeRect(1606, 968, 32, 118);
+  // outer walls
+  ctx.fillStyle = '#f4f4f2'; ctx.fillRect(0, 0, W, 26); ctx.fillRect(0, H - 26, W, 26);
+  ctx.fillRect(0, 0, 26, H); ctx.fillRect(W - 26, 0, 26, H);
+  ctx.strokeStyle = '#a7adb5'; ctx.strokeRect(13, 13, W - 26, H - 26);
+  // interior walls
+  ctx.fillStyle = '#efefec';
+  for (const wseg of WALLS) { ctx.fillRect(wseg.x, wseg.y, wseg.w, wseg.h); }
+  ctx.strokeStyle = '#a7adb5'; ctx.lineWidth = 1;
+  for (const wseg of WALLS) { ctx.strokeRect(wseg.x, wseg.y, wseg.w, wseg.h); }
+  // furniture
+  for (const p of PODS) drawDesk(p.x, p.y);
+  for (const f of FURNITURE) {
+    if (PODS.includes(f)) continue;
+    drawFurniture(f);
+  }
+  // boardroom chairs + table papers
+  ctx.fillStyle = '#5d6a78';
+  [1300, 1380, 1460].forEach((cx2) => { ctx.fillRect(cx2, 128, 34, 14); ctx.fillRect(cx2, 268, 34, 14); });
+  ctx.fillStyle = '#f7f5ef';
+  [1310, 1400, 1490].forEach((cx2, i) => { ctx.save(); ctx.translate(cx2 + 12, 196); ctx.rotate(i * 0.5 - 0.4); ctx.fillRect(-11, -14, 22, 28); ctx.restore(); });
+  // delivery glow when carrying the full deck
+  if (phase === 'play' && pagesGot === pagesTotal && pagesTotal > 0) {
+    const pulse = 0.10 + 0.05 * Math.sin(performance.now() / 300);
+    ctx.fillStyle = 'rgba(70,120,80,' + pulse + ')';
+    ctx.fillRect(BOARDROOM_ZONE.x, BOARDROOM_ZONE.y, BOARDROOM_ZONE.w, BOARDROOM_ZONE.h);
+  }
+  // coffee point
+  ctx.fillStyle = '#3c4756'; ctx.fillRect(60, 972, 30, 40);
+  ctx.fillStyle = '#7c8794'; ctx.fillRect(64, 978, 22, 12);
+  if (coffeeReady) {
+    ctx.fillStyle = '#fff'; ctx.fillRect(68, 996, 10, 8);
+    ctx.strokeStyle = 'rgba(70,84,102,.55)';
+    ctx.beginPath(); ctx.arc(COFFEE_PT.x, COFFEE_PT.y, 46 + Math.sin(performance.now() / 400) * 2, 0, Math.PI * 2); ctx.stroke();
+  }
+  // pages
+  for (const p of pages) {
+    if (p.taken) continue;
+    const bobY = Math.sin(performance.now() / 500 + p.ph) * 2;
+    ctx.save();
+    ctx.translate(p.x, p.y + bobY);
+    ctx.rotate(Math.sin(p.ph) * 0.4);
+    ctx.fillStyle = 'rgba(30,40,55,.15)'; ctx.fillRect(-8, -9, 18, 24);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(-9, -11, 18, 24);
+    ctx.strokeStyle = '#9fb2c8'; ctx.strokeRect(-9, -11, 18, 24);
+    ctx.strokeStyle = '#c3cedb';
+    ctx.beginPath();
+    ctx.moveTo(-5, -4); ctx.lineTo(5, -4); ctx.moveTo(-5, 1); ctx.lineTo(5, 1); ctx.moveTo(-5, 6); ctx.lineTo(2, 6);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // click destination marker
+  if (clickMark) {
+    ctx.strokeStyle = 'rgba(47,93,138,' + Math.min(1, clickMark.t * 2) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(clickMark.x, clickMark.y, 10 + (0.5 - clickMark.t) * 14, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+}
+function drawDesk(x, y) {
+  ctx.fillStyle = '#c8a87e'; roundRectPath(ctx, x, y, 176, 58, 5); ctx.fill();
+  ctx.strokeStyle = '#a5875f'; ctx.stroke();
+  // two monitors
+  [x + 26, x + 106].forEach((mx) => {
+    ctx.fillStyle = '#46586a'; roundRectPath(ctx, mx, y + 10, 44, 27, 3); ctx.fill();
+    ctx.fillStyle = '#93a9bd'; ctx.fillRect(mx + 4, y + 14, 36, 15);
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(mx + 4, y + 14, 36, 4);
+    ctx.fillStyle = '#8d97a3'; ctx.fillRect(mx + 18, y + 38, 8, 5);
+  });
+  // keyboard slabs + mugs
+  ctx.fillStyle = '#e8e4dc'; ctx.fillRect(x + 30, y + 42, 36, 9); ctx.fillRect(x + 110, y + 42, 36, 9);
+  ctx.fillStyle = '#7c8794'; ctx.beginPath(); ctx.arc(x + 88, y + 46, 4, 0, Math.PI * 2); ctx.fill();
+}
+function drawFurniture(f) {
+  ctx.fillStyle = '#b9bec5';
+  if (f.w === 280) {           // boardroom table
+    ctx.fillStyle = '#8a6f4d'; roundRectPath(ctx, f.x, f.y, f.w, f.h, 10); ctx.fill();
+    ctx.fillStyle = '#77592f'; roundRectPath(ctx, f.x + 10, f.y + 10, f.w - 20, f.h - 20, 8); ctx.fill();
+    return;
+  }
+  if (f.w === 110 && f.h === 54) {  // printer
+    ctx.fillStyle = '#9aa5b1'; roundRectPath(ctx, f.x, f.y, f.w, f.h, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(f.x + 22, f.y - 8, 60, 20);
+    ctx.fillStyle = '#39424e'; ctx.fillRect(f.x + 66, f.y + 16, 30, 18);
+    return;
+  }
+  if (f.w === 26 && f.h === 180) {  // kitchen counter
+    ctx.fillStyle = '#8d97a3'; ctx.fillRect(f.x, f.y, f.w, f.h);
+    ctx.fillStyle = '#c3cad1'; ctx.fillRect(f.x + 3, f.y + 4, f.w - 6, f.h - 8);
+    return;
+  }
+  if (f.w === 44) {            // fridge
+    ctx.fillStyle = '#e8ebee'; roundRectPath(ctx, f.x, f.y, f.w, f.h, 4); ctx.fill();
+    ctx.strokeStyle = '#a7adb5'; ctx.stroke();
+    ctx.fillStyle = '#8d97a3'; ctx.fillRect(f.x + 5, f.y + 20, f.w - 10, 2);
+    return;
+  }
+  if (f.h === 52) {            // standing desk
+    ctx.fillStyle = '#b39468'; roundRectPath(ctx, f.x, f.y, f.w, f.h, 5); ctx.fill();
+    ctx.fillStyle = '#46586a'; roundRectPath(ctx, f.x + 52, f.y + 9, 52, 26, 3); ctx.fill();
+    ctx.fillStyle = '#93a9bd'; ctx.fillRect(f.x + 56, f.y + 13, 44, 14);
+    return;
+  }
+  if (f.w === 30) {            // water cooler
+    ctx.fillStyle = '#dfe6ec'; roundRectPath(ctx, f.x, f.y, f.w, f.h, 5); ctx.fill();
+    ctx.fillStyle = '#7fb0d6'; roundRectPath(ctx, f.x + 6, f.y - 10, 18, 16, 6); ctx.fill();
+    return;
+  }
+  if (f.w === 170) {           // bench
+    ctx.fillStyle = '#7d8ea1'; roundRectPath(ctx, f.x, f.y, f.w, f.h, 8); ctx.fill();
+    ctx.fillStyle = '#68798c'; ctx.fillRect(f.x + 10, f.y + 18, f.w - 20, 8);
+    return;
+  }
+  if (f.w === 110 && f.h === 26) {  // shelf
+    ctx.fillStyle = '#a5875f'; ctx.fillRect(f.x, f.y, f.w, f.h);
+    ctx.fillStyle = '#c9ced4'; ctx.fillRect(f.x + 10, f.y + 5, 24, 16); ctx.fillRect(f.x + 44, f.y + 5, 24, 16); ctx.fillRect(f.x + 78, f.y + 5, 24, 16);
+    return;
+  }
+  // plants and everything else: a quiet pot of green
+  ctx.fillStyle = '#77875a';
+  ctx.beginPath(); ctx.arc(f.x + f.w / 2, f.y + f.h / 2, Math.min(f.w, f.h) / 2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#5d6f45';
+  ctx.beginPath(); ctx.arc(f.x + f.w / 2 - 4, f.y + f.h / 2 - 3, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(f.x + f.w / 2 + 5, f.y + f.h / 2 + 4, 5, 0, Math.PI * 2); ctx.fill();
+}
+function drawBubble(b) {
+  const n = b.n;
+  ctx.font = '500 12px -apple-system, "Segoe UI", Roboto, sans-serif';
+  const tw = ctx.measureText(b.text).width + 18;
+  const bx = n.x - tw / 2, by = n.y - 52;
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  roundRectPath(ctx, bx, by, tw, 22, 8); ctx.fill();
+  ctx.strokeStyle = '#c9d1da'; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(n.x - 4, by + 22); ctx.lineTo(n.x + 4, by + 22); ctx.lineTo(n.x, by + 28); ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fill();
+  ctx.fillStyle = '#3c4756'; ctx.textAlign = 'center';
+  ctx.fillText(b.text, n.x, by + 15);
+}
+function render() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#eceae6';
+  ctx.fillRect(0, 0, VW, VH);
+  const z = zoom();
+  ctx.save();
+  ctx.translate(VW / 2, VH / 2);
+  ctx.scale(z, z);
+  ctx.translate(-camX, -camY);
+  drawRoom();
+  for (const n of npcs) drawSuited(ctx, n.def, n.x, n.y, { angle: n.angle, walk: n.moving ? n.walk : 0 });
+  drawSuited(ctx, currentDef, player.x, player.y, { angle: player.angle, walk: player.moving ? player.walk : 0 });
+  if (bubble) drawBubble(bubble);
+  ctx.restore();
+}
+/* ---------- main loop ---------- */
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+  update(dt, now);
+  render();
+  requestAnimationFrame(frame);
+}
+updateHUD();
+requestAnimationFrame(frame);
+
+/* Verification hooks (used by the live user-like pass; harmless in play). */
+window.__cornerOffice = {
+  get player() { return { x: player.x, y: player.y }; },
+  get state() {
+    return { phase, round, pagesGot, pagesTotal, timeLeft,
+      pages: pages.map((p) => ({ x: p.x, y: p.y, taken: p.taken })),
+      meetings: stats.meetings, boost, ambient, character: currentDef.name };
+  },
+  worldToScreen(wx, wy) {
+    const z = zoom();
+    return { x: (wx - camX) * z + VW / 2, y: (wy - camY) * z + VH / 2 };
+  },
+  screenToWorld(sx, sy) {
+    const z = zoom();
+    return { x: camX + (sx - VW / 2) / z, y: camY + (sy - VH / 2) / z };
+  },
+  boardroom: { x: BOARDROOM_ZONE.x + BOARDROOM_ZONE.w / 2, y: BOARDROOM_ZONE.y + BOARDROOM_ZONE.h / 2 },
+  coffee: { x: COFFEE_PT.x, y: COFFEE_PT.y + 46 }
+};
+</script>
+</body>
+</html>
