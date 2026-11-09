@@ -1113,12 +1113,13 @@ function advanceQueue() {
   if (music.blend < 1) crossfadeTo(1);
 }
 function addToQueue(id, title, startIfIdle) {
+  const wasIdle = queue.index === -1 && !ytPlaying && radio.paused;
   queue.items.push({ id, title: title || ('Video ' + id) });
   const i = queue.items.length - 1;
   persistQueue();
   renderQueue();
   say('Queued: ' + (title || id));
-  if (startIfIdle && !ytPlaying && radio.paused) {
+  if (startIfIdle && wasIdle) {
     tabRadio.classList.remove('on');
     tabYt.classList.add('on');
     radioDeck.hidden = true;
