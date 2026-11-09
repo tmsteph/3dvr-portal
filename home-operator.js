@@ -220,10 +220,6 @@ async function createDeveloperProofWithRetry() {
   return null;
 }
 
-installAccountStatus();
-installOsLauncher();
-installLabsLauncher();
-
 const form = document.querySelector('#homeOperatorForm');
 const input = document.querySelector('#homeOperatorInput');
 const submit = document.querySelector('#homeOperatorSubmit');
@@ -340,12 +336,48 @@ if (form && input && submit && status && result && reply && followUps && actionL
   };
 
   const accountSync = createOperatorSync({ windowObj: window });
+
+  // A full sync re-reads, decrypts, merges, rewrites, and re-encrypts the
+  // whole conversation store. Running it on every window focus made the
+  // composer stutter exactly when the user came back to type (measured
+  // 2026-11-09: ~4.8s of long tasks in the seconds after one focus event
+  // with a 142-conversation store). Focus/online/visibility syncs are
+  // throttled to one run a minute, and a sync whose merge changes nothing
+  // skips the rewrite and the account save entirely. persistHistory keeps
+  // saving each turn on its own, so nothing durable depends on this
+  // catch-up path running more often.
+  const SYNC_MIN_INTERVAL_MS = 60_000;
   let homeSyncPromise = null;
+  let lastSyncStartedAt = 0;
+
+  const storeSignature = store => {
+    const conversations = Array.isArray(store?.conversations) ? store.conversations : [];
+    let messages = 0;
+    let newest = '';
+    for (const item of conversations) {
+      messages += Array.isArray(item?.messages) ? item.messages.length : 0;
+      const updatedAt = String(item?.updatedAt || '');
+      if (updatedAt > newest) newest = updatedAt;
+    }
+    return `${conversations.length}|${messages}|${newest}|${store?.activeId || ''}`;
+  };
+
   const syncHomeHistory = () => {
     if (homeSyncPromise) return homeSyncPromise;
+    const startedAt = Date.now();
+    if (startedAt - lastSyncStartedAt < SYNC_MIN_INTERVAL_MS) return Promise.resolve();
+    lastSyncStartedAt = startedAt;
     homeSyncPromise = (async () => {
-      const remote = await accountSync.load(readConversationStore());
-      const merged = mergeOperatorStores(readConversationStore(), remote || {});
+      const local = readConversationStore();
+      // A store that exists only in memory (a legacy-history migration)
+      // still gets its first write even when the account has nothing new.
+      if (local.conversations.length && !localStorage.getItem(conversationStoreKey)) {
+        writeConversationStore(local);
+      }
+      const remote = await accountSync.load(local);
+      if (!remote) return;
+      const merged = mergeOperatorStores(readConversationStore(), remote);
+      if (storeSignature(merged) === storeSignature(local)) return;
       writeConversationStore(merged);
       if (merged.conversations.length) await accountSync.save(merged);
     })().catch(() => {}).finally(() => { homeSyncPromise = null; });
@@ -356,7 +388,12 @@ if (form && input && submit && status && result && reply && followUps && actionL
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'hidden') void syncHomeHistory();
   });
-  void syncHomeHistory();
+  // Let the first paint and the first click win; the history catch-up idles.
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => { void syncHomeHistory(); }, { timeout: 2500 });
+  } else {
+    window.setTimeout(() => { void syncHomeHistory(); }, 600);
+  }
 
   const persistHistory = () => {
     try {
@@ -440,11 +477,6 @@ if (form && input && submit && status && result && reply && followUps && actionL
       #homeOperatorSubmit[data-busy="true"] {
         background: #126b68;
         box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.08);
-      }
-
-      #homeOperatorSubmit[data-busy="true"]:disabled {
-        opacity: 1;
-        cursor: progress;
       }
 
       #homeOperatorSubmit[data-busy="true"] .operator-submit__arrow {
@@ -543,8 +575,81 @@ if (form && input && submit && status && result && reply && followUps && actionL
     form.insertAdjacentElement('afterend', nav);
   };
 
+  const installQueueRegion = () => {
+    const existing = document.querySelector('#homeOperatorQueue');
+    if (existing) return existing;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .home-operator-queue {
+        margin: 8px 4px 0;
+        display: grid;
+        gap: 6px;
+      }
+
+      .home-operator-queue[hidden] { display: none; }
+
+      .home-operator-queue__item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border: 1px dashed #30363d;
+        border-radius: 10px;
+        background: rgba(22, 27, 34, 0.6);
+        color: #c9d1d9;
+        font-size: 0.88rem;
+      }
+
+      .home-operator-queue__badge {
+        flex: none;
+        color: #79c0ff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .home-operator-queue__text {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .home-operator-queue__remove {
+        margin-left: auto;
+        flex: none;
+        width: 24px;
+        height: 24px;
+        border: 1px solid #30363d;
+        border-radius: 999px;
+        background: transparent;
+        color: #8b949e;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .home-operator-queue__remove:hover,
+      .home-operator-queue__remove:focus-visible {
+        color: #f0f6fc;
+        border-color: #58a6ff;
+        outline: none;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const region = document.createElement('div');
+    region.id = 'homeOperatorQueue';
+    region.className = 'home-operator-queue';
+    region.setAttribute('aria-live', 'polite');
+    region.setAttribute('aria-label', 'Messages queued for Operator');
+    region.hidden = true;
+    status.insertAdjacentElement('afterend', region);
+    return region;
+  };
+
   installSubmitLoader();
   installOperatorNavigation();
+  const queueRegion = installQueueRegion();
 
   const refreshOperatorNavigation = () => {
     const fullOperatorLinks = [
@@ -579,12 +684,52 @@ if (form && input && submit && status && result && reply && followUps && actionL
   const requestOperator = (payload, handlers = {}) => fetchOperatorStream(payload, handlers);
 
   const setBusy = busy => {
-    submit.disabled = busy;
-    input.disabled = busy;
+    // The composer stays live while a turn runs: a send during a turn
+    // queues behind it (see the submit handler) instead of being blocked
+    // by a disabled input the user cannot type into.
     input.placeholder = busy ? 'Operator is working on this page…' : idlePlaceholder;
     submit.dataset.busy = String(busy);
     submit.setAttribute('aria-label', busy ? 'Operator is working' : 'Send to Operator');
     form.setAttribute('aria-busy', String(busy));
+  };
+
+  // Sends made while a turn is running wait here, visibly, and dispatch
+  // first-in-first-out when the turn finishes (the queue half of Thomas's
+  // batch / queue / steer model, matching Helm's queue). Steering a live
+  // turn is not possible on this surface: a home turn is a single
+  // request/stream with no channel to inject into it mid-flight.
+  let turnInFlight = false;
+  const pendingPrompts = [];
+
+  const renderQueue = () => {
+    queueRegion.replaceChildren();
+    queueRegion.hidden = pendingPrompts.length === 0;
+    pendingPrompts.forEach(queuedPrompt => {
+      const row = document.createElement('div');
+      row.className = 'home-operator-queue__item';
+
+      const badge = document.createElement('span');
+      badge.className = 'home-operator-queue__badge';
+      badge.textContent = 'Queued';
+
+      const text = document.createElement('span');
+      text.className = 'home-operator-queue__text';
+      text.textContent = queuedPrompt;
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'home-operator-queue__remove';
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', `Remove queued message: ${queuedPrompt}`);
+      remove.addEventListener('click', () => {
+        const at = pendingPrompts.indexOf(queuedPrompt);
+        if (at >= 0) pendingPrompts.splice(at, 1);
+        renderQueue();
+      });
+
+      row.append(badge, text, remove);
+      queueRegion.appendChild(row);
+    });
   };
 
   let replyPaintTimer = 0;
@@ -654,10 +799,8 @@ if (form && input && submit && status && result && reply && followUps && actionL
   roomyChatLayout?.addEventListener?.('change', syncChatLayout);
   window.addEventListener('resize', syncChatLayout, { passive: true });
 
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    const prompt = input.value.trim();
-    if (!prompt) return;
+  const runTurn = async prompt => {
+    turnInFlight = true;
 
     const prior = history.slice(-12);
     const shouldRestoreComposerFocus = Boolean(
@@ -667,7 +810,6 @@ if (form && input && submit && status && result && reply && followUps && actionL
     );
     history.push({ role: 'user', content: prompt });
     persistHistory();
-    input.value = '';
     setBusy(true);
     status.textContent = '';
     beginResponse();
@@ -769,10 +911,43 @@ if (form && input && submit && status && result && reply && followUps && actionL
       renderResponse({ message });
       status.textContent = 'Operator needs another try.';
     } finally {
+      turnInFlight = false;
       setBusy(false);
       if (shouldRestoreComposerFocus && document.visibilityState === 'visible') {
         focusComposerWithoutScroll();
       }
+      const next = pendingPrompts.shift();
+      if (next !== undefined) {
+        renderQueue();
+        void runTurn(next);
+      }
     }
+  };
+
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const prompt = input.value.trim();
+    if (!prompt) return;
+    input.value = '';
+
+    if (turnInFlight) {
+      pendingPrompts.push(prompt);
+      renderQueue();
+      status.textContent = pendingPrompts.length === 1
+        ? 'Queued. Operator will take it next.'
+        : `Queued. ${pendingPrompts.length} messages waiting.`;
+      return;
+    }
+
+    void runTurn(prompt);
   });
 }
+
+// Account status, score sync, and the app launchers start after the
+// composer above is wired: their Gun/Score startup work can hold the main
+// thread, and it must not sit between the user and a working chat box
+// (an unwired form would swallow Enter as a page reload, and every
+// millisecond of startup jank delays the first click into the input).
+installAccountStatus();
+installOsLauncher();
+installLabsLauncher();
