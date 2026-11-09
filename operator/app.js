@@ -31,6 +31,7 @@ const OPERATOR_PREFILL_KEY='3dvr.operator.prefill.v1';
 const identity=window.AuthIdentity?.readSharedIdentity?.()||{};
 const accountKey=localStorage.getItem('signedIn')==='true'?String(localStorage.getItem('userPubKey')||identity.alias||localStorage.getItem('alias')||'').trim().toLowerCase():'';
 const KEY=accountKey?`${BASE_KEY}.account.${encodeURIComponent(accountKey)}`:BASE_KEY;
+const writeStore=(value)=>{const byNewest=[...value.conversations].sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));const active=byNewest.find(item=>item.id===value.activeId);const attempts=[value];for(const keep of[20,5,1]){const kept=byNewest.slice(0,keep);if(active&&!kept.includes(active))kept[kept.length-1]=active;attempts.push({...value,conversations:kept})}for(const candidate of attempts){try{localStorage.setItem(KEY,JSON.stringify(candidate));return true}catch{}}return false};
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const now=()=>new Date().toISOString();
 let store={activeId:makeId(),conversations:[]};
@@ -111,7 +112,7 @@ function render({forceLatest=false}={}) {
   renderTree();
   shouldFollow?followLatest():updateLatest();
 }
-function save({renderPage=true}={}){const conversation=activeConversation();conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));localStorage.setItem(KEY,JSON.stringify(store));if(KEY!==BASE_KEY)localStorage.removeItem(BASE_KEY);localStorage.removeItem(LEGACY_KEY);if(renderPage)render();accountSync.save(store)}
+function save({renderPage=true}={}){const conversation=activeConversation();conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));writeStore(store);if(KEY!==BASE_KEY)localStorage.removeItem(BASE_KEY);localStorage.removeItem(LEGACY_KEY);if(renderPage)render();accountSync.save(store)}
 
 let streamingPaintTimer=0;
 function paintStreamingMessage(message){
@@ -157,7 +158,7 @@ function paintThinking(content){
 }
 function startThinking(){thinkingStartedAt=Date.now();window.clearInterval(thinkingTimer);thinkingTimer=window.setInterval(()=>{const label=log.querySelector('.message.assistant.is-streaming .operator-thinking__label');if(label)label.textContent=thinkingLabel()},1000)}
 function stopThinking(){window.clearInterval(thinkingTimer);thinkingTimer=0}
-async function syncHistory(){if(historySyncPromise)return historySyncPromise;if(!store.conversations.some(item=>item.messages.length)){historyEmpty.hidden=false;historyEmpty.textContent='Loading conversations…'}historySyncPromise=(async()=>{const remoteStore=await accountSync.load(store);if(remoteStore){while(operatorBusy())await new Promise(resolve=>setTimeout(resolve,100));store=mergeOperatorStores(store,remoteStore);if(requestedConversation&&store.conversations.some(item=>item.id===requestedConversation))store.activeId=requestedConversation;refreshHistory();localStorage.setItem(KEY,JSON.stringify(store));render({forceLatest:store.activeId===requestedConversation});void accountSync.save(store)}if(!remoteStore&&accountSync.isReady())void accountSync.save(store);historySyncComplete=true;renderHistory();taskTracker.refresh(store.conversations);return remoteStore})().finally(()=>{historySyncPromise=null});return historySyncPromise}
+async function syncHistory(){if(historySyncPromise)return historySyncPromise;if(!store.conversations.some(item=>item.messages.length)){historyEmpty.hidden=false;historyEmpty.textContent='Loading conversations…'}historySyncPromise=(async()=>{const remoteStore=await accountSync.load(store);if(remoteStore){while(operatorBusy())await new Promise(resolve=>setTimeout(resolve,100));store=mergeOperatorStores(store,remoteStore);if(requestedConversation&&store.conversations.some(item=>item.id===requestedConversation))store.activeId=requestedConversation;refreshHistory();writeStore(store);render({forceLatest:store.activeId===requestedConversation});void accountSync.save(store)}if(!remoteStore&&accountSync.isReady())void accountSync.save(store);historySyncComplete=true;renderHistory();taskTracker.refresh(store.conversations);return remoteStore})().finally(()=>{historySyncPromise=null});return historySyncPromise}
 function refreshAccountHistory(){if(!operatorBusy()&&document.visibilityState!=='hidden')void syncHistory()}
 window.addEventListener('focus',refreshAccountHistory);
 window.addEventListener('online',refreshAccountHistory);
@@ -211,7 +212,7 @@ document.querySelector('#close-history').onclick=()=>{closeHistory();showHistory
 showTree.onclick=openTree;
 document.querySelector('#close-tree').onclick=()=>{closeTree();showTree.focus()};
 treeList.onclick=event=>{const button=event.target.closest('[data-tree-node]');if(!button)return;if(operatorBusy()){status.textContent='Finish the current reply before moving in the tree';closeTree();return}selectConversationNode(activeConversation(),button.dataset.treeNode);refreshHistory();save();closeTree();status.textContent='Moved to that point · continue here or choose Branch here';input.focus()};
-historyList.onclick=event=>{const button=event.target.closest('[data-conversation-id]');if(!button)return;store.activeId=button.dataset.conversationId;refreshHistory();localStorage.setItem(KEY,JSON.stringify(store));render({forceLatest:true});closeHistory();closeTree();input.focus()};
+historyList.onclick=event=>{const button=event.target.closest('[data-conversation-id]');if(!button)return;store.activeId=button.dataset.conversationId;refreshHistory();writeStore(store);render({forceLatest:true});closeHistory();closeTree();input.focus()};
 log.addEventListener('scroll',updateLatest,{passive:true});
 latest.onclick=()=>scrollLatest('smooth');
 window.addEventListener('pageshow',()=>{atLatest()?followLatest():updateLatest()});

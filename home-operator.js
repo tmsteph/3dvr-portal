@@ -313,6 +313,32 @@ if (form && input && submit && status && result && reply && followUps && actionL
     return store;
   };
 
+  // The local copy is a cache; the synced record lives with the account.
+  // If the browser refuses the write (storage full), keep the active and
+  // newest conversations locally and carry on. This must never throw:
+  // persistHistory runs ahead of the send, so a failed cache write would
+  // otherwise kill the send button silently, with no error shown.
+  const writeConversationStore = store => {
+    const byNewest = [...(store.conversations || [])]
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    const active = byNewest.find(item => item.id === store.activeId);
+    const attempts = [store];
+    for (const keep of [20, 5, 1]) {
+      const kept = byNewest.slice(0, keep);
+      if (active && !kept.includes(active)) kept[kept.length - 1] = active;
+      attempts.push({ ...store, conversations: kept });
+    }
+    for (const candidate of attempts) {
+      try {
+        localStorage.setItem(conversationStoreKey, JSON.stringify(candidate));
+        return true;
+      } catch {
+        // Storage still full; try the next smaller copy.
+      }
+    }
+    return false;
+  };
+
   const accountSync = createOperatorSync({ windowObj: window });
   let homeSyncPromise = null;
   const syncHomeHistory = () => {
@@ -320,7 +346,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
     homeSyncPromise = (async () => {
       const remote = await accountSync.load(readConversationStore());
       const merged = mergeOperatorStores(readConversationStore(), remote || {});
-      localStorage.setItem(conversationStoreKey, JSON.stringify(merged));
+      writeConversationStore(merged);
       if (merged.conversations.length) await accountSync.save(merged);
     })().catch(() => {}).finally(() => { homeSyncPromise = null; });
     return homeSyncPromise;
@@ -333,6 +359,14 @@ if (form && input && submit && status && result && reply && followUps && actionL
   void syncHomeHistory();
 
   const persistHistory = () => {
+    try {
+      persistHistoryInner();
+    } catch {
+      // A damaged local cache should never stop Operator from answering.
+    }
+  };
+
+  const persistHistoryInner = () => {
     if (!history.length) return;
 
     if (!homeConversationId) {
@@ -363,7 +397,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
       .filter(item => Array.isArray(item.messages) && item.messages.length)
       .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
 
-    localStorage.setItem(conversationStoreKey, JSON.stringify(store));
+    writeConversationStore(store);
     if (conversationStoreKey !== BASE_KEY) localStorage.removeItem(BASE_KEY);
     localStorage.removeItem(LEGACY_KEY);
     refreshOperatorNavigation();
