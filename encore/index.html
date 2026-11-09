@@ -761,8 +761,12 @@ function pointerWorld(e) {
   const z = venueZoom();
   return { x: camX + (sx - VW / 2) / z, y: camY + (sy - VH / 2) / z };
 }
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerdown', (e) => {
   if (selectOpen) return;
+  // Capture the pointer so the press is never lost at the canvas edge
+  // (or outside the World shell's frame); released on up / cancel.
+  try { canvas.setPointerCapture(e.pointerId); } catch (_err) {}
   poke();
   const w = pointerWorld(e);
   clickMark = { x: w.x, y: w.y, t: 0.5, view };

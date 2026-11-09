@@ -722,8 +722,12 @@ function canvasWorld(e) {
   const z = zoom();
   return { x: camX + (sx - VW / 2) / z, y: camY + (sy - VH / 2) / z, sx, sy };
 }
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerdown', (e) => {
   if (selectOpen) return;
+  // Capture the pointer so the press is never lost at the canvas edge
+  // (or outside the World shell's frame); released on up / cancel.
+  try { canvas.setPointerCapture(e.pointerId); } catch (_err) {}
   const w = canvasWorld(e);
   const dest = nearestClear(w.x, w.y, player.r);
   player.route = routeTo(player, dest.x, dest.y);

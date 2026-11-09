@@ -95,7 +95,7 @@
       <button class="pill" id="crewBtn" type="button">🧍 Crew</button>
     </div>
   </div>
-  <div class="hint">← → wander · ↑ jump · F bow · J spear (Explore) · R restart (Race) · mouse: hold to run toward the pointer, click to jump, click a critter to bonk it · stop for 8 seconds and your wanderer explores on their own</div>
+  <div class="hint">← → wander · ↑ jump · F bow · J spear (Explore) · R restart (Race) · mouse: click = jump · hold = run toward the pointer · click a critter to bonk it · stop for 8 seconds and your wanderer explores on their own</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -634,10 +634,11 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 document.getElementById('game').addEventListener('pointerdown', pokeInput);
+document.getElementById('game').addEventListener('contextmenu', (e) => e.preventDefault());
 if ('ontouchstart' in window || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
 document.querySelectorAll('#touch button').forEach((btn) => {
   const k = btn.dataset.k;
-  const on = (e) => { e.preventDefault(); touchState[k] = true; btn.classList.add('on'); pokeInput(); };
+  const on = (e) => { e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (_err) {} touchState[k] = true; btn.classList.add('on'); pokeInput(); };
   const off = (e) => { e.preventDefault(); touchState[k] = false; btn.classList.remove('on'); };
   btn.addEventListener('pointerdown', on);
   btn.addEventListener('pointerup', off);
@@ -646,13 +647,16 @@ document.querySelectorAll('#touch button').forEach((btn) => {
 });
 
 /* ================= Mouse play =================
-   Hold the left button: run toward the pointer. The wanderer's own
-   gap-and-step sense drives the jumps, so a held button can cross
-   the whole world, springboards and speed strips included (they are
-   automatic on contact). Quick click: jump. In Fly, holding also
-   rises, releasing sinks, just like holding jump. Click a critter:
-   spear when close, an aimed bow shot when in range. */
-const mouse = { down: false, attack: false, cx: 0, cy: 0, downAt: 0, downCx: 0, downCy: 0 };
+   Click: jump, every time, even when the jump is unnecessary
+   (Thomas's call, 2026-11-09; the old quick-click timing threshold
+   felt weird and is gone). Hold the left button: after the hop,
+   run toward the pointer; the wanderer's own gap-and-step sense
+   drives further jumps, so a held button can cross the whole world,
+   springboards and speed strips included (they are automatic on
+   contact). In Fly there is no hop; holding rises and releasing
+   sinks, just like holding jump. Click a critter: spear when close,
+   an aimed bow shot when in range. */
+const mouse = { down: false, attack: false, cx: 0, cy: 0 };
 function mouseWorld() {
   const s = VH / Math.max(1, innerHeight);
   return { x: camX + mouse.cx * s, y: mouse.cy * s };
@@ -661,9 +665,16 @@ document.getElementById('game').addEventListener('pointerdown', (e) => {
   if (e.button !== undefined && e.button !== 0) return;
   if (selectOpen) return;
   pokeInput();
+  // Capture the pointer: a hold keeps tracking even when it drifts
+  // off the canvas (or out of the World shell's frame) instead of
+  // dying at the edge. The browser releases the capture itself on
+  // pointerup / pointercancel.
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_err) {}
   mouse.cx = e.clientX; mouse.cy = e.clientY;
-  mouse.downAt = performance.now(); mouse.downCx = e.clientX; mouse.downCy = e.clientY;
   mouse.attack = false;
+  // Every press jumps, attack clicks included; if the press is still
+  // held at landing, the run toward the pointer takes over from there.
+  if (gameMode !== 'fly') P.buffer = 0.12;
   const w = mouseWorld();
   if (gameMode === 'explore') {
     for (const en of ENEMIES) {
@@ -686,13 +697,7 @@ document.getElementById('game').addEventListener('pointerdown', (e) => {
   mouse.down = true;
 });
 addEventListener('pointermove', (e) => { if (mouse.down) { mouse.cx = e.clientX; mouse.cy = e.clientY; } });
-addEventListener('pointerup', (e) => {
-  if (!mouse.down) return;
-  mouse.down = false;
-  const quick = performance.now() - mouse.downAt < 230;
-  const moved = Math.abs(e.clientX - mouse.downCx) + Math.abs(e.clientY - mouse.downCy);
-  if (quick && moved < 12 && gameMode !== 'fly') P.buffer = 0.12;
-});
+addEventListener('pointerup', () => { mouse.down = false; });
 addEventListener('pointercancel', () => { mouse.down = false; });
 addEventListener('blur', () => { mouse.down = false; });
 

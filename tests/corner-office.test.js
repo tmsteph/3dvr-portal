@@ -35,6 +35,11 @@ test('corner office is mouse-first with an ambient fallback', async () => {
   assert.match(html, /canvas\.addEventListener\('pointerdown'/);
   assert.match(html, /player\.route = routeTo\(player, dest\.x, dest\.y\)/);
   assert.match(html, /addEventListener\('keydown'/);
+  // the canvas captures the pointer, so a press is never lost at the
+  // edge (or outside the World shell's frame); no long-press menu
+  assert.match(html, /canvas\.setPointerCapture\(e\.pointerId\)/);
+  assert.match(html, /canvas#stage \{[^}]*touch-action: none/);
+  assert.match(html, /addEventListener\('contextmenu', \(e\) => e\.preventDefault\(\)\)/);
   // leave it alone for ten seconds and the character gets on with their day
   assert.match(html, /now - lastInputAt > 10000/);
 });
