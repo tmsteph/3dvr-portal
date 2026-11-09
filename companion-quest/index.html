@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Companion · 3DVR experiment</title>
+<meta name="description" content="Experiment: a small camp at dusk where Operator walks with you. Wander as the cast, talk to your agent in the world.">
+<style>
+  :root {
+    --ink: #e8e4d8;
+    --dim: #9aa3b2;
+    --panel: rgba(13, 18, 34, 0.92);
+    --line: rgba(232, 228, 216, 0.16);
+    --gold: #f0b429;
+    --teal: #2dd4bf;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #0b1020;
+    color: var(--ink);
+    font-family: ui-rounded, "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .cq-top {
+    width: min(1060px, 100%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 14px 6px;
+  }
+  .cq-back {
+    color: var(--ink);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    background: rgba(255,255,255,0.04);
+  }
+  .cq-back:hover, .cq-back:focus-visible { background: rgba(255,255,255,0.12); }
+  .cq-title { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .cq-title h1 { font-size: 1.5rem; margin: 0; letter-spacing: 0.02em; }
+  .cq-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: #14100a;
+    background: var(--gold);
+    border-radius: 999px;
+    padding: 3px 9px;
+  }
+  .cq-music { display: flex; align-items: center; gap: 8px; }
+  .cq-music button, .cq-change {
+    font: inherit;
+    font-size: 0.88rem;
+    color: var(--ink);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .cq-music button:hover, .cq-change:hover { background: rgba(255,255,255,0.13); }
+  .cq-station { color: var(--dim); font-size: 0.8rem; }
+  .cq-note {
+    width: min(1060px, 100%);
+    padding: 0 14px 10px;
+    margin: 0;
+    color: var(--dim);
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+  .cq-note strong { color: var(--ink); }
+  .cq-stage {
+    position: relative;
+    width: min(1060px, 100%);
+    padding: 0 14px;
+  }
+  .cq-frame {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #101736;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+  }
+  canvas#game { display: block; width: 100%; height: auto; touch-action: none; }
+
+  /* Speech bubble over the companion */
+  .cq-bubble {
+    position: absolute;
+    left: 0; top: 0;
+    max-width: min(330px, 72%);
+    background: #fdfaf0;
+    color: #22242c;
+    border-radius: 14px;
+    padding: 9px 12px;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    transform: translate(-50%, -100%);
+    pointer-events: none;
+    z-index: 5;
+  }
+  .cq-bubble::after {
+    content: "";
+    position: absolute;
+    left: 50%; bottom: -7px;
+    width: 14px; height: 14px;
+    background: #fdfaf0;
+    transform: translateX(-50%) rotate(45deg);
+    border-radius: 2px;
+  }
+  .cq-bubble p { margin: 0; overflow-wrap: break-word; }
+  .cq-bubble a {
+    display: inline-block;
+    margin-top: 5px;
+    color: #0b6e63;
+    font-weight: 600;
+    font-size: 0.84rem;
+    pointer-events: auto;
+  }
+  .cq-bubble.thinking p { color: #6b7280; font-style: italic; }
+
+  /* Character select */
+  .cq-select {
+    position: absolute; inset: 0;
+    background: rgba(7, 10, 22, 0.88);
+    backdrop-filter: blur(3px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 14px;
+    overflow-y: auto;
+    z-index: 8;
+  }
+  .cq-select[hidden] { display: none; }
+  .cq-select h2 { margin: 2px 0 0; font-size: 1.25rem; }
+  .cq-select .cq-sub { color: var(--dim); margin: 0; font-size: 0.9rem; text-align: center; }
+  .cq-roster {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    justify-content: center;
+    max-width: 860px;
+  }
+  .cq-card {
+    position: relative;
+    width: 118px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 8px 8px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--ink);
+    font: inherit;
+  }
+  .cq-card:hover, .cq-card:focus-visible { border-color: var(--gold); }
+  .cq-card canvas { display: block; margin: 0 auto 6px; }
+  .cq-card .cq-name { font-size: 0.92rem; font-weight: 600; display: block; }
+  .cq-card .cq-role { font-size: 0.72rem; color: var(--dim); display: block; margin-top: 2px; }
+  .cq-card .cq-del {
+    position: absolute; top: 4px; right: 6px;
+    border: none; background: none; color: var(--dim);
+    font-size: 1rem; cursor: pointer; padding: 2px 5px; line-height: 1;
+  }
+  .cq-card .cq-del:hover { color: #f87171; }
+  .cq-card.create { border-style: dashed; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 158px; }
+  .cq-card.create .cq-plus { font-size: 1.8rem; color: var(--gold); }
+  .cq-creator {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    width: min(520px, 100%);
+  }
+  .cq-creator[hidden] { display: none; }
+  .cq-creator h3 { margin: 0 0 10px; font-size: 1.02rem; }
+  .cq-creator .cq-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .cq-creator label { font-size: 0.86rem; color: var(--dim); min-width: 86px; }
+  .cq-creator input[type="text"] {
+    flex: 1; min-width: 140px;
+    background: rgba(255,255,255,0.07); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px;
+    padding: 7px 10px; font: inherit; font-size: 0.95rem;
+  }
+  .cq-creator select {
+    background: rgba(255,255,255,0.07); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px;
+    padding: 7px 9px; font: inherit; font-size: 0.95rem;
+  }
+  .cq-creator input[type="color"] {
+    width: 44px; height: 32px; border: 1px solid var(--line);
+    border-radius: 8px; background: none; padding: 2px; cursor: pointer;
+  }
+  .cq-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cq-swatch {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; padding: 0;
+  }
+  .cq-swatch.on { border-color: var(--gold); }
+  .cq-creator .cq-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .cq-btn {
+    font: inherit; font-size: 0.92rem; cursor: pointer;
+    border-radius: 999px; padding: 8px 16px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.07); color: var(--ink);
+  }
+  .cq-btn.primary { background: var(--gold); color: #171106; border-color: transparent; font-weight: 700; }
+  .cq-creator .cq-preview-wrap { display: flex; gap: 14px; align-items: flex-start; }
+  .cq-creator .cq-fields { flex: 1; min-width: 220px; }
+
+  /* Chat panel */
+  .cq-chat {
+    position: absolute;
+    left: 50%; bottom: 10px;
+    transform: translateX(-50%);
+    width: min(620px, calc(100% - 20px));
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 10px 12px;
+    z-index: 7;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+  }
+  .cq-chat[hidden] { display: none; }
+  .cq-chat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .cq-chat-head strong { font-size: 0.95rem; }
+  .cq-chat-head .cq-status { color: var(--dim); font-size: 0.8rem; margin-right: auto; }
+  .cq-chat-close { border: none; background: none; color: var(--dim); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; }
+  .cq-log { max-height: 168px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .cq-log:empty { display: none; }
+  .cq-msg { font-size: 0.9rem; line-height: 1.4; border-radius: 10px; padding: 6px 9px; max-width: 92%; overflow-wrap: break-word; white-space: pre-wrap; }
+  .cq-msg.user { align-self: flex-end; background: rgba(45, 212, 191, 0.16); }
+  .cq-msg.operator { align-self: flex-start; background: rgba(255,255,255,0.07); }
+  .cq-form { display: flex; gap: 8px; }
+  .cq-form input {
+    flex: 1;
+    background: rgba(255,255,255,0.07); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 9px 14px; font: inherit; font-size: 0.95rem;
+  }
+  .cq-form button {
+    font: inherit; font-weight: 700; cursor: pointer;
+    background: var(--teal); color: #06231f; border: none;
+    border-radius: 999px; padding: 9px 16px;
+  }
+  .cq-form button:disabled { opacity: 0.55; cursor: progress; }
+
+  /* Touch controls */
+  .cq-touch {
+    position: absolute; left: 0; right: 0; bottom: 10px;
+    display: flex; justify-content: space-between;
+    padding: 0 12px;
+    pointer-events: none;
+    z-index: 6;
+  }
+  .cq-touch .cq-pad { display: flex; gap: 10px; pointer-events: none; }
+  .cq-touch button {
+    pointer-events: auto;
+    width: 56px; height: 56px; border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(10, 14, 28, 0.55);
+    color: var(--ink); font-size: 1.25rem;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .cq-touch button.talk { width: auto; border-radius: 999px; padding: 0 18px; font-size: 0.95rem; font-weight: 700; }
+  .cq-chat-open .cq-touch { display: none; }
+  @media (pointer: fine) { .cq-touch { opacity: 0.55; } .cq-touch:hover { opacity: 1; } }
+
+  .cq-hints {
+    width: min(1060px, 100%);
+    padding: 10px 14px 22px;
+    color: var(--dim);
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+  .cq-hints kbd {
+    background: rgba(255,255,255,0.09); border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 6px; padding: 0 6px;
+    font-family: inherit; font-size: 0.82rem; color: var(--ink);
+  }
+</style>
+</head>
+<body>
+<header class="cq-top">
+  <a class="cq-back" href="/games.html">← Games</a>
+  <div class="cq-title">
+    <h1>Companion</h1>
+    <span class="cq-badge">EXPERIMENT</span>
+  </div>
+  <div class="cq-music" aria-label="Music deck">
+    <button id="musicToggle" type="button" aria-pressed="false">▶ Music</button>
+    <button id="musicMute" type="button" aria-pressed="false" title="Mute">🔊</button>
+    <span class="cq-station">SomaFM Groove Salad · ad-free</span>
+    <audio id="music" preload="none" src="https://ice1.somafm.com/groovesalad-128-mp3"></audio>
+  </div>
+  <button class="cq-change" id="changeCharacter" type="button" hidden>Change character</button>
+</header>
+
+<p class="cq-note">
+  <strong>The experiment:</strong> your Operator walks with you. Pick who you are, wander the camp,
+  then tap Operator (or Talk) and have a real conversation with the same Operator as the portal home.
+  Conversation only in here: chatting never starts work, queues tasks, or changes anything.
+  For real work, use the <a href="/operator/" style="color:var(--teal)">full Operator</a>.
+</p>
+
+<div class="cq-stage">
+  <div class="cq-frame" id="frame">
+    <canvas id="game" width="960" height="540" aria-label="A camp at dusk. Walk with the arrow keys or the on-screen buttons."></canvas>
+
+    <div class="cq-bubble" id="bubble" hidden>
+      <p id="bubbleText"></p>
+      <a id="bubbleMore" href="/operator/" hidden>more in full Operator →</a>
+    </div>
+
+    <section class="cq-select" id="select" aria-label="Choose your character">
+      <h2>Who's walking tonight?</h2>
+      <p class="cq-sub">The cast, drawn in code. Operator is already there, by the fire.</p>
+      <div class="cq-roster" id="roster"></div>
+      <form class="cq-creator" id="creator" hidden>
+        <h3>Make your own</h3>
+        <div class="cq-preview-wrap">
+          <canvas id="creatorPreview" width="120" height="150" aria-label="Character preview"></canvas>
+          <div class="cq-fields">
+            <div class="cq-row">
+              <label for="fName">Name</label>
+              <input type="text" id="fName" maxlength="18" placeholder="Your name" autocomplete="off">
+            </div>
+            <div class="cq-row">
+              <label>Skin tone</label>
+              <div class="cq-swatches" id="fSkin"></div>
+            </div>
+            <div class="cq-row">
+              <label for="fHairStyle">Hair style</label>
+              <select id="fHairStyle">
+                <option value="short">Short</option>
+                <option value="long">Long</option>
+                <option value="bun">Bun</option>
+                <option value="mohawk">Mohawk</option>
+                <option value="bald">Bald</option>
+              </select>
+            </div>
+            <div class="cq-row">
+              <label for="fHairColor">Hair color</label>
+              <input type="color" id="fHairColor" value="#4a3220">
+            </div>
+            <div class="cq-row">
+              <label for="fShirt">Shirt color</label>
+              <input type="color" id="fShirt" value="#2563eb">
+            </div>
+            <div class="cq-row">
+              <label for="fPants">Pants color</label>
+              <input type="color" id="fPants" value="#374151">
+            </div>
+          </div>
+        </div>
+        <div class="cq-actions">
+          <button type="submit" class="cq-btn primary">Save &amp; walk</button>
+          <button type="button" class="cq-btn" id="creatorCancel">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="cq-chat" id="chatPanel" hidden aria-label="Talk to Operator">
+      <div class="cq-chat-head">
+        <strong>Operator</strong>
+        <span class="cq-status" id="chatStatus"></span>
+        <button class="cq-chat-close" id="chatClose" type="button" aria-label="Close chat">✕</button>
+      </div>
+      <div class="cq-log" id="chatLog" aria-live="polite"></div>
+      <form class="cq-form" id="chatForm">
+        <input id="chatInput" type="text" placeholder="Ask Operator anything…" autocomplete="off" maxlength="2000">
+        <button id="chatSend" type="submit">Send</button>
+      </form>
+    </section>
+
+    <div class="cq-touch" id="touchControls" hidden>
+      <div class="cq-pad">
+        <button type="button" id="btnLeft" aria-label="Walk left">◀</button>
+        <button type="button" id="btnRight" aria-label="Walk right">▶</button>
+      </div>
+      <div class="cq-pad">
+        <button type="button" id="btnTalk" class="talk">💬 Talk</button>
+        <button type="button" id="btnJump" aria-label="Jump">⤒</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="cq-hints">
+  Move with <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> · jump with <kbd>Space</kbd> ·
+  talk with <kbd>T</kbd> or by tapping Operator · on touch screens use the round buttons.
+  Signed-in or guest, the chat carries the same identity the portal home chat uses.
+</p>
+
+<script src="/auth-identity.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+<script src="/gun-init.js"></script>
+<script type="module">
+import { prepareOperatorChat } from '/operator/chat-preparation.js';
+import { collectPortalContext } from '/operator/portal-context.js';
+import { createOperatorDeveloperProof } from '/operator/forge.js';
+import { recallOperatorMemoryBestEffort } from '/operator/organism-chat-bridge.js';
+import { fetchOperatorStream } from '/operator/stream.js';
+
+/* ================================================================
+   Character system: one parametric sprite renderer for everyone.
+   A character is { name, skin, hairStyle, hairColor, shirt, pants }
+   plus optional preset extras (beard, cap + capColor, streak, print).
+   Presets and customs share the exact same shape and renderer.
+   ================================================================ */
+const SKIN_TONES = ['#ffe0bd', '#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#5c3836'];
+
+const PRESETS = [
+  { id: 'thomas', name: 'Thomas', role: 'the keeper', skin: '#e0ac69', hairStyle: 'short', hairColor: '#6b543a', beard: true, shirt: '#0f766e', pants: '#334155' },
+  { id: 'girl', name: '3DVR Girl', role: 'the muse', skin: '#ffe0bd', hairStyle: 'long', hairColor: '#e8c96a', streak: '#38bdf8', shirt: '#14b8a6', pants: '#1e3a5f' },
+  { id: 'mark', name: 'Mark', role: 'the crew', skin: '#f1c27d', hairStyle: 'cap', hairColor: '#3f2d20', capColor: '#b91c1c', shirt: '#dc2626', pants: '#374151' },
+  { id: 'esai', name: 'Esai', role: 'the printer', skin: '#c68642', hairStyle: 'short', hairColor: '#17130f', print: true, shirt: '#1f2937', pants: '#111827' },
+  { id: 'david', name: 'David', role: 'the crew', skin: '#8d5524', hairStyle: 'short', hairColor: '#241a12', shirt: '#16a34a', pants: '#3f3f46' },
+  { id: 'brandon', name: 'Brandon', role: 'the crew', skin: '#e0ac69', hairStyle: 'curly', hairColor: '#2d1c10', shirt: '#f97316', pants: '#44403c' }
+];
+
+const CUSTOM_KEY = 'companion-quest.customCharacters.v1';
+const PLAYER_KEY = 'companion-quest.player.v1';
+const MUTE_KEY = 'companion-quest.muted';
+
+function storeRead(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch { return fallback; }
+}
+function storeWrite(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked: play on without saving */ }
+}
+function storeRemove(key) {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
+}
+
+function loadCustoms() {
+  const list = storeRead(CUSTOM_KEY, []);
+  return Array.isArray(list) ? list.filter(c => c && c.name && c.skin && c.hairStyle) : [];
+}
+function saveCustoms(list) { storeWrite(CUSTOM_KEY, list); }
+
+/* Draw a character standing at feet point (x, y). opts: facing (1|-1),
+   walk (phase number or 0 for idle), air (bool), t (seconds, for bob). */
+function drawCharacter(ctx, def, x, y, opts = {}) {
+  const facing = opts.facing || 1;
+  const walk = opts.walk || 0;
+  const air = Boolean(opts.air);
+  const t = opts.t || 0;
+  const swing = air ? 0.5 : Math.sin(walk) * (walk ? 5 : 0);
+  const bob = air ? 0 : (walk ? Math.abs(Math.sin(walk)) * 1.6 : Math.sin(t * 2) * 0.7);
+  const gy = y - bob;
+
+  ctx.save();
+  ctx.translate(x, gy);
+  ctx.scale(facing, 1);
+
+  // legs (pants) with a simple two-frame stride
+  ctx.fillStyle = def.pants;
+  const legSwing = air ? 4 : swing;
+  ctx.fillRect(-7 + legSwing * 0.5, -16, 6, 14);
+  ctx.fillRect(1 - legSwing * 0.5, -16, 6, 14);
+  // shoes
+  ctx.fillStyle = '#1c1917';
+  ctx.fillRect(-7 + legSwing * 0.5, -3, 7, 3);
+  ctx.fillRect(1 - legSwing * 0.5, -3, 7, 3);
+
+  // back arm
+  ctx.fillStyle = def.shirt;
+  ctx.fillRect(-13, -38 + swing * 0.4, 5, 15);
+  ctx.fillStyle = def.skin;
+  ctx.fillRect(-13, -24 + swing * 0.4, 5, 5);
+
+  // long hair hangs behind the torso
+  if (def.hairStyle === 'long') {
+    ctx.fillStyle = def.hairColor;
+    ctx.fillRect(-11, -56, 9, 34);
+    if (def.streak) {
+      ctx.fillStyle = def.streak;
+      ctx.fillRect(-9.5, -54, 2, 30);
+    }
+  }
+
+  // torso (shirt)
+  ctx.fillStyle = def.shirt;
+  ctx.beginPath();
+  ctx.roundRect(-10, -40, 20, 25, 5);
+  ctx.fill();
+  if (def.print) {
+    ctx.fillStyle = 'rgba(240,240,235,0.85)';
+    ctx.fillRect(-4, -34, 8, 8);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(-2.5, -32, 5, 2);
+  }
+
+  // front arm
+  ctx.fillStyle = def.shirt;
+  ctx.fillRect(8, -38 - swing * 0.4, 5, 15);
+  ctx.fillStyle = def.skin;
+  ctx.fillRect(8, -24 - swing * 0.4, 5, 5);
+
+  // head
+  ctx.fillStyle = def.skin;
+  ctx.beginPath();
+  ctx.arc(0, -48, 8.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // beard (preset extra)
+  if (def.beard) {
+    ctx.fillStyle = def.hairColor;
+    ctx.beginPath();
+    ctx.arc(1.5, -44.5, 6.4, 0.15 * Math.PI, 0.95 * Math.PI);
+    ctx.fill();
+  }
+
+  // eyes
+  ctx.fillStyle = '#221d18';
+  ctx.fillRect(2.6, -50, 1.9, 2.6);
+  ctx.fillRect(6.4, -50, 1.9, 2.6);
+
+  // hair by style
+  ctx.fillStyle = def.hairColor;
+  switch (def.hairStyle) {
+    case 'short':
+      ctx.beginPath(); ctx.arc(0, -50.5, 8.5, Math.PI * 1.02, Math.PI * 2.02); ctx.fill();
+      break;
+    case 'long':
+      ctx.beginPath(); ctx.arc(0, -50.5, 8.7, Math.PI * 0.98, Math.PI * 2.05); ctx.fill();
+      ctx.fillRect(4.5, -56, 5.5, 16);
+      if (def.streak) { ctx.fillStyle = def.streak; ctx.fillRect(6, -55, 2, 14); }
+      break;
+    case 'bun':
+      ctx.beginPath(); ctx.arc(0, -50.5, 8.5, Math.PI * 1.02, Math.PI * 2.02); ctx.fill();
+      ctx.beginPath(); ctx.arc(-3.5, -58.5, 3.6, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'mohawk':
+      ctx.fillRect(-1.8, -61, 3.6, 9);
+      break;
+    case 'curly':
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath(); ctx.arc(i * 3.4, -55.5 - (i === 0 ? 1.6 : 0), 3.4, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    case 'cap': {
+      ctx.fillStyle = def.capColor || '#b91c1c';
+      ctx.beginPath(); ctx.arc(0, -51.5, 8.6, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillRect(2, -52.5, 11, 2.6);
+      break;
+    }
+    case 'bald':
+    default:
+      break;
+  }
+  ctx.restore();
+}
+
+/* The companion NPC: Operator. A hooded, lantern-carrying figure in
+   cream and gold, deliberately unlike any player character. */
+function drawCompanion(ctx, x, y, opts = {}) {
+  const facing = opts.facing || 1;
+  const walk = opts.walk || 0;
+  const t = opts.t || 0;
+  const bob = walk ? Math.abs(Math.sin(walk)) * 1.8 : Math.sin(t * 1.7) * 0.8;
+  const gy = y - bob;
+
+  ctx.save();
+  ctx.translate(x, gy);
+
+  // lantern glow
+  const glow = ctx.createRadialGradient(14 * facing, -26, 2, 14 * facing, -26, 30 + Math.sin(t * 7) * 3);
+  glow.addColorStop(0, 'rgba(255,196,64,0.5)');
+  glow.addColorStop(1, 'rgba(255,196,64,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(14 * facing - 34, -60, 68, 68);
+
+  ctx.scale(facing, 1);
+  // robe
+  ctx.fillStyle = '#f3e9cf';
+  ctx.beginPath();
+  ctx.moveTo(-10, 0);
+  ctx.lineTo(-7.5, -38);
+  ctx.quadraticCurveTo(0, -44, 7.5, -38);
+  ctx.lineTo(10, 0);
+  ctx.closePath();
+  ctx.fill();
+  // gold trim
+  ctx.strokeStyle = '#c99327';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -40);
+  ctx.lineTo(0, -2);
+  ctx.stroke();
+  // belt
+  ctx.fillStyle = '#0e5a52';
+  ctx.fillRect(-8.4, -18, 16.8, 3.4);
+  // head under the hood
+  ctx.fillStyle = '#e8b08a';
+  ctx.beginPath();
+  ctx.arc(0, -47, 7.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#221d18';
+  ctx.fillRect(1.8, -49, 1.8, 2.4);
+  ctx.fillRect(5.4, -49, 1.8, 2.4);
+  // hood
+  ctx.fillStyle = '#0e5a52';
+  ctx.beginPath();
+  ctx.arc(0, -48.5, 10.4, Math.PI * 0.92, Math.PI * 2.08);
+  ctx.quadraticCurveTo(9, -40, 6.5, -38.5);
+  ctx.lineTo(-6.5, -38.5);
+  ctx.quadraticCurveTo(-9, -40, -10.2, -46);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#c99327';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(0, -48.5, 10.4, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.stroke();
+  // lantern arm + lantern
+  ctx.fillStyle = '#f3e9cf';
+  ctx.fillRect(7, -34, 9, 4.4);
+  ctx.fillStyle = '#3a2c14';
+  ctx.fillRect(13.5, -31, 6.4, 8.4);
+  ctx.fillStyle = '#ffc440';
+  ctx.fillRect(15, -29.4, 3.4, 5.2);
+  ctx.restore();
+
+  // name tag
+  drawNameTag(ctx, x, gy - 74, 'Operator');
+}
+
+function drawNameTag(ctx, x, y, text) {
+  ctx.save();
+  ctx.font = '600 11px system-ui, sans-serif';
+  const w = ctx.measureText(text).width + 14;
+  ctx.fillStyle = 'rgba(8, 10, 20, 0.62)';
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, y - 9, w, 17, 8.5);
+  ctx.fill();
+  ctx.fillStyle = '#f5efdd';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 0.5);
+  ctx.restore();
+}
+/* ================================================================
+   World & engine
+   ================================================================ */
+const $ = id => document.getElementById(id);
+const canvas = $('game');
+const g = canvas.getContext('2d');
+const frameEl = $('frame');
+const VIEW_W = 960, VIEW_H = 540;
+const WORLD_W = 2400;
+const GROUND_Y = 470;
+const FIRE_X = 1240;
+
+const PLATFORMS = [
+  { x: 800, y: 402, w: 128 },
+  { x: 1120, y: 336, w: 112 },
+  { x: 1470, y: 402, w: 136 }
+];
+const TREES = [240, 560, 700, 1740, 2000, 2260];
+const PINES = [420, 1640, 2140];
+const STARS = Array.from({ length: 130 }, (_, i) => ({
+  x: (i * 173.3) % 1400, y: 18 + ((i * 97.7) % 215), r: (i % 3) * 0.5 + 0.7, p: i * 1.37
+}));
+const FLIES = Array.from({ length: 20 }, (_, i) => ({
+  x: 140 + ((i * 389) % 2100), y: 330 + ((i * 61) % 110), s: i * 2.39
+}));
+
+const player = { x: 1150, y: GROUND_Y, vx: 0, vy: 0, facing: 1, walk: 0, onGround: true, def: PRESETS[0] };
+const companion = { x: 1088, y: GROUND_Y, facing: 1, walk: 0, moving: false };
+let camX = 0;
+let started = false;
+
+const keys = { left: false, right: false, jump: false };
+let jumpQueued = false;
+
+function stepPlayer(dt) {
+  const move = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  player.vx = move * 168;
+  if (move) { player.facing = move; player.walk += dt * 11; }
+  player.x = Math.max(26, Math.min(WORLD_W - 26, player.x + player.vx * dt));
+  if (jumpQueued && player.onGround) { player.vy = -500; player.onGround = false; }
+  jumpQueued = false;
+  const prevY = player.y;
+  player.vy += 1500 * dt;
+  player.y += player.vy * dt;
+  let support = GROUND_Y;
+  for (const p of PLATFORMS) {
+    if (player.x > p.x - 6 && player.x < p.x + p.w + 6 && prevY <= p.y && player.y >= p.y) {
+      support = Math.min(support, p.y);
+    }
+  }
+  if (player.vy >= 0 && player.y >= support) {
+    player.y = support; player.vy = 0; player.onGround = true;
+  } else if (player.y < support - 0.5) {
+    player.onGround = false;
+  }
+}
+
+function stepCompanion(dt) {
+  const targetX = player.x - player.facing * 58;
+  const dx = targetX - companion.x;
+  const dist = Math.abs(dx);
+  companion.moving = dist > 10;
+  if (companion.moving) {
+    const speed = dist > 280 ? 255 : 152;
+    companion.x += Math.sign(dx) * Math.min(dist, speed * dt);
+    companion.facing = Math.sign(dx) || 1;
+    companion.walk += dt * 10;
+  } else {
+    companion.facing = player.x >= companion.x ? 1 : -1;
+  }
+  companion.y = GROUND_Y;
+}
+
+function ridge(baseY, amp, f, color, t) {
+  g.fillStyle = color;
+  g.beginPath();
+  g.moveTo(0, VIEW_H);
+  for (let sx = 0; sx <= VIEW_W; sx += 16) {
+    const wx = sx + camX * f;
+    const y = baseY - (Math.sin(wx * 0.004 + t) * amp + Math.sin(wx * 0.011 + t * 2.7) * amp * 0.4);
+    g.lineTo(sx, y);
+  }
+  g.lineTo(VIEW_W, VIEW_H);
+  g.closePath();
+  g.fill();
+}
+
+function drawTree(x, t) {
+  g.fillStyle = '#3a2a1c';
+  g.fillRect(x - 5, GROUND_Y - 74, 10, 74);
+  g.fillStyle = '#173d2c';
+  for (const [ox, oy, r] of [[-24, -86, 26], [22, -92, 30], [0, -112, 34]]) {
+    g.beginPath(); g.arc(x + ox, GROUND_Y + oy, r, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = 'rgba(120,200,150,0.16)';
+  g.beginPath(); g.arc(x + 8, GROUND_Y - 118, 26, 0, Math.PI * 2); g.fill();
+}
+
+function drawPine(x) {
+  g.fillStyle = '#33241a';
+  g.fillRect(x - 4, GROUND_Y - 40, 8, 40);
+  g.fillStyle = '#123528';
+  for (let i = 0; i < 3; i++) {
+    const w = 46 - i * 10, yTop = GROUND_Y - 66 - i * 30;
+    g.beginPath();
+    g.moveTo(x - w / 2, yTop + 38);
+    g.lineTo(x, yTop);
+    g.lineTo(x + w / 2, yTop + 38);
+    g.closePath(); g.fill();
+  }
+}
+
+function drawTent(x) {
+  g.fillStyle = '#7a4a2b';
+  g.beginPath();
+  g.moveTo(x - 58, GROUND_Y);
+  g.lineTo(x, GROUND_Y - 82);
+  g.lineTo(x + 58, GROUND_Y);
+  g.closePath(); g.fill();
+  g.fillStyle = '#5d3820';
+  g.beginPath();
+  g.moveTo(x - 18, GROUND_Y);
+  g.lineTo(x, GROUND_Y - 58);
+  g.lineTo(x + 18, GROUND_Y);
+  g.closePath(); g.fill();
+  g.strokeStyle = '#2e1c0e';
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(x, GROUND_Y - 82); g.lineTo(x, GROUND_Y - 92); g.stroke();
+}
+
+function drawBench(x) {
+  g.fillStyle = '#4a3520';
+  g.fillRect(x - 46, GROUND_Y - 34, 92, 8);
+  g.fillRect(x - 40, GROUND_Y - 26, 8, 26);
+  g.fillRect(x + 32, GROUND_Y - 26, 8, 26);
+  // crate + tools
+  g.fillStyle = '#6b543a';
+  g.fillRect(x + 52, GROUND_Y - 24, 24, 24);
+  g.strokeStyle = '#3a2c14'; g.lineWidth = 2;
+  g.strokeRect(x + 52, GROUND_Y - 24, 24, 24);
+  g.fillStyle = '#9aa3b2';
+  g.fillRect(x - 30, GROUND_Y - 44, 4, 10);
+  g.fillRect(x - 16, GROUND_Y - 42, 10, 4);
+  // sign
+  g.fillStyle = '#3a2a1c';
+  g.fillRect(x - 74, GROUND_Y - 78, 5, 78);
+  g.fillStyle = '#8a6a42';
+  g.beginPath(); g.roundRect(x - 92, GROUND_Y - 82, 76, 18, 4); g.fill();
+  g.fillStyle = '#241708';
+  g.font = '700 9.5px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.fillText('WORKSHOP', x - 54, GROUND_Y - 69.5);
+}
+
+function drawFire(t) {
+  // ground glow
+  const glow = g.createRadialGradient(FIRE_X, GROUND_Y - 4, 6, FIRE_X, GROUND_Y - 4, 120);
+  glow.addColorStop(0, 'rgba(255,150,50,0.30)');
+  glow.addColorStop(1, 'rgba(255,150,50,0)');
+  g.fillStyle = glow;
+  g.fillRect(FIRE_X - 120, GROUND_Y - 124, 240, 128);
+  // stones
+  g.fillStyle = '#565d68';
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI;
+    g.beginPath();
+    g.ellipse(FIRE_X - 26 + i * 9, GROUND_Y - 2 - Math.sin(a) * 2, 6, 4, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  // logs
+  g.strokeStyle = '#4a3220';
+  g.lineWidth = 6;
+  g.beginPath();
+  g.moveTo(FIRE_X - 16, GROUND_Y - 4); g.lineTo(FIRE_X + 12, GROUND_Y - 12);
+  g.moveTo(FIRE_X + 16, GROUND_Y - 4); g.lineTo(FIRE_X - 12, GROUND_Y - 12);
+  g.stroke();
+  // logs to sit on
+  g.fillStyle = '#5d4030';
+  g.beginPath(); g.roundRect(FIRE_X - 74, GROUND_Y - 12, 34, 11, 5); g.fill();
+  g.beginPath(); g.roundRect(FIRE_X + 42, GROUND_Y - 12, 34, 11, 5); g.fill();
+  // flames
+  const flick = Math.sin(t * 13) * 0.12 + Math.sin(t * 29) * 0.06;
+  const layers = [
+    ['rgba(232,84,28,0.85)', 30, 44],
+    ['rgba(245,144,32,0.9)', 21, 34],
+    ['rgba(255,205,66,0.95)', 12, 24]
+  ];
+  for (const [color, w, h] of layers) {
+    const hh = h * (1 + flick);
+    g.fillStyle = color;
+    g.beginPath();
+    g.moveTo(FIRE_X - w / 2, GROUND_Y - 8);
+    g.quadraticCurveTo(FIRE_X - w / 2, GROUND_Y - 8 - hh * 0.6, FIRE_X + Math.sin(t * 9) * 3, GROUND_Y - 8 - hh);
+    g.quadraticCurveTo(FIRE_X + w / 2, GROUND_Y - 8 - hh * 0.6, FIRE_X + w / 2, GROUND_Y - 8);
+    g.closePath(); g.fill();
+  }
+  // embers
+  g.fillStyle = '#ffb85c';
+  for (let i = 0; i < 12; i++) {
+    const life = (t * 0.16 + i / 12) % 1;
+    const ex = FIRE_X + Math.sin(life * 9 + i * 2.1) * (4 + life * 14);
+    const ey = GROUND_Y - 16 - life * 92;
+    g.globalAlpha = Math.max(0, 1 - life);
+    g.fillRect(ex, ey, 2.2, 2.2);
+  }
+  g.globalAlpha = 1;
+}
+
+function drawScene(t) {
+  // sky
+  const sky = g.createLinearGradient(0, 0, 0, VIEW_H);
+  sky.addColorStop(0, '#131c3f');
+  sky.addColorStop(0.55, '#2c3a6e');
+  sky.addColorStop(0.82, '#8a5670');
+  sky.addColorStop(1, '#c47a52');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, VIEW_W, VIEW_H);
+  // stars
+  g.fillStyle = '#dfe6ff';
+  for (const s of STARS) {
+    const sx = ((s.x - camX * 0.15) % (VIEW_W + 30) + VIEW_W + 30) % (VIEW_W + 30) - 15;
+    g.globalAlpha = 0.35 + 0.3 * (0.5 + 0.5 * Math.sin(t * 1.4 + s.p));
+    g.fillRect(sx, s.y, s.r, s.r);
+  }
+  g.globalAlpha = 1;
+  // moon
+  const moonX = 770 - camX * 0.07, moonY = 82;
+  g.fillStyle = '#f5efdb';
+  g.beginPath(); g.arc(moonX, moonY, 24, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#2c3a6e';
+  g.beginPath(); g.arc(moonX + 10, moonY - 6, 20, 0, Math.PI * 2); g.fill();
+  // hills
+  ridge(430, 26, 0.3, '#1d2c50', 3.1);
+  ridge(462, 20, 0.55, '#16233f', 7.9);
+
+  g.save();
+  g.translate(-camX, 0);
+  // ground
+  const earth = g.createLinearGradient(0, GROUND_Y, 0, VIEW_H);
+  earth.addColorStop(0, '#2c4632');
+  earth.addColorStop(0.18, '#22382a');
+  earth.addColorStop(1, '#131f18');
+  g.fillStyle = earth;
+  g.fillRect(camX - 20, GROUND_Y, VIEW_W + 40, VIEW_H - GROUND_Y + 4);
+  g.fillStyle = '#3d5c40';
+  g.fillRect(camX - 20, GROUND_Y, VIEW_W + 40, 5);
+  // grass tufts
+  g.strokeStyle = '#46684a';
+  g.lineWidth = 1.6;
+  for (let i = 0; i < 60; i++) {
+    const gx = 40 + ((i * 397) % (WORLD_W - 80));
+    if (gx < camX - 20 || gx > camX + VIEW_W + 20) continue;
+    const sway = Math.sin(t * 1.6 + i) * 1.6;
+    g.beginPath();
+    g.moveTo(gx, GROUND_Y + 2); g.lineTo(gx - 3 + sway, GROUND_Y - 7);
+    g.moveTo(gx + 3, GROUND_Y + 2); g.lineTo(gx + 4 + sway, GROUND_Y - 9);
+    g.stroke();
+  }
+  for (const x of TREES) drawTree(x, t);
+  for (const x of PINES) drawPine(x);
+  drawTent(1010);
+  drawBench(1560);
+  // platforms
+  for (const p of PLATFORMS) {
+    g.fillStyle = '#4a3520';
+    g.fillRect(p.x + 8, p.y + 8, 6, GROUND_Y - p.y - 8);
+    g.fillRect(p.x + p.w - 14, p.y + 8, 6, GROUND_Y - p.y - 8);
+    g.fillStyle = '#8a6a42';
+    g.beginPath(); g.roundRect(p.x, p.y, p.w, 9, 3); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    g.fillRect(p.x, p.y + 6, p.w, 3);
+  }
+  drawFire(t);
+  drawCompanion(g, companion.x, companion.y, { facing: companion.facing, walk: companion.moving ? companion.walk : 0, t });
+  drawCharacter(g, player.def, player.x, player.y, {
+    facing: player.facing,
+    walk: (player.vx !== 0 && player.onGround) ? player.walk : 0,
+    air: !player.onGround,
+    t
+  });
+  drawNameTag(g, player.x, player.y - 78, player.def.name);
+  g.restore();
+
+  // fireflies
+  for (const f of FLIES) {
+    const fx = f.x + Math.sin(t * 0.4 + f.s) * 30 - camX;
+    if (fx < -10 || fx > VIEW_W + 10) continue;
+    const fy = f.y + Math.sin(t * 0.7 + f.s * 2) * 14;
+    g.globalAlpha = 0.3 + 0.35 * (0.5 + 0.5 * Math.sin(t * 1.8 + f.s * 3));
+    g.fillStyle = '#ffe98a';
+    g.beginPath(); g.arc(fx, fy, 1.8, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+/* Speech bubble follows the companion */
+const bubble = $('bubble'), bubbleText = $('bubbleText'), bubbleMore = $('bubbleMore');
+const BUBBLE_MAX = 320;
+let bubbleTimer = null;
+function setBubble(text, { thinking = false } = {}) {
+  const full = String(text || '');
+  bubbleText.textContent = full.length > BUBBLE_MAX ? full.slice(0, BUBBLE_MAX).trimEnd() + '…' : full;
+  bubbleMore.hidden = full.length <= BUBBLE_MAX;
+  bubble.classList.toggle('thinking', thinking);
+  bubble.hidden = false;
+  clearTimeout(bubbleTimer);
+  if (!thinking) bubbleTimer = setTimeout(() => { bubble.hidden = true; }, 20000);
+}
+function positionBubble() {
+  if (bubble.hidden) return;
+  const sx = (companion.x - camX) * (frameEl.clientWidth / VIEW_W);
+  const sy = (companion.y - 92) * (frameEl.clientHeight / VIEW_H);
+  bubble.style.left = sx + 'px';
+  bubble.style.top = sy + 'px';
+}
+
+let last = performance.now();
+function frameLoop(now) {
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
+  const t = now / 1000;
+  if (started) { stepPlayer(dt); stepCompanion(dt); }
+  const targetCam = Math.max(0, Math.min(WORLD_W - VIEW_W, player.x - VIEW_W / 2));
+  camX += (targetCam - camX) * Math.min(1, dt * 5 + 0.001);
+  if (Math.abs(targetCam - camX) < 0.4) camX = targetCam;
+  drawScene(t);
+  positionBubble();
+  requestAnimationFrame(frameLoop);
+}
+requestAnimationFrame(frameLoop);
+
+/* ================================================================
+   Input
+   ================================================================ */
+const chatPanel = $('chatPanel');
+function typingTarget() {
+  const a = document.activeElement;
+  return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+}
+window.addEventListener('keydown', event => {
+  if (typingTarget()) return;
+  const k = event.key;
+  if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; event.preventDefault(); }
+  else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; event.preventDefault(); }
+  else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { jumpQueued = true; event.preventDefault(); }
+  else if ((k === 't' || k === 'T') && started && chatPanel.hidden) openChat();
+});
+window.addEventListener('keyup', event => {
+  const k = event.key;
+  if (k === 'ArrowLeft' || k === 'a' || k === 'A') keys.left = false;
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = false;
+});
+function bindHold(id, on, off) {
+  const el = $(id);
+  const startEv = e => { e.preventDefault(); on(); };
+  const endEv = e => { e.preventDefault(); off(); };
+  el.addEventListener('pointerdown', startEv);
+  el.addEventListener('pointerup', endEv);
+  el.addEventListener('pointerleave', endEv);
+  el.addEventListener('pointercancel', endEv);
+}
+bindHold('btnLeft', () => { keys.left = true; }, () => { keys.left = false; });
+bindHold('btnRight', () => { keys.right = true; }, () => { keys.right = false; });
+bindHold('btnJump', () => { jumpQueued = true; }, () => {});
+$('btnTalk').addEventListener('click', () => openChat());
+canvas.addEventListener('pointerdown', event => {
+  if (!started || !chatPanel.hidden) return;
+  const rect = canvas.getBoundingClientRect();
+  const wx = (event.clientX - rect.left) * (VIEW_W / rect.width) + camX;
+  const wy = (event.clientY - rect.top) * (VIEW_H / rect.height);
+  if (Math.abs(wx - companion.x) < 30 && wy > companion.y - 78 && wy < companion.y + 6) openChat();
+});
+
+/* ================================================================
+   Character select & creator
+   ================================================================ */
+const selectEl = $('select');
+const rosterEl = $('roster');
+const creatorEl = $('creator');
+const changeBtn = $('changeCharacter');
+const touchEl = $('touchControls');
+
+function previewInto(cv, def, seed = 0) {
+  const c = cv.getContext('2d');
+  c.clearRect(0, 0, cv.width, cv.height);
+  c.save();
+  c.translate(cv.width / 2, cv.height - 6);
+  const s = (cv.height - 12) / 66;
+  c.scale(s, s);
+  drawCharacter(c, def, 0, 0, { facing: 1, walk: 0, t: seed });
+  c.restore();
+}
+
+function buildRoster() {
+  rosterEl.innerHTML = '';
+  const customs = loadCustoms();
+  const makeCard = (def, role, customId) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'cq-card';
+    const cv = document.createElement('canvas');
+    cv.width = 72; cv.height = 96;
+    previewInto(cv, def, def.name.length);
+    const name = document.createElement('span');
+    name.className = 'cq-name';
+    name.textContent = def.name;
+    const roleEl = document.createElement('span');
+    roleEl.className = 'cq-role';
+    roleEl.textContent = role || 'your own';
+    card.append(cv, name, roleEl);
+    if (customId) {
+      const del = document.createElement('span');
+      del.className = 'cq-del';
+      del.textContent = '×';
+      del.title = 'Delete ' + def.name;
+      del.setAttribute('role', 'button');
+      del.setAttribute('aria-label', 'Delete ' + def.name);
+      del.addEventListener('click', event => {
+        event.stopPropagation();
+        saveCustoms(loadCustoms().filter(c => c.id !== customId));
+        buildRoster();
+      });
+      card.appendChild(del);
+    }
+    card.addEventListener('click', () => chooseCharacter(def));
+    rosterEl.appendChild(card);
+  };
+  for (const preset of PRESETS) makeCard(preset, preset.role, null);
+  for (const custom of customs) makeCard(custom, 'your own', custom.id);
+  const create = document.createElement('button');
+  create.type = 'button';
+  create.className = 'cq-card create';
+  create.innerHTML = '<span class="cq-plus">＋</span><span class="cq-name">Create your own</span><span class="cq-role">saved on this device</span>';
+  create.addEventListener('click', () => {
+    creatorEl.hidden = false;
+    drawCreatorPreview();
+    $('fName').focus({ preventScroll: true });
+  });
+  rosterEl.appendChild(create);
+}
+
+const creatorDef = { skin: SKIN_TONES[1], hairStyle: 'short', hairColor: '#4a3220', shirt: '#2563eb', pants: '#374151' };
+function drawCreatorPreview() {
+  previewInto($('creatorPreview'), { name: 'preview', ...creatorDef }, 1.5);
+}
+function buildSkinSwatches() {
+  const wrap = $('fSkin');
+  wrap.innerHTML = '';
+  for (const tone of SKIN_TONES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cq-swatch' + (tone === creatorDef.skin ? ' on' : '');
+    b.style.background = tone;
+    b.setAttribute('aria-label', 'Skin tone ' + tone);
+    b.addEventListener('click', () => { creatorDef.skin = tone; buildSkinSwatches(); drawCreatorPreview(); });
+    wrap.appendChild(b);
+  }
+}
+for (const [id, key] of [['fHairColor', 'hairColor'], ['fShirt', 'shirt'], ['fPants', 'pants']]) {
+  $(id).addEventListener('input', event => { creatorDef[key] = event.target.value; drawCreatorPreview(); });
+}
+$('fHairStyle').addEventListener('change', event => { creatorDef.hairStyle = event.target.value; drawCreatorPreview(); });
+$('creatorCancel').addEventListener('click', () => { creatorEl.hidden = true; });
+creatorEl.addEventListener('submit', event => {
+  event.preventDefault();
+  const name = $('fName').value.trim() || 'Wanderer';
+  const def = { id: 'custom-' + Date.now(), name, ...creatorDef };
+  const customs = loadCustoms();
+  customs.push(def);
+  saveCustoms(customs);
+  creatorEl.hidden = true;
+  $('fName').value = '';
+  buildRoster();
+  chooseCharacter(def);
+});
+
+function chooseCharacter(def) {
+  jumpQueued = false;
+  keys.left = false; keys.right = false;
+  player.def = def;
+  storeWrite(PLAYER_KEY, def);
+  selectEl.hidden = true;
+  creatorEl.hidden = true;
+  touchEl.hidden = false;
+  changeBtn.hidden = false;
+  started = true;
+  setBubble(`Evening, ${def.name}. I'm Operator. Tap me, or hit Talk, and ask me anything.`);
+}
+changeBtn.addEventListener('click', () => {
+  closeChat();
+  buildRoster();
+  selectEl.hidden = false;
+  touchEl.hidden = true;
+});
+buildSkinSwatches();
+buildRoster();
+
+/* ================================================================
+   Chat with Operator: the same plumbing as the portal home widget
+   (prepareOperatorChat + the signed developer proof + the streamed
+   /api/openai-site?provider=operator endpoint). Conversation only:
+   action payloads are never executed or claimed from in here.
+   ================================================================ */
+const chatLog = $('chatLog'), chatForm = $('chatForm'), chatInput = $('chatInput'),
+      chatSend = $('chatSend'), chatStatus = $('chatStatus');
+const history = [];
+let chatBusy = false;
+
+function openChat() {
+  chatPanel.hidden = false;
+  frameEl.classList.add('cq-chat-open');
+  chatInput.focus({ preventScroll: true });
+}
+function closeChat() {
+  chatPanel.hidden = true;
+  frameEl.classList.remove('cq-chat-open');
+}
+$('chatClose').addEventListener('click', closeChat);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !chatPanel.hidden) closeChat();
+});
+
+function appendLog(role, text) {
+  const div = document.createElement('div');
+  div.className = 'cq-msg ' + role;
+  div.textContent = text;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+chatForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const prompt = chatInput.value.trim();
+  if (!prompt || chatBusy) return;
+  chatBusy = true;
+  chatSend.disabled = true;
+  chatInput.value = '';
+  appendLog('user', prompt);
+  const prior = history.slice(-12);
+  history.push({ role: 'user', content: prompt });
+  setBubble('Operator is thinking…', { thinking: true });
+  chatStatus.textContent = 'Operator is thinking…';
+  try {
+    const [portalContext, developerAuth, memoryContext] = await prepareOperatorChat({
+      collectContext: collectPortalContext,
+      createProof: createOperatorDeveloperProof,
+      recallMemory: recallOperatorMemoryBestEffort,
+      prompt
+    });
+    portalContext.page = {
+      path: window.location.pathname,
+      url: window.location.href,
+      title: document.title,
+      area: 'companion-quest',
+      heading: 'Companion experiment'
+    };
+    let streamed = '';
+    const data = await fetchOperatorStream(
+      { prompt, history: prior, portalContext, developerAuth, memoryContext },
+      {
+        onStatus: message => { chatStatus.textContent = message; },
+        onReplyDelta: delta => {
+          streamed += delta;
+          setBubble(streamed, { thinking: true });
+          chatStatus.textContent = 'Operator is responding…';
+        }
+      }
+    );
+    const reply = (data && typeof data.reply === 'string' && data.reply) || streamed
+      || 'Operator answered without text this time. The full Operator view has the whole conversation.';
+    history.push({ role: 'assistant', content: reply });
+    setBubble(reply);
+    appendLog('operator', reply);
+    chatStatus.textContent = '';
+  } catch (error) {
+    const message = `I could not finish that: ${error.message}`;
+    history.push({ role: 'assistant', content: message });
+    setBubble(message);
+    appendLog('operator', message);
+    chatStatus.textContent = 'Operator needs another try.';
+  } finally {
+    chatBusy = false;
+    chatSend.disabled = false;
+    chatInput.focus({ preventScroll: true });
+  }
+});
+
+/* ================================================================
+   Music deck: one ad-free stream, play/pause + a mute that sticks.
+   ================================================================ */
+const audio = $('music');
+const musicToggle = $('musicToggle');
+const musicMute = $('musicMute');
+let muted = false;
+try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch { /* ignore */ }
+audio.muted = muted;
+function paintMusic() {
+  musicToggle.textContent = audio.paused ? '▶ Music' : '❚❚ Music';
+  musicToggle.setAttribute('aria-pressed', String(!audio.paused));
+  musicMute.textContent = muted ? '🔇' : '🔊';
+  musicMute.setAttribute('aria-pressed', String(muted));
+}
+musicToggle.addEventListener('click', () => {
+  if (audio.paused) { audio.play().catch(() => {}); } else { audio.pause(); }
+});
+musicMute.addEventListener('click', () => {
+  muted = !muted;
+  audio.muted = muted;
+  try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch { /* ignore */ }
+  paintMusic();
+});
+audio.addEventListener('play', paintMusic);
+audio.addEventListener('pause', paintMusic);
+paintMusic();
+</script>
+</body>
+</html>
