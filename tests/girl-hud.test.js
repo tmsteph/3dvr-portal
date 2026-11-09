@@ -176,3 +176,35 @@ test('the character lightbox takes zoom, section jumps and search from viewer.js
   assert.match(worldCss, /\.viewer-bar \{/);
   assert.match(worldCss, /\.viewer-search \{/);
 });
+
+test('double-tap zoom is not undone by the dblclick the browser sends for it', async () => {
+  const code = await read('3dvr-girl/viewer.js');
+  const sandbox = { window: {} };
+  runInNewContext(code, sandbox);
+  const { attachZoom } = sandbox.window.LadiesViewer;
+  const handlers = {};
+  const img = {
+    style: {},
+    draggable: false,
+    clientWidth: 400,
+    clientHeight: 500,
+    closest: () => null,
+    setPointerCapture() {},
+    addEventListener(type, fn) { (handlers[type] ||= []).push(fn); },
+    fire(type, event = {}) {
+      for (const fn of handlers[type] || []) fn({ preventDefault() {}, ...event });
+    }
+  };
+  attachZoom(img, { onSwipe() {} });
+  const down = () => img.fire('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
+  const up = () => img.fire('pointerup', { pointerId: 1, clientX: 100, clientY: 100 });
+  down(); up(); down(); up();
+  assert.match(img.style.transform, /scale\(2\.5\)/, 'double-tap zooms in');
+  img.fire('dblclick');
+  assert.match(img.style.transform, /scale\(2\.5\)/,
+    'the dblclick that follows the same gesture must not undo it');
+  down(); up(); down(); up();
+  assert.equal(img.style.transform, '', 'a second double-tap restores fit');
+  img.fire('dblclick');
+  assert.equal(img.style.transform, '', 'its dblclick is part of the same gesture too');
+});
