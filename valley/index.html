@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d2b2a">
+<title>Valley · 3DVR</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0a0f26;font-family:Inter,system-ui,-apple-system,sans-serif;color:#fff}
+canvas#scene{display:block;width:100%;height:100%;touch-action:none}
+.bar{position:fixed;left:0;right:0;display:flex;gap:8px;align-items:center;padding:10px 12px;pointer-events:none;z-index:5}
+.bar.top{top:0}
+.bar>*{pointer-events:auto}
+.pill,.back{display:inline-flex;align-items:center;gap:6px;background:#101c2ad9;border:1px solid #ffffff2e;border-radius:999px;padding:7px 12px;color:#fff;text-decoration:none;font-weight:700;font-size:.78rem;backdrop-filter:blur(10px)}
+button.pill{cursor:pointer;font-family:inherit}
+.title{font-weight:950;letter-spacing:.04em;text-shadow:0 2px 12px #0009}
+.stats{margin-left:auto;display:flex;gap:7px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:#8be08b;box-shadow:0 0 8px #8be08baa}
+.dot.you{background:#ffd166;box-shadow:0 0 8px #ffd166aa}
+.hint{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#101c2ad9;border:1px solid #ffffff2e;border-radius:999px;padding:8px 14px;font-size:.74rem;font-weight:600;pointer-events:none;opacity:0;transition:opacity .4s;z-index:5;white-space:nowrap}
+.hint.show{opacity:1}
+/* music deck */
+.deck{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:6;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:min(96vw,860px);background:#101c2ae0;border:1px solid #ffffff2e;border-radius:18px;padding:8px 10px;backdrop-filter:blur(12px)}
+.deck button{background:#ffffff14;border:1px solid #ffffff30;color:#fff;border-radius:999px;min-width:38px;height:38px;padding:0 10px;font-size:.95rem;cursor:pointer}
+.deck button.on{background:#0f7d8c;border-color:#0f7d8c}
+.deck select{background:#ffffff14;border:1px solid #ffffff30;color:#fff;border-radius:999px;height:38px;padding:0 10px;font-size:.8rem;font-weight:700;max-width:44vw}
+.deck select option{color:#101c2a}
+.deck input[type=range]{width:92px;accent-color:#57b6ff}
+.deck input[type=text]{background:#ffffff14;border:1px solid #ffffff30;color:#fff;border-radius:999px;height:38px;padding:0 12px;font-size:.8rem;width:170px}
+.deck input[type=text]::placeholder{color:#ffffff88}
+.deck .ytrow{display:none;gap:8px;align-items:center}
+.deck.yt .ytrow{display:flex}
+#ytBox{position:fixed;right:12px;bottom:76px;z-index:6;width:248px;height:140px;border-radius:14px;overflow:hidden;border:1px solid #ffffff38;display:none;background:#000}
+#ytBox.show{display:block}
+#ytBox iframe{width:100%;height:100%;border:0}
+#ytClose{position:absolute;top:4px;right:4px;z-index:2;background:#000a;border:1px solid #ffffff55;color:#fff;border-radius:50%;width:24px;height:24px;cursor:pointer;line-height:1}
+/* character select */
+#castPanel{position:fixed;inset:0;z-index:10;display:none;align-items:flex-start;justify-content:center;background:#060a18b8;backdrop-filter:blur(3px);overflow-y:auto;padding:22px 12px}
+#castPanel.show{display:flex}
+.sheet{background:#12233a;border:1px solid #ffffff2e;border-radius:22px;max-width:680px;width:100%;padding:18px 18px 14px;box-shadow:0 24px 60px #000a}
+.sheet h2{margin:2px 0 4px;font-size:1.15rem}
+.sheet p.sub{margin:0 0 14px;color:#cfe3ff;font-size:.85rem}
+.castGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.castCard{position:relative;background:#ffffff10;border:2px solid #ffffff1f;border-radius:16px;padding:8px 4px 7px;text-align:center;cursor:pointer;color:#fff;font-family:inherit}
+.castCard:hover{border-color:#ffffff55}
+.castCard.sel{border-color:#57b6ff;background:#57b6ff22}
+.castCard canvas{width:64px;height:64px}
+.castCard .nm{display:block;font-weight:800;font-size:.78rem;margin-top:2px}
+.castCard .del{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:1px solid #ffffff40;background:#0007;color:#fff;cursor:pointer;line-height:1}
+.rowBtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.bigBtn{background:#0f7d8c;border:1px solid #0f7d8c;color:#fff;border-radius:999px;padding:10px 18px;font-weight:800;cursor:pointer;font-size:.85rem}
+.ghostBtn{background:#ffffff12;border:1px solid #ffffff35;color:#fff;border-radius:999px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:.85rem}
+#creator{margin-top:16px;border-top:1px solid #ffffff22;padding-top:14px;display:none}
+#creator.show{display:block}
+.fRow{display:flex;gap:8px;align-items:center;margin:9px 0;flex-wrap:wrap}
+.fRow label{width:86px;font-size:.8rem;font-weight:700;color:#cfe3ff}
+.fRow input[type=text]{flex:1;min-width:140px;background:#ffffff12;border:1px solid #ffffff35;color:#fff;border-radius:10px;padding:9px 11px;font-size:.85rem}
+.fRow input[type=color]{width:46px;height:34px;border:1px solid #ffffff35;border-radius:9px;background:#ffffff12;padding:2px;cursor:pointer}
+.swatches{display:flex;gap:6px}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid #ffffff30;cursor:pointer;padding:0}
+.sw.sel{border-color:#fff;transform:scale(1.12)}
+.seg{display:flex;gap:5px;flex-wrap:wrap}
+.seg button{background:#ffffff12;border:1px solid #ffffff35;color:#fff;border-radius:999px;padding:6px 11px;font-size:.78rem;font-weight:700;cursor:pointer}
+.seg button.sel{background:#57b6ff;color:#0b1526;border-color:#57b6ff}
+#creatorPreview{background:#ffffff0d;border:1px solid #ffffff1f;border-radius:14px}
+@media(max-width:640px){.hint{bottom:118px;font-size:.68rem;max-width:92vw;white-space:normal;text-align:center}.deck{gap:6px}.deck input[type=text]{width:130px}}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Valley, a living ambient scene"></canvas>
+
+<div class="bar top">
+  <a class="back" href="/games.html">← Games</a>
+  <div class="title">Valley</div>
+  <div class="stats">
+    <span class="pill"><span class="dot" id="modeDot"></span><span id="modeLabel">living</span></span>
+    <span class="pill">Day <b id="hudDay">1</b></span>
+    <span class="pill">🍎 <b id="hudFruit">0</b></span>
+    <button class="pill" id="castBtn" type="button">Cast</button>
+  </div>
+</div>
+
+<div class="hint" id="hint">Tap or press a key to take the walk · let go, and the valley takes over again</div>
+
+<div id="ytBox"><button id="ytClose" type="button" aria-label="Close YouTube">×</button><div id="ytSlot"></div></div>
+
+<div class="deck" id="deck" aria-label="Music deck">
+  <button id="playBtn" type="button" aria-label="Play or pause music">▶</button>
+  <button id="muteBtn" type="button" aria-label="Mute or unmute">🔊</button>
+  <input id="volSlider" type="range" min="0" max="100" value="80" aria-label="Volume">
+  <select id="stationSel" aria-label="Music source">
+    <option value="groovesalad">Groove Salad · SomaFM</option>
+    <option value="dronezone">Drone Zone · SomaFM</option>
+    <option value="lush">Lush · SomaFM</option>
+    <option value="secretagent">Secret Agent · SomaFM</option>
+    <option value="deepspaceone">Deep Space One · SomaFM</option>
+    <option value="youtube">YouTube…</option>
+  </select>
+  <span class="ytrow">
+    <input id="ytInput" type="text" placeholder="Paste a YouTube link" aria-label="YouTube link">
+    <button id="ytLoad" type="button">Load</button>
+  </span>
+  <audio id="deckAudio" preload="none"></audio>
+</div>
+
+<div id="castPanel" role="dialog" aria-label="Choose who lives in the valley">
+  <div class="sheet">
+    <h2>Who lives in the valley?</h2>
+    <p class="sub">Pick a character to wander, gather, and watch the sky. You can take over their walk at any time.</p>
+    <div class="castGrid" id="castGrid"></div>
+    <div class="rowBtns">
+      <button class="bigBtn" id="createBtn" type="button">＋ Create a character</button>
+      <button class="ghostBtn" id="castClose" type="button">Back to the valley</button>
+    </div>
+    <form id="creator">
+      <div class="fRow"><label for="cName">Name</label><input id="cName" type="text" maxlength="18" placeholder="Wanderer"></div>
+      <div class="fRow"><label>Skin tone</label><div class="swatches" id="cSkin"></div>
+        <canvas id="creatorPreview" width="72" height="72" style="margin-left:auto"></canvas></div>
+      <div class="fRow"><label>Hair style</label><div class="seg" id="cHairStyle"></div></div>
+      <div class="fRow"><label>Hair color</label><input id="cHairColor" type="color" value="#4a3220"></div>
+      <div class="fRow"><label>Shirt</label><input id="cShirt" type="color" value="#0f7d8c"></div>
+      <div class="fRow"><label>Pants</label><input id="cPants" type="color" value="#39434f"></div>
+      <div class="rowBtns">
+        <button class="bigBtn" id="cSave" type="submit">Save character</button>
+        <button class="ghostBtn" id="cCancel" type="button">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= Valley: a living scene =================
+   One parametric character renderer drives the preset cast and
+   custom characters alike; both are the same definition shape:
+   {id, name, skin, hairStyle, hairColor, shirt, pants, + extras} */
+
+const PRESETS = [
+  { id:'thomas',  name:'Thomas',    skin:'#eec39a', hairStyle:'short', hairColor:'#6e5136', beard:true,  shirt:'#0f7d8c', pants:'#39434f' },
+  { id:'girl',    name:'3DVR Girl', skin:'#f4cf9f', hairStyle:'long',  hairColor:'#ecc964', streak:'#57b6ff', shirt:'#12a5b4', pants:'#2e3d55' },
+  { id:'mark',    name:'Mark',      skin:'#dca273', hairStyle:'short', hairColor:'#33261a', hat:'cap', hatColor:'#8c3226', shirt:'#c8402e', pants:'#414a56' },
+  { id:'esai',    name:'Esai',      skin:'#bb7f4d', hairStyle:'short', hairColor:'#17120d', print:true, shirt:'#22252b', pants:'#2e3138' },
+  { id:'david',   name:'David',     skin:'#cf9463', hairStyle:'short', hairColor:'#241a11', shirt:'#3e7d38', pants:'#57493a' },
+  { id:'brandon', name:'Brandon',   skin:'#96683c', hairStyle:'curly', hairColor:'#1e150d', shirt:'#e07f26', pants:'#3d4756' }
+];
+const SKIN_TONES = ['#ffe3c2', '#f2c49b', '#dca273', '#bb7f4d', '#96683c', '#6f4525'];
+const HAIR_STYLES = ['short', 'long', 'bun', 'mohawk', 'bald'];
+
+const LS = { customs:'valley.customs.v1', selected:'valley.selected.v1', music:'valley.music.v1' };
+function loadJSON(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (_e) { return fallback; } }
+function saveJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_e) {} }
+
+let customs = loadJSON(LS.customs, []);
+if (!Array.isArray(customs)) customs = [];
+function allCharacters() { return PRESETS.concat(customs); }
+function findCharacter(id) { return allCharacters().find(c => c.id === id) || PRESETS[0]; }
+let currentDef = findCharacter(loadJSON(LS.selected, 'thomas'));
+
+/* ---------- parametric sprite renderer ---------- */
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function drawCharacter(g, def, o) {
+  const s = o.scale || 1, dir = o.dir || 1, pose = o.pose || 'stand';
+  const t = o.t || 0, ph = o.phase || 0;
+  g.save();
+  g.translate(o.x, o.y);
+  g.scale(dir * s, s);
+  const swing = pose === 'walk' ? Math.sin(ph) * 5 : 0;
+  const bob = pose === 'walk' ? Math.abs(Math.sin(ph)) * -1.2 : (pose === 'jump' ? 0 : Math.sin(t * 1.7) * 0.5);
+  g.translate(0, bob);
+  g.lineCap = 'round';
+  /* legs */
+  g.strokeStyle = def.pants; g.lineWidth = 5;
+  g.beginPath();
+  if (pose === 'sit') {
+    g.moveTo(-2, -19); g.lineTo(8, -6); g.moveTo(3, -19); g.lineTo(12, -7);
+  } else if (pose === 'jump') {
+    g.moveTo(-3, -20); g.lineTo(-6, -8); g.moveTo(3, -20); g.lineTo(7, -10);
+  } else {
+    g.moveTo(-3, -20); g.lineTo(-3 + swing, 0); g.moveTo(3, -20); g.lineTo(3 - swing, 0);
+  }
+  g.stroke();
+  /* long hair back panel, behind the body */
+  if (def.hairStyle === 'long' && !def.hat) {
+    g.fillStyle = def.hairColor;
+    roundRect(g, -9.5, -47, 19, 26, 7); g.fill();
+    if (def.streak) { g.fillStyle = def.streak; roundRect(g, 5.5, -46, 3.4, 22, 1.7); g.fill(); }
+  }
+  /* torso */
+  g.fillStyle = def.shirt;
+  roundRect(g, -8.5, -35, 17, 17, 5); g.fill();
+  if (def.print) { g.fillStyle = '#e9e4d8'; roundRect(g, -3, -30, 6, 6, 1.5); g.fill(); g.fillStyle = '#8c8578'; g.fillRect(-1, -28, 2, 2); }
+  /* arms */
+  g.strokeStyle = def.shirt; g.lineWidth = 4.4;
+  g.beginPath();
+  if (pose === 'gather') { g.moveTo(7, -31); g.lineTo(13, -42); g.moveTo(-7, -31); g.lineTo(-9, -19); }
+  else if (pose === 'sit') { g.moveTo(7, -31); g.lineTo(10, -10); g.moveTo(-7, -31); g.lineTo(-4, -11); }
+  else { g.moveTo(7, -31); g.lineTo(9, -19 - swing * 0.7); g.moveTo(-7, -31); g.lineTo(-9, -19 + swing * 0.7); }
+  g.stroke();
+  /* head */
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(0, -41, 7.6, 0, Math.PI * 2); g.fill();
+  /* beard, under the smile */
+  if (def.beard) { g.fillStyle = def.hairColor; g.beginPath(); g.arc(0, -39.4, 6.6, Math.PI * 0.18, Math.PI * 0.82); g.quadraticCurveTo(0, -31.5, -5.7, -36.4); g.closePath(); g.fill(); }
+  /* face */
+  g.fillStyle = '#2b2320';
+  g.beginPath(); g.arc(-2.8, -41.5, 0.95, 0, Math.PI * 2); g.arc(2.8, -41.5, 0.95, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#2b2320'; g.lineWidth = 0.9;
+  g.beginPath(); g.arc(0, -38.6, 2.6, Math.PI * 0.2, Math.PI * 0.8); g.stroke();
+  /* hair / hat */
+  if (def.hat === 'cap') {
+    g.fillStyle = def.hatColor || '#8c3226';
+    g.beginPath(); g.arc(0, -42.5, 8, Math.PI, 0); g.closePath(); g.fill();
+    roundRect(g, 2, -44.5, 11, 2.6, 1.3); g.fill();
+  } else if (def.hairStyle === 'short' || def.hairStyle === 'curly') {
+    g.fillStyle = def.hairColor;
+    if (def.hairStyle === 'short') { g.beginPath(); g.arc(0, -42.6, 7.9, Math.PI * 1.02, Math.PI * 1.98); g.closePath(); g.fill(); }
+    else { for (let i = -2; i <= 2; i++) { g.beginPath(); g.arc(i * 3.1, -47.4 + Math.abs(i) * 0.9, 3.1, 0, Math.PI * 2); g.fill(); } }
+  } else if (def.hairStyle === 'long') {
+    g.fillStyle = def.hairColor;
+    g.beginPath(); g.arc(0, -42.8, 8, Math.PI * 1.0, Math.PI * 2.0); g.closePath(); g.fill();
+    roundRect(g, -9.5, -47, 3.6, 15, 1.8); g.fill(); roundRect(g, 5.9, -47, 3.6, 15, 1.8); g.fill();
+    if (def.streak) { g.fillStyle = def.streak; roundRect(g, 6.3, -46, 2.2, 13, 1.1); g.fill(); }
+  } else if (def.hairStyle === 'bun') {
+    g.fillStyle = def.hairColor;
+    g.beginPath(); g.arc(0, -42.8, 7.9, Math.PI * 1.02, Math.PI * 1.98); g.closePath(); g.fill();
+    g.beginPath(); g.arc(-1, -51, 3.5, 0, Math.PI * 2); g.fill();
+  } else if (def.hairStyle === 'mohawk') {
+    g.fillStyle = def.hairColor; roundRect(g, -1.9, -53, 3.8, 11, 1.9); g.fill();
+  } else if (def.hairStyle === 'bald') {
+    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.1;
+    g.beginPath(); g.arc(-1, -43, 4.6, Math.PI * 1.15, Math.PI * 1.55); g.stroke();
+  }
+  g.restore();
+}
+</script>
+<script>
+'use strict';
+/* ================= the living valley ================= */
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+const hudDay = document.getElementById('hudDay');
+const hudFruit = document.getElementById('hudFruit');
+const modeDot = document.getElementById('modeDot');
+const modeLabel = document.getElementById('modeLabel');
+const hintEl = document.getElementById('hint');
+let VW = 0, VH = 0;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  VW = window.innerWidth; VH = window.innerHeight;
+  canvas.width = Math.round(VW * dpr); canvas.height = Math.round(VH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize); resize();
+
+const WORLD_W = 4200;
+const DAY_SECONDS = 240;
+const FIRE_X = 3180, RIVER_X0 = 2480, RIVER_X1 = 2840;
+const PLAIN_TREES = [300, 1240, 2140, 3520];
+const FRUIT_TREES = [760, 1720, 3060, 3960];
+function hash(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function lerp(a, b, k) { return a + (b - a) * k; }
+function groundY(x) {
+  let y = Math.sin(x * 0.0016) * 24 + Math.sin(x * 0.0043 + 1.7) * 13 + Math.sin(x * 0.011 + 0.5) * 5;
+  if (x > RIVER_X0 - 160 && x < RIVER_X1 + 160) {
+    const c = (x - (RIVER_X0 + RIVER_X1) / 2) / 330;
+    y += 15 * Math.max(0, 1 - c * c);
+  }
+  return y;
+}
+function groundBase() { return VH * 0.8; }
+
+/* day-cycle palettes */
+const STOPS = [
+  { t: 0.00, top: '#8098cc', bot: '#f7c489', far: '#8d84b8', mid: '#6f8f6a', near: '#476b4a', gnd: '#5d8a4c', gndD: '#4a703c', sun: '#ffd9a0', star: 0.15 },
+  { t: 0.10, top: '#5ea9e6', bot: '#cfeeff', far: '#7d9cc4', mid: '#6f9a63', near: '#4a7a4c', gnd: '#679c50', gndD: '#54843f', sun: '#fff3c4', star: 0 },
+  { t: 0.30, top: '#57a8f2', bot: '#e2f6ff', far: '#84a6cc', mid: '#74a266', near: '#4e7f4e', gnd: '#6da354', gndD: '#598a42', sun: '#fff7d0', star: 0 },
+  { t: 0.48, top: '#5f9fe0', bot: '#ffeec9', far: '#8b97bd', mid: '#77975f', near: '#527a49', gnd: '#6b9c4e', gndD: '#567f3c', sun: '#ffedb5', star: 0 },
+  { t: 0.60, top: '#7768ac', bot: '#ffb066', far: '#7d6a9e', mid: '#677f57', near: '#46684a', gnd: '#5f8a46', gndD: '#4c7038', sun: '#ffbf74', star: 0.1 },
+  { t: 0.70, top: '#39356e', bot: '#e2703a', far: '#4c4478', mid: '#46543f', near: '#33463a', gnd: '#4d7040', gndD: '#3d5c33', sun: '#ff9a5c', star: 0.45 },
+  { t: 0.80, top: '#0a0f26', bot: '#1d2c4e', far: '#232c52', mid: '#27354a', near: '#1d2b2a', gnd: '#33512f', gndD: '#2a4429', sun: '#dfe8ff', star: 1 },
+  { t: 0.92, top: '#0a0f26', bot: '#27355c', far: '#2a3560', mid: '#2c3c52', near: '#223331', gnd: '#385631', gndD: '#2d472b', sun: '#dfe8ff', star: 1 }
+];
+function hexRGB(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+function mix(h1, h2, k) { const a = hexRGB(h1), b = hexRGB(h2); return `rgb(${Math.round(lerp(a[0], b[0], k))},${Math.round(lerp(a[1], b[1], k))},${Math.round(lerp(a[2], b[2], k))})`; }
+function paletteAt(p) {
+  let i = 0;
+  while (i < STOPS.length - 1 && p >= STOPS[i + 1].t) i++;
+  const a = STOPS[i], b = STOPS[(i + 1) % STOPS.length];
+  let span = (b.t - a.t + 1) % 1; if (span === 0) span = 1;
+  const k = clamp(((p - a.t + 1) % 1) / span, 0, 1);
+  const out = {};
+  for (const key of ['top', 'bot', 'far', 'mid', 'near', 'gnd', 'gndD', 'sun']) out[key] = mix(a[key], b[key], k);
+  out.star = lerp(a.star, b.star, k);
+  return out;
+}
+
+/* world state */
+const hero = { x: 520, y: 0, vy: 0, dir: 1, grounded: true, phase: 0, pose: 'stand' };
+hero.y = groundY(hero.x);
+let mode = 'ambient';
+let lastInputAt = -20000;
+let fruit = 0, dayCount = 1, worldT = 0, dayPhase = 0.16;
+let camX = clamp(hero.x - 400, 0, Math.max(0, WORLD_W - 800));
+const fruitTrees = FRUIT_TREES.map(x => ({
+  x,
+  slots: [-17, -6, 6, 16].map((dx, j) => ({ dx, dy: -96 - (j % 2) * 9, ripe: true, timer: 0 }))
+}));
+const particles = [];
+function sparkle(x, y, color) {
+  for (let i = 0; i < 7; i++) particles.push({ x, y, vx: (hash(x + i * 7) - 0.5) * 60, vy: -30 - hash(y + i) * 50, life: 0.7, age: 0, color, size: 2 + hash(i + x) * 2 });
+}
+function collectFruit(tree) {
+  const slot = tree.slots.find(s => s.ripe);
+  if (!slot) return;
+  slot.ripe = false; slot.timer = 50 + hash(tree.x + worldT) * 60;
+  fruit++; hudFruit.textContent = fruit;
+  sparkle(tree.x + slot.dx, groundBase() + groundY(tree.x) + slot.dy + 14, '#ffb347');
+}
+
+/* ambient brain: wander, gather, sit at the fire, watch the sky */
+const brain = { state: 'idle', timer: 1.2, targetX: hero.x, tree: null };
+function startTo(x, state) { brain.state = state; brain.targetX = x; }
+function pickNext() {
+  const night = dayPhase > 0.58 && dayPhase < 0.96;
+  const roll = Math.random();
+  if (night && roll < 0.42) return startTo(FIRE_X - 36, 'toFire');
+  if (roll < 0.30) {
+    const ready = fruitTrees.filter(t => t.slots.some(s => s.ripe));
+    if (ready.length) { brain.tree = ready[Math.floor(Math.random() * ready.length)]; return startTo(brain.tree.x + 24, 'toTree'); }
+  }
+  if (roll < 0.48) { brain.state = 'watch'; brain.timer = 4 + Math.random() * 5; return; }
+  if (roll < 0.58) return startTo(FIRE_X - 36, 'toFire');
+  brain.state = 'wander'; brain.targetX = 120 + Math.random() * (WORLD_W - 240);
+}
+function walkToward(tx, speed, dt) {
+  const dx = tx - hero.x;
+  if (Math.abs(dx) < 6) return false;
+  hero.dir = dx > 0 ? 1 : -1;
+  hero.x += Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
+  hero.phase += dt * 7;
+  return true;
+}
+function ambientTick(dt) {
+  const st = brain.state;
+  if (st === 'wander' || st === 'toTree' || st === 'toFire') {
+    const moving = walkToward(brain.targetX, 58, dt);
+    hero.pose = moving ? 'walk' : 'stand';
+    if (!moving) {
+      if (st === 'toTree') { brain.state = 'gather'; brain.timer = 0.9; }
+      else if (st === 'toFire') { brain.state = 'sit'; brain.timer = 6 + Math.random() * 7; hero.dir = 1; }
+      else { brain.state = 'idle'; brain.timer = 1.5 + Math.random() * 3; }
+    }
+  } else if (st === 'gather') {
+    hero.pose = 'gather'; brain.timer -= dt;
+    if (brain.timer <= 0) { collectFruit(brain.tree); brain.state = 'idle'; brain.timer = 1 + Math.random() * 2; }
+  } else if (st === 'sit') {
+    hero.pose = 'sit'; brain.timer -= dt;
+    if (brain.timer <= 0) { brain.state = 'idle'; brain.timer = 1; }
+  } else if (st === 'watch') {
+    hero.pose = 'stand'; brain.timer -= dt;
+    if (brain.timer <= 0) pickNext();
+  } else {
+    hero.pose = 'stand'; brain.timer -= dt;
+    if (brain.timer <= 0) pickNext();
+  }
+}
+
+/* player control */
+const keys = { left: false, right: false };
+let touchMove = 0, dwell = 0;
+function controlTick(dt) {
+  let mv = 0;
+  if (keys.left) mv -= 1;
+  if (keys.right) mv += 1;
+  if (touchMove) mv = touchMove;
+  if (mv !== 0) {
+    hero.dir = mv; hero.x += mv * 168 * dt; hero.phase += dt * 9.5;
+    if (hero.grounded) hero.pose = 'walk';
+    dwell = 0;
+  } else if (hero.grounded) {
+    hero.pose = 'stand';
+    const tree = fruitTrees.find(t => Math.abs(t.x + 10 - hero.x) < 34 && t.slots.some(s => s.ripe));
+    if (tree) {
+      dwell += dt;
+      if (dwell > 0.25) hero.pose = 'gather';
+      if (dwell > 0.95) { collectFruit(tree); dwell = 0; }
+    } else dwell = 0;
+  }
+}
+function physics(dt) {
+  const gy = groundY(hero.x);
+  if (!hero.grounded) {
+    hero.vy += 1500 * dt; hero.y += hero.vy * dt;
+    if (hero.y >= gy) { hero.y = gy; hero.vy = 0; hero.grounded = true; }
+    hero.pose = 'jump';
+  } else hero.y = gy;
+  hero.x = clamp(hero.x, 26, WORLD_W - 26);
+}
+function jump() { if (hero.grounded) { hero.vy = -560; hero.grounded = false; } }
+function setMode(next) {
+  if (mode === next) return;
+  mode = next;
+  modeDot.className = 'dot' + (next === 'control' ? ' you' : '');
+  modeLabel.textContent = next === 'control' ? "you're guiding" : currentDef.name + ' is living';
+  if (next === 'ambient') { brain.state = 'idle'; brain.timer = 0.7; dwell = 0; }
+}
+
+/* gentle creatures */
+let flocks = [], flockTimer = 5;
+const butterflies = [0, 1, 2].map(i => ({ seed: i * 37 + 11, color: ['#ffb3d9', '#ffe066', '#c3a6ff'][i] }));
+const clouds = [0, 1, 2, 3, 4, 5].map(i => ({ x: hash(i * 3) * 1600, y: 24 + hash(i * 7) * 110, s: 0.7 + hash(i * 13) * 0.9, v: 4 + hash(i * 17) * 6 }));
+function updateCritters(dt) {
+  flockTimer -= dt;
+  if (flockTimer <= 0) {
+    flockTimer = 8 + Math.random() * 9;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const n = 3 + Math.floor(Math.random() * 4);
+    flocks.push({ x: dir > 0 ? camX - 120 : camX + VW + 120, y: VH * (0.14 + Math.random() * 0.2), dir, speed: 34 + Math.random() * 22, birds: Array.from({ length: n }, (_, i) => ({ dx: -i * 26 * dir, dy: (i % 2) * 9 + i * 2 })) });
+  }
+  for (const f of flocks) f.x += f.dir * f.speed * dt;
+  flocks = flocks.filter(f => f.x > camX - 320 && f.x < camX + VW + 320);
+}
+
+/* ---------- drawing ---------- */
+function ridge(base, f1, a1, f2, a2, seed, fromX, toX) {
+  ctx.beginPath();
+  for (let x = fromX; x <= toX; x += 18) {
+    const y = base + Math.sin(x * f1 + seed) * a1 + Math.sin(x * f2 + seed * 2.3) * a2;
+    if (x === fromX) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(toX, VH + 60); ctx.lineTo(fromX, VH + 60); ctx.closePath(); ctx.fill();
+}
+function drawTree(x, pal, isFruit) {
+  const gy = groundBase() + groundY(x);
+  ctx.strokeStyle = '#5d4430'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x, gy + 4); ctx.quadraticCurveTo(x + 3, gy - 34, x - 2, gy - 58); ctx.stroke();
+  ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.moveTo(x - 2, gy - 46); ctx.quadraticCurveTo(x - 14, gy - 58, x - 20, gy - 70); ctx.moveTo(x - 1, gy - 52); ctx.quadraticCurveTo(x + 11, gy - 62, x + 17, gy - 74); ctx.stroke();
+  ctx.fillStyle = pal.near;
+  for (const [dx, dy, r] of [[-16, -74, 17], [2, -84, 21], [18, -72, 15], [-2, -66, 16]]) {
+    ctx.beginPath(); ctx.arc(x + dx, gy + dy, r, 0, Math.PI * 2); ctx.fill();
+  }
+  if (isFruit) {
+    const tree = fruitTrees.find(t => t.x === x);
+    ctx.fillStyle = '#ff7847';
+    for (const s of tree.slots) if (s.ripe) { ctx.beginPath(); ctx.arc(x + s.dx, gy + s.dy + 14, 3.6, 0, Math.PI * 2); ctx.fill(); }
+  }
+}
+function draw() {
+  const pal = paletteAt(dayPhase);
+  const sky = ctx.createLinearGradient(0, 0, 0, VH);
+  sky.addColorStop(0, pal.top); sky.addColorStop(1, pal.bot);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+  /* stars */
+  if (pal.star > 0.03) {
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 110; i++) {
+      const sx = hash(i * 3.7) * VW, sy = hash(i * 9.1) * VH * 0.55;
+      ctx.globalAlpha = pal.star * (0.35 + 0.4 * Math.abs(Math.sin(worldT * 1.4 + i)));
+      ctx.fillRect(sx, sy, 1.7, 1.7);
+    }
+    ctx.globalAlpha = 1;
+  }
+  /* sun and moon */
+  if (dayPhase < 0.72) {
+    const pr = dayPhase / 0.72, sx = VW * (0.08 + 0.84 * pr) - camX * 0.02, sy = VH * 0.68 - Math.sin(pr * Math.PI) * VH * 0.52;
+    const glow = ctx.createRadialGradient(sx, sy, 4, sx, sy, 90);
+    glow.addColorStop(0, pal.sun); glow.addColorStop(1, 'rgba(255,220,160,0)');
+    ctx.globalAlpha = 0.5; ctx.fillStyle = glow; ctx.fillRect(sx - 90, sy - 90, 180, 180); ctx.globalAlpha = 1;
+    ctx.fillStyle = pal.sun; ctx.beginPath(); ctx.arc(sx, sy, 21, 0, Math.PI * 2); ctx.fill();
+  } else {
+    const pr = (dayPhase - 0.72) / 0.28, sx = VW * (0.1 + 0.8 * pr) - camX * 0.02, sy = VH * 0.6 - Math.sin(pr * Math.PI) * VH * 0.42;
+    ctx.fillStyle = '#e8eeff'; ctx.beginPath(); ctx.arc(sx, sy, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = pal.top; ctx.beginPath(); ctx.arc(sx + 6, sy - 4, 12, 0, Math.PI * 2); ctx.fill();
+  }
+  /* clouds */
+  ctx.fillStyle = '#ffffff';
+  for (const c of clouds) {
+    const cx = ((c.x + worldT * c.v - camX * 0.08) % (VW + 340) + VW + 340) % (VW + 340) - 170;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.ellipse(cx, c.y, 44 * c.s, 12 * c.s, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 26 * c.s, c.y + 3, 30 * c.s, 9 * c.s, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx - 28 * c.s, c.y + 4, 26 * c.s, 8 * c.s, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  /* parallax ridges */
+  ctx.fillStyle = pal.far;
+  ctx.save(); ctx.translate(-camX * 0.15, 0); ridge(VH * 0.6, 0.0016, 42, 0.005, 16, 3.1, camX * 0.15 - 60, camX * 0.15 + VW + 60); ctx.restore();
+  ctx.fillStyle = pal.mid;
+  ctx.save(); ctx.translate(-camX * 0.38, 0); ridge(VH * 0.68, 0.0021, 30, 0.006, 11, 7.7, camX * 0.38 - 60, camX * 0.38 + VW + 60); ctx.restore();
+  ctx.fillStyle = pal.near;
+  ctx.save(); ctx.translate(-camX * 0.62, 0); ridge(VH * 0.75, 0.0026, 18, 0.008, 7, 12.3, camX * 0.62 - 60, camX * 0.62 + VW + 60); ctx.restore();
+  /* ground */
+  const gb = groundBase(), fromX = Math.max(0, camX - 40), toX = Math.min(WORLD_W, camX + VW + 40);
+  ctx.fillStyle = pal.gnd;
+  ctx.beginPath();
+  for (let x = fromX; x <= toX; x += 14) { const y = gb + groundY(x); if (x === fromX) ctx.moveTo(x - camX, y); else ctx.lineTo(x - camX, y); }
+  ctx.lineTo(toX - camX, VH + 40); ctx.lineTo(fromX - camX, VH + 40); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = pal.gndD;
+  ctx.beginPath();
+  for (let x = fromX; x <= toX; x += 14) { const y = gb + groundY(x) + 13; if (x === fromX) ctx.moveTo(x - camX, y); else ctx.lineTo(x - camX, y); }
+  ctx.lineTo(toX - camX, VH + 40); ctx.lineTo(fromX - camX, VH + 40); ctx.closePath(); ctx.fill();
+  /* river */
+  const rg = ctx.createLinearGradient(0, gb, 0, gb + 34);
+  rg.addColorStop(0, 'rgba(96,170,225,.8)'); rg.addColorStop(1, 'rgba(43,102,171,.9)');
+  ctx.fillStyle = rg;
+  ctx.beginPath();
+  for (let x = RIVER_X0; x <= RIVER_X1; x += 14) { const y = gb + groundY(x) + 5; if (x === RIVER_X0) ctx.moveTo(x - camX, y); else ctx.lineTo(x - camX, y); }
+  for (let x = RIVER_X1; x >= RIVER_X0; x -= 14) ctx.lineTo(x - camX, gb + groundY(x) + 30);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.4;
+  for (let r = 0; r < 3; r++) {
+    ctx.beginPath();
+    for (let x = RIVER_X0 + 8; x <= RIVER_X1 - 8; x += 16) {
+      const y = gb + groundY(x) + 9 + r * 7 + Math.sin(worldT * 2 + x * 0.05 + r * 2) * 1.6;
+      if (x === RIVER_X0 + 8) ctx.moveTo(x - camX, y); else ctx.lineTo(x - camX, y);
+    }
+    ctx.stroke();
+  }
+  /* grass and flowers */
+  ctx.strokeStyle = pal.gndD; ctx.lineWidth = 1.6;
+  for (let x = Math.floor(fromX / 46) * 46; x < toX; x += 46) {
+    const jx = x + hash(x) * 22, gy = gb + groundY(jx), sx = jx - camX;
+    ctx.beginPath();
+    ctx.moveTo(sx, gy + 2); ctx.lineTo(sx - 2.5, gy - 6 - hash(x * 2) * 4);
+    ctx.moveTo(sx + 2, gy + 2); ctx.lineTo(sx + 3.5, gy - 5 - hash(x * 3) * 4);
+    ctx.stroke();
+    if (hash(x * 5) > 0.72) { ctx.fillStyle = hash(x * 7) > 0.5 ? '#ffd166' : '#ff8fab'; ctx.beginPath(); ctx.arc(sx + 1, gy - 7, 2.2, 0, Math.PI * 2); ctx.fill(); }
+  }
+  /* trees */
+  for (const x of PLAIN_TREES) if (x > fromX - 80 && x < toX + 80) { ctx.save(); ctx.translate(-camX, 0); drawTree(x, pal, false); ctx.restore(); }
+  for (const t of fruitTrees) if (t.x > fromX - 80 && t.x < toX + 80) { ctx.save(); ctx.translate(-camX, 0); drawTree(t.x, pal, true); ctx.restore(); }
+  /* the fire */
+  const fx = FIRE_X - camX, fy = gb + groundY(FIRE_X);
+  if (fx > -160 && fx < VW + 160) {
+    if (pal.star > 0.2) {
+      const glow = ctx.createRadialGradient(fx, fy - 8, 4, fx, fy - 8, 120);
+      glow.addColorStop(0, `rgba(255,160,60,${0.34 * pal.star})`); glow.addColorStop(1, 'rgba(255,160,60,0)');
+      ctx.fillStyle = glow; ctx.fillRect(fx - 120, fy - 128, 240, 150);
+    }
+    ctx.fillStyle = '#7c7f85';
+    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI; ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * 15, fy + 2 - Math.abs(Math.sin(a)) * 2, 4.4, 3.2, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = '#6b4a2f'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(fx - 9, fy + 1); ctx.lineTo(fx + 9, fy - 3); ctx.moveTo(fx + 9, fy + 1); ctx.lineTo(fx - 9, fy - 3); ctx.stroke();
+    const fl = 0.55 + pal.star * 0.75, flick = Math.sin(worldT * 13) * 2 + Math.sin(worldT * 29) * 1.2;
+    ctx.fillStyle = '#ff8b3d';
+    ctx.beginPath(); ctx.ellipse(fx, fy - 8 * fl + flick * 0.3, 5.4, 10 * fl, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffc94d';
+    ctx.beginPath(); ctx.ellipse(fx, fy - 5 * fl, 3, 6 * fl, 0, 0, Math.PI * 2); ctx.fill();
+    if (pal.star > 0.3 && Math.random() < 0.12) particles.push({ x: FIRE_X + (Math.random() - 0.5) * 8, y: fy - 14, vx: (Math.random() - 0.5) * 7, vy: -22 - Math.random() * 16, life: 1.4, age: 0, color: '#ffb347', size: 1.8 });
+  }
+  /* birds */
+  ctx.strokeStyle = 'rgba(24,32,48,.75)'; ctx.lineWidth = 1.8;
+  for (const f of flocks) for (const b of f.birds) {
+    const bx = f.x + b.dx - camX * 0.85, by = f.y + b.dy + Math.sin(worldT * 2 + b.dx) * 3, flap = Math.sin(worldT * 9 + b.dx * 0.4) * 3.4;
+    ctx.beginPath(); ctx.moveTo(bx - 6, by + flap); ctx.quadraticCurveTo(bx - 2, by - 3, bx, by); ctx.quadraticCurveTo(bx + 2, by - 3, bx + 6, by + flap); ctx.stroke();
+  }
+  /* butterflies */
+  for (const bf of butterflies) {
+    const bx = 300 + bf.seed * 90 + Math.sin(worldT * 0.11 + bf.seed) * 190 - camX;
+    if (bx < -30 || bx > VW + 30) continue;
+    const wx = 300 + bf.seed * 90 + Math.sin(worldT * 0.11 + bf.seed) * 190;
+    const by = gb + groundY(wx) - 32 + Math.sin(worldT * 1.7 + bf.seed * 2) * 9;
+    const flap = Math.abs(Math.sin(worldT * 11 + bf.seed)) * 0.8 + 0.2;
+    ctx.fillStyle = bf.color; ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.ellipse(bx - 3 * flap, by, 4.4 * flap + 1, 3, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(bx + 3 * flap, by, 4.4 * flap + 1, 3, -0.5 + 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  /* hero shadow, hero, wading overlay, name tag */
+  const hx = hero.x - camX, feetY = gb + hero.y, groundScreenY = gb + groundY(hero.x);
+  ctx.fillStyle = 'rgba(10,20,12,.2)';
+  ctx.beginPath(); ctx.ellipse(hx, groundScreenY + 3, 15, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+  drawCharacter(ctx, currentDef, { x: hx, y: feetY, scale: 1.12, dir: hero.dir, pose: hero.pose === 'jump' ? 'jump' : hero.pose, phase: hero.phase, t: worldT });
+  if (hero.x > RIVER_X0 && hero.x < RIVER_X1) {
+    ctx.fillStyle = 'rgba(80,160,220,.4)';
+    ctx.fillRect(hx - 13, feetY - 7, 26, 9);
+  }
+  ctx.font = '700 10px Inter,system-ui,sans-serif';
+  const nm = currentDef.name, tw = ctx.measureText(nm).width;
+  ctx.fillStyle = 'rgba(10,17,28,.55)';
+  roundRect(ctx, hx - tw / 2 - 6, feetY - 74, tw + 12, 15, 7.5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.textAlign = 'center';
+  ctx.fillText(nm, hx, feetY - 63);
+  /* fireflies */
+  if (pal.star > 0.4) {
+    for (let i = 0; i < 22; i++) {
+      const wx = camX + hash(i * 13.7) * VW + Math.sin(worldT * 0.4 + i * 2.1) * 26;
+      const wy = gb + groundY(clamp(wx, 0, WORLD_W)) - 14 - hash(i * 7.3) * 52 + Math.sin(worldT * 0.9 + i) * 6;
+      const a = pal.star * (0.35 + 0.4 * Math.abs(Math.sin(worldT * 1.8 + i * 1.7)));
+      ctx.fillStyle = `rgba(255,233,138,${a * 0.3})`; ctx.beginPath(); ctx.arc(wx - camX, wy, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = `rgba(255,240,170,${a})`; ctx.beginPath(); ctx.arc(wx - camX, wy, 1.7, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  /* particles */
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, 1 - p.age / p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x - camX, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* main loop */
+let lastTs = 0;
+function frame(ts) {
+  const dt = Math.min(0.05, lastTs ? (ts - lastTs) / 1000 : 0.016);
+  lastTs = ts; worldT += dt;
+  dayPhase += dt / DAY_SECONDS;
+  if (dayPhase >= 1) { dayPhase -= 1; dayCount++; hudDay.textContent = dayCount; }
+  if (keys.left || keys.right || touchMove) lastInputAt = performance.now();
+  if (mode === 'control' && performance.now() - lastInputAt > 10000) setMode('ambient');
+  if (mode === 'ambient') ambientTick(dt); else controlTick(dt);
+  physics(dt);
+  updateCritters(dt);
+  for (const t of fruitTrees) for (const s of t.slots) if (!s.ripe) { s.timer -= dt; if (s.timer <= 0) s.ripe = true; }
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i]; p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 26 * dt;
+    if (p.age >= p.life) particles.splice(i, 1);
+  }
+  const targetCam = clamp(hero.x - VW / 2, 0, Math.max(0, WORLD_W - VW));
+  camX += (targetCam - camX) * Math.min(1, dt * 3.2);
+  draw();
+  requestAnimationFrame(frame);
+}
+/* ---------- input: any tap or key takes over; 10 quiet seconds hand back ---------- */
+let castOpen = false;
+function takeOver() { lastInputAt = performance.now(); if (mode !== 'control') setMode('control'); }
+function inField(e) { const t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA'); }
+window.addEventListener('keydown', e => {
+  if (inField(e)) return;
+  if (castOpen) { if (e.key === 'Escape') closeCast(); return; }
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) e.preventDefault();
+  takeOver();
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+  if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') jump();
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+});
+let touchStart = null;
+canvas.addEventListener('pointerdown', e => {
+  takeOver();
+  touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  try { canvas.setPointerCapture(e.pointerId); } catch (_e) {}
+});
+canvas.addEventListener('pointermove', e => {
+  if (!touchStart) return;
+  lastInputAt = performance.now();
+  const dx = e.clientX - touchStart.x;
+  touchMove = Math.abs(dx) > 14 ? Math.sign(dx) : 0;
+});
+function endTouch(e) {
+  if (!touchStart) return;
+  lastInputAt = performance.now();
+  const quick = performance.now() - touchStart.t < 260;
+  const moved = Math.abs(e.clientX - touchStart.x) + Math.abs(e.clientY - touchStart.y);
+  if (quick && moved < 14) jump();
+  touchStart = null; touchMove = 0;
+}
+canvas.addEventListener('pointerup', endTouch);
+canvas.addEventListener('pointercancel', () => { touchStart = null; touchMove = 0; });
+
+/* ---------- music deck ---------- */
+const STATIONS = {
+  groovesalad: 'https://ice1.somafm.com/groovesalad-128-mp3',
+  dronezone: 'https://ice1.somafm.com/dronezone-128-mp3',
+  lush: 'https://ice1.somafm.com/lush-128-mp3',
+  secretagent: 'https://ice1.somafm.com/secretagent-128-mp3',
+  deepspaceone: 'https://ice1.somafm.com/deepspaceone-128-mp3'
+};
+const deck = document.getElementById('deck');
+const audio = document.getElementById('deckAudio');
+const playBtn = document.getElementById('playBtn');
+const muteBtn = document.getElementById('muteBtn');
+const volSlider = document.getElementById('volSlider');
+const stationSel = document.getElementById('stationSel');
+const ytInput = document.getElementById('ytInput');
+const ytBox = document.getElementById('ytBox');
+const ytSlot = document.getElementById('ytSlot');
+let music = Object.assign({ muted: false, volume: 0.8, station: 'groovesalad', mode: 'radio', playing: false }, loadJSON(LS.music, {}));
+let ytFrame = null;
+function persistMusic() { saveJSON(LS.music, music); }
+function ytCommand(func, args) {
+  if (ytFrame && ytFrame.contentWindow) ytFrame.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args: args || [] }), '*');
+}
+function syncDeckUI() {
+  playBtn.textContent = music.playing ? '⏸' : '▶';
+  muteBtn.textContent = music.muted ? '🔇' : '🔊';
+  muteBtn.classList.toggle('on', music.muted);
+  stationSel.value = music.station;
+  volSlider.value = Math.round(music.volume * 100);
+  deck.classList.toggle('yt', music.mode === 'youtube');
+}
+function applyVolume() {
+  audio.volume = music.volume; audio.muted = music.muted;
+  if (music.muted) ytCommand('mute'); else { ytCommand('unMute'); ytCommand('setVolume', [Math.round(music.volume * 100)]); }
+  syncDeckUI(); persistMusic();
+}
+function closeYT() {
+  ytSlot.innerHTML = ''; ytFrame = null;
+  ytBox.classList.remove('show');
+}
+function setStation(key, autoplay) {
+  music.station = key;
+  if (key === 'youtube') {
+    music.mode = 'youtube'; audio.pause();
+  } else {
+    music.mode = 'radio'; closeYT();
+    audio.src = STATIONS[key];
+    if (autoplay) audio.play().catch(() => {});
+  }
+  syncDeckUI(); persistMusic();
+}
+playBtn.addEventListener('click', () => {
+  if (music.mode === 'youtube') {
+    if (!ytFrame) { ytInput.focus(); return; }
+    music.playing = !music.playing;
+    ytCommand(music.playing ? 'playVideo' : 'pauseVideo');
+  } else {
+    if (audio.paused) { if (!audio.getAttribute('src')) audio.src = STATIONS[music.station]; audio.play().catch(() => {}); }
+    else audio.pause();
+    music.playing = !audio.paused;
+  }
+  syncDeckUI(); persistMusic();
+});
+audio.addEventListener('play', () => { music.playing = true; syncDeckUI(); });
+audio.addEventListener('pause', () => { music.playing = false; syncDeckUI(); persistMusic(); });
+muteBtn.addEventListener('click', () => { music.muted = !music.muted; applyVolume(); });
+volSlider.addEventListener('input', () => { music.volume = volSlider.value / 100; if (music.volume > 0) music.muted = false; applyVolume(); });
+stationSel.addEventListener('change', () => setStation(stationSel.value, music.playing));
+document.getElementById('ytLoad').addEventListener('click', loadYouTube);
+ytInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadYouTube(); } });
+function loadYouTube() {
+  const raw = ytInput.value.trim();
+  const m = raw.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/) || raw.match(/^([\w-]{11})$/);
+  if (!m) { ytInput.value = ''; ytInput.placeholder = 'That link did not parse, try again'; return; }
+  closeYT();
+  ytFrame = document.createElement('iframe');
+  ytFrame.src = `https://www.youtube-nocookie.com/embed/${m[1]}?autoplay=1&enablejsapi=1&rel=0&playsinline=1`;
+  ytFrame.allow = 'autoplay; encrypted-media; picture-in-picture';
+  ytFrame.title = 'YouTube player';
+  ytSlot.appendChild(ytFrame);
+  ytBox.classList.add('show');
+  music.playing = true; music.mode = 'youtube'; music.station = 'youtube';
+  setTimeout(applyVolume, 900);
+  syncDeckUI(); persistMusic();
+}
+document.getElementById('ytClose').addEventListener('click', () => {
+  closeYT(); music.playing = false;
+  setStation('groovesalad', false);
+});
+
+/* ---------- cast panel and character creator ---------- */
+const castPanel = document.getElementById('castPanel');
+const castGrid = document.getElementById('castGrid');
+const creator = document.getElementById('creator');
+function renderCast() {
+  castGrid.innerHTML = '';
+  for (const def of allCharacters()) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'castCard' + (def.id === currentDef.id ? ' sel' : '');
+    card.dataset.charId = def.id;
+    const cv = document.createElement('canvas');
+    cv.width = 72; cv.height = 72;
+    drawCharacter(cv.getContext('2d'), def, { x: 36, y: 65, scale: 1.22, dir: 1, pose: 'stand', t: 1.3 });
+    card.appendChild(cv);
+    const nm = document.createElement('span');
+    nm.className = 'nm'; nm.textContent = def.name;
+    card.appendChild(nm);
+    card.addEventListener('click', () => selectCharacter(def.id, true));
+    if (String(def.id).startsWith('custom-')) {
+      const del = document.createElement('span');
+      del.className = 'del'; del.textContent = '×'; del.title = 'Delete ' + def.name;
+      del.addEventListener('click', ev => { ev.stopPropagation(); deleteCustom(def.id); });
+      card.appendChild(del);
+    }
+    castGrid.appendChild(card);
+  }
+}
+function selectCharacter(id, close) {
+  currentDef = findCharacter(id);
+  saveJSON(LS.selected, currentDef.id);
+  modeLabel.textContent = mode === 'control' ? "you're guiding" : currentDef.name + ' is living';
+  renderCast();
+  if (close) closeCast();
+}
+function deleteCustom(id) {
+  customs = customs.filter(c => c.id !== id);
+  saveJSON(LS.customs, customs);
+  if (currentDef.id === id) selectCharacter('thomas', false);
+  renderCast();
+}
+function openCast() { castOpen = true; renderCast(); castPanel.classList.add('show'); }
+function closeCast() { castOpen = false; castPanel.classList.remove('show'); creator.classList.remove('show'); }
+document.getElementById('castBtn').addEventListener('click', openCast);
+document.getElementById('castClose').addEventListener('click', closeCast);
+document.getElementById('createBtn').addEventListener('click', () => { creator.classList.add('show'); drawCreatorPreview(); });
+
+const draft = { name: '', skin: SKIN_TONES[1], hairStyle: 'short', hairColor: '#4a3220', shirt: '#0f7d8c', pants: '#39434f' };
+const cSkin = document.getElementById('cSkin');
+for (const tone of SKIN_TONES) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'sw' + (tone === draft.skin ? ' sel' : ''); b.style.background = tone; b.title = tone;
+  b.addEventListener('click', () => { draft.skin = tone; cSkin.querySelectorAll('.sw').forEach(el => el.classList.toggle('sel', el === b)); drawCreatorPreview(); });
+  cSkin.appendChild(b);
+}
+const cHairStyle = document.getElementById('cHairStyle');
+for (const styleName of HAIR_STYLES) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = styleName; b.className = styleName === draft.hairStyle ? 'sel' : '';
+  b.addEventListener('click', () => { draft.hairStyle = styleName; cHairStyle.querySelectorAll('button').forEach(el => el.classList.toggle('sel', el === b)); drawCreatorPreview(); });
+  cHairStyle.appendChild(b);
+}
+function bindColor(id, key) {
+  document.getElementById(id).addEventListener('input', e => { draft[key] = e.target.value; drawCreatorPreview(); });
+}
+bindColor('cHairColor', 'hairColor'); bindColor('cShirt', 'shirt'); bindColor('cPants', 'pants');
+document.getElementById('cName').addEventListener('input', e => { draft.name = e.target.value; });
+function drawCreatorPreview() {
+  const cv = document.getElementById('creatorPreview');
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, 72, 72);
+  drawCharacter(g, draft, { x: 36, y: 65, scale: 1.22, dir: 1, pose: 'stand', t: 1.3 });
+}
+creator.addEventListener('submit', e => {
+  e.preventDefault();
+  const def = {
+    id: 'custom-' + Date.now().toString(36),
+    name: (draft.name || '').trim().slice(0, 18) || 'Wanderer',
+    skin: draft.skin, hairStyle: draft.hairStyle, hairColor: draft.hairColor,
+    shirt: draft.shirt, pants: draft.pants
+  };
+  customs.push(def);
+  saveJSON(LS.customs, customs);
+  selectCharacter(def.id, true);
+});
+document.getElementById('cCancel').addEventListener('click', () => creator.classList.remove('show'));
+
+/* ---------- boot + test hooks ---------- */
+window.Valley = {
+  state: () => ({ mode, fruit, day: dayCount, heroX: Math.round(hero.x), character: currentDef.name, phase: +dayPhase.toFixed(3) }),
+  music: () => ({ muted: music.muted, volume: music.volume, station: music.station, mode: music.mode, playing: music.playing, audioSrc: audio.getAttribute('src'), audioPaused: audio.paused, yt: !!ytFrame }),
+  select: id => selectCharacter(id, true),
+  customs: () => customs.map(c => c.name)
+};
+modeLabel.textContent = currentDef.name + ' is living';
+if (music.station === 'youtube') { music.mode = 'youtube'; } else { audio.src = STATIONS[music.station] || STATIONS.groovesalad; }
+audio.volume = music.volume; audio.muted = music.muted;
+music.playing = false;
+syncDeckUI(); applyVolume();
+hintEl.classList.add('show');
+setTimeout(() => hintEl.classList.remove('show'), 8000);
+openCast();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
