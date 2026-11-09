@@ -82,7 +82,7 @@ button.pill{cursor:pointer;font-family:inherit}
   </div>
 </div>
 
-<div class="hint" id="hint">Click or tap a spot to stroll there · drag or use ← → to steer · let go, and the valley takes over again</div>
+<div class="hint" id="hint">Click or tap a spot to stroll there · right-click to hop · wheel to zoom · drag or use ← → to steer · let go, and the valley takes over again</div>
 
 <div id="ytBox"><button id="ytClose" type="button" aria-label="Close YouTube">×</button><div id="ytSlot"></div></div>
 
@@ -363,6 +363,8 @@ let mode = 'ambient';
 let lastInputAt = -20000;
 let fruit = 0, dayCount = 1, worldT = 0, dayPhase = 0.16;
 let camX = clamp(hero.x - 400, 0, Math.max(0, WORLD_W - 800));
+let zoomF = 1;
+const viewW = () => VW / zoomF;
 const fruitTrees = FRUIT_TREES.map(x => ({
   x,
   slots: [-17, -6, 6, 16].map((dx, j) => ({ dx, dy: -96 - (j % 2) * 9, ripe: true, timer: 0 }))
@@ -554,15 +556,20 @@ function draw() {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+  /* Wheel zoom: the world layer scales around the ground line; the
+     sky above stays put. Restored at the end of draw(). */
+  ctx.save();
+  ctx.translate(0, groundBase() * (1 - zoomF));
+  ctx.scale(zoomF, zoomF);
   /* parallax ridges */
   ctx.fillStyle = pal.far;
-  ctx.save(); ctx.translate(-camX * 0.15, 0); ridge(VH * 0.6, 0.0016, 42, 0.005, 16, 3.1, camX * 0.15 - 60, camX * 0.15 + VW + 60); ctx.restore();
+  ctx.save(); ctx.translate(-camX * 0.15, 0); ridge(VH * 0.6, 0.0016, 42, 0.005, 16, 3.1, camX * 0.15 - 60, camX * 0.15 + viewW() + 60); ctx.restore();
   ctx.fillStyle = pal.mid;
-  ctx.save(); ctx.translate(-camX * 0.38, 0); ridge(VH * 0.68, 0.0021, 30, 0.006, 11, 7.7, camX * 0.38 - 60, camX * 0.38 + VW + 60); ctx.restore();
+  ctx.save(); ctx.translate(-camX * 0.38, 0); ridge(VH * 0.68, 0.0021, 30, 0.006, 11, 7.7, camX * 0.38 - 60, camX * 0.38 + viewW() + 60); ctx.restore();
   ctx.fillStyle = pal.near;
-  ctx.save(); ctx.translate(-camX * 0.62, 0); ridge(VH * 0.75, 0.0026, 18, 0.008, 7, 12.3, camX * 0.62 - 60, camX * 0.62 + VW + 60); ctx.restore();
+  ctx.save(); ctx.translate(-camX * 0.62, 0); ridge(VH * 0.75, 0.0026, 18, 0.008, 7, 12.3, camX * 0.62 - 60, camX * 0.62 + viewW() + 60); ctx.restore();
   /* ground */
-  const gb = groundBase(), fromX = Math.max(0, camX - 40), toX = Math.min(WORLD_W, camX + VW + 40);
+  const gb = groundBase(), fromX = Math.max(0, camX - 40), toX = Math.min(WORLD_W, camX + viewW() + 40);
   ctx.fillStyle = pal.gnd;
   ctx.beginPath();
   for (let x = fromX; x <= toX; x += 14) { const y = gb + groundY(x); if (x === fromX) ctx.moveTo(x - camX, y); else ctx.lineTo(x - camX, y); }
@@ -603,7 +610,7 @@ function draw() {
   for (const t of fruitTrees) if (t.x > fromX - 80 && t.x < toX + 80) { ctx.save(); ctx.translate(-camX, 0); drawTree(t.x, pal, true); ctx.restore(); }
   /* the fire */
   const fx = FIRE_X - camX, fy = gb + groundY(FIRE_X);
-  if (fx > -160 && fx < VW + 160) {
+  if (fx > -160 && fx < viewW() + 160) {
     if (pal.star > 0.2) {
       const glow = ctx.createRadialGradient(fx, fy - 8, 4, fx, fy - 8, 120);
       glow.addColorStop(0, `rgba(255,160,60,${0.34 * pal.star})`); glow.addColorStop(1, 'rgba(255,160,60,0)');
@@ -629,7 +636,7 @@ function draw() {
   /* butterflies */
   for (const bf of butterflies) {
     const bx = 300 + bf.seed * 90 + Math.sin(worldT * 0.11 + bf.seed) * 190 - camX;
-    if (bx < -30 || bx > VW + 30) continue;
+    if (bx < -30 || bx > viewW() + 30) continue;
     const wx = 300 + bf.seed * 90 + Math.sin(worldT * 0.11 + bf.seed) * 190;
     const by = gb + groundY(wx) - 32 + Math.sin(worldT * 1.7 + bf.seed * 2) * 9;
     const flap = Math.abs(Math.sin(worldT * 11 + bf.seed)) * 0.8 + 0.2;
@@ -656,7 +663,7 @@ function draw() {
   /* fireflies */
   if (pal.star > 0.4) {
     for (let i = 0; i < 22; i++) {
-      const wx = camX + hash(i * 13.7) * VW + Math.sin(worldT * 0.4 + i * 2.1) * 26;
+      const wx = camX + hash(i * 13.7) * viewW() + Math.sin(worldT * 0.4 + i * 2.1) * 26;
       const wy = gb + groundY(clamp(wx, 0, WORLD_W)) - 14 - hash(i * 7.3) * 52 + Math.sin(worldT * 0.9 + i) * 6;
       const a = pal.star * (0.35 + 0.4 * Math.abs(Math.sin(worldT * 1.8 + i * 1.7)));
       ctx.fillStyle = `rgba(255,233,138,${a * 0.3})`; ctx.beginPath(); ctx.arc(wx - camX, wy, 5, 0, Math.PI * 2); ctx.fill();
@@ -670,6 +677,7 @@ function draw() {
     ctx.beginPath(); ctx.arc(p.x - camX, p.y, p.size, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 /* main loop */
@@ -689,7 +697,7 @@ function frame(ts) {
     const p = particles[i]; p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 26 * dt;
     if (p.age >= p.life) particles.splice(i, 1);
   }
-  const targetCam = clamp(hero.x - VW / 2, 0, Math.max(0, WORLD_W - VW));
+  const targetCam = clamp(hero.x - viewW() / 2, 0, Math.max(0, WORLD_W - viewW()));
   camX += (targetCam - camX) * Math.min(1, dt * 3.2);
   draw();
   requestAnimationFrame(frame);
@@ -714,10 +722,18 @@ window.addEventListener('keyup', e => {
 let touchStart = null;
 canvas.addEventListener('pointerdown', e => {
   takeOver();
-  touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
-  walkTarget = clamp(camX + e.clientX, 26, WORLD_W - 26);   // click: stroll there
   try { canvas.setPointerCapture(e.pointerId); } catch (_e) {}
+  // Mouse buttons split like Preserve: left strolls, right hops.
+  if (e.pointerType === 'mouse' && e.button === 2) { jump(); return; }
+  if (e.button !== undefined && e.button !== 0) return;
+  touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  walkTarget = clamp(camX + e.clientX / zoomF, 26, WORLD_W - 26);   // click: stroll there
 });
+// Wheel zoom, bounded; preventDefault keeps the page from scrolling.
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomF = Math.max(0.7, Math.min(2.2, zoomF * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+}, { passive: false });
 canvas.addEventListener('pointermove', e => {
   if (!touchStart) return;
   lastInputAt = performance.now();
@@ -730,7 +746,7 @@ function endTouch(e) {
   lastInputAt = performance.now();
   const quick = performance.now() - touchStart.t < 260;
   const moved = Math.abs(e.clientX - touchStart.x) + Math.abs(e.clientY - touchStart.y);
-  if (quick && moved < 14 && Math.abs(camX + e.clientX - hero.x) < 52) jump();   // a tap on the hero still hops; a tap elsewhere walks
+  if (quick && moved < 14 && Math.abs(camX + e.clientX / zoomF - hero.x) < 52) jump();   // a tap on the hero still hops; a tap elsewhere walks
   touchStart = null; touchMove = 0;
 }
 canvas.addEventListener('pointerup', endTouch);
@@ -935,7 +951,8 @@ window.Valley = {
   music: () => ({ muted: music.muted, volume: music.volume, station: music.station, mode: music.mode, playing: music.playing, audioSrc: audio.getAttribute('src'), audioPaused: audio.paused, yt: !!ytFrame }),
   select: id => selectCharacter(id, true),
   customs: () => customs.map(c => c.name),
-  get walkTarget() { return walkTarget; }
+  get walkTarget() { return walkTarget; },
+  get zoomF() { return zoomF; }
 };
 modeLabel.textContent = 'living';
 

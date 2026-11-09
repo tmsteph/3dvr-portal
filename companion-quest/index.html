@@ -911,7 +911,11 @@ function drawFire(t) {
   g.globalAlpha = 1;
 }
 
+let zoomF = 1;
 function drawScene(t) {
+  // Wheel zoom scales the whole view around its center (camX math
+  // and the pointer conversion divide by zoomF to match).
+  g.setTransform(zoomF, 0, 0, zoomF, VIEW_W * (1 - zoomF) / 2, VIEW_H * (1 - zoomF) / 2);
   // sky
   const sky = g.createLinearGradient(0, 0, 0, VIEW_H);
   sky.addColorStop(0, '#131c3f');
@@ -1013,8 +1017,8 @@ function setBubble(text, { thinking = false } = {}) {
 }
 function positionBubble() {
   if (bubble.hidden) return;
-  const sx = (companion.x - camX) * (frameEl.clientWidth / VIEW_W);
-  const sy = (companion.y - 92) * (frameEl.clientHeight / VIEW_H);
+  const sx = (VIEW_W / 2 + (companion.x - camX - VIEW_W / 2) * zoomF) * (frameEl.clientWidth / VIEW_W);
+  const sy = (VIEW_H / 2 + (companion.y - 92 - VIEW_H / 2) * zoomF) * (frameEl.clientHeight / VIEW_H);
   bubble.style.left = sx + 'px';
   bubble.style.top = sy + 'px';
 }
@@ -1025,7 +1029,7 @@ function frameLoop(now) {
   last = now;
   const t = now / 1000;
   if (started) { stepPlayer(dt); stepCompanion(dt); }
-  const targetCam = Math.max(0, Math.min(WORLD_W - VIEW_W, player.x - VIEW_W / 2));
+  const targetCam = Math.max(0, Math.min(WORLD_W - VIEW_W / zoomF, player.x - VIEW_W / (2 * zoomF)));
   camX += (targetCam - camX) * Math.min(1, dt * 5 + 0.001);
   if (Math.abs(targetCam - camX) < 0.4) camX = targetCam;
   drawScene(t);
@@ -1074,12 +1078,22 @@ canvas.addEventListener('pointerdown', event => {
   // Capture the pointer so the press is never lost at the canvas edge;
   // the browser releases the capture itself on pointerup / cancel.
   try { canvas.setPointerCapture(event.pointerId); } catch (_err) {}
+  // Mouse buttons split like Preserve: left walks / talks, right hops.
+  if (event.pointerType === 'mouse' && event.button === 2) { jumpQueued = true; return; }
+  if (event.button !== undefined && event.button !== 0) return;
   const rect = canvas.getBoundingClientRect();
-  const wx = (event.clientX - rect.left) * (VIEW_W / rect.width) + camX;
-  const wy = (event.clientY - rect.top) * (VIEW_H / rect.height);
+  const pxv = (event.clientX - rect.left) * (VIEW_W / rect.width);
+  const pyv = (event.clientY - rect.top) * (VIEW_H / rect.height);
+  const wx = camX + VIEW_W / 2 + (pxv - VIEW_W / 2) / zoomF;
+  const wy = VIEW_H / 2 + (pyv - VIEW_H / 2) / zoomF;
   if (Math.abs(wx - companion.x) < 30 && wy > companion.y - 78 && wy < companion.y + 6) openChat();
   else walkTarget = Math.max(26, Math.min(WORLD_W - 26, wx));
 });
+// Wheel zoom, bounded; preventDefault keeps the page from scrolling.
+canvas.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  zoomF = Math.max(0.6, Math.min(2.2, zoomF * (event.deltaY < 0 ? 1.12 : 1 / 1.12)));
+}, { passive: false });
 
 /* Cursor idle fade: after ~2 s without pointer movement over the
    canvas the cursor hides; the next move or press brings it back
@@ -1244,6 +1258,7 @@ window.__companion = {
   get character() { return player.def && player.def.name; },
   get started() { return started; },
   get walkTarget() { return walkTarget; },
+  get zoomF() { return zoomF; },
   player, companion
 };
 

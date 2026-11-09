@@ -54,6 +54,18 @@ test('encore is mouse-first with an ambient fallback', async () => {
   assert.match(html, /now - lastInputAt > 10000/);
 });
 
+test('encore mouse buttons: right-click inspects a room, wheel zooms', async () => {
+  const html = await readFile(new URL('../encore/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /e\.pointerType === 'mouse' && e\.button === 2 && view === 'venue'\)/);
+  assert.match(html, /if \(evs\.length\) openSheet\(bestEvent\(evs\)\);/);
+  assert.match(html, /addEventListener\('wheel', \(e\) => \{\n  e\.preventDefault\(\);/);
+  assert.match(html, /zoomUser = Math\.max\(0\.5, Math\.min\(2, zoomUser/);
+  assert.match(html, /fit \* zoomUser\)\)/);
+  assert.match(html, /Math\.min\(VW \/ MW, VH \/ MH\) \* zoomUser/);
+  assert.match(html, /right-click a room to peek at its flowsheet/);
+});
+
 test('encore map covers his real venues and rooms', async () => {
   const html = await readFile(new URL('../encore/index.html', import.meta.url), 'utf8');
 

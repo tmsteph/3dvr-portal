@@ -53,6 +53,18 @@ test('corner office is mouse-first with an ambient fallback', async () => {
   assert.match(html, /now - lastInputAt > 10000/);
 });
 
+test('corner office mouse buttons: left walks, right hurries, wheel zooms', async () => {
+  const html = await readFile(new URL('../corner-office/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /const hurry = e\.pointerType === 'mouse' && e\.button === 2;/);
+  assert.match(html, /player\.hurry = hurry;/);
+  assert.match(html, /const speed = 178 \* \(\(boost > 0 \|\| player\.hurry\) \? 1\.5 : 1\);/);
+  assert.match(html, /addEventListener\('wheel', \(e\) => \{\n  e\.preventDefault\(\);/);
+  assert.match(html, /zoomUser = Math\.max\(0\.5, Math\.min\(2, zoomUser/);
+  assert.match(html, /fit \* zoomUser\)\)/);
+  assert.match(html, /right-click to hurry there/);
+});
+
 test('corner office wears the shared crew in suits', async () => {
   const html = await readFile(new URL('../corner-office/index.html', import.meta.url), 'utf8');
 

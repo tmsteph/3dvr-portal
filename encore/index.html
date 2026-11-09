@@ -117,7 +117,7 @@
   <div id="stageWrap">
     <canvas id="stage"></canvas>
     <div id="say" role="status"></div>
-    <div id="hint">Click a hotel to go · click the floor to walk</div>
+    <div id="hint">Click a hotel to go · click the floor to walk · right-click a room to peek at its flowsheet · wheel to zoom</div>
 
     <aside id="onPanel" hidden>
       <div class="head">
@@ -645,9 +645,10 @@ let sheetFor = null, insideRoomKey = null;
 const keysHeld = {};
 const CREW_LINES = ['Check, one two.', 'Copy that.', 'Five to doors.', 'House to half.', 'Cue lights are set.', 'Comms check, dock.', 'That\u2019s the last case.'];
 
-function venueZoom() { return Math.max(0.42, Math.min(1.12, Math.min(VW / 980, VH / 720))); }
+let zoomUser = 1;
+function venueZoom() { const fit = Math.max(0.42, Math.min(1.12, Math.min(VW / 980, VH / 720))); return Math.max(0.3, Math.min(2.4, fit * zoomUser)); }
 function mapFit() {
-  const s = Math.min(VW / MW, VH / MH);
+  const s = Math.min(VW / MW, VH / MH) * zoomUser;
   return { s, ox: (VW - MW * s) / 2, oy: (VH - MH * s) / 2 };
 }
 function say(text, holdMs) {
@@ -770,6 +771,19 @@ canvas.addEventListener('pointerdown', (e) => {
   try { canvas.setPointerCapture(e.pointerId); } catch (_err) {}
   poke();
   const w = pointerWorld(e);
+  // Right-click inside a venue inspects instead of walking: a room
+  // with a show on opens its flowsheet from where he stands; anywhere
+  // else the crew answers on comms. On the map it falls through and
+  // drives, same as left.
+  if (e.pointerType === 'mouse' && e.button === 2 && view === 'venue') {
+    const v = VENUES[currentVenueId];
+    const room = v.rooms.find((r) => w.x >= r.x && w.x <= r.x + r.w && w.y >= r.y && w.y <= r.y + r.h);
+    const evs = room ? roomEvents(v, room) : [];
+    if (evs.length) openSheet(bestEvent(evs));
+    else say(CREW_LINES[Math.floor(Math.random() * CREW_LINES.length)]);
+    return;
+  }
+  if (e.button !== undefined && e.button !== 0 && e.button !== 2) return;
   clickMark = { x: w.x, y: w.y, t: 0.5, view };
   if (view === 'map') {
     const pin = VENUE_LIST.find((v) => Math.hypot(v.pin.x - w.x, v.pin.y - w.y) < 56);
@@ -794,6 +808,12 @@ canvas.addEventListener('pointerdown', (e) => {
     pendingRoomEvent = null;
   }
 });
+// Wheel zoom on both views, bounded; preventDefault keeps the page
+// (or the World shell around the frame) from scrolling.
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  zoomUser = Math.max(0.5, Math.min(2, zoomUser * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+}, { passive: false });
 
 /* Cursor idle fade: after ~2 s without pointer movement over the
    canvas the cursor hides; the next move or press brings it back
@@ -1272,6 +1292,8 @@ function frame(now) {
 window.__encOnPick = function () {
   say(currentDef.name + ' is on the call. Click a hotel to head over.');
 };
+/* Test hook for the headless verifier. */
+window.__encore = { get zoomUser() { return zoomUser; }, get view() { return view; } };
 refreshTodayChip();
 updateFoundChip();
 buildOnPanel();
