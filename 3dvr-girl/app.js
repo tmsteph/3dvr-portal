@@ -730,6 +730,42 @@ const goldenHour = [
     video: 'assets/golden-hour/video-gown-3dvr.mp4',
     poster: 'assets/golden-hour/video-gown-3dvr-poster.webp',
     alt: '3DVR Girl arriving at an evening gala in a red dress, turning to smile at the camera'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-beach-sunset-3dvr',
+    title: 'Teal waterline',
+    mode: 'Water',
+    image: 'assets/golden-hour/beach-sunset-3dvr-girl.webp',
+    alt: '3DVR Girl with wet blonde hair in a teal bikini, laughing over her shoulder at the beach as the sun sets',
+    copy: 'Teal bikini, wet hair, and the sun dropping behind the water: she is in no hurry to get out.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-balcony-kayla',
+    title: 'Balcony black',
+    mode: 'Festival',
+    image: 'assets/golden-hour/balcony-kayla.webp',
+    alt: 'Kayla with long dark wavy hair in a black satin evening dress with a high slit, leaning on a balcony rail above the city lights at dusk',
+    copy: 'Black satin, a high rail, and the whole city lit up below: the evening is hers.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-pool-muse',
+    title: 'Pool dusk laugh',
+    mode: 'Water',
+    image: 'assets/golden-hour/pool-muse.webp',
+    alt: 'Muse with dark hair and purple highlights in a deep purple one-piece swimsuit, sitting on the edge of a pool with her feet in the water, laughing',
+    copy: 'Feet in the water and laughing at the sky: dusk at the pool is her studio break.'
+  },
+  {
+    kind: 'photo',
+    id: 'gh-waterfall-explorer',
+    title: 'Waterfall splash',
+    mode: 'Water',
+    image: 'assets/golden-hour/waterfall-explorer.webp',
+    alt: 'The Explorer with long black hair in a light linen sundress, standing in a stream below a waterfall and splashing water toward the camera',
+    copy: 'Linen dress, cold stream, and one good splash for the camera: the falls were worth the hike.'
   }
 ];
 

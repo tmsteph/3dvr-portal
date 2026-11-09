@@ -263,11 +263,11 @@ test('After Dark is organized by who and by set, derived from the batches', asyn
 test('golden hour attribution follows who each frame shows', () => {
   const counts = Object.fromEntries(characters.map(character => [character.id, character.goldenHour.length]));
   assert.deepEqual(counts, {
-    '3dvr-girl': 20,
-    kayla: 15,
+    '3dvr-girl': 21,
+    kayla: 16,
     'garden-muse': 14,
-    explorer: 11,
-    muse: 13
+    explorer: 12,
+    muse: 14
   });
   // Every shelf asset is attributed to at least one character, and the
   // videos are marked as videos wherever they appear. The dance- clips
@@ -277,7 +277,9 @@ test('golden hour attribution follows who each frame shows', () => {
   // those are not filed under her).
   const attributed = new Set(characters.flatMap(character => character.goldenHour.map(item => item.src)));
   assert.deepEqual([...attributed].sort(), [
+    'assets/golden-hour/balcony-kayla.webp',
     'assets/golden-hour/beach-3dvr-girl.webp',
+    'assets/golden-hour/beach-sunset-3dvr-girl.webp',
     'assets/golden-hour/cliffs-garden.webp',
     'assets/golden-hour/dance-3dvr-back.mp4',
     'assets/golden-hour/dance-3dvr-solo.mp4',
@@ -316,6 +318,7 @@ test('golden hour attribution follows who each frame shows', () => {
     'assets/golden-hour/lollipop-garden.webp',
     'assets/golden-hour/lollipop-kayla.webp',
     'assets/golden-hour/lollipop-muse.webp',
+    'assets/golden-hour/pool-muse.webp',
     'assets/golden-hour/solo-festival-dress.webp',
     'assets/golden-hour/solo-lavender-dress.webp',
     'assets/golden-hour/trio-festival-dusk.webp',
@@ -323,7 +326,8 @@ test('golden hour attribution follows who each frame shows', () => {
     'assets/golden-hour/video-beach-explorer.mp4',
     'assets/golden-hour/video-gown-3dvr.mp4',
     'assets/golden-hour/video-pool-duo.mp4',
-    'assets/golden-hour/video-sundress-trio.mp4'
+    'assets/golden-hour/video-sundress-trio.mp4',
+    'assets/golden-hour/waterfall-explorer.webp'
   ]);
   for (const character of characters) {
     for (const item of character.goldenHour) {

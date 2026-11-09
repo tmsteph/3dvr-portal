@@ -331,6 +331,13 @@ export const characters = [
         title: 'Red arrival, in motion',
         alt: '3DVR Girl arriving at an evening gala in a red dress, turning to smile at the camera',
         copy: 'Red dress, evening lights, and one turn for the camera on the way in.'
+      },
+      {
+        src: 'assets/golden-hour/beach-sunset-3dvr-girl.webp',
+        mode: 'Water',
+        title: 'Teal waterline',
+        alt: '3DVR Girl with wet blonde hair in a teal bikini, laughing over her shoulder at the beach as the sun sets',
+        copy: 'Teal bikini, wet hair, and the sun dropping behind the water: she is in no hurry to get out.'
       }
     ],
     afterDark: [
@@ -645,6 +652,13 @@ export const characters = [
         title: 'Trail lunch, her scale',
         alt: 'Kayla with long dark wavy hair taking a huge bite of a tall stacked sandwich on a picnic blanket with mountains behind her',
         copy: 'The sandwich needed both hands and a strategy. The mountains approved.'
+      },
+      {
+        src: 'assets/golden-hour/balcony-kayla.webp',
+        mode: 'Festival',
+        title: 'Balcony black',
+        alt: 'Kayla with long dark wavy hair in a black satin evening dress with a high slit, leaning on a balcony rail above the city lights at dusk',
+        copy: 'Black satin, a high rail, and the whole city lit up below: the evening is hers.'
       }
     ],
     afterDark: [
@@ -1122,6 +1136,13 @@ export const characters = [
         title: 'Shoreline, in motion',
         alt: 'The Explorer walking the shoreline at golden hour in a swimsuit and light cover-up, laughing in the sea breeze',
         copy: 'Bare feet, warm water, and the light going gold around her.'
+      },
+      {
+        src: 'assets/golden-hour/waterfall-explorer.webp',
+        mode: 'Water',
+        title: 'Waterfall splash',
+        alt: 'The Explorer with long black hair in a light linen sundress, standing in a stream below a waterfall and splashing water toward the camera',
+        copy: 'Linen dress, cold stream, and one good splash for the camera: the falls were worth the hike.'
       }
     ],
     afterDark: [
@@ -1342,6 +1363,13 @@ export const characters = [
         title: 'Gallery midnight',
         alt: 'Muse with dark hair and purple highlights in a navy satin dress, holding a champagne flute and smiling over her shoulder on a gallery terrace above the beach',
         copy: 'A glass in hand and the gallery behind her: she came for the art and stayed for the view.'
+      },
+      {
+        src: 'assets/golden-hour/pool-muse.webp',
+        mode: 'Water',
+        title: 'Pool dusk laugh',
+        alt: 'Muse with dark hair and purple highlights in a deep purple one-piece swimsuit, sitting on the edge of a pool with her feet in the water, laughing',
+        copy: 'Feet in the water and laughing at the sky: dusk at the pool is her studio break.'
       }
     ],
     afterDark: [
