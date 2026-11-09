@@ -571,6 +571,9 @@
     <div class="eyebrow">Identity & score</div>
     <h1>👤 Profile</h1>
     <p class="lede">Curate your display name, check your score, and jump into the admin tools that keep the 3DVR portal humming.</p>
+    <div class="actions" style="margin-top:1rem;">
+      <button type="button" class="danger" id="profile-sign-out-top" onclick="handleProfileSignOut()">Sign Out</button>
+    </div>
   </header>
 
   <section class="profile-grid">
@@ -739,6 +742,10 @@
       </div>
     </article>
   </section>
+
+  <div class="actions" style="margin-top:1.5rem;">
+    <button type="button" class="danger" id="profile-sign-out-bottom" onclick="handleProfileSignOut()">Sign Out</button>
+  </div>
 </main>
 
 <script>
