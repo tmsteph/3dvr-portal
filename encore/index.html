@@ -108,7 +108,7 @@
     <span class="chip" id="locChip">San Diego Bay</span>
     <span class="chip today" id="todayChip">Today</span>
     <span class="spacer"></span>
-    <span class="chip" id="foundChip">Shows found: 0 / 0</span>
+    <span class="chip" id="foundChip">Shows found: –</span>
     <button class="tbtn" id="mapBtn" type="button" hidden>Map</button>
     <button class="tbtn gold" id="onBtn" type="button">What's On</button>
     <button class="tbtn" id="crewBtn" type="button">Crew</button>
@@ -807,7 +807,10 @@ function keyVector() {
   if (keysHeld['s'] || keysHeld['arrowdown']) y += 1;
   return (x || y) ? { x, y } : null;
 }
+</script>
 
+<script>
+'use strict';
 /* ================= events wiring: panel, flowsheet, chips ================= */
 function resolveRooms(ev) {
   const v = VENUES[ev.venue];
