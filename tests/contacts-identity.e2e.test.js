@@ -450,12 +450,6 @@ describe('contacts identity flows', () => {
       await page.waitForSelector('#username');
       await page.fill('#username', username);
       await page.fill('#password', password);
-      await page.fill('#recovery-email', `${username}@example.com`);
-      await page.click('#send-recovery-code');
-      await page.waitForSelector('text=Check your email for the 6-digit verification code.');
-      await page.fill('#recovery-code', recoveryCode);
-      await page.click('#verify-recovery-code');
-      await page.waitForSelector('text=Recovery email verified.');
 
       await Promise.all([
         page.waitForURL('**/index.html', { timeout: 30000 }),

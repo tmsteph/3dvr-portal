@@ -504,32 +504,6 @@
             <label for="password">Password</label>
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
           </div>
-          <div class="recovery-panel">
-            <label for="recovery-email">Recovery email (optional)</label>
-            <input
-              type="email"
-              id="recovery-email"
-              name="recovery-email"
-              placeholder="you@example.com"
-              autocomplete="email"
-            >
-            <button id="send-recovery-code" type="button" class="secondary-button">Send verification code</button>
-            <div class="recovery-actions">
-              <input
-                type="text"
-                id="recovery-code"
-                name="recovery-code"
-                placeholder="6-digit code"
-                inputmode="numeric"
-                autocomplete="one-time-code"
-                maxlength="6"
-              >
-              <button id="verify-recovery-code" type="button" class="secondary-button">Verify</button>
-            </div>
-            <p id="recovery-status" class="recovery-status" role="status" aria-live="polite">
-              Optional for now. Verify this email if you want account recovery enabled.
-            </p>
-          </div>
           <div class="actions">
             <button id="auth-submit" type="submit" class="primary-button">Sign in or sign up</button>
           </div>
@@ -709,12 +683,6 @@
     user.recall?.({ sessionStorage: true });
     const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
     const gunIsStub = !!gunContext.isStub;
-    const recoveryVerificationState = {
-      email: '',
-      verificationId: '',
-      verifiedEmail: '',
-      expiresAt: 0
-    };
     const DEFAULT_POST_SIGN_IN_DESTINATION = 'index.html';
     const BILLING_PLAN_LABELS = {
       starter: '$5 Family & Friends',
@@ -965,118 +933,6 @@
         : 'rgba(248, 251, 255, 0.72)';
     }
 
-    function normalizeRecoveryEmailInput(value = '') {
-      if (
-        window.AccountRecovery
-        && typeof window.AccountRecovery.normalizeEmail === 'function'
-      ) {
-        return window.AccountRecovery.normalizeEmail(value);
-      }
-      const normalized = String(value || '').trim().toLowerCase();
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : '';
-    }
-
-    function currentRecoveryEmail() {
-      const input = document.getElementById('recovery-email');
-      return normalizeRecoveryEmailInput(input ? input.value : '');
-    }
-
-    function setRecoveryStatus(message = '', tone = 'info') {
-      const statusEl = document.getElementById('recovery-status');
-      if (!statusEl) return;
-      statusEl.textContent = message || 'Optional for now. Verify this email if you want account recovery enabled.';
-      statusEl.style.color = tone === 'error'
-        ? '#ffb4b4'
-        : tone === 'success'
-        ? '#b8f1c5'
-        : 'rgba(248, 251, 255, 0.72)';
-    }
-
-    function resetRecoveryVerification() {
-      recoveryVerificationState.email = '';
-      recoveryVerificationState.verificationId = '';
-      recoveryVerificationState.verifiedEmail = '';
-      recoveryVerificationState.expiresAt = 0;
-      setRecoveryStatus();
-    }
-
-    function isRecoveryEmailVerified(email = currentRecoveryEmail()) {
-      return Boolean(email && recoveryVerificationState.verifiedEmail === email);
-    }
-
-    async function postRecoveryEmail(payload = {}) {
-      const response = await fetch('/api/calendar/reminder-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(body.error || 'Unable to verify recovery email.');
-      }
-      return body;
-    }
-
-    async function sendRecoveryVerificationCode() {
-      const email = currentRecoveryEmail();
-      const button = document.getElementById('send-recovery-code');
-      if (!email) {
-        setRecoveryStatus('Enter a valid recovery email first.', 'error');
-        return;
-      }
-      if (button) button.disabled = true;
-      setRecoveryStatus('Sending verification code...', 'info');
-      try {
-        const body = await postRecoveryEmail({
-          mode: 'recovery-verification',
-          email
-        });
-        recoveryVerificationState.email = email;
-        recoveryVerificationState.verificationId = body.verificationId || '';
-        recoveryVerificationState.verifiedEmail = '';
-        recoveryVerificationState.expiresAt = Number(body.expiresAt || 0);
-        setRecoveryStatus('Check your email for the 6-digit verification code.', 'success');
-        document.getElementById('recovery-code')?.focus();
-      } catch (error) {
-        resetRecoveryVerification();
-        setRecoveryStatus(error.message || 'Unable to send verification code.', 'error');
-      } finally {
-        if (button) button.disabled = false;
-      }
-    }
-
-    async function verifyRecoveryCode() {
-      const email = currentRecoveryEmail();
-      const codeInput = document.getElementById('recovery-code');
-      const code = String(codeInput ? codeInput.value : '').trim();
-      const button = document.getElementById('verify-recovery-code');
-      if (!email || !recoveryVerificationState.verificationId || recoveryVerificationState.email !== email) {
-        setRecoveryStatus('Send a verification code to this email first.', 'error');
-        return;
-      }
-      if (!/^\d{6}$/.test(code)) {
-        setRecoveryStatus('Enter the 6-digit verification code.', 'error');
-        return;
-      }
-      if (button) button.disabled = true;
-      setRecoveryStatus('Verifying recovery email...', 'info');
-      try {
-        await postRecoveryEmail({
-          mode: 'confirm-recovery-email',
-          email,
-          code,
-          verificationId: recoveryVerificationState.verificationId
-        });
-        recoveryVerificationState.verifiedEmail = email;
-        setRecoveryStatus('Recovery email verified.', 'success');
-      } catch (error) {
-        recoveryVerificationState.verifiedEmail = '';
-        setRecoveryStatus(error.message || 'Recovery email verification failed.', 'error');
-      } finally {
-        if (button) button.disabled = false;
-      }
-    }
-
     function onceGun(node) {
       return new Promise(resolve => {
         if (!node || typeof node.once !== 'function') {
@@ -1260,39 +1116,22 @@
     async function signIn() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
-      const recoveryEmailInput = document.getElementById('recovery-email');
-      const rawRecoveryEmail = recoveryEmailInput ? recoveryEmailInput.value.trim() : '';
-      const normalizeRecoveryEmail = window.AccountRecovery
-        && typeof window.AccountRecovery.normalizeEmail === 'function'
-        ? window.AccountRecovery.normalizeEmail
-        : value => String(value || '').trim().toLowerCase();
-      const recoveryEmail = rawRecoveryEmail ? normalizeRecoveryEmail(rawRecoveryEmail) : '';
+      const verifiedRecoveryEmail = '';
 
       if (!username || !password) {
         alert("Please enter both username and password.");
         return;
       }
-      if (rawRecoveryEmail && !recoveryEmail) {
-        alert('Enter a valid recovery email.');
-        setRecoveryStatus('Enter a valid recovery email, or leave it blank for now.', 'error');
-        return;
-      }
-      const verifiedRecoveryEmail = recoveryEmail && isRecoveryEmailVerified(recoveryEmail)
-        ? recoveryEmail
-        : '';
-      if (recoveryEmail && !verifiedRecoveryEmail) {
-        setRecoveryStatus('Continuing without account recovery. Verify this email later to enable recovery.', 'info');
-      }
-
       const alias = username + "@3dvr";
       setAuthBusy(true, 'Connecting…');
       setAuthStatus('Connecting to secure account storage…');
       console.log("🛠️ Attempting to authorize user:", alias);
 
       if (gunIsStub) {
-        setAuthStatus('Signed in locally. Opening the portal…', 'success');
-        console.warn('Gun.js unavailable; storing credentials locally.');
-        finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: true });
+        setAuthBusy(false);
+        setAuthStatus('Could not reach the sign-in service. Check your connection, or in Brave turn Shields off for portal.3dvr.tech, then try again.', 'error');
+        console.warn('Gun.js unavailable; refusing to sign in without the real account service.');
+        alert('Could not reach the sign-in service. Check your connection, or in Brave turn Shields off for portal.3dvr.tech, then try again.');
         return;
       }
 
@@ -1708,18 +1547,6 @@
         button.addEventListener('click', () => startOauth(button.dataset.provider || ''));
       });
       const usernameInput = document.getElementById('username');
-      const recoveryEmailInput = document.getElementById('recovery-email');
-      const sendRecoveryButton = document.getElementById('send-recovery-code');
-      const verifyRecoveryButton = document.getElementById('verify-recovery-code');
-      if (recoveryEmailInput) {
-        recoveryEmailInput.addEventListener('input', resetRecoveryVerification);
-      }
-      if (sendRecoveryButton) {
-        sendRecoveryButton.addEventListener('click', sendRecoveryVerificationCode);
-      }
-      if (verifyRecoveryButton) {
-        verifyRecoveryButton.addEventListener('click', verifyRecoveryCode);
-      }
       if (usernameInput) {
         try {
           usernameInput.focus({ preventScroll: true });
