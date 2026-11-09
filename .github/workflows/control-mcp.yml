@@ -108,6 +108,8 @@ jobs:
           export THREEDVR_MCP_HOST=127.0.0.1
           export THREEDVR_MCP_PORT=8788
           export THREEDVR_MCP_ENABLE_DRAFTS=false
+          agent_tokens="\$(ssh -T -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh node /opt/3dvr/secrets-broker/mcp-agent-tokens.js 2>/dev/null || true)"
+          if [ -n "\$agent_tokens" ]; then export THREEDVR_MCP_AGENT_TOKENS="\$agent_tokens"; fi
           cd "$repo/apps/agent"
           exec "$node_bin" mcp/server.js
           EOF
