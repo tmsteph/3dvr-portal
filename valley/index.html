@@ -734,6 +734,7 @@ function endTouch(e) {
 }
 canvas.addEventListener('pointerup', endTouch);
 canvas.addEventListener('pointercancel', () => { touchStart = null; touchMove = 0; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 /* ---------- music deck ---------- */
 const STATIONS = {

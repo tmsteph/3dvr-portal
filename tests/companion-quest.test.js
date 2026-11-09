@@ -71,6 +71,18 @@ test('music deck: one ad-free somaFM stream with a sticky mute', async () => {
   assert.match(html, /companion-quest\.muted/);
 });
 
+test('companion canvas and hold buttons capture the pointer', async () => {
+  const html = await readFile(new URL('index.html', appDir), 'utf8');
+
+  // a press is never lost at the canvas edge; capture releases on
+  // up / cancel, and the hold buttons keep their state the same way
+  assert.match(html, /canvas\.setPointerCapture\(event\.pointerId\)/);
+  assert.match(html, /el\.setPointerCapture\(e\.pointerId\)/);
+  assert.match(html, /canvas#game \{[^}]*touch-action: none/);
+  // no context menu on a long press
+  assert.match(html, /addEventListener\('contextmenu', event => event\.preventDefault\(\)\)/);
+});
+
 test('games hub reaches the companion through the combined 3DVR World card', async () => {
   const games = await readFile(new URL('../games.html', import.meta.url), 'utf8');
   assert.match(games, /class="game-card world" href="\/3dvr-world\/"/);

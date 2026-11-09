@@ -65,6 +65,17 @@ test('valley music deck has persistent mute, volume, stations, and a YouTube slo
   assert.match(html, /youtube-nocookie\.com\/embed\//);
 });
 
+test('valley canvas captures the pointer', async () => {
+  const html = await readFile(new URL('../valley/index.html', import.meta.url), 'utf8');
+
+  // a drag keeps tracking off the canvas edge instead of stranding
+  // the walk target; capture releases on up / cancel
+  assert.match(html, /canvas\.setPointerCapture\(e\.pointerId\)/);
+  assert.match(html, /canvas#scene\{[^}]*touch-action:none/);
+  // no context menu on a long press
+  assert.match(html, /addEventListener\('contextmenu', e => e\.preventDefault\(\)\)/);
+});
+
 test('games hub links the combined 3DVR World card, not standalone modes', async () => {
   const games = await readFile(new URL('../games.html', import.meta.url), 'utf8');
   assert.match(games, /class="game-card world" href="\/3dvr-world\/"/);

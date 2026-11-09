@@ -1056,7 +1056,7 @@ window.addEventListener('keyup', event => {
 });
 function bindHold(id, on, off) {
   const el = $(id);
-  const startEv = e => { e.preventDefault(); on(); };
+  const startEv = e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_err) {} on(); };
   const endEv = e => { e.preventDefault(); off(); };
   el.addEventListener('pointerdown', startEv);
   el.addEventListener('pointerup', endEv);
@@ -1067,8 +1067,12 @@ bindHold('btnLeft', () => { keys.left = true; }, () => { keys.left = false; });
 bindHold('btnRight', () => { keys.right = true; }, () => { keys.right = false; });
 bindHold('btnJump', () => { jumpQueued = true; }, () => {});
 $('btnTalk').addEventListener('click', () => openChat());
+canvas.addEventListener('contextmenu', event => event.preventDefault());
 canvas.addEventListener('pointerdown', event => {
   if (!started || !chatPanel.hidden) return;
+  // Capture the pointer so the press is never lost at the canvas edge;
+  // the browser releases the capture itself on pointerup / cancel.
+  try { canvas.setPointerCapture(event.pointerId); } catch (_err) {}
   const rect = canvas.getBoundingClientRect();
   const wx = (event.clientX - rect.left) * (VIEW_W / rect.width) + camX;
   const wy = (event.clientY - rect.top) * (VIEW_H / rect.height);
