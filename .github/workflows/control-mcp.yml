@@ -79,6 +79,9 @@ jobs:
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
           fi
           git -C "$repo" fetch --prune origin main
+          if git -C "$repo" sparse-checkout list >/dev/null 2>&1; then
+            git -C "$repo" sparse-checkout add src/organism || true
+          fi
           git -C "$repo" checkout main
           git -C "$repo" reset --hard origin/main
           git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
