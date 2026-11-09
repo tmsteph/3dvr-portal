@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7b267">
+<title>Preserve · 3DVR</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,sans-serif;background:#2e2a4a;color:#fff}
+  canvas#game{display:block;width:100%;height:100%;touch-action:none}
+  .hud{position:fixed;inset:0;pointer-events:none;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:3}
+  .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill,.back{pointer-events:auto;background:#17223bd9;border:1px solid #ffffff38;border-radius:999px;padding:8px 11px;color:#fff;text-decoration:none;font-weight:800;font-size:.78rem;backdrop-filter:blur(10px)}
+  button.pill{cursor:pointer;font-family:inherit}
+  .stats{margin-left:auto;display:flex;gap:7px;align-items:center}
+  .title{font-weight:950;letter-spacing:.03em;text-shadow:0 2px 12px #0008}
+  .hint{margin-top:auto;align-self:center;background:#17223bd9;border:1px solid #ffffff38;border-radius:999px;padding:9px 13px;font-size:.75rem;backdrop-filter:blur(10px);text-align:center}
+  .toast{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:#17223be8;border:1px solid #ffffff55;border-radius:999px;padding:10px 16px;font-weight:900;opacity:0;transition:.18s;pointer-events:none;z-index:5;white-space:nowrap}
+  .toast.show{opacity:1}
+  /* touch controls */
+  #touch{position:fixed;inset:auto 0 0 0;display:none;justify-content:space-between;padding:0 14px 86px;z-index:4;pointer-events:none}
+  body.touch #touch{display:flex}
+  #touch .cluster{display:flex;gap:12px}
+  #touch button{pointer-events:auto;width:62px;height:62px;border-radius:50%;border:1px solid #ffffff44;background:#17223b99;color:#fff;font-size:1.35rem;backdrop-filter:blur(8px);touch-action:none;-webkit-user-select:none;user-select:none}
+  #touch button.on{background:#f7b267cc;color:#17223b}
+  /* music deck */
+  #deck{position:fixed;right:12px;bottom:12px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  #deckToggle{width:46px;height:46px;border-radius:50%;border:1px solid #ffffff44;background:#17223bd9;color:#fff;font-size:1.15rem;cursor:pointer;backdrop-filter:blur(10px)}
+  #deckPanel{background:#17223bf2;border:1px solid #ffffff38;border-radius:16px;padding:10px;width:min(320px,calc(100vw - 24px));backdrop-filter:blur(12px)}
+  #deckPanel .row{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+  #deckPanel .row:last-child{margin-bottom:0}
+  #deckPanel button{background:#ffffff1f;border:1px solid #ffffff30;color:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;font-family:inherit;font-weight:700}
+  #deckPanel select,#deckPanel input[type=text]{flex:1;min-width:0;background:#0d1526;color:#fff;border:1px solid #ffffff30;border-radius:10px;padding:7px 9px;font-family:inherit;font-size:.8rem}
+  #deckPanel input[type=range]{flex:1;accent-color:#f7b267}
+  .deck-note{font-size:.68rem;opacity:.75;line-height:1.45}
+  #ytWrap{margin-top:8px}
+  #ytFrame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;display:block}
+  /* character select */
+  #selectScreen{position:fixed;inset:0;z-index:10;background:#10182ee6;backdrop-filter:blur(10px);overflow-y:auto;padding:22px 16px 40px}
+  #selectScreen[hidden]{display:none}
+  .sheet{max-width:760px;margin:0 auto}
+  .sheet h2{margin:4px 0 2px;font-size:1.5rem;letter-spacing:.02em}
+  .sheet p.sub{margin:0 0 16px;opacity:.8;font-size:.88rem;line-height:1.5}
+  #roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-bottom:26px}
+  .card{position:relative;background:#ffffff10;border:2px solid #ffffff22;border-radius:16px;padding:10px 6px 8px;text-align:center;cursor:pointer;color:#fff;font-family:inherit}
+  .card:hover{border-color:#ffffff55}
+  .card.sel{border-color:#f7b267;background:#f7b26722}
+  .card canvas{display:block;margin:0 auto 4px}
+  .card .nm{font-weight:800;font-size:.82rem;display:block}
+  .card .del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;border:1px solid #ffffff33;background:#00000055;color:#fff;cursor:pointer;line-height:1;font-size:.8rem}
+  .creator{background:#ffffff0d;border:1px solid #ffffff22;border-radius:16px;padding:14px}
+  .creator h3{margin:0 0 10px;font-size:1rem}
+  .creator .grid{display:flex;gap:16px;flex-wrap:wrap}
+  .creator .previewBox{text-align:center}
+  .creator .fields{flex:1;min-width:230px;display:flex;flex-direction:column;gap:10px}
+  .creator label{font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.75;display:block;margin-bottom:4px}
+  .creator input[type=text],.creator select{width:100%;background:#0d1526;color:#fff;border:1px solid #ffffff30;border-radius:10px;padding:8px 10px;font-family:inherit}
+  .swatches{display:flex;gap:6px;flex-wrap:wrap}
+  .sw{width:26px;height:26px;border-radius:50%;border:2px solid #ffffff2e;cursor:pointer;padding:0}
+  .sw.sel{border-color:#fff;transform:scale(1.12)}
+  #saveCustom{align-self:flex-start;background:#f7b267;color:#17223b;border:0;border-radius:999px;padding:9px 16px;font-weight:900;cursor:pointer;font-family:inherit}
+  @media(max-width:640px){.hint{display:none}}
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Preserve, a side-scrolling wander through the Human Preserves"></canvas>
+
+<div class="hud">
+  <div class="top">
+    <a class="back" href="/games.html">← Games</a>
+    <div class="title">Preserve</div>
+    <div class="stats">
+      <span class="pill">🍑 <b id="fruitCount">0/0</b></span>
+      <span class="pill" id="modePill">▶ You</span>
+      <button class="pill" id="crewBtn" type="button">🧍 Crew</button>
+    </div>
+  </div>
+  <div class="hint">← → or A D to wander · ↑ / W / Space to jump · bop the lazy critters · stop for 8 seconds and your wanderer explores on their own</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div id="touch" aria-hidden="true">
+  <div class="cluster">
+    <button type="button" data-k="left">◀</button>
+    <button type="button" data-k="right">▶</button>
+  </div>
+  <div class="cluster">
+    <button type="button" data-k="jump">⤒</button>
+  </div>
+</div>
+
+<div id="deck">
+  <div id="deckPanel" hidden>
+    <div class="row">
+      <button id="playBtn" type="button" title="Play or pause">▶</button>
+      <select id="stationSel" aria-label="Station"></select>
+      <button id="muteBtn" type="button" title="Mute">🔊</button>
+      <input id="vol" type="range" min="0" max="1" step="0.05" aria-label="Volume">
+    </div>
+    <div class="row">
+      <input id="ytInput" type="text" placeholder="Paste a YouTube link" aria-label="YouTube link">
+      <button id="ytBtn" type="button">Load</button>
+    </div>
+    <div class="deck-note">Stations are SomaFM, ad-free forever. YouTube plays through its standard embed. Mute and volume are remembered on this device.</div>
+    <div id="ytWrap" hidden><iframe id="ytFrame" title="YouTube player" allow="autoplay; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+  </div>
+  <button id="deckToggle" type="button" title="Music deck">🎵</button>
+</div>
+<audio id="radio" preload="none"></audio>
+
+<div id="selectScreen" hidden>
+  <div class="sheet">
+    <h2>Choose your wanderer</h2>
+    <p class="sub">The crew of the Preserve, drawn as sprites. Pick one to play, or build your own below. Your wanderer keeps exploring on their own whenever you stop.</p>
+    <div id="roster"></div>
+    <div class="creator">
+      <h3>Make your own</h3>
+      <div class="grid">
+        <div class="previewBox">
+          <canvas id="creatorPreview" width="72" height="96"></canvas>
+          <div style="font-size:.7rem;opacity:.7">preview</div>
+        </div>
+        <div class="fields">
+          <div>
+            <label for="cName">Name</label>
+            <input id="cName" type="text" maxlength="18" placeholder="Wanderer">
+          </div>
+          <div>
+            <label>Hair style</label>
+            <select id="cHairStyle">
+              <option value="short">Short</option>
+              <option value="long">Long</option>
+              <option value="bun">Bun</option>
+              <option value="mohawk">Mohawk</option>
+              <option value="bald">Bald</option>
+            </select>
+          </div>
+          <div><label>Skin tone</label><div class="swatches" id="cSkin"></div></div>
+          <div><label>Hair color</label><div class="swatches" id="cHair"></div></div>
+          <div><label>Shirt color</label><div class="swatches" id="cShirt"></div></div>
+          <div><label>Pants color</label><div class="swatches" id="cPants"></div></div>
+          <button id="saveCustom" type="button">Save wanderer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= Characters: one parametric sprite renderer =================
+   A character is a plain definition object:
+   { name, skin, hairStyle, hairColor, shirt, pants, streak, beard, cap }
+   Presets and customs share the exact same shape; the game and the select
+   screen both draw through drawCharacter(). */
+const SKIN_TONES = ['#ffe0bd', '#f2c79b', '#e8b08a', '#c98d5f', '#a06838', '#6f4423'];
+const HAIR_COLORS = ['#17130f', '#3a2a1a', '#7a5a38', '#b5854a', '#f0cf6e', '#d96f32', '#b03a2e', '#39b7ff', '#7e57c2', '#e8e8e8'];
+const SHIRT_COLORS = ['#17a398', '#d33f2e', '#3f9e4d', '#ef7d1a', '#232329', '#2f6fd0', '#7e57c2', '#e56b9f', '#f0b429', '#e8e8e8'];
+const PANTS_COLORS = ['#274156', '#3a4a5a', '#2e4053', '#1d1d22', '#31517d', '#6b5136', '#7a7a52', '#5b2d8e'];
+
+const PRESETS = [
+  { name: 'Thomas',    skin: '#e8b08a', hairStyle: 'short',  hairColor: '#7a5a38', shirt: '#17a398', pants: '#3a4a5a', streak: null,      beard: true,  cap: null },
+  { name: '3DVR Girl', skin: '#f2c79b', hairStyle: 'long',   hairColor: '#f0cf6e', shirt: '#17a398', pants: '#274156', streak: '#39b7ff', beard: false, cap: null },
+  { name: 'Mark',      skin: '#d99e73', hairStyle: 'short',  hairColor: '#2c2320', shirt: '#d33f2e', pants: '#2f3b52', streak: null,      beard: false, cap: '#28418c' },
+  { name: 'Esai',      skin: '#b57a4e', hairStyle: 'short',  hairColor: '#17130f', shirt: '#232329', pants: '#333a45', streak: null,      beard: false, cap: null },
+  { name: 'David',     skin: '#c98d5f', hairStyle: 'short',  hairColor: '#191512', shirt: '#3f9e4d', pants: '#2e4053', streak: null,      beard: false, cap: null },
+  { name: 'Brandon',   skin: '#8a5a34', hairStyle: 'curly',  hairColor: '#241a12', shirt: '#ef7d1a', pants: '#374151', streak: null,      beard: false, cap: null }
+];
+
+/* Draw a character standing on (cx, feetY). h is total sprite height.
+   pose: { dir: -1|1, run: 0..1 phase when running, air: bool, sit: bool } */
+function drawCharacter(g, def, cx, feetY, h, pose) {
+  const dir = pose.dir || 1;
+  const run = pose.run || 0;
+  const air = !!pose.air;
+  const u = h / 44;                       // sprite is authored 44 units tall
+  const legSwing = air ? 3.5 * u : Math.sin(run * Math.PI * 2) * 4.4 * u * (run > 0 ? 1 : 0);
+  const armSwing = air ? -3 * u : -legSwing * 0.8;
+  const bob = (!air && run > 0) ? Math.abs(Math.sin(run * Math.PI * 2)) * 1.4 * u : 0;
+  const hipY = feetY - 13 * u - bob;
+  const shoulderY = hipY - 14 * u;
+  const headR = 7.6 * u;
+  const headY = shoulderY - headR - 1 * u;
+
+  g.save();
+  g.translate(cx, 0);
+  g.scale(dir, 1);
+  // legs (pants) + shoes
+  g.fillStyle = def.pants;
+  const legW = 5 * u, legH = 13 * u;
+  g.fillRect(-5.4 * u + legSwing * 0.4, hipY, legW, legH - Math.max(0, legSwing) * 0.4);
+  g.fillRect(0.6 * u - legSwing * 0.4, hipY, legW, legH - Math.max(0, -legSwing) * 0.4);
+  g.fillStyle = '#241f1c';
+  g.fillRect(-5.8 * u + legSwing * 0.55, feetY - 2.6 * u - bob - Math.max(0, legSwing) * 0.4, 6.4 * u, 2.6 * u);
+  g.fillRect(0.2 * u - legSwing * 0.55, feetY - 2.6 * u - bob - Math.max(0, -legSwing) * 0.4, 6.4 * u, 2.6 * u);
+  // back arm
+  g.fillStyle = def.shirt;
+  g.fillRect(-8.6 * u + armSwing * 0.4, shoulderY + 1 * u, 3.6 * u, 11 * u);
+  g.fillStyle = def.skin;
+  g.fillRect(-8.6 * u + armSwing * 0.4, shoulderY + 11 * u, 3.6 * u, 2.6 * u);
+  // long hair behind the torso
+  if (def.hairStyle === 'long') {
+    g.fillStyle = def.hairColor;
+    g.fillRect(-headR - 1 * u, headY - 2 * u, headR * 2 + 2 * u, 26 * u);
+  }
+  // torso (shirt)
+  g.fillStyle = def.shirt;
+  roundRect(g, -7.4 * u, shoulderY, 14.8 * u, 15 * u, 4 * u);
+  g.fill();
+  // front arm
+  g.fillRect(5 * u - armSwing * 0.4, shoulderY + 1 * u, 3.6 * u, 11 * u);
+  g.fillStyle = def.skin;
+  g.fillRect(5 * u - armSwing * 0.4, shoulderY + 11 * u, 3.6 * u, 2.6 * u);
+  // head
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(0, headY, headR, 0, Math.PI * 2); g.fill();
+  // beard
+  if (def.beard) {
+    g.fillStyle = def.hairColor;
+    g.beginPath(); g.arc(0, headY + 2.2 * u, headR * 0.92, 0.15 * Math.PI, 0.95 * Math.PI); g.fill();
+    g.fillStyle = def.skin;
+    g.beginPath(); g.arc(1.6 * u, headY + 2.4 * u, headR * 0.42, 0, Math.PI * 2); g.fill();
+  }
+  // eyes
+  g.fillStyle = '#221d1a';
+  g.beginPath(); g.arc(2.6 * u, headY - 0.6 * u, 0.95 * u, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(6 * u, headY - 0.6 * u, 0.8 * u, 0, Math.PI * 2); g.fill();
+  // hair styles
+  g.fillStyle = def.hairColor;
+  if (def.hairStyle === 'short') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+  } else if (def.hairStyle === 'long') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.04, Math.PI * 0.98, Math.PI * 2.02); g.fill();
+    if (def.streak) {
+      g.fillStyle = def.streak;
+      g.fillRect(2.2 * u, headY - headR - 1 * u, 1.9 * u, 24 * u);
+      g.fillRect(5.4 * u, headY - headR, 1.5 * u, 20 * u);
+    }
+  } else if (def.hairStyle === 'bun') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+    g.beginPath(); g.arc(-0.6 * u, headY - headR - 2.4 * u, 3.4 * u, 0, Math.PI * 2); g.fill();
+  } else if (def.hairStyle === 'mohawk') {
+    roundRect(g, -1.9 * u, headY - headR - 4.6 * u, 3.8 * u, 9 * u, 1.8 * u);
+    g.fill();
+  } else if (def.hairStyle === 'curly') {
+    for (let i = -2; i <= 2; i++) {
+      g.beginPath(); g.arc(i * 3.1 * u, headY - headR + 1.4 * u - Math.abs(i) * -0.4 * u, 3 * u, 0, Math.PI * 2); g.fill();
+    }
+  }
+  // cap (Mark) worn over the hair
+  if (def.cap) {
+    g.fillStyle = def.cap;
+    g.beginPath(); g.arc(0, headY - 1.2 * u, headR * 1.05, Math.PI, Math.PI * 2); g.fill();
+    g.fillRect(0, headY - 1.6 * u, headR + 4.6 * u, 1.9 * u);
+  }
+  g.restore();
+}
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/* ================= Character state: selection + customs ================= */
+const LS_SEL = 'preserve.selectedDef';
+const LS_CUSTOMS = 'preserve.customs';
+function loadJSON(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+function saveJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode */ }
+}
+let customs = loadJSON(LS_CUSTOMS, []);
+let currentDef = loadJSON(LS_SEL, null);
+if (!currentDef || !currentDef.name) currentDef = PRESETS[0];
+function defKey(d) {
+  return [d.name, d.skin, d.hairStyle, d.hairColor, d.shirt, d.pants].join('|');
+}
+
+const rosterEl = document.getElementById('roster');
+const selectScreen = document.getElementById('selectScreen');
+function previewCanvas(def, w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  drawCharacter(g, def, w / 2, h - 8, h - 18, { dir: 1, run: 0 });
+  return c;
+}
+function buildRoster() {
+  rosterEl.innerHTML = '';
+  const addCard = (def, customIdx) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card' + (defKey(def) === defKey(currentDef) ? ' sel' : '');
+    card.append(previewCanvas(def, 54, 72));
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = def.name;
+    card.append(nm);
+    card.addEventListener('click', () => {
+      currentDef = def;
+      saveJSON(LS_SEL, def);
+      buildRoster();
+      closeSelect();
+      pokeInput();
+      say(def.name + ' is wandering');
+    });
+    if (customIdx !== null) {
+      const del = document.createElement('span');
+      del.className = 'del';
+      del.textContent = '×';
+      del.title = 'Delete ' + def.name;
+      del.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const removed = customs.splice(customIdx, 1)[0];
+        saveJSON(LS_CUSTOMS, customs);
+        if (removed && defKey(removed) === defKey(currentDef)) {
+          currentDef = PRESETS[0];
+          saveJSON(LS_SEL, currentDef);
+        }
+        buildRoster();
+      });
+      card.append(del);
+    }
+    rosterEl.append(card);
+  };
+  PRESETS.forEach((d) => addCard(d, null));
+  customs.forEach((d, i) => addCard(d, i));
+}
+
+/* creator */
+const draft = { name: '', skin: SKIN_TONES[2], hairStyle: 'short', hairColor: HAIR_COLORS[2], shirt: SHIRT_COLORS[0], pants: PANTS_COLORS[0], streak: null, beard: false, cap: null };
+function swatchRow(elId, colors, get, set) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  colors.forEach((col) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw' + (get() === col ? ' sel' : '');
+    b.style.background = col;
+    b.title = col;
+    b.addEventListener('click', () => { set(col); refreshCreator(); });
+    el.append(b);
+  });
+}
+function refreshCreator() {
+  swatchRow('cSkin', SKIN_TONES, () => draft.skin, (v) => draft.skin = v);
+  swatchRow('cHair', HAIR_COLORS, () => draft.hairColor, (v) => draft.hairColor = v);
+  swatchRow('cShirt', SHIRT_COLORS, () => draft.shirt, (v) => draft.shirt = v);
+  swatchRow('cPants', PANTS_COLORS, () => draft.pants, (v) => draft.pants = v);
+  const c = document.getElementById('creatorPreview');
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  drawCharacter(g, draft, c.width / 2, c.height - 10, c.height - 22, { dir: 1, run: 0 });
+}
+document.getElementById('cName').addEventListener('input', (e) => { draft.name = e.target.value; });
+document.getElementById('cHairStyle').addEventListener('change', (e) => { draft.hairStyle = e.target.value; refreshCreator(); });
+document.getElementById('saveCustom').addEventListener('click', () => {
+  const def = { ...draft, name: (draft.name || '').trim() || 'Wanderer' };
+  customs.push(def);
+  saveJSON(LS_CUSTOMS, customs);
+  currentDef = def;
+  saveJSON(LS_SEL, def);
+  buildRoster();
+  closeSelect();
+  pokeInput();
+  say(def.name + ' joins the Preserve');
+});
+
+let selectOpen = false;
+function openSelect() { selectOpen = true; selectScreen.hidden = false; buildRoster(); refreshCreator(); }
+function closeSelect() { selectOpen = false; selectScreen.hidden = true; }
+document.getElementById('crewBtn').addEventListener('click', openSelect);
+</script>
+<script>
+'use strict';
+/* ================= World: a playable sketch of the Human Preserves =================
+   Coast -> Orchard -> Camp Ring -> Edge of the Wild Side. No game over:
+   falling just returns you to the last fire circle you passed. */
+const WORLD_W = 5600;
+const GY = 400;                       // ground top line, world units
+const ZONES = [
+  { to: 1400, name: 'The Coast' },
+  { to: 2800, name: 'The Orchard' },
+  { to: 4200, name: 'The Camp Ring' },
+  { to: 5600, name: 'Edge of the Wild Side' }
+];
+const SKY = [
+  ['#6f9fd8', '#f7b267', '#ffd98a'],
+  ['#7fb2e0', '#f9c784', '#ffe3a3'],
+  ['#5d5a9e', '#c86b98', '#f7b267'],
+  ['#2e2a4a', '#57537a', '#8a7f9e']
+];
+const GROUND_TOP = ['#eed9a0', '#69a84f', '#7a9a52', '#55704e'];
+
+const PLATFORMS = [];
+function ground(x, w) { PLATFORMS.push({ x, y: GY, w, h: 170, kind: 'ground' }); }
+function slab(x, y, w) { PLATFORMS.push({ x, y, w, h: 16, kind: 'float' }); }
+ground(0, 1080); ground(1180, 320);                    // coast (pit 1080-1180)
+ground(1500, 850); ground(2430, 470);                  // orchard (pit 2350-2430)
+ground(2900, 450); ground(3420, 880);                  // camp (stream 3350-3420)
+ground(4300, 400); ground(4790, 360); ground(5260, 340); // wild side
+[[300, 318, 110], [540, 258, 100], [860, 306, 110],
+ [1660, 312, 110], [1990, 262, 110], [2540, 318, 120],
+ [3060, 312, 110], [3660, 272, 120], [3980, 318, 100],
+ [4460, 302, 100], [4890, 258, 110], [5330, 306, 110]].forEach((p) => slab(p[0], p[1], p[2]));
+
+const FIRES = [{ x: 140 }, { x: 1560 }, { x: 2960 }, { x: 4330 }];
+const PALMS = [420, 980, 1330];
+const TREES = [1750, 2150, 2750];
+const TENTS = [3180, 3760, 4150];
+const CONIFERS = [4380, 4620, 4990, 5200, 5450];
+
+const FRUIT_COLORS = { orange: '#ff9f2e', fig: '#9b59b6', berry: '#e74c3c' };
+const FRUITS = [];
+function fruit(x, y, kind) { FRUITS.push({ x, y, kind, taken: false }); }
+[[150, 362, 'orange'], [330, 288, 'fig'], [585, 228, 'orange'], [700, 362, 'berry'], [905, 276, 'fig'],
+ [1600, 362, 'berry'], [1700, 282, 'orange'], [1750, 222, 'fig'], [2035, 232, 'orange'], [2150, 214, 'berry'],
+ [2300, 362, 'orange'], [2580, 288, 'fig'], [2750, 228, 'orange'],
+ [2980, 340, 'berry'], [3100, 282, 'orange'], [3710, 242, 'fig'], [3850, 362, 'orange'], [4020, 288, 'berry'],
+ [4500, 272, 'fig'], [4600, 362, 'orange'], [4940, 228, 'berry'], [5050, 362, 'fig'], [5370, 276, 'orange'], [5480, 362, 'berry']
+].forEach((f) => fruit(f[0], f[1], f[2]));
+
+const ENEMIES = [
+  { x: 700, min: 620, max: 820 }, { x: 1300, min: 1220, max: 1460 },
+  { x: 2050, min: 1900, max: 2280 }, { x: 2620, min: 2480, max: 2850 },
+  { x: 3700, min: 3500, max: 4100 }, { x: 4950, min: 4830, max: 5120 }
+].map((e) => ({ ...e, dir: 1, speed: 34, squash: 0, y: GY }));
+
+/* ================= Player + input ================= */
+const P = { x: 120, y: GY - 44, w: 26, h: 44, vx: 0, vy: 0, face: 1, ground: false, coyote: 0, buffer: 0, invuln: 0, runPhase: 0 };
+let checkpoint = { x: 140 };
+let camX = 0;
+let lastInput = performance.now();
+let curZone = 0;
+let gateSeen = false;
+let fruitGot = 0;
+const floaters = [];
+
+const keys = {};
+const touchState = { left: false, right: false, jump: false };
+let prevJumpHeld = false;
+
+function pokeInput() { lastInput = performance.now(); }
+addEventListener('keydown', (e) => {
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
+  if (selectOpen && e.code === 'Escape') { closeSelect(); return; }
+  keys[e.code] = true;
+  pokeInput();
+});
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.getElementById('game').addEventListener('pointerdown', pokeInput);
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
+document.querySelectorAll('#touch button').forEach((btn) => {
+  const k = btn.dataset.k;
+  const on = (e) => { e.preventDefault(); touchState[k] = true; btn.classList.add('on'); pokeInput(); };
+  const off = (e) => { e.preventDefault(); touchState[k] = false; btn.classList.remove('on'); };
+  btn.addEventListener('pointerdown', on);
+  btn.addEventListener('pointerup', off);
+  btn.addEventListener('pointercancel', off);
+  btn.addEventListener('pointerleave', off);
+});
+
+const toast = document.getElementById('toast');
+let toastTimer = 0;
+function say(t) {
+  toast.textContent = t;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1500);
+}
+
+/* ================= Ambient wanderer (the living background mode) ================= */
+let aiGoal = WORLD_W - 220;
+function groundAt(x, feetY, slack) {
+  return PLATFORMS.some((p) => x >= p.x && x <= p.x + p.w && p.y >= feetY - 2 && p.y <= feetY + slack);
+}
+function aiInput() {
+  let target = null, best = Infinity;
+  for (const f of FRUITS) {
+    if (f.taken) continue;
+    const d = Math.abs(f.x - P.x);
+    if (d < best) { best = d; target = f; }
+  }
+  let tx;
+  if (target) tx = target.x;
+  else {
+    if (Math.abs(P.x - aiGoal) < 70) aiGoal = aiGoal > WORLD_W / 2 ? 200 : WORLD_W - 220;
+    tx = aiGoal;
+  }
+  let dir = 0;
+  if (tx - P.x > 14) dir = 1; else if (P.x - tx > 14) dir = -1;
+  let wantJump = false;
+  if (dir !== 0 && P.ground) {
+    if (!groundAt(P.x + dir * 34, P.y + P.h, 30)) wantJump = true;                    // a gap ahead
+    if (target && target.y < P.y - 8 && Math.abs(target.x - P.x) < 48) wantJump = true; // fruit on a slab above
+    for (const e of ENEMIES) {
+      if (e.squash <= 0 && Math.sign(e.x - P.x) === dir && Math.abs(e.x - P.x) < 54) wantJump = true; // bop a critter
+    }
+  }
+  return { dir, wantJump };
+}
+
+/* ================= Update ================= */
+const modePill = document.getElementById('modePill');
+const fruitEl = document.getElementById('fruitCount');
+fruitEl.textContent = '0/' + FRUITS.length;
+let modeAmbient = false;
+function moveToward(v, target, delta) {
+  return v < target ? Math.min(target, v + delta) : Math.max(target, v - delta);
+}
+function zoneIndex(x) {
+  for (let i = 0; i < ZONES.length; i++) if (x < ZONES[i].to) return i;
+  return ZONES.length - 1;
+}
+function respawn() {
+  P.x = checkpoint.x;
+  P.y = GY - P.h;
+  P.vx = 0; P.vy = 0;
+  say('Back to the fire 🔥');
+}
+function update(dt) {
+  const now = performance.now();
+  modeAmbient = !selectOpen && (now - lastInput > 8000);
+  const pill = modeAmbient ? '🍃 Ambient' : '▶ You';
+  if (modePill.textContent !== pill) modePill.textContent = pill;
+
+  let dir = 0;
+  let jumpHeld = false;
+  if (modeAmbient) {
+    const ai = aiInput();
+    dir = ai.dir;
+    if (ai.wantJump && P.ground) P.buffer = 0.12;
+  } else {
+    if (keys.ArrowLeft || keys.KeyA || touchState.left) dir -= 1;
+    if (keys.ArrowRight || keys.KeyD || touchState.right) dir += 1;
+    jumpHeld = !!(keys.ArrowUp || keys.KeyW || keys.Space || touchState.jump);
+    if (jumpHeld && !prevJumpHeld) P.buffer = 0.12;
+  }
+  prevJumpHeld = jumpHeld;
+
+  const maxS = 235;
+  if (dir !== 0) {
+    P.vx = moveToward(P.vx, dir * maxS, (P.ground ? 2000 : 1300) * dt);
+    P.face = dir;
+  } else {
+    P.vx = moveToward(P.vx, 0, (P.ground ? 1900 : 260) * dt);
+  }
+  const rising = P.vy < 0;
+  P.vy += 1500 * (rising && !jumpHeld && !modeAmbient ? 2.1 : 1) * dt;
+  if (P.vy > 920) P.vy = 920;
+  P.coyote = P.ground ? 0.09 : Math.max(0, P.coyote - dt);
+  P.buffer = Math.max(0, P.buffer - dt);
+  if (P.buffer > 0 && (P.ground || P.coyote > 0)) {
+    P.vy = -565;
+    P.buffer = 0;
+    P.coyote = 0;
+    P.ground = false;
+  }
+  const prevBottom = P.y + P.h;
+  P.x += P.vx * dt;
+  if (P.x < 16) P.x = 16;
+  if (P.x > WORLD_W - 16) P.x = WORLD_W - 16;
+  P.y += P.vy * dt;
+  P.ground = false;
+  if (P.vy >= 0) {
+    for (const p of PLATFORMS) {
+      if (P.x + P.w * 0.7 > p.x && P.x - P.w * 0.7 < p.x + p.w && prevBottom <= p.y + 1 && P.y + P.h >= p.y) {
+        P.y = p.y - P.h;
+        P.vy = 0;
+        P.ground = true;
+      }
+    }
+  }
+  if (P.ground && Math.abs(P.vx) > 20) P.runPhase += Math.abs(P.vx) * dt / 36;
+  P.invuln = Math.max(0, P.invuln - dt);
+  if (P.y > 640) respawn();
+
+  for (const e of ENEMIES) {
+    if (e.squash > 0) { e.squash -= dt; continue; }
+    e.x += e.dir * e.speed * dt;
+    if (e.x < e.min) { e.x = e.min; e.dir = 1; }
+    if (e.x > e.max) { e.x = e.max; e.dir = -1; }
+    const overlap = Math.abs(P.x - e.x) < P.w / 2 + 15 && (P.y + P.h) > e.y - 20 && P.y < e.y;
+    if (overlap) {
+      if (P.vy > 80 && (P.y + P.h) - (e.y - 20) < 15) {
+        e.squash = 5;
+        P.vy = -390;
+        floaters.push({ x: e.x, y: e.y - 34, t: 'bop!', life: 0.8 });
+      } else if (P.invuln <= 0) {
+        P.vx = (P.x < e.x ? -1 : 1) * 260;
+        P.vy = -210;
+        P.invuln = 1.1;
+        say('Ouch — lazy critter');
+      }
+    }
+  }
+  for (const f of FRUITS) {
+    if (f.taken) continue;
+    const dx = f.x - P.x, dy = f.y - (P.y + P.h / 2);
+    if (dx * dx + dy * dy < 32 * 32) {
+      f.taken = true;
+      fruitGot++;
+      fruitEl.textContent = fruitGot + '/' + FRUITS.length;
+      floaters.push({ x: f.x, y: f.y - 12, t: '+1', life: 0.8 });
+      if (fruitGot === FRUITS.length) say('Every fruit in the Preserve! 🍑');
+    }
+  }
+  for (const f of FIRES) {
+    if (Math.abs(P.x - f.x) < 46 && checkpoint.x !== f.x) {
+      checkpoint = { x: f.x };
+      say('🔥 The fire remembers you');
+    }
+  }
+  const z = zoneIndex(P.x);
+  if (z !== curZone) { curZone = z; say(ZONES[z].name); }
+  if (P.x > 5460 && !gateSeen) { gateSeen = true; say('🌲 The Wild Side is still growing'); }
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    floaters[i].y -= 26 * dt;
+    floaters[i].life -= dt;
+    if (floaters[i].life <= 0) floaters.splice(i, 1);
+  }
+  const target = P.x - viewW * 0.42;
+  camX += (target - camX) * (1 - Math.exp(-6 * dt));
+  camX = Math.max(0, Math.min(WORLD_W - viewW, camX));
+}
+
+/* ================= Render ================= */
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let VW = 0, SCALE = 1, viewW = 0;
+const VH = 480;
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  VW = innerWidth;
+  cv.width = Math.round(innerWidth * dpr);
+  cv.height = Math.round(innerHeight * dpr);
+  SCALE = (innerHeight / VH) * dpr;
+  viewW = innerWidth / (innerHeight / VH);
+}
+addEventListener('resize', resize);
+function hexRgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+function mixHex(a, b, t) {
+  const A = hexRgb(a), B = hexRgb(b);
+  return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`;
+}
+function skyAt(x) {
+  const t = Math.max(0, Math.min(1, x / WORLD_W)) * (SKY.length - 1);
+  const i = Math.min(SKY.length - 2, Math.floor(t));
+  const f = t - i;
+  return [0, 1, 2].map((k) => mixHex(SKY[i][k], SKY[i + 1][k], f));
+}
+function drawFire(f, time) {
+  const x = f.x - camX, y = GY;
+  const active = checkpoint.x === f.x;
+  const flick = Math.sin(time * 12 + f.x) * 2.4;
+  const glow = ctx.createRadialGradient(x, y - 12, 4, x, y - 12, active ? 74 : 46);
+  glow.addColorStop(0, 'rgba(255,166,43,0.5)');
+  glow.addColorStop(1, 'rgba(255,166,43,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - 80, y - 90, 160, 100);
+  ctx.fillStyle = '#6b6f75';
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI - 0.4;
+    ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * 13, y - 2, 4.6, 3, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = '#5d4028';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(x - 10, y - 2); ctx.lineTo(x + 10, y - 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 10, y - 8); ctx.lineTo(x + 10, y - 2); ctx.stroke();
+  const fh = (active ? 24 : 17) + flick;
+  ctx.fillStyle = '#ff7b2e';
+  ctx.beginPath(); ctx.moveTo(x - 7, y - 4); ctx.quadraticCurveTo(x, y - fh - 8, x + 7, y - 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffa62b';
+  ctx.beginPath(); ctx.moveTo(x - 4.4, y - 4); ctx.quadraticCurveTo(x + 1, y - fh * 0.72 - 5, x + 4.4, y - 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffe29a';
+  ctx.beginPath(); ctx.moveTo(x - 2.2, y - 4); ctx.quadraticCurveTo(x, y - fh * 0.4 - 3, x + 2.2, y - 4); ctx.closePath(); ctx.fill();
+}
+function drawTree(x, time, wild) {
+  const sx = x - camX;
+  if (wild) {
+    ctx.fillStyle = '#2c3440';
+    for (let i = 0; i < 3; i++) {
+      const w = 46 - i * 11, y0 = GY - i * 26;
+      ctx.beginPath();
+      ctx.moveTo(sx - w / 2, y0); ctx.lineTo(sx, y0 - 44); ctx.lineTo(sx + w / 2, y0);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#4a3826';
+    ctx.fillRect(sx - 3, GY - 8, 6, 10);
+    return;
+  }
+  ctx.fillStyle = '#6e4f30';
+  ctx.fillRect(sx - 4, GY - 44, 8, 44);
+  ctx.fillStyle = '#3e7d3a';
+  ctx.beginPath(); ctx.arc(sx, GY - 66, 30, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx - 24, GY - 50, 21, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 24, GY - 50, 21, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff9f2e';
+  [[-14, -70], [10, -58], [20, -78], [-24, -44], [2, -84]].forEach((d) => {
+    ctx.beginPath(); ctx.arc(sx + d[0], GY + d[1], 3.4, 0, Math.PI * 2); ctx.fill();
+  });
+}
+function drawPalm(x, time) {
+  const sx = x - camX;
+  ctx.strokeStyle = '#8a6a44';
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(sx, GY); ctx.quadraticCurveTo(sx + 8, GY - 40, sx + 18, GY - 62); ctx.stroke();
+  ctx.strokeStyle = '#4d8f4a';
+  ctx.lineWidth = 4;
+  for (let i = 0; i < 5; i++) {
+    const a = -0.4 - i * 0.42;
+    ctx.beginPath();
+    ctx.moveTo(sx + 18, GY - 62);
+    ctx.quadraticCurveTo(sx + 18 + Math.cos(a) * 22, GY - 62 + Math.sin(a) * 16 - 6, sx + 18 + Math.cos(a) * 36, GY - 62 + Math.sin(a) * 26 + 8);
+    ctx.stroke();
+  }
+}
+function render(time) {
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);   // 1 unit = 1 world px; the view is viewW x 480
+  // sky
+  const sky = skyAt(camX + viewW / 2);
+  const grad = ctx.createLinearGradient(0, 0, 0, VH);
+  grad.addColorStop(0, sky[0]);
+  grad.addColorStop(0.62, sky[1]);
+  grad.addColorStop(1, sky[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, viewW, VH);
+  // sun with parallax
+  const sunX = (620 - camX * 0.12);
+  const sunGlow = ctx.createRadialGradient(sunX, 108, 6, sunX, 108, 90);
+  sunGlow.addColorStop(0, 'rgba(255,215,106,0.85)');
+  sunGlow.addColorStop(1, 'rgba(255,215,106,0)');
+  ctx.fillStyle = sunGlow;
+  ctx.fillRect(sunX - 95, 10, 190, 200);
+  ctx.fillStyle = '#ffd76a';
+  ctx.beginPath(); ctx.arc(sunX, 108, 27, 0, Math.PI * 2); ctx.fill();
+  // hill silhouettes
+  const hill = (factor, base, amp, seed, color) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, VH);
+    for (let sx = 0; sx <= viewW + 20; sx += 14) {
+      const wx = sx + camX * factor;
+      ctx.lineTo(sx, base - (Math.sin(wx * 0.006 + seed) * amp + Math.sin(wx * 0.0016 + seed * 2.7) * amp * 1.6));
+    }
+    ctx.lineTo(viewW, VH);
+    ctx.closePath();
+    ctx.fill();
+  };
+  hill(0.3, 336, 15, 1.7, 'rgba(61,64,107,0.35)');
+  hill(0.55, 378, 11, 4.2, 'rgba(43,45,74,0.45)');
+  // pit water on the coast
+  ctx.fillStyle = '#2f6f9f';
+  ctx.fillRect(1080 - camX, GY + 36, 100, VH - GY - 36);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 4; i++) {
+    const wx = 1092 + ((time * 22 + i * 27) % 84);
+    ctx.fillRect(wx - camX, GY + 42 + (i % 2) * 7, 9, 1.8);
+  }
+  // platforms
+  for (const p of PLATFORMS) {
+    const sx = p.x - camX;
+    if (sx + p.w < -40 || sx > viewW + 40) continue;
+    const zc = GROUND_TOP[zoneIndex(p.x + p.w / 2)];
+    if (p.kind === 'ground') {
+      ctx.fillStyle = '#8a6a48';
+      ctx.fillRect(sx, p.y, p.w, VH - p.y + 4);
+      ctx.fillStyle = zc;
+      ctx.fillRect(sx, p.y, p.w, 11);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(sx, p.y + 11, p.w, 4);
+    } else {
+      ctx.fillStyle = '#9a6a44';
+      roundRect(ctx, sx, p.y, p.w, p.h, 6);
+      ctx.fill();
+      ctx.fillStyle = '#69a84f';
+      ctx.fillRect(sx + 2, p.y, p.w - 4, 5);
+    }
+  }
+  // props
+  for (const x of PALMS) if (x - camX > -90 && x - camX < viewW + 90) drawPalm(x, time);
+  for (const x of TREES) if (x - camX > -90 && x - camX < viewW + 90) drawTree(x, time, false);
+  for (const x of CONIFERS) if (x - camX > -90 && x - camX < viewW + 90) drawTree(x, time, true);
+  for (const x of TENTS) {
+    const sx = x - camX;
+    if (sx < -90 || sx > viewW + 90) continue;
+    ctx.fillStyle = '#c96f4a';
+    ctx.beginPath(); ctx.moveTo(sx - 34, GY); ctx.lineTo(sx, GY - 44); ctx.lineTo(sx + 34, GY); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5d3423';
+    ctx.beginPath(); ctx.moveTo(sx - 10, GY); ctx.lineTo(sx, GY - 24); ctx.lineTo(sx + 10, GY); ctx.closePath(); ctx.fill();
+  }
+  // end gate
+  const gx = 5500 - camX;
+  if (gx > -90 && gx < viewW + 90) {
+    ctx.fillStyle = '#6e4f30';
+    ctx.fillRect(gx - 30, GY - 74, 7, 74);
+    ctx.fillRect(gx + 23, GY - 74, 7, 74);
+    ctx.fillRect(gx - 34, GY - 78, 75, 7);
+    ctx.fillStyle = '#a97c50';
+    roundRect(ctx, gx - 20, GY - 66, 44, 20, 4);
+    ctx.fill();
+    ctx.fillStyle = '#2e2119';
+    ctx.font = '900 9px Inter,system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('WILD SIDE', gx + 2, GY - 52);
+  }
+  for (const f of FIRES) if (f.x - camX > -110 && f.x - camX < viewW + 110) drawFire(f, time);
+  // fruit
+  for (const f of FRUITS) {
+    if (f.taken) continue;
+    const sx = f.x - camX;
+    if (sx < -30 || sx > viewW + 30) continue;
+    const bobY = Math.sin(time * 2.1 + f.x * 0.7) * 3;
+    ctx.fillStyle = FRUIT_COLORS[f.kind];
+    ctx.beginPath(); ctx.arc(sx, f.y + bobY, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4d8f4a';
+    ctx.beginPath(); ctx.ellipse(sx + 3, f.y + bobY - 8, 4.4, 2.2, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath(); ctx.arc(sx - 2.6, f.y + bobY - 2.6, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  // enemies: lazy critters
+  for (const e of ENEMIES) {
+    const sx = e.x - camX;
+    if (sx < -50 || sx > viewW + 50) continue;
+    if (e.squash > 0) {
+      ctx.fillStyle = '#a26769';
+      roundRect(ctx, sx - 16, e.y - 7, 32, 7, 3);
+      ctx.fill();
+      continue;
+    }
+    const wob = Math.sin(time * 6 + e.x) * 1.4;
+    ctx.fillStyle = '#a26769';
+    ctx.beginPath(); ctx.ellipse(sx, e.y - 11 + wob * 0.3, 16, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c98d8d';
+    ctx.beginPath(); ctx.ellipse(sx, e.y - 8 + wob * 0.3, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#221d1a';
+    const look = P.x < e.x ? -3 : 3;
+    ctx.beginPath(); ctx.arc(sx - 5 + look, e.y - 14 + wob * 0.3, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 5 + look, e.y - 14 + wob * 0.3, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7c4a4d';
+    ctx.fillRect(sx - 11, e.y - 2, 6, 2.6);
+    ctx.fillRect(sx + 5, e.y - 2, 6, 2.6);
+  }
+  // player
+  if (!(P.invuln > 0 && Math.floor(time * 12) % 2 === 0)) {
+    drawCharacter(ctx, currentDef, P.x - camX, P.y + P.h, 46, {
+      dir: P.face,
+      run: P.ground && Math.abs(P.vx) > 20 ? (P.runPhase % 1) : 0,
+      air: !P.ground
+    });
+  }
+  // floaters
+  ctx.font = '900 13px Inter,system-ui,sans-serif';
+  ctx.textAlign = 'center';
+  for (const fl of floaters) {
+    ctx.fillStyle = `rgba(255,240,200,${Math.max(0, Math.min(1, fl.life))})`;
+    ctx.fillText(fl.t, fl.x - camX, fl.y);
+  }
+}
+
+/* ================= Music deck ================= */
+const STATIONS = [
+  { name: 'Groove Salad · SomaFM', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
+  { name: 'Drone Zone · SomaFM', url: 'https://ice1.somafm.com/dronezone-128-mp3' },
+  { name: 'Lush · SomaFM', url: 'https://ice1.somafm.com/lush-128-mp3' }
+];
+const radio = document.getElementById('radio');
+const playBtn = document.getElementById('playBtn');
+const muteBtn = document.getElementById('muteBtn');
+const volEl = document.getElementById('vol');
+const stationSel = document.getElementById('stationSel');
+const ytInput = document.getElementById('ytInput');
+const ytWrap = document.getElementById('ytWrap');
+const ytFrame = document.getElementById('ytFrame');
+STATIONS.forEach((s, i) => {
+  const o = document.createElement('option');
+  o.value = String(i);
+  o.textContent = s.name;
+  stationSel.append(o);
+});
+const LS_MUSIC = 'preserve.music';
+let music = Object.assign({ muted: false, volume: 0.8, station: 0, source: 'radio' }, loadJSON(LS_MUSIC, {}));
+let ytIdCurrent = null;
+function persistMusic() { saveJSON(LS_MUSIC, { muted: music.muted, volume: music.volume, station: music.station, source: music.source }); }
+function ytEmbed(id, autoplay) {
+  return `https://www.youtube-nocookie.com/embed/${id}?autoplay=${autoplay ? 1 : 0}&mute=${music.muted ? 1 : 0}&loop=1&playlist=${id}&rel=0`;
+}
+function parseYtId(s) {
+  const m = String(s).match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([\w-]{11})/);
+  if (m) return m[1];
+  const t = String(s).trim();
+  return /^[\w-]{11}$/.test(t) ? t : null;
+}
+function applyMusic() {
+  radio.volume = music.volume;
+  radio.muted = music.muted;
+  volEl.value = String(music.volume);
+  muteBtn.textContent = music.muted ? '🔇' : '🔊';
+  stationSel.value = String(music.station);
+}
+playBtn.addEventListener('click', () => {
+  if (music.source === 'youtube') {
+    if (ytIdCurrent && ytWrap.hidden) {
+      ytFrame.src = ytEmbed(ytIdCurrent, true);
+      ytWrap.hidden = false;
+      playBtn.textContent = '⏸';
+    } else {
+      ytFrame.src = 'about:blank';
+      ytWrap.hidden = true;
+      playBtn.textContent = '▶';
+    }
+    return;
+  }
+  if (radio.paused) {
+    const url = STATIONS[music.station].url;
+    if (!radio.src || !radio.src.includes(url.split('/').pop())) radio.src = url;
+    radio.play().catch(() => { /* stream blocked; button state stays honest */ });
+    playBtn.textContent = '⏸';
+  } else {
+    radio.pause();
+    playBtn.textContent = '▶';
+  }
+});
+radio.addEventListener('pause', () => { if (music.source === 'radio') playBtn.textContent = '▶'; });
+stationSel.addEventListener('change', () => {
+  music.station = Number(stationSel.value);
+  music.source = 'radio';
+  ytWrap.hidden = true;
+  ytFrame.src = 'about:blank';
+  const wasPlaying = !radio.paused;
+  radio.src = STATIONS[music.station].url;
+  if (wasPlaying) radio.play().catch(() => {});
+  persistMusic();
+});
+muteBtn.addEventListener('click', () => {
+  music.muted = !music.muted;
+  applyMusic();
+  if (music.source === 'youtube' && ytIdCurrent && !ytWrap.hidden) ytFrame.src = ytEmbed(ytIdCurrent, true);
+  persistMusic();
+});
+volEl.addEventListener('input', () => {
+  music.volume = Number(volEl.value);
+  radio.volume = music.volume;
+  persistMusic();
+});
+document.getElementById('ytBtn').addEventListener('click', () => {
+  const id = parseYtId(ytInput.value);
+  if (!id) { say('That YouTube link did not parse'); return; }
+  radio.pause();
+  music.source = 'youtube';
+  ytIdCurrent = id;
+  ytFrame.src = ytEmbed(id, true);
+  ytWrap.hidden = false;
+  playBtn.textContent = '⏸';
+  persistMusic();
+});
+document.getElementById('deckToggle').addEventListener('click', () => {
+  const panel = document.getElementById('deckPanel');
+  panel.hidden = !panel.hidden;
+});
+applyMusic();
+
+/* ================= Boot + main loop ================= */
+resize();
+buildRoster();
+refreshCreator();
+openSelect();
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  if (!selectOpen) update(dt);
+  render(now / 1000);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
