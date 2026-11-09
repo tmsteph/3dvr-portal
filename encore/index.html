@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Encore — Venue Mode</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #e8e6e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #23272e; }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; height: 100dvh; }
+
+  /* ===== top bar: a working tech's tool strip, not an arcade HUD ===== */
+  #topbar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 12px; background: rgba(24,26,32,.96); border-bottom: 1px solid #0c0d10; z-index: 6; }
+  #topbar .brand { font-weight: 650; font-size: .98rem; letter-spacing: .04em; color: #f2f3f5; white-space: nowrap; }
+  #topbar .brand small { display: block; font-weight: 500; font-size: .64rem; color: #9aa3ad; letter-spacing: .1em; text-transform: uppercase; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+    background: #2b2e36; border: 1px solid #434854; font-size: .8rem; color: #dfe3e8; white-space: nowrap; }
+  .chip.today { background: #4a3a10; border-color: #a8832a; color: #f3d98a; }
+  #topbar .spacer { flex: 1 1 auto; }
+  .tbtn { appearance: none; border: 1px solid #4a505c; background: #343842; color: #eef1f4; border-radius: 8px;
+    padding: 6px 12px; font: inherit; font-size: .82rem; cursor: pointer; }
+  .tbtn:hover { background: #3f444f; }
+  .tbtn.gold { background: #6b5518; border-color: #a8832a; color: #ffe9a8; }
+
+  #stageWrap { position: relative; flex: 1 1 auto; min-height: 0; }
+  canvas#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+
+  #say { position: absolute; left: 12px; bottom: 12px; max-width: min(78vw, 430px); z-index: 4;
+    background: rgba(24,26,32,.93); color: #eef1f4; font-size: .82rem; line-height: 1.35;
+    padding: 8px 12px; border-radius: 10px; opacity: 0; transition: opacity .35s; pointer-events: none; }
+  #say.show { opacity: 1; }
+  #hint { position: absolute; right: 12px; bottom: 12px; z-index: 4; font-size: .72rem; color: #5d6672;
+    background: rgba(255,255,255,.82); padding: 4px 8px; border-radius: 6px; pointer-events: none; }
+
+  /* ===== What's On: the day sheet, as a side panel ===== */
+  #onPanel { position: absolute; top: 0; right: 0; bottom: 0; width: min(360px, 92vw); z-index: 7;
+    background: #fbfcfd; border-left: 1px solid #d5d9de; box-shadow: -14px 0 34px rgba(20,30,45,.22);
+    display: flex; flex-direction: column; transform: translateX(0); }
+  #onPanel[hidden] { display: none; }
+  #onPanel .head { padding: 14px 16px 8px; border-bottom: 1px solid #e3e7ec; }
+  #onPanel .head h2 { margin: 0; font-size: 1.05rem; color: #22304a; }
+  #onPanel .head .sub { margin: 3px 0 0; font-size: .78rem; color: #66727f; line-height: 1.4; }
+  #onList { flex: 1 1 auto; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .ev { appearance: none; text-align: left; font: inherit; cursor: pointer; display: flex; gap: 10px; width: 100%;
+    border: 1px solid #d8dde3; background: #fff; border-radius: 10px; padding: 9px 10px; }
+  .ev:hover { border-color: #14507a; }
+  .ev .when { flex: 0 0 52px; text-align: center; }
+  .ev .when .d { font-weight: 700; font-size: .86rem; color: #22304a; }
+  .ev .when .t { font-size: .68rem; color: #77828f; }
+  .ev .what { flex: 1 1 auto; min-width: 0; }
+  .ev .what .s { font-weight: 650; font-size: .86rem; color: #23272e; }
+  .ev .what .m { font-size: .74rem; color: #66727f; margin-top: 2px; line-height: 1.35; }
+  .ev .badge { align-self: flex-start; font-size: .62rem; font-weight: 700; letter-spacing: .06em;
+    background: #a8832a; color: #fff; border-radius: 999px; padding: 2px 7px; }
+  .ev.past { opacity: .55; }
+  #onFoot { padding: 9px 16px; border-top: 1px solid #e3e7ec; font-size: .68rem; color: #8a94a0; line-height: 1.45; }
+
+  /* ===== flowsheet card: opens when he walks into his room ===== */
+  #sheet { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 7;
+    width: min(520px, calc(100vw - 24px)); background: #fffdf6; border: 1px solid #ddd3ae; border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(20,30,45,.3); padding: 12px 14px 10px; }
+  #sheet[hidden] { display: none; }
+  #sheet .kick { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #a8832a; }
+  #sheet h3 { margin: 2px 0 4px; font-size: 1rem; color: #26221a; padding-right: 26px; }
+  #sheet .lines { font-size: .8rem; color: #4c4636; line-height: 1.5; }
+  #sheet .lines b { color: #26221a; }
+  #sheetClose { position: absolute; top: 6px; right: 10px; appearance: none; border: 0; background: none;
+    font-size: 1.05rem; color: #8a94a0; cursor: pointer; padding: 2px 4px; }
+
+  /* ===== character select: a calm white panel (same as the other modes) ===== */
+  #selectScreen { position: absolute; inset: 0; z-index: 10; overflow-y: auto;
+    background: rgba(24,26,32,.5); display: flex; align-items: flex-start; justify-content: center; padding: 18px 12px; }
+  #selectScreen[hidden] { display: none; }
+  .panel { background: #fff; border-radius: 14px; box-shadow: 0 18px 50px rgba(20,30,45,.35);
+    width: min(680px, 100%); padding: 20px 20px 16px; }
+  .panel h2 { margin: 0 0 4px; font-size: 1.25rem; color: #22304a; }
+  .panel .sub { margin: 0 0 16px; font-size: .88rem; color: #5c6875; line-height: 1.45; }
+  #roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .card { position: relative; appearance: none; border: 1px solid #d8dde3; background: #fbfcfd; border-radius: 12px;
+    padding: 10px 6px 8px; cursor: pointer; font: inherit; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .card:hover { border-color: #9fb2c8; }
+  .card.sel { border-color: #14507a; box-shadow: 0 0 0 2px rgba(20,80,122,.25); background: #f0f5f9; }
+  .card .nm { font-size: .8rem; font-weight: 600; color: #2b3440; }
+  .card .del { position: absolute; top: 2px; right: 6px; color: #a33; font-weight: 700; cursor: pointer; }
+  .creator { border-top: 1px solid #e3e7ec; padding-top: 14px; }
+  .creator h3 { margin: 0 0 10px; font-size: .95rem; color: #22304a; }
+  .creator .grid { display: flex; gap: 16px; flex-wrap: wrap; }
+  .creator .previewBox { text-align: center; }
+  .creator .fields { flex: 1; min-width: 230px; display: flex; flex-direction: column; gap: 9px; }
+  .creator label { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #77828f; display: block; margin-bottom: 3px; }
+  .creator input[type=text], .creator select { width: 100%; background: #fff; color: #2b3440; border: 1px solid #c9d1da;
+    border-radius: 8px; padding: 7px 9px; font: inherit; font-size: .9rem; }
+  .swatches { display: flex; gap: 5px; flex-wrap: wrap; }
+  .sw { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #b9c2cc; cursor: pointer; padding: 0; }
+  .sw.sel { box-shadow: 0 0 0 2px #14507a; }
+  #saveCustom { margin-top: 4px; appearance: none; border: 0; border-radius: 8px; background: #23272e; color: #fff;
+    padding: 9px 14px; font: inherit; font-size: .88rem; cursor: pointer; }
+  #saveCustom:hover { background: #383d47; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="brand">ENCORE<small>Venue mode · San Diego</small></div>
+    <span class="chip" id="locChip">San Diego Bay</span>
+    <span class="chip today" id="todayChip">Today</span>
+    <span class="spacer"></span>
+    <span class="chip" id="foundChip">Shows found: 0 / 0</span>
+    <button class="tbtn" id="mapBtn" type="button" hidden>Map</button>
+    <button class="tbtn gold" id="onBtn" type="button">What's On</button>
+    <button class="tbtn" id="crewBtn" type="button">Crew</button>
+  </div>
+  <div id="stageWrap">
+    <canvas id="stage"></canvas>
+    <div id="say" role="status"></div>
+    <div id="hint">Click a hotel to go · click the floor to walk</div>
+
+    <aside id="onPanel" hidden>
+      <div class="head">
+        <h2>What's On</h2>
+        <p class="sub">Thomas's shows, from Lighthouse. His events only in this version — the plan taped to the dock door (PLAN.md) covers the rest.</p>
+      </div>
+      <div id="onList"></div>
+      <div id="onFoot">Loading the day sheet…</div>
+    </aside>
+
+    <div id="sheet" hidden>
+      <button id="sheetClose" type="button" aria-label="Close flowsheet">×</button>
+      <div class="kick">Flowsheet</div>
+      <h3 id="sheetTitle">Show</h3>
+      <div class="lines" id="sheetLines"></div>
+    </div>
+
+    <div id="selectScreen">
+      <div class="panel">
+        <h2>Encore — Venue Mode</h2>
+        <p class="sub">The hotels he works, drawn as a map of the bay. Same crew as the other modes,
+          this time in show blacks with headsets. Pick who is on the call, then click a hotel:
+          Manchester Grand Hyatt, Hyatt Regency Mission Bay, Gaylord Pacific. His real shows are
+          pinned from Lighthouse — walk into the room and the flowsheet opens.</p>
+        <div id="roster"></div>
+        <div class="creator">
+          <h3>Make your own</h3>
+          <div class="grid">
+            <div class="previewBox">
+              <canvas id="creatorPreview" width="84" height="84"></canvas>
+              <div style="font-size:.7rem;color:#77828f">preview (in blacks)</div>
+            </div>
+            <div class="fields">
+              <div><label for="cName">Name</label><input id="cName" type="text" maxlength="18" placeholder="New Tech"></div>
+              <div><label>Hair style</label>
+                <select id="cHairStyle">
+                  <option value="short">Short</option><option value="long">Long</option>
+                  <option value="bun">Bun</option><option value="curly">Curly</option>
+                  <option value="bald">Bald</option>
+                </select></div>
+              <div><label>Skin tone</label><div class="swatches" id="cSkin"></div></div>
+              <div><label>Hair color</label><div class="swatches" id="cHair"></div></div>
+              <div><label>Suit color (office mode)</label><div class="swatches" id="cSuit"></div></div>
+              <div><label>Dress shirt (office mode)</label><div class="swatches" id="cShirtC"></div></div>
+              <div><label>Tie color (office mode)</label><div class="swatches" id="cTie"></div></div>
+              <div><label>Everyday shirt (other modes)</label><div class="swatches" id="cShirt"></div></div>
+              <div><label>Everyday pants (other modes)</label><div class="swatches" id="cPants"></div></div>
+              <button id="saveCustom" type="button">Save and take the call</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= Characters: the shared 3DVR character spec =================
+   One character definition object is shared by every mode of the combined
+   game: { id, name, skin, hairStyle, hairColor, streak, beard, hat, hatColor,
+   print, shirt, pants } plus Corner Office's suit / shirtC / tie riding on
+   the same object. Encore mode ignores the outfit fields entirely: on a
+   show floor everybody wears blacks. It keeps the fields so a character
+   edited here walks into the other modes intact.
+
+   Storage follows the family pattern (per-mode prefixed keys) AND stays in
+   sync with the sibling modes' real stores, so a character created anywhere
+   is the same character here:
+     this mode : encore.customs        / encore.selectedDef        (full def)
+     Preserve  : preserve.customs      / preserve.selectedDef      (full def)
+     Valley    : valley.customs.v1     / valley.selected.v1        (id)
+     Companion : companion-quest.customCharacters.v1 / .player.v1  (full def)
+     Office    : corner-office.customs / corner-office.selectedDef (full def) */
+const LS = {
+  customs: 'encore.customs', selected: 'encore.selectedDef',
+  stats: 'encore.stats'
+};
+/* The combined game's one shared character record (owned by the 3DVR
+   World shell, mirrored by every mode). Highest-priority store here. */
+const WORLD_CHAR_KEY = 'world.character.v1';
+const SIBLING_STORES = [
+  { customs: 'preserve.customs', selected: 'preserve.selectedDef', selectedKind: 'def' },
+  { customs: 'valley.customs.v1', selected: 'valley.selected.v1', selectedKind: 'id' },
+  { customs: 'companion-quest.customCharacters.v1', selected: 'companion-quest.player.v1', selectedKind: 'def' },
+  { customs: 'corner-office.customs', selected: 'corner-office.selectedDef', selectedKind: 'def' }
+];
+function loadJSON(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+function saveJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode */ }
+}
+
+const SKIN_TONES = ['#ffe0bd', '#f2c79b', '#e8b08a', '#c98d5f', '#a06838', '#6f4423'];
+const HAIR_COLORS = ['#17130f', '#3a2a1a', '#7a5a38', '#b5854a', '#f0cf6e', '#d96f32', '#b03a2e', '#39b7ff', '#7e57c2', '#e8e8e8'];
+const SHIRT_COLORS = ['#17a398', '#d33f2e', '#3f9e4d', '#ef7d1a', '#232329', '#2f6fd0', '#7e57c2', '#e56b9f', '#f0b429', '#e8e8e8'];
+const PANTS_COLORS = ['#274156', '#3a4a5a', '#2e4053', '#1d1d22', '#31517d', '#6b5136', '#7a7a52', '#5b2d8e'];
+const SUIT_COLORS = ['#2e3d55', '#23272e', '#3a3f4a', '#37424e', '#4a4238', '#5a4632', '#513252', '#274e4a'];
+const DRESS_SHIRTS = ['#f4f6f8', '#eef1f4', '#f7f3ea', '#dfe9f2', '#efe3e8', '#e6ecdf'];
+const TIE_COLORS = ['#8c3226', '#2f5d8a', '#33543a', '#5b2d8e', '#0f7d8c', '#b05f1e', '#6b7280', '#22304a'];
+
+const PRESETS = [
+  { id: 'thomas',  name: 'Thomas',    skin: '#e8b08a', hairStyle: 'short', hairColor: '#7a5a38', beard: true,  shirt: '#17a398', pants: '#3a4a5a', suit: '#2e3d55', shirtC: '#f4f6f8', tie: '#8c3226' },
+  { id: 'girl',    name: '3DVR Girl', skin: '#f2c79b', hairStyle: 'long',  hairColor: '#f0cf6e', streak: '#39b7ff', shirt: '#17a398', pants: '#274156', suit: '#3a3f4a', shirtC: '#eef1f4', tie: '#2f6fd0' },
+  { id: 'mark',    name: 'Mark',      skin: '#d99e73', hairStyle: 'short', hairColor: '#2c2320', shirt: '#d33f2e', pants: '#2f3b52', suit: '#23272e', shirtC: '#f4f6f8', tie: '#5b2d8e' },
+  { id: 'esai',    name: 'Esai',      skin: '#b57a4e', hairStyle: 'short', hairColor: '#17130f', shirt: '#232329', pants: '#333a45', suit: '#4a4238', shirtC: '#f7f3ea', tie: '#0f7d8c' },
+  { id: 'david',   name: 'David',     skin: '#c98d5f', hairStyle: 'short', hairColor: '#191512', shirt: '#3f9e4d', pants: '#2e4053', suit: '#37424e', shirtC: '#eef1f4', tie: '#3e7d38' },
+  { id: 'brandon', name: 'Brandon',   skin: '#8a5a34', hairStyle: 'curly', hairColor: '#241a12', shirt: '#ef7d1a', pants: '#374151', suit: '#5a4632', shirtC: '#f4f6f8', tie: '#b05f1e' }
+];
+const DEFAULT_SUIT = { suit: '#37424e', shirtC: '#f4f6f8', tie: '#2f5d8a' };
+function withSuit(def) { return Object.assign({}, DEFAULT_SUIT, def); }
+function defKey(d) { return d.id || [d.name, d.skin, d.hairStyle, d.hairColor, d.shirt, d.pants].join('|'); }
+
+/* Merge customs from every mode's store so the crew follows the player. */
+function loadAllCustoms() {
+  const seen = new Map();
+  const add = (d) => { if (d && d.name) seen.set(defKey(d), withSuit(d)); };
+  (loadJSON(LS.customs, []) || []).forEach(add);
+  SIBLING_STORES.forEach((s) => { (loadJSON(s.customs, []) || []).forEach(add); });
+  const wrec = loadJSON(WORLD_CHAR_KEY, null);
+  if (wrec && Array.isArray(wrec.customs)) wrec.customs.forEach(add);
+  return [...seen.values()];
+}
+let customs = loadAllCustoms();
+function persistCustoms() {
+  saveJSON(LS.customs, customs);
+  /* Mirror into the sibling stores in their own shapes so a character made
+     here walks into the other modes as the same person. */
+  SIBLING_STORES.forEach((s) => saveJSON(s.customs, customs));
+  persistWorldChar();
+}
+/* Mirror the selection + customs into the one shared record. */
+function persistWorldChar() {
+  if (!currentDef) return;
+  saveJSON(WORLD_CHAR_KEY, { v: 1, selectedId: currentDef.id || null, selectedDef: currentDef, customs });
+}
+function findCharacter(id) {
+  return PRESETS.find((c) => c.id === id) || customs.find((c) => c.id === id) || null;
+}
+function initialCharacter() {
+  const wrec = loadJSON(WORLD_CHAR_KEY, null);
+  if (wrec && wrec.selectedDef && wrec.selectedDef.name) {
+    if (wrec.selectedId) { const f = findCharacter(wrec.selectedId); if (f) return withSuit(f); }
+    const byName = PRESETS.find((c) => c.name === wrec.selectedDef.name);
+    if (byName) return withSuit(byName);
+    return withSuit(wrec.selectedDef);
+  }
+  const own = loadJSON(LS.selected, null);
+  if (own && own.name) return withSuit(own);
+  for (const s of SIBLING_STORES) {
+    const v = loadJSON(s.selected, null);
+    if (s.selectedKind === 'id' && v) { const f = findCharacter(v); if (f) return withSuit(f); }
+    if (s.selectedKind === 'def' && v && v.name) return withSuit(v);
+  }
+  return withSuit(PRESETS[0]);
+}
+let currentDef = initialCharacter();
+function persistSelection() {
+  saveJSON(LS.selected, currentDef);
+  SIBLING_STORES.forEach((s) => {
+    if (s.selectedKind === 'id') saveJSON(s.selected, currentDef.id || 'thomas');
+    else saveJSON(s.selected, currentDef);
+  });
+  persistWorldChar();
+}
+
+function roundRectPath(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/* ============ Top-down tech-in-blacks sprite renderer ============
+   The shared character seen from above, dressed for a show floor: black
+   polo, black sleeves, and a headset — band over the head, cups on the
+   ears, mic boom swung round to the mouth with its tiny red mute light.
+   pose: { angle (facing, rad), walk: 0..1 phase while moving } */
+function drawTech(g, def, x, y, pose) {
+  const angle = pose.angle || 0;
+  const walk = pose.walk || 0;
+  const moving = walk > 0;
+  const bob = moving ? Math.sin(walk * Math.PI * 2) * 1.1 : 0;
+  g.save();
+  g.translate(x, y);
+  // soft shadow
+  g.fillStyle = 'rgba(20,24,30,.22)';
+  g.beginPath(); g.ellipse(0, 3, 15, 10, 0, 0, Math.PI * 2); g.fill();
+  g.rotate(angle + Math.PI / 2);           // local +y becomes "forward"
+  g.translate(0, bob * 0.4);
+  // arms (black sleeves) with a walking swing
+  const swing = moving ? Math.sin(walk * Math.PI * 2) * 4 : 0;
+  g.fillStyle = '#17181c';
+  roundRectPath(g, -16.5, -6 + swing * 0.5, 6, 15, 3); g.fill();
+  roundRectPath(g, 10.5, -6 - swing * 0.5, 6, 15, 3); g.fill();
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(-13.5, 10.5 + swing * 0.5, 2.6, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(13.5, 10.5 - swing * 0.5, 2.6, 0, Math.PI * 2); g.fill();
+  // torso: the black polo
+  g.fillStyle = '#1d1e23';
+  roundRectPath(g, -13, -13, 26, 27, 9); g.fill();
+  // collar notch + a pale chest logo where the embroidery would be
+  g.fillStyle = '#101114';
+  g.beginPath(); g.moveTo(-4.5, 1.5); g.lineTo(4.5, 1.5); g.lineTo(0, 7.5); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(230,233,238,.75)';
+  g.beginPath(); g.arc(-6.8, 9.5, 1.5, 0, Math.PI * 2); g.fill();
+  // a radio clipped at the hip, cable up the back
+  g.fillStyle = '#0c0d10';
+  roundRectPath(g, 9.5, -11.5, 4.6, 7, 1.5); g.fill();
+  g.strokeStyle = 'rgba(8,8,10,.65)'; g.lineWidth = 1.1;
+  g.beginPath(); g.moveTo(11.5, -4.5); g.quadraticCurveTo(13.5, 2, 10.5, 6.5); g.stroke();
+  // head
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(0, -3, 8.6, 0, Math.PI * 2); g.fill();
+  // hair, on the back half of the head (away from facing)
+  g.fillStyle = def.hairColor;
+  if (def.hairStyle === 'long') {
+    g.beginPath(); g.arc(0, -3.6, 9.2, Math.PI * 0.95, Math.PI * 2.05); g.fill();
+    roundRectPath(g, -9.4, -4, 4.4, 15, 2); g.fill();
+    roundRectPath(g, 5, -4, 4.4, 15, 2); g.fill();
+    if (def.streak) { g.fillStyle = def.streak; roundRectPath(g, 5.8, -4, 2, 13, 1); g.fill(); }
+  } else if (def.hairStyle === 'bun') {
+    g.beginPath(); g.arc(0, -3.4, 8.9, Math.PI * 0.95, Math.PI * 2.05); g.fill();
+    g.beginPath(); g.arc(0, -12.6, 3.4, 0, Math.PI * 2); g.fill();
+  } else if (def.hairStyle === 'curly') {
+    for (let i = -2; i <= 2; i++) { g.beginPath(); g.arc(i * 3.6, -9.6 + Math.abs(i) * 0.8, 3.1, 0, Math.PI * 2); g.fill(); }
+    g.beginPath(); g.arc(0, -3.4, 8.9, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+  } else if (def.hairStyle !== 'bald') {   // short
+    g.beginPath(); g.arc(0, -3.4, 8.9, Math.PI * 0.92, Math.PI * 2.08); g.fill();
+  }
+  // beard hint at the chin (front edge)
+  if (def.beard) {
+    g.fillStyle = def.hairColor;
+    g.beginPath(); g.arc(0, -1.4, 7.6, Math.PI * 0.18, Math.PI * 0.82); g.fill();
+    g.fillStyle = def.skin;
+    g.beginPath(); g.arc(0, -0.6, 5.4, Math.PI * 0.25, Math.PI * 0.75); g.fill();
+  }
+  // headset: band over the crown, cups on both ears, mic boom to the mouth
+  g.strokeStyle = '#0b0b0d'; g.lineWidth = 2.6; g.lineCap = 'round';
+  g.beginPath(); g.arc(0, -3, 10.3, Math.PI * 1.03, Math.PI * 1.97); g.stroke();
+  g.fillStyle = '#0b0b0d';
+  g.beginPath(); g.arc(-10.1, -2.6, 2.9, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(10.1, -2.6, 2.9, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#0b0b0d'; g.lineWidth = 1.7;
+  g.beginPath(); g.moveTo(10.1, -1.2); g.quadraticCurveTo(9.5, 3.6, 4.9, 5.1); g.stroke();
+  g.fillStyle = '#c8352c';   // the little red mute light
+  g.beginPath(); g.arc(4.5, 5.3, 1.35, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+
+/* ================= Roster + creator UI ================= */
+const rosterEl = document.getElementById('roster');
+const selectScreen = document.getElementById('selectScreen');
+function previewCanvas(def) {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e8edf1'; roundRectPath(g, 0, 0, 64, 64, 10); g.fill();
+  drawTech(g, def, 32, 34, { angle: -Math.PI / 2, walk: 0 });
+  return c;
+}
+function buildRoster() {
+  rosterEl.innerHTML = '';
+  const addCard = (def, customIdx) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card' + (defKey(def) === defKey(currentDef) ? ' sel' : '');
+    card.append(previewCanvas(withSuit(def)));
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = def.name;
+    card.append(nm);
+    card.addEventListener('click', () => {
+      currentDef = withSuit(def);
+      persistSelection();
+      buildRoster();
+      closeSelect();
+      if (window.__encOnPick) window.__encOnPick();
+    });
+    if (customIdx !== null) {
+      const del = document.createElement('span');
+      del.className = 'del';
+      del.textContent = '×';
+      del.title = 'Delete ' + def.name;
+      del.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const removed = customs.splice(customIdx, 1)[0];
+        persistCustoms();
+        if (removed && defKey(removed) === defKey(currentDef)) {
+          currentDef = withSuit(PRESETS[0]);
+          persistSelection();
+        }
+        buildRoster();
+      });
+      card.append(del);
+    }
+    rosterEl.append(card);
+  };
+  PRESETS.forEach((d) => addCard(d, null));
+  customs.forEach((d, i) => addCard(d, i));
+}
+const draft = { name: '', skin: SKIN_TONES[2], hairStyle: 'short', hairColor: HAIR_COLORS[2],
+  shirt: SHIRT_COLORS[0], pants: PANTS_COLORS[0],
+  suit: SUIT_COLORS[0], shirtC: DRESS_SHIRTS[0], tie: TIE_COLORS[1], streak: null, beard: false };
+function swatchRow(elId, colors, get, set) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  colors.forEach((col) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw' + (get() === col ? ' sel' : '');
+    b.style.background = col;
+    b.title = col;
+    b.addEventListener('click', () => { set(col); refreshCreator(); });
+    el.append(b);
+  });
+}
+function refreshCreator() {
+  swatchRow('cSkin', SKIN_TONES, () => draft.skin, (v) => draft.skin = v);
+  swatchRow('cHair', HAIR_COLORS, () => draft.hairColor, (v) => draft.hairColor = v);
+  swatchRow('cSuit', SUIT_COLORS, () => draft.suit, (v) => draft.suit = v);
+  swatchRow('cShirtC', DRESS_SHIRTS, () => draft.shirtC, (v) => draft.shirtC = v);
+  swatchRow('cTie', TIE_COLORS, () => draft.tie, (v) => draft.tie = v);
+  swatchRow('cShirt', SHIRT_COLORS, () => draft.shirt, (v) => draft.shirt = v);
+  swatchRow('cPants', PANTS_COLORS, () => draft.pants, (v) => draft.pants = v);
+  const c = document.getElementById('creatorPreview');
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  g.fillStyle = '#e8edf1'; roundRectPath(g, 0, 0, c.width, c.height, 12); g.fill();
+  drawTech(g, draft, c.width / 2, c.height / 2 + 4, { angle: -Math.PI / 2, walk: 0 });
+}
+document.getElementById('cName').addEventListener('input', (e) => { draft.name = e.target.value; });
+document.getElementById('cHairStyle').addEventListener('change', (e) => { draft.hairStyle = e.target.value; refreshCreator(); });
+document.getElementById('saveCustom').addEventListener('click', () => {
+  const def = Object.assign({}, draft, {
+    id: 'custom-' + Date.now().toString(36),
+    name: (draft.name || '').trim() || 'New Tech'
+  });
+  customs.push(def);
+  persistCustoms();
+  currentDef = withSuit(def);
+  persistSelection();
+  buildRoster();
+  closeSelect();
+  if (window.__encOnPick) window.__encOnPick();
+});
+let selectOpen = true;
+function openSelect() { selectOpen = true; selectScreen.hidden = false; buildRoster(); refreshCreator(); }
+function closeSelect() { selectOpen = false; selectScreen.hidden = true; }
+document.getElementById('crewBtn').addEventListener('click', openSelect);
+buildRoster();
+refreshCreator();
+</script>
+
+<script>
+'use strict';
+/* ================= Encore: the venue mode =================
+   A drawn map of San Diego's bay with the hotels Thomas works as pins,
+   and the ballrooms inside them. Primary control is the mouse: click a
+   hotel to drive there, click the floor to walk (touch is the same tap).
+   WASD / arrows also work. His real shows ride in events.json next to
+   this file, straight from his Lighthouse record; walk into the room a
+   show is in and its flowsheet opens. Leave it alone for ten seconds and
+   he wanders the floor like a tech between cues. Silent by design. */
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('stageWrap');
+let VW = 0, VH = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW = wrap.clientWidth; VH = wrap.clientHeight;
+  canvas.width = Math.round(VW * DPR); canvas.height = Math.round(VH * DPR);
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ---------- venues: the properties in his verified rotation ----------
+   Local 122's Encore agreement covers 24 venues in San Diego County.
+   These are the three his Lighthouse record actually puts him in. */
+const VENUES = {
+  manchester: {
+    id: 'manchester', name: 'Manchester Grand Hyatt', short: 'Manchester',
+    prop: '9036', area: 'Downtown · Harbor front', carpet: '#d9d2c2',
+    pin: { x: 880, y: 640 }, spine: 3, entry: { x: 840, y: 1096 },
+    rooms: [
+      { id: 'expo', name: 'Expo Hall', x: 70, y: 80, w: 720, h: 540, keys: ['Expo Hall'] },
+      { id: 'harbor', name: 'Harbor Ballroom', x: 870, y: 80, w: 740, h: 540, keys: ['Harbor Ballroom'] },
+      { id: 'dock', name: 'Loading Dock', x: 70, y: 1000, w: 1540, h: 170, keys: [], zone: true }
+    ],
+    obstacles: [
+      { x: 150, y: 104, w: 560, h: 64, kind: 'stage' }, { x: 990, y: 104, w: 500, h: 64, kind: 'stage' },
+      { x: 795, y: 742, w: 90, h: 58, kind: 'foh' },
+      { x: 1030, y: 320, w: 56, h: 56, kind: 'table' }, { x: 1230, y: 320, w: 56, h: 56, kind: 'table' },
+      { x: 1430, y: 320, w: 56, h: 56, kind: 'table' }, { x: 1130, y: 470, w: 56, h: 56, kind: 'table' },
+      { x: 1330, y: 470, w: 56, h: 56, kind: 'table' },
+      { x: 170, y: 320, w: 86, h: 42, kind: 'booth' }, { x: 330, y: 320, w: 86, h: 42, kind: 'booth' },
+      { x: 490, y: 320, w: 86, h: 42, kind: 'booth' }, { x: 170, y: 450, w: 86, h: 42, kind: 'booth' },
+      { x: 330, y: 450, w: 86, h: 42, kind: 'booth' }, { x: 490, y: 450, w: 86, h: 42, kind: 'booth' },
+      { x: 290, y: 1052, w: 74, h: 46, kind: 'forklift' }, { x: 1250, y: 1052, w: 120, h: 46, kind: 'crate' }
+    ],
+    ambient: [
+      { x: 430, y: 700, label: 'expo doors' }, { x: 1240, y: 700, label: 'harbor doors' },
+      { x: 840, y: 850, label: 'FOH' }, { x: 840, y: 1085, label: 'the dock' },
+      { x: 430, y: 350, label: 'the expo floor' }
+    ]
+  },
+  missionbay: {
+    id: 'missionbay', name: 'Hyatt Regency Mission Bay', short: 'Mission Bay',
+    prop: '3819', area: 'Mission Bay · Bayview rooms', carpet: '#ccd8d2',
+    pin: { x: 600, y: 315 }, spine: 0, entry: { x: 840, y: 1096 },
+    rooms: [
+      { id: 'bayview1', name: 'Bayview I', x: 70, y: 80, w: 740, h: 560, keys: ['Bayview I', 'Bayview I & II'] },
+      { id: 'bayview2', name: 'Bayview II', x: 870, y: 80, w: 740, h: 560, keys: ['Bayview II', 'Bayview I & II'] },
+      { id: 'dock', name: 'Loading Dock', x: 70, y: 1000, w: 1540, h: 170, keys: [], zone: true }
+    ],
+    obstacles: [
+      { x: 150, y: 104, w: 560, h: 64, kind: 'stage' }, { x: 950, y: 104, w: 560, h: 64, kind: 'stage' },
+      { x: 795, y: 742, w: 90, h: 58, kind: 'foh' },
+      { x: 240, y: 330, w: 56, h: 56, kind: 'table' }, { x: 440, y: 330, w: 56, h: 56, kind: 'table' },
+      { x: 1040, y: 330, w: 56, h: 56, kind: 'table' }, { x: 1240, y: 330, w: 56, h: 56, kind: 'table' },
+      { x: 340, y: 470, w: 56, h: 56, kind: 'table' }, { x: 1140, y: 470, w: 56, h: 56, kind: 'table' },
+      { x: 290, y: 1052, w: 74, h: 46, kind: 'forklift' }, { x: 1250, y: 1052, w: 120, h: 46, kind: 'crate' }
+    ],
+    ambient: [
+      { x: 440, y: 700, label: 'bayview doors' }, { x: 1240, y: 700, label: 'the bay side' },
+      { x: 840, y: 850, label: 'FOH' }, { x: 840, y: 1085, label: 'the dock' }
+    ]
+  },
+  gaylord: {
+    id: 'gaylord', name: 'Gaylord Pacific', short: 'Gaylord Pacific',
+    prop: '4494', area: 'Chula Vista · the big new one', carpet: '#ddd5c3',
+    pin: { x: 975, y: 1010 }, spine: 6, entry: { x: 840, y: 1096 },
+    rooms: [
+      { id: 'california', name: 'California Ballroom', x: 70, y: 80, w: 1540, h: 660, keys: ['California Ballroom'], sections: 7 },
+      { id: 'dock', name: 'Loading Dock', x: 70, y: 1000, w: 1540, h: 170, keys: [], zone: true }
+    ],
+    obstacles: [
+      { x: 340, y: 104, w: 1000, h: 72, kind: 'stage' },
+      { x: 795, y: 800, w: 90, h: 58, kind: 'foh' },
+      { x: 300, y: 360, w: 56, h: 56, kind: 'table' }, { x: 560, y: 360, w: 56, h: 56, kind: 'table' },
+      { x: 820, y: 360, w: 56, h: 56, kind: 'table' }, { x: 1080, y: 360, w: 56, h: 56, kind: 'table' },
+      { x: 1340, y: 360, w: 56, h: 56, kind: 'table' }, { x: 560, y: 530, w: 56, h: 56, kind: 'table' },
+      { x: 1080, y: 530, w: 56, h: 56, kind: 'table' },
+      { x: 290, y: 1052, w: 74, h: 46, kind: 'forklift' }, { x: 1250, y: 1052, w: 120, h: 46, kind: 'crate' }
+    ],
+    ambient: [
+      { x: 840, y: 450, label: 'mid-ballroom' }, { x: 840, y: 880, label: 'FOH' },
+      { x: 840, y: 1085, label: 'the dock' }, { x: 300, y: 450, label: 'section 2' }
+    ]
+  }
+};
+const VENUE_LIST = [VENUES.missionbay, VENUES.manchester, VENUES.gaylord];
+/* The bay road the map token drives: a spine past every pin. */
+const SPINE = [
+  { x: 600, y: 315 }, { x: 600, y: 430 }, { x: 660, y: 530 },
+  { x: 880, y: 640 }, { x: 905, y: 790 }, { x: 925, y: 920 }, { x: 975, y: 1010 }
+];
+const W = 1680, H = 1240;          // venue floor size
+const MW = 1600, MH = 1150;        // map size
+
+/* ---------- events: his shows, from Lighthouse ----------
+   events.json next to this file is the live copy; this embedded snapshot
+   (same data, as of 2026-11-09) is the fallback if the fetch ever fails.
+   Scope, deliberately: HIS events only. See PLAN.md for the rest. */
+const FALLBACK_EVENTS = {
+  asOf: '2026-11-09',
+  source: 'Lighthouse My Schedule + flowsheets, Thomas\u2019s verified record (snapshot; the live feed is planned, see PLAN.md)',
+  events: [
+    { id: '2026-11-06-manchester-p3c', date: '2026-11-06', venue: 'manchester', job: null, show: 'P3C Higher Education Summit', room: 'Expo Hall', role: 'Aud Tech Set/Strike', start: '12:00', end: '20:30', gear: null, crew: [], note: null },
+    { id: '2026-11-07-gaylord-nextgen', date: '2026-11-07', venue: 'gaylord', job: null, show: 'NextGen ONE Users Group', room: 'California Ballroom 2-8', role: 'Computer Technician', start: '08:00', end: '17:00', gear: null, crew: [], note: null },
+    { id: '2026-11-09-missionbay-clarion', date: '2026-11-09', venue: 'missionbay', job: '19615', order: '5324', show: 'Clarion Connexa FLS/PLS West Coast 2026', room: 'Bayview I & II', role: 'Audio Technician Op', start: '07:00', end: '18:00', gear: 'Soundcraft Si Expression 1 (16ch) \u00B7 4x JBL PRX ONE \u00B7 podium mic \u00B7 5x Shure QLXD channels', crew: ['Cory Pallanck'], note: 'The package is named \u2018Four Speaker Package\u2019 and Sunday\u2019s sheet listed 4x PRX ONE; Monday\u2019s speaker line lists 2. Count them on site.' },
+    { id: '2026-11-10-missionbay-clarion', date: '2026-11-10', venue: 'missionbay', job: null, show: 'Clarion Connexa FLS/PLS West Coast 2026', room: 'Bayview I & II', role: 'Audio Technician Op', start: '07:00', end: '18:00', gear: null, crew: [], note: 'Same show run as Monday (Job #19615).' },
+    { id: '2026-11-11-missionbay-clarion', date: '2026-11-11', venue: 'missionbay', job: null, show: 'Clarion Connexa FLS/PLS West Coast 2026', room: 'Bayview I & II', role: 'Audio Technician Op', start: '07:00', end: '17:00', gear: null, crew: [], note: 'Same show run as Monday (Job #19615).' },
+    { id: '2026-11-15-manchester-setstrike', date: '2026-11-15', venue: 'manchester', job: null, show: null, room: null, role: 'Aud Tech Set/Strike', start: '07:00', end: '17:00', gear: null, crew: [], note: 'Show and room land with the flowsheet closer to the day.' }
+  ]
+};
+let EVENTS = [], EVENTS_AS_OF = '', EVENTS_SOURCE = '';
+function todayISO() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  const parts = iso.split('-').map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function applyEvents(data) {
+  if (!data || !Array.isArray(data.events)) return;
+  EVENTS = data.events.slice().sort((a, b) => (a.date + a.start) < (b.date + b.start) ? -1 : 1);
+  EVENTS_AS_OF = data.asOf || '';
+  EVENTS_SOURCE = data.source || '';
+  /* UI builders live in the game script below; they may not exist yet on
+     this first synchronous pass, so each call is guarded. */
+  if (typeof buildOnPanel === 'function') buildOnPanel();
+  if (typeof refreshTodayChip === 'function') refreshTodayChip();
+  if (typeof updateFoundChip === 'function') updateFoundChip();
+}
+applyEvents(FALLBACK_EVENTS);
+fetch('events.json', { cache: 'no-store' })
+  .then((r) => { if (!r.ok) throw new Error('events ' + r.status); return r.json(); })
+  .then(applyEvents)
+  .catch(() => { /* snapshot already applied */ });
+
+/* ---------- state ---------- */
+let view = 'map';                       // 'map' | 'venue'
+let currentVenueId = null;              // venue he is inside, if any
+let playerAtVenue = 'manchester';       // pin he stands at on the map
+const player = { x: VENUES.manchester.pin.x, y: VENUES.manchester.pin.y + 36, angle: -Math.PI / 2, walk: 0, moving: false, dest: null, r: 16 };
+let travel = null;                      // { pts, i, venue, after }
+let pendingRoomEvent = null;            // event id to open on reaching its room
+let npcs = [];
+let camX = W / 2, camY = H / 2;
+let lastInputAt = performance.now(), ambient = false, ambientPause = 0;
+let clickMark = null;
+let stats = loadJSON(LS.stats, { shows: {}, venues: {} });
+if (!stats.shows) stats = { shows: {}, venues: {} };
+let sheetFor = null, insideRoomKey = null;
+const keysHeld = {};
+const CREW_LINES = ['Check, one two.', 'Copy that.', 'Five to doors.', 'House to half.', 'Cue lights are set.', 'Comms check, dock.', 'That\u2019s the last case.'];
+
+function venueZoom() { return Math.max(0.42, Math.min(1.12, Math.min(VW / 980, VH / 720))); }
+function mapFit() {
+  const s = Math.min(VW / MW, VH / MH);
+  return { s, ox: (VW - MW * s) / 2, oy: (VH - MH * s) / 2 };
+}
+function say(text, holdMs) {
+  const el = document.getElementById('say');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(say._t);
+  say._t = setTimeout(() => el.classList.remove('show'), holdMs || 3400);
+}
+function poke() { lastInputAt = performance.now(); if (ambient) ambient = false; }
+
+/* ---------- collision (venue floors are open, divisible spaces) ---------- */
+function collidesAt(v, px, py, r) {
+  if (px < 34 + r || px > W - 34 - r || py < 34 + r || py > H - 34 - r) return true;
+  return v.obstacles.some((o) => px > o.x - r && px < o.x + o.w + r && py > o.y - r && py < o.y + o.h + r);
+}
+function pushOut(v, a) {
+  a.x = Math.max(34 + a.r, Math.min(W - 34 - a.r, a.x));
+  a.y = Math.max(34 + a.r, Math.min(H - 34 - a.r, a.y));
+  for (const o of v.obstacles) {
+    const nx = Math.max(o.x, Math.min(a.x, o.x + o.w));
+    const ny = Math.max(o.y, Math.min(a.y, o.y + o.h));
+    const dx = a.x - nx, dy = a.y - ny;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < a.r * a.r) {
+      if (d2 > 0.01) {
+        const d = Math.sqrt(d2);
+        a.x = nx + (dx / d) * a.r; a.y = ny + (dy / d) * a.r;
+      } else {
+        a.y = o.y - a.r - 0.5;
+      }
+    }
+  }
+}
+function nearestClear(v, x, y, r) {
+  if (!collidesAt(v, x, y, r)) return { x, y };
+  for (const rad of [26, 52, 84, 120]) {
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const px = x + Math.cos(a) * rad, py = y + Math.sin(a) * rad;
+      if (!collidesAt(v, px, py, r)) return { x: px, y: py };
+    }
+  }
+  return { x, y };
+}
+function stepActor(a, dt, speed) {
+  if (!a.dest) { a.moving = false; return true; }
+  const dx = a.dest.x - a.x, dy = a.dest.y - a.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 7) { a.dest = null; a.moving = false; return true; }
+  const step = Math.min(d, speed * dt);
+  a.x += (dx / d) * step; a.y += (dy / d) * step;
+  a.angle = Math.atan2(dy, dx);
+  a.walk = (a.walk + dt * 2.4) % 1;
+  a.moving = true;
+  return false;
+}
+
+/* ---------- view changes ---------- */
+const locChip = document.getElementById('locChip');
+const mapBtn = document.getElementById('mapBtn');
+function enterVenue(id) {
+  const v = VENUES[id];
+  view = 'venue'; currentVenueId = id; playerAtVenue = id;
+  travel = null; player.dest = null;
+  player.x = v.entry.x; player.y = v.entry.y; player.angle = -Math.PI / 2;
+  insideRoomKey = null;
+  stats.venues[id] = 1; saveJSON(LS.stats, stats);
+  spawnNpcs(v);
+  locChip.textContent = v.name + ' · ' + v.prop;
+  mapBtn.hidden = false;
+  say(v.name + ' — property ' + v.prop + '. ' + v.area + '.');
+}
+function exitToMap() {
+  const v = VENUES[playerAtVenue];
+  view = 'map'; currentVenueId = null;
+  player.x = v.pin.x; player.y = v.pin.y + 36; player.dest = null; travel = null;
+  npcs = [];
+  closeSheet();
+  locChip.textContent = 'San Diego Bay';
+  mapBtn.hidden = true;
+}
+mapBtn.addEventListener('click', () => { poke(); exitToMap(); });
+function travelTo(id, after) {
+  if (view !== 'map') exitToMap();
+  const target = VENUES[id];
+  if (playerAtVenue === id) { enterVenue(id); if (after) after(); return; }
+  const from = VENUES[playerAtVenue].spine, to = target.spine;
+  const pts = [{ x: player.x, y: player.y }, { x: VENUES[playerAtVenue].pin.x, y: VENUES[playerAtVenue].pin.y }];
+  if (from < to) { for (let i = from + 1; i <= to; i++) pts.push(SPINE[i]); }
+  else { for (let i = from - 1; i >= to; i--) pts.push(SPINE[i]); }
+  travel = { pts, i: 1, venue: id, after: after || null };
+  say('Driving to ' + target.name + '…');
+}
+function spawnNpcs(v) {
+  const others = PRESETS.filter((d) => d.id !== (currentDef.id || '')).slice(0, 4);
+  npcs = others.slice(0, 2).map((def, i) => ({
+    def: withSuit(def),
+    x: v.ambient[(i + 1) % v.ambient.length].x + 60, y: v.ambient[(i + 1) % v.ambient.length].y + 30,
+    angle: Math.PI / 2, walk: 0, moving: false, dest: null, r: 16, pause: 1 + i * 2, bubble: null
+  }));
+}
+
+/* ---------- input ---------- */
+function pointerWorld(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  if (view === 'map') {
+    const f = mapFit();
+    return { x: (sx - f.ox) / f.s, y: (sy - f.oy) / f.s };
+  }
+  const z = venueZoom();
+  return { x: camX + (sx - VW / 2) / z, y: camY + (sy - VH / 2) / z };
+}
+canvas.addEventListener('pointerdown', (e) => {
+  if (selectOpen) return;
+  poke();
+  const w = pointerWorld(e);
+  clickMark = { x: w.x, y: w.y, t: 0.5, view };
+  if (view === 'map') {
+    const pin = VENUE_LIST.find((v) => Math.hypot(v.pin.x - w.x, v.pin.y - w.y) < 56);
+    if (pin) {
+      if (pin.id === playerAtVenue) enterVenue(pin.id);
+      else travelTo(pin.id, null);
+      return;
+    }
+    travel = null;
+    player.dest = { x: Math.max(24, Math.min(MW - 24, w.x)), y: Math.max(24, Math.min(MH - 24, w.y)) };
+    return;
+  }
+  const v = VENUES[currentVenueId];
+  const room = v.rooms.find((r) => w.x >= r.x && w.x <= r.x + r.w && w.y >= r.y && w.y <= r.y + r.h);
+  if (room) {
+    const c = nearestClear(v, room.x + room.w / 2, room.y + room.h / 2, player.r);
+    player.dest = c;
+    const evs = roomEvents(v, room);
+    pendingRoomEvent = evs.length ? bestEvent(evs).id : null;
+  } else {
+    player.dest = nearestClear(v, w.x, w.y, player.r);
+    pendingRoomEvent = null;
+  }
+});
+window.addEventListener('keydown', (e) => {
+  if (selectOpen) return;
+  const k = e.key.toLowerCase();
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) {
+    keysHeld[k] = true; poke();
+    if (k.indexOf('arrow') === 0) e.preventDefault();
+  }
+  if (k === 'escape' && view === 'venue') exitToMap();
+});
+window.addEventListener('keyup', (e) => { keysHeld[e.key.toLowerCase()] = false; });
+function keyVector() {
+  let x = 0, y = 0;
+  if (keysHeld['a'] || keysHeld['arrowleft']) x -= 1;
+  if (keysHeld['d'] || keysHeld['arrowright']) x += 1;
+  if (keysHeld['w'] || keysHeld['arrowup']) y -= 1;
+  if (keysHeld['s'] || keysHeld['arrowdown']) y += 1;
+  return (x || y) ? { x, y } : null;
+}
+
+/* ================= events wiring: panel, flowsheet, chips ================= */
+function resolveRooms(ev) {
+  const v = VENUES[ev.venue];
+  if (!v || !ev.room) return [];
+  return v.rooms.filter((r) => r.keys.some((k) => ev.room.indexOf(k) !== -1));
+}
+function roomEvents(v, room) {
+  return EVENTS.filter((ev) => ev.venue === v.id && resolveRooms(ev).some((r) => r.id === room.id));
+}
+function bestEvent(evs) {
+  const t = todayISO();
+  const today = evs.find((ev) => ev.date === t);
+  if (today) return today;
+  const upcoming = evs.filter((ev) => ev.date > t).sort((a, b) => a.date < b.date ? -1 : 1)[0];
+  if (upcoming) return upcoming;
+  return evs.slice().sort((a, b) => a.date > b.date ? -1 : 1)[0];
+}
+function refreshTodayChip() {
+  const t = todayISO();
+  const n = EVENTS.filter((ev) => ev.date === t).length;
+  document.getElementById('todayChip').textContent =
+    fmtDate(t) + (n ? ' · ' + n + (n === 1 ? ' show' : ' shows') + ' today' : ' · no show today');
+}
+function updateFoundChip() {
+  const found = Object.keys(stats.shows).length;
+  document.getElementById('foundChip').textContent = 'Shows found: ' + found + ' / ' + EVENTS.length;
+}
+const sheetEl = document.getElementById('sheet');
+function openSheet(ev) {
+  sheetFor = ev.id;
+  const v = VENUES[ev.venue];
+  document.getElementById('sheetTitle').textContent = ev.show || 'Show name lands with the flowsheet';
+  const lines = document.getElementById('sheetLines');
+  lines.innerHTML = '';
+  const add = (label, value) => {
+    if (!value) return;
+    const div = document.createElement('div');
+    const b = document.createElement('b');
+    b.textContent = label + ': ';
+    div.append(b, document.createTextNode(value));
+    lines.append(div);
+  };
+  add('Job', ev.job ? '#' + ev.job + (ev.order ? ' · Order #' + ev.order : '') : null);
+  add('When', fmtDate(ev.date) + ' · ' + ev.start + '\u2013' + ev.end);
+  add('Where', v.name + ' · ' + (ev.room || 'Room TBA'));
+  add('Role', ev.role);
+  add('Gear', ev.gear);
+  add('Crew', ev.crew && ev.crew.length ? ev.crew.join(', ') : null);
+  add('Note', ev.note);
+  sheetEl.hidden = false;
+  if (!stats.shows[ev.id]) {
+    stats.shows[ev.id] = 1;
+    saveJSON(LS.stats, stats);
+    updateFoundChip();
+  }
+}
+function closeSheet() { sheetEl.hidden = true; sheetFor = null; }
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+
+const onPanel = document.getElementById('onPanel');
+document.getElementById('onBtn').addEventListener('click', () => {
+  onPanel.hidden = !onPanel.hidden;
+  if (!onPanel.hidden) buildOnPanel();
+});
+function buildOnPanel() {
+  const list = document.getElementById('onList');
+  list.innerHTML = '';
+  const t = todayISO();
+  EVENTS.forEach((ev) => {
+    const v = VENUES[ev.venue];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ev' + (ev.date < t ? ' past' : '');
+    const when = document.createElement('div');
+    when.className = 'when';
+    const d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtDate(ev.date);
+    const d2 = document.createElement('div'); d2.className = 't'; d2.textContent = ev.start + '\u2013' + ev.end;
+    when.append(d1, d2);
+    const what = document.createElement('div');
+    what.className = 'what';
+    const s = document.createElement('div'); s.className = 's'; s.textContent = ev.show || 'Show TBA';
+    const m = document.createElement('div'); m.className = 'm';
+    m.textContent = v.short + ' · ' + (ev.room || 'Room TBA') + ' — ' + ev.role + (ev.job ? ' · Job #' + ev.job : '');
+    what.append(s, m);
+    btn.append(when, what);
+    if (ev.date === t) {
+      const badge = document.createElement('span');
+      badge.className = 'badge'; badge.textContent = 'TODAY';
+      btn.append(badge);
+    }
+    btn.addEventListener('click', () => gotoEvent(ev));
+    list.append(btn);
+  });
+  document.getElementById('onFoot').textContent =
+    'Snapshot · as of ' + fmtDate(EVENTS_AS_OF) + ' · ' + EVENTS_SOURCE;
+}
+function gotoEvent(ev) {
+  onPanel.hidden = true;
+  poke();
+  pendingRoomEvent = ev.id;
+  const arrive = () => {
+    const rooms = resolveRooms(ev);
+    if (rooms.length) {
+      const v = VENUES[ev.venue];
+      player.dest = nearestClear(v, rooms[0].x + rooms[0].w / 2, rooms[0].y + rooms[0].h / 2, player.r);
+    }
+  };
+  if (view === 'venue' && currentVenueId === ev.venue) arrive();
+  else travelTo(ev.venue, arrive);
+}
+
+/* ================= update ================= */
+let nextBubbleAt = performance.now() + 9000;
+function update(now, dt) {
+  // ambient takeover after ~10 s without input
+  if (!selectOpen && now - lastInputAt > 10000) ambient = true;
+
+  const kv = selectOpen ? null : keyVector();
+  if (kv) {
+    travel = null; player.dest = null; pendingRoomEvent = null;
+    const speed = view === 'venue' ? 218 : 175;
+    const len = Math.hypot(kv.x, kv.y) || 1;
+    player.x += (kv.x / len) * speed * dt;
+    player.y += (kv.y / len) * speed * dt;
+    player.angle = Math.atan2(kv.y, kv.x);
+    player.walk = (player.walk + dt * 2.4) % 1;
+    player.moving = true;
+    if (view === 'venue') pushOut(VENUES[currentVenueId], player);
+    else {
+      player.x = Math.max(24, Math.min(MW - 24, player.x));
+      player.y = Math.max(24, Math.min(MH - 24, player.y));
+    }
+  } else if (travel) {
+    const target = travel.pts[travel.i];
+    const dx = target.x - player.x, dy = target.y - player.y;
+    const d = Math.hypot(dx, dy);
+    const step = 350 * dt;
+    if (d < Math.max(8, step)) {
+      player.x = target.x; player.y = target.y;
+      travel.i += 1;
+      if (travel.i >= travel.pts.length) {
+        const venueId = travel.venue, after = travel.after;
+        travel = null;
+        enterVenue(venueId);
+        if (after) after();
+      }
+    } else {
+      player.x += (dx / d) * step; player.y += (dy / d) * step;
+      player.angle = Math.atan2(dy, dx);
+      player.walk = (player.walk + dt * 3.2) % 1;
+      player.moving = true;
+    }
+  } else if (ambient && !selectOpen) {
+    if (ambientPause > 0) { ambientPause -= dt; player.moving = false; }
+    else if (!player.dest) {
+      if (view === 'venue') {
+        const spots = VENUES[currentVenueId].ambient;
+        const spot = spots[Math.floor(Math.random() * spots.length)];
+        player.dest = { x: spot.x, y: spot.y };
+      } else {
+        const spots = [{ x: 640, y: 480 }, { x: 700, y: 730 }, VENUES.manchester.pin, VENUES.gaylord.pin, VENUES.missionbay.pin];
+        const spot = spots[Math.floor(Math.random() * spots.length)];
+        player.dest = { x: spot.x + 40, y: spot.y + 60 };
+      }
+    } else if (stepActor(player, dt, view === 'venue' ? 118 : 92)) {
+      ambientPause = 2.5 + Math.random() * 4;
+    }
+  } else {
+    if (player.dest) {
+      stepActor(player, dt, view === 'venue' ? 208 : 150);
+      if (view === 'venue') pushOut(VENUES[currentVenueId], player);
+    } else player.moving = false;
+  }
+
+  // crew NPCs drift around the floor he is on
+  if (view === 'venue') {
+    const v = VENUES[currentVenueId];
+    npcs.forEach((n) => {
+      if (n.pause > 0) { n.pause -= dt; n.moving = false; }
+      else if (!n.dest) {
+        const spot = v.ambient[Math.floor(Math.random() * v.ambient.length)];
+        n.dest = nearestClear(v, spot.x + (Math.random() * 90 - 45), spot.y + (Math.random() * 70 - 35), n.r);
+      } else if (stepActor(n, dt, 86)) { n.dest = null; n.pause = 2 + Math.random() * 5; }
+      pushOut(v, n);
+    });
+    if (now > nextBubbleAt && npcs.length) {
+      const n = npcs[Math.floor(Math.random() * npcs.length)];
+      n.bubble = { text: CREW_LINES[Math.floor(Math.random() * CREW_LINES.length)], until: now + 2700 };
+      nextBubbleAt = now + 13000 + Math.random() * 11000;
+    }
+    // walking into a room with one of his shows opens its flowsheet
+    const room = v.rooms.find((r) => player.x >= r.x && player.x <= r.x + r.w && player.y >= r.y && player.y <= r.y + r.h);
+    const key = room ? v.id + ':' + room.id : null;
+    if (key !== insideRoomKey) {
+      insideRoomKey = key;
+      if (room) {
+        const evs = roomEvents(v, room);
+        if (evs.length) {
+          const chosen = (pendingRoomEvent && evs.find((ev) => ev.id === pendingRoomEvent)) || bestEvent(evs);
+          if (chosen && (chosen.date === todayISO() || chosen.id === pendingRoomEvent)) {
+            openSheet(chosen);
+            if (chosen.id === pendingRoomEvent) pendingRoomEvent = null;
+          }
+        }
+      }
+    }
+    // camera follows, clamped to the floor
+    const z = venueZoom();
+    const hw = (VW / 2) / z, hh = (VH / 2) / z;
+    camX = W <= hw * 2 ? W / 2 : Math.max(hw, Math.min(W - hw, player.x));
+    camY = H <= hh * 2 ? H / 2 : Math.max(hh, Math.min(H - hh, player.y));
+  }
+  if (clickMark) { clickMark.t -= dt; if (clickMark.t <= 0) clickMark = null; }
+}
+
+/* ================= render: the map ================= */
+function drawMap(now) {
+  const f = mapFit();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#87b1cc';
+  ctx.fillRect(0, 0, VW, VH);
+  ctx.setTransform(DPR * f.s, 0, 0, DPR * f.s, DPR * f.ox, DPR * f.oy);
+  // water base
+  const grad = ctx.createLinearGradient(0, 0, 500, MH);
+  grad.addColorStop(0, '#7cabcb'); grad.addColorStop(1, '#a9cbdf');
+  ctx.fillStyle = grad;
+  ctx.fillRect(-80, -80, MW + 160, MH + 160);
+  // land
+  ctx.fillStyle = '#e8e2d0';
+  ctx.strokeStyle = '#c6bb9f'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  const coast = [[560, -20], [1620, -20], [1620, 1170], [985, 1170], [945, 1030], [915, 905], [890, 790], [915, 705], [850, 650], [690, 600], [625, 520], [690, 435], [615, 345], [560, 300], [600, 210], [560, 120], [585, 40]];
+  ctx.moveTo(coast[0][0], coast[0][1]);
+  coast.slice(1).forEach((p) => ctx.lineTo(p[0], p[1]));
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // Mission Bay + San Diego Bay water cut back in
+  ctx.fillStyle = '#8fbcd9';
+  ctx.beginPath(); ctx.ellipse(350, 305, 165, 102, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(690, 700, 175, 120, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(790, 770); ctx.lineTo(880, 815); ctx.lineTo(908, 928); ctx.lineTo(932, 1012);
+  ctx.lineTo(900, 1012); ctx.lineTo(872, 905); ctx.lineTo(842, 812); ctx.closePath(); ctx.fill();
+  // Coronado island
+  ctx.fillStyle = '#e8e2d0'; ctx.strokeStyle = '#c6bb9f'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.ellipse(655, 795, 125, 40, -0.12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // the bay road
+  ctx.strokeStyle = '#c9c0aa'; ctx.lineWidth = 11; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  SPINE.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.setLineDash([10, 9]);
+  ctx.beginPath();
+  SPINE.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.stroke(); ctx.setLineDash([]);
+  // labels
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(46,92,122,.75)';
+  ctx.font = '600 25px system-ui, sans-serif';
+  ctx.fillText('P A C I F I C   O C E A N', 205, 130);
+  ctx.font = 'italic 16px system-ui, sans-serif';
+  ctx.fillText('Mission Bay', 320, 300);
+  ctx.fillText('San Diego Bay', 655, 690);
+  ctx.fillStyle = 'rgba(120,110,88,.9)';
+  ctx.font = '600 16px system-ui, sans-serif';
+  ctx.fillText('Downtown', 965, 585);
+  ctx.fillText('Coronado', 655, 856);
+  ctx.fillText('Chula Vista', 1065, 1095);
+  ctx.fillText('Pacific Beach', 700, 205);
+  // pins
+  const t = todayISO();
+  VENUE_LIST.forEach((v) => {
+    const hasToday = EVENTS.some((ev) => ev.venue === v.id && ev.date === t);
+    if (hasToday) {
+      ctx.strokeStyle = 'rgba(200,150,30,.65)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(v.pin.x, v.pin.y, 30 + Math.sin(now / 300) * 4, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (playerAtVenue === v.id && !travel) {
+      ctx.strokeStyle = 'rgba(20,80,122,.8)'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.arc(v.pin.x, v.pin.y, 34, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // pin body + little tower block
+    ctx.fillStyle = '#23272e';
+    ctx.strokeStyle = '#f5f6f8'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(v.pin.x, v.pin.y, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e9edf2';
+    ctx.fillRect(v.pin.x - 10, v.pin.y - 7, 5, 15);
+    ctx.fillRect(v.pin.x - 2.5, v.pin.y - 12, 5, 20);
+    ctx.fillRect(v.pin.x + 5, v.pin.y - 5, 5, 13);
+    ctx.fillStyle = '#26303c';
+    ctx.font = '700 21px system-ui, sans-serif';
+    ctx.fillText(v.name, v.pin.x, v.pin.y + 50);
+    ctx.fillStyle = '#66727f';
+    ctx.font = '13px system-ui, sans-serif';
+    ctx.fillText('Property ' + v.prop + ' · ' + v.area, v.pin.x, v.pin.y + 70);
+  });
+  // the tech himself
+  drawTech(ctx, currentDef, player.x, player.y, { angle: player.angle, walk: player.moving ? player.walk : 0 });
+  ctx.fillStyle = '#26303c';
+  ctx.font = '700 13px system-ui, sans-serif';
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3;
+  ctx.strokeText(currentDef.name, player.x, player.y - 30);
+  ctx.fillText(currentDef.name, player.x, player.y - 30);
+  if (clickMark && clickMark.view === 'map') {
+    ctx.strokeStyle = 'rgba(20,80,122,' + Math.max(0, clickMark.t * 1.4) + ')'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(clickMark.x, clickMark.y, 8 + (0.5 - clickMark.t) * 22, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+/* ================= render: a venue floor ================= */
+function drawVenue(now) {
+  const v = VENUES[currentVenueId];
+  const z = venueZoom();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#26282e';
+  ctx.fillRect(0, 0, VW, VH);
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (VW / 2 - camX * z), DPR * (VH / 2 - camY * z));
+  // floor
+  ctx.fillStyle = v.carpet;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#9aa1ab'; ctx.lineWidth = 4;
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+  const t = todayISO();
+  // rooms
+  v.rooms.forEach((room) => {
+    const evs = roomEvents(v, room);
+    const todayEv = evs.find((ev) => ev.date === t);
+    if (room.zone) {
+      ctx.fillStyle = '#c7bfa9';
+      ctx.fillRect(room.x, room.y, room.w, room.h);
+      ctx.strokeStyle = 'rgba(90,84,66,.35)'; ctx.lineWidth = 1;
+      for (let hx = room.x - room.h; hx < room.x + room.w; hx += 26) {
+        ctx.beginPath(); ctx.moveTo(hx, room.y + room.h); ctx.lineTo(hx + room.h, room.y); ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,.36)';
+      ctx.fillRect(room.x, room.y, room.w, room.h);
+    }
+    ctx.strokeStyle = todayEv ? '#c8961e' : '#8f97a3';
+    ctx.lineWidth = todayEv ? 3.5 : 2;
+    ctx.strokeRect(room.x, room.y, room.w, room.h);
+    if (room.sections) {
+      ctx.strokeStyle = 'rgba(120,126,136,.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([7, 7]);
+      for (let i = 1; i < room.sections; i++) {
+        const sx = room.x + (room.w / room.sections) * i;
+        ctx.beginPath(); ctx.moveTo(sx, room.y + 8); ctx.lineTo(sx, room.y + room.h - 8); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#77808c'; ctx.font = '600 15px system-ui, sans-serif'; ctx.textAlign = 'center';
+      for (let i = 0; i < room.sections; i++) {
+        ctx.fillText(String(i + 2), room.x + (room.w / room.sections) * (i + 0.5), room.y + 66);
+      }
+    }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#333a44';
+    ctx.font = '700 22px system-ui, sans-serif';
+    ctx.fillText(room.name.toUpperCase(), room.x + 16, room.y + 36);
+    if (todayEv) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#a87c14';
+      ctx.font = '700 15px system-ui, sans-serif';
+      ctx.fillText('TODAY · ' + todayEv.role + ' ' + todayEv.start + '\u2013' + todayEv.end, room.x + room.w - 16, room.y + 36);
+      ctx.textAlign = 'left';
+    } else if (evs.length) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#7c8794';
+      ctx.font = '600 13px system-ui, sans-serif';
+      ctx.fillText(evs.length + (evs.length === 1 ? ' show on the sheet' : ' shows on the sheet'), room.x + room.w - 16, room.y + 34);
+      ctx.textAlign = 'left';
+    }
+  });
+  // furniture / obstacles
+  v.obstacles.forEach((o) => {
+    if (o.kind === 'stage') {
+      ctx.fillStyle = '#26282e'; ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = 'rgba(240,242,245,.8)'; ctx.font = '700 17px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('S T A G E', o.x + o.w / 2, o.y + o.h / 2 + 6); ctx.textAlign = 'left';
+    } else if (o.kind === 'foh') {
+      ctx.fillStyle = '#3a3d44'; roundRectPath(ctx, o.x, o.y, o.w, o.h, 6); ctx.fill();
+      ctx.fillStyle = 'rgba(240,242,245,.85)'; ctx.font = '700 14px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('FOH', o.x + o.w / 2, o.y + o.h / 2 + 5); ctx.textAlign = 'left';
+    } else if (o.kind === 'table') {
+      ctx.fillStyle = '#d3c5a5'; ctx.strokeStyle = '#a5936f'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(o.x + o.w / 2, o.y + o.h / 2, o.w / 4, 0, Math.PI * 2); ctx.stroke();
+    } else if (o.kind === 'forklift') {
+      ctx.fillStyle = '#d9a521'; roundRectPath(ctx, o.x, o.y + 10, o.w - 16, o.h - 10, 4); ctx.fill();
+      ctx.fillStyle = '#26282e'; ctx.fillRect(o.x + o.w - 14, o.y, 5, o.h);
+    } else if (o.kind === 'crate') {
+      ctx.fillStyle = '#4a4238'; roundRectPath(ctx, o.x, o.y, o.w, o.h, 3); ctx.fill();
+      ctx.strokeStyle = 'rgba(230,225,210,.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(o.x + 6, o.y + 6); ctx.lineTo(o.x + o.w - 6, o.y + o.h - 6);
+      ctx.moveTo(o.x + o.w - 6, o.y + 6); ctx.lineTo(o.x + 6, o.y + o.h - 6); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#ddd5bf'; ctx.strokeStyle = '#b3a888'; ctx.lineWidth = 1.5;
+      roundRectPath(ctx, o.x, o.y, o.w, o.h, 3); ctx.fill(); ctx.stroke();
+    }
+  });
+  // crew, then the player (sorted by y so heads overlap right)
+  const actors = npcs.map((n) => ({ n, y: n.y })).concat([{ n: null, y: player.y }]).sort((a, b) => a.y - b.y);
+  actors.forEach((a) => {
+    if (a.n) {
+      const n = a.n;
+      drawTech(ctx, n.def, n.x, n.y, { angle: n.angle, walk: n.moving ? n.walk : 0 });
+      ctx.fillStyle = '#5d6672'; ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(n.def.name, n.x, n.y - 26);
+      if (n.bubble && now < n.bubble.until) {
+        ctx.font = '12px system-ui, sans-serif';
+        const tw = ctx.measureText(n.bubble.text).width + 16;
+        ctx.fillStyle = 'rgba(24,26,32,.92)';
+        roundRectPath(ctx, n.x - tw / 2, n.y - 58, tw, 22, 8); ctx.fill();
+        ctx.fillStyle = '#eef1f4';
+        ctx.fillText(n.bubble.text, n.x, n.y - 43);
+      }
+      ctx.textAlign = 'left';
+    } else {
+      drawTech(ctx, currentDef, player.x, player.y, { angle: player.angle, walk: player.moving ? player.walk : 0 });
+      ctx.fillStyle = '#26303c'; ctx.font = '700 13px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3;
+      ctx.strokeText(currentDef.name, player.x, player.y - 28);
+      ctx.fillText(currentDef.name, player.x, player.y - 28);
+      ctx.textAlign = 'left';
+    }
+  });
+  if (clickMark && clickMark.view === 'venue') {
+    ctx.strokeStyle = 'rgba(20,80,122,' + Math.max(0, clickMark.t * 1.4) + ')'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(clickMark.x, clickMark.y, 8 + (0.5 - clickMark.t) * 22, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+/* ================= main loop ================= */
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  if (!selectOpen) update(now, dt);
+  if (view === 'map') drawMap(now); else drawVenue(now);
+  requestAnimationFrame(frame);
+}
+window.__encOnPick = function () {
+  say(currentDef.name + ' is on the call. Click a hotel to head over.');
+};
+refreshTodayChip();
+updateFoundChip();
+buildOnPanel();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
