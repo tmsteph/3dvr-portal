@@ -29,19 +29,35 @@ test('preserve ships a dependency-free side-scrolling wander', async () => {
   assert.match(html, /world\.character\.v1/);
 });
 
-test('preserve mouse play: every click jumps, holding runs', async () => {
+test('preserve mouse play: left holds to run, right jumps, touch taps jump', async () => {
   const html = await readFile(new URL('../preserve/index.html', import.meta.url), 'utf8');
 
-  // the press itself buffers the jump, in every mode but Fly (where a
-  // hold rises instead); no timing threshold decides what a click was
-  assert.match(html, /if \(gameMode !== 'fly'\) P\.buffer = 0\.12;/);
+  // desktop split (Thomas, 2026-11-09): the RIGHT button buffers the
+  // jump, even mid-run; a mouse left press never does; no timing
+  // threshold decides what a click was
+  assert.match(html, /!touchPress && e\.button === 2\) \{ if \(gameMode !== 'fly'\) P\.buffer = 0\.12; return; \}/);
+  assert.match(html, /touchPress && gameMode !== 'fly'\) P\.buffer = 0\.12;/);
   assert.doesNotMatch(html, /downAt/);
   assert.doesNotMatch(html, /Quick click/);
+  // releasing the right button must not end a left hold
+  assert.match(html, /e\.pointerType === 'mouse' && e\.button !== 0\) return; mouse\.down = false;/);
   // a press still held at landing runs toward the pointer
   assert.match(html, /if \(mouse\.down && !mouse\.attack\)/);
-  // the hint says the rule out loud
-  assert.match(html, /click = jump/);
-  assert.match(html, /hold = run toward the pointer/);
+  // the hint says the new rule out loud
+  assert.match(html, /hold left-click = run/);
+  assert.match(html, /right-click = jump/);
+  assert.match(html, /wheel = zoom/);
+  assert.doesNotMatch(html, /click = jump · hold = run/);
+});
+
+test('preserve wheel zooms the camera, clamped', async () => {
+  const html = await readFile(new URL('../preserve/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /addEventListener\('wheel', \(e\) => \{\n  e\.preventDefault\(\);/);
+  assert.match(html, /zoomF = Math\.max\(0\.6, Math\.min\(2\.4, zoomF/);
+  // the view width and the render scale both follow zoomF
+  assert.match(html, /function applyView\(\) \{ viewW = innerWidth \/ \(innerHeight \/ VH\) \/ zoomF; \}/);
+  assert.match(html, /ctx\.setTransform\(SCALE \* zoomF, 0, 0, SCALE \* zoomF, 0, cv\.height - VH \* SCALE \* zoomF\)/);
 });
 
 test('preserve canvas captures the pointer', async () => {

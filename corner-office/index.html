@@ -84,7 +84,7 @@
   <div id="stageWrap">
     <canvas id="stage"></canvas>
     <div id="say" role="status"></div>
-    <div id="hint">Click or tap to walk · WASD / arrows work too</div>
+    <div id="hint">Click or tap to walk · right-click to hurry there · wheel to zoom · WASD / arrows work too</div>
     <div id="selectScreen">
       <div class="panel">
         <h2>Corner Office</h2>
@@ -729,12 +729,21 @@ canvas.addEventListener('pointerdown', (e) => {
   // Capture the pointer so the press is never lost at the canvas edge
   // (or outside the World shell's frame); released on up / cancel.
   try { canvas.setPointerCapture(e.pointerId); } catch (_err) {}
+  // Left walks; right walks there in a hurry (coffee pace, 1.5x).
+  const hurry = e.pointerType === 'mouse' && e.button === 2;
+  if (e.button !== undefined && e.button !== 0 && !hurry) return;
   const w = canvasWorld(e);
   const dest = nearestClear(w.x, w.y, player.r);
   player.route = routeTo(player, dest.x, dest.y);
+  player.hurry = hurry;
   clickMark = { x: dest.x, y: dest.y, t: 0.5 };
   poke();
 });
+// Wheel zoom, bounded; preventDefault keeps the page from scrolling.
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  zoomUser = Math.max(0.5, Math.min(2, zoomUser * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+}, { passive: false });
 
 /* Cursor idle fade: after ~2 s without pointer movement over the
    canvas the cursor hides; the next move or press brings it back
@@ -778,12 +787,12 @@ function update(dt, now) {
   // player movement
   const kvx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
   const kvy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
-  const speed = 178 * (boost > 0 ? 1.5 : 1);
+  const speed = 178 * ((boost > 0 || player.hurry) ? 1.5 : 1);
   if (kvx || kvy) {
     const d = Math.hypot(kvx, kvy);
     moveActor(player, kvx / d * speed, kvy / d * speed, dt);
   } else if (player.route) {
-    followRoute(player, speed, dt);
+    if (followRoute(player, speed, dt)) player.hurry = false;
   } else if (ambient && phase !== 'banner' && !selectOpen) {
     if (ambientPause > 0) { ambientPause -= dt; player.moving = false; }
     else {
@@ -835,7 +844,8 @@ function update(dt, now) {
   camY = H <= hh * 2 ? H / 2 : Math.min(Math.max(player.y, hh), H - hh);
   updateHUD();
 }
-function zoom() { return Math.min(Math.max(Math.min(VW / 640, VH / 600), 0.6), 1.35); }
+let zoomUser = 1;
+function zoom() { const fit = Math.min(Math.max(Math.min(VW / 640, VH / 600), 0.6), 1.35); return Math.max(0.4, Math.min(2.6, fit * zoomUser)); }
 
 /* ---------- HUD ---------- */
 const reminderChip = document.getElementById('reminderChip');
@@ -1079,6 +1089,8 @@ window.__cornerOffice = {
       pages: pages.map((p) => ({ x: p.x, y: p.y, taken: p.taken })),
       meetings: stats.meetings, boost, ambient, character: currentDef.name };
   },
+  get zoomLevel() { return zoom(); },
+  get zoomUser() { return zoomUser; },
   worldToScreen(wx, wy) {
     const z = zoom();
     return { x: (wx - camX) * z + VW / 2, y: (wy - camY) * z + VH / 2 };

@@ -92,6 +92,17 @@ test('companion canvas and hold buttons capture the pointer', async () => {
   assert.match(html, /canvas\.addEventListener\('pointerdown', wakeCursor\)/);
 });
 
+test('companion mouse buttons: left walks, right hops, wheel zooms', async () => {
+  const html = await readFile(new URL('index.html', appDir), 'utf8');
+
+  assert.match(html, /event\.pointerType === 'mouse' && event\.button === 2\) \{ jumpQueued = true; return; \}/);
+  assert.match(html, /addEventListener\('wheel', \(event\) => \{\n  event\.preventDefault\(\);/);
+  assert.match(html, /zoomF = Math\.max\(0\.6, Math\.min\(2\.2, zoomF/);
+  // the view scales around its center and the camera window follows
+  assert.match(html, /g\.setTransform\(zoomF, 0, 0, zoomF, VIEW_W \* \(1 - zoomF\) \/ 2, VIEW_H \* \(1 - zoomF\) \/ 2\)/);
+  assert.match(html, /WORLD_W - VIEW_W \/ zoomF, player\.x - VIEW_W \/ \(2 \* zoomF\)\)/);
+});
+
 test('games hub reaches the companion through the combined 3DVR World card', async () => {
   const games = await readFile(new URL('../games.html', import.meta.url), 'utf8');
   assert.match(games, /class="game-card world" href="\/3dvr-world\/"/);
