@@ -95,7 +95,7 @@
       <button class="pill" id="crewBtn" type="button">🧍 Crew</button>
     </div>
   </div>
-  <div class="hint">← → wander · ↑ jump · F bow · J spear (Explore) · R restart (Race) · stop for 8 seconds and your wanderer explores on their own</div>
+  <div class="hint">← → wander · ↑ jump · F bow · J spear (Explore) · R restart (Race) · mouse: hold to run toward the pointer, click to jump, click a critter to bonk it · stop for 8 seconds and your wanderer explores on their own</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -349,6 +349,59 @@ function defKey(d) {
   return [d.name, d.skin, d.hairStyle, d.hairColor, d.shirt, d.pants].join('|');
 }
 
+/* ---------- 3DVR World: one shared character across every mode ----------
+   Shared record under 'world.character.v1', owned by the 3DVR World
+   shell and mirrored here on every local change:
+   { v:1, selectedId, selectedDef, customs:[...] }. Preserve's own keys
+   stay as a fallback so older saved characters survive. */
+const WORLD_CHAR_KEY = 'world.character.v1';
+const PRESET_IDS = { 'Thomas': 'thomas', '3DVR Girl': 'girl', 'Mark': 'mark', 'Esai': 'esai', 'David': 'david', 'Brandon': 'brandon' };
+function worldCharRead() {
+  try { const v = localStorage.getItem(WORLD_CHAR_KEY); const o = v ? JSON.parse(v) : null; return (o && typeof o === 'object') ? o : null; }
+  catch (e) { return null; }
+}
+function canonDef(d) {
+  if (!d || !d.name) return null;
+  const capCol = d.cap || d.capColor || (d.hat === 'cap' ? d.hatColor : null) || null;
+  const out = {
+    id: d.id || PRESET_IDS[d.name] || null, name: String(d.name), role: d.role || null,
+    skin: d.skin || '#e8b08a', hairStyle: d.hairStyle || 'short', hairColor: d.hairColor || '#7a5a38',
+    shirt: d.shirt || '#17a398', pants: d.pants || '#3a4a5a',
+    streak: d.streak || null, beard: !!d.beard, print: !!d.print,
+    cap: capCol, capColor: d.capColor || capCol, hat: d.hat || (capCol ? 'cap' : null), hatColor: d.hatColor || capCol, suit: d.suit || null, shirtC: d.shirtC || null, tie: d.tie || null
+  };
+  if (out.hairStyle === 'cap') { out.hairStyle = 'short'; out.cap = capCol || '#28418c'; out.capColor = out.cap; out.hat = 'cap'; out.hatColor = out.cap; }
+  return out;
+}
+function syncWorldChar() {
+  const sel = canonDef(currentDef);
+  if (!sel) return;
+  saveJSON(WORLD_CHAR_KEY, { v: 1, selectedId: sel.id || null, selectedDef: sel, customs: customs.map(canonDef).filter(Boolean) });
+}
+function adoptWorldCharacter() {
+  const rec = worldCharRead();
+  if (!rec) return;
+  if (Array.isArray(rec.customs)) {
+    let changed = false;
+    for (const c of rec.customs) {
+      const cc = canonDef(c);
+      if (cc && !customs.some((v) => defKey(v) === defKey(cc))) { customs.push(cc); changed = true; }
+    }
+    if (changed) saveJSON(LS_CUSTOMS, customs);
+  }
+  if (rec.selectedDef && rec.selectedDef.name) {
+    const local = PRESETS.find((p) => p.name === rec.selectedDef.name);
+    const next = local || canonDef(rec.selectedDef);
+    if (next && defKey(next) !== defKey(currentDef)) { currentDef = next; saveJSON(LS_SEL, currentDef); }
+  }
+}
+adoptWorldCharacter();
+addEventListener('storage', (e) => {
+  if (e.key !== WORLD_CHAR_KEY) return;
+  adoptWorldCharacter();
+  if (selectOpen) buildRoster();
+});
+
 const rosterEl = document.getElementById('roster');
 const selectScreen = document.getElementById('selectScreen');
 function previewCanvas(def, w, h) {
@@ -372,6 +425,7 @@ function buildRoster() {
     card.addEventListener('click', () => {
       currentDef = def;
       saveJSON(LS_SEL, def);
+      syncWorldChar();
       buildRoster();
       closeSelect();
       startChosenMode();
@@ -391,6 +445,7 @@ function buildRoster() {
           currentDef = PRESETS[0];
           saveJSON(LS_SEL, currentDef);
         }
+        syncWorldChar();
         buildRoster();
       });
       card.append(del);
@@ -434,6 +489,7 @@ document.getElementById('saveCustom').addEventListener('click', () => {
   saveJSON(LS_CUSTOMS, customs);
   currentDef = def;
   saveJSON(LS_SEL, def);
+  syncWorldChar();
   buildRoster();
   closeSelect();
   startChosenMode();
@@ -589,6 +645,57 @@ document.querySelectorAll('#touch button').forEach((btn) => {
   btn.addEventListener('pointerleave', off);
 });
 
+/* ================= Mouse play =================
+   Hold the left button: run toward the pointer. The wanderer's own
+   gap-and-step sense drives the jumps, so a held button can cross
+   the whole world, springboards and speed strips included (they are
+   automatic on contact). Quick click: jump. In Fly, holding also
+   rises, releasing sinks, just like holding jump. Click a critter:
+   spear when close, an aimed bow shot when in range. */
+const mouse = { down: false, attack: false, cx: 0, cy: 0, downAt: 0, downCx: 0, downCy: 0 };
+function mouseWorld() {
+  const s = VH / Math.max(1, innerHeight);
+  return { x: camX + mouse.cx * s, y: mouse.cy * s };
+}
+document.getElementById('game').addEventListener('pointerdown', (e) => {
+  if (e.button !== undefined && e.button !== 0) return;
+  if (selectOpen) return;
+  pokeInput();
+  mouse.cx = e.clientX; mouse.cy = e.clientY;
+  mouse.downAt = performance.now(); mouse.downCx = e.clientX; mouse.downCy = e.clientY;
+  mouse.attack = false;
+  const w = mouseWorld();
+  if (gameMode === 'explore') {
+    for (const en of ENEMIES) {
+      if (en.squash > 0) continue;
+      if (Math.abs(w.x - en.x) < 28 && Math.abs(w.y - (en.y - 11)) < 28) {
+        mouse.attack = true;
+        P.face = en.x >= P.x ? 1 : -1;
+        const d = Math.abs(en.x - P.x);
+        if (d <= 100) { spearT = 0.16; bonkCritter(en, 'thock!'); }
+        else if (d <= 760 && bowCd <= 0) {
+          const sx = P.x + P.face * 18, sy = P.y + 18;
+          const ang = Math.atan2((en.y - 11) - sy, en.x - sx);
+          arrows.push({ x: sx, y: sy, vx: Math.cos(ang) * 680, vy: Math.sin(ang) * 680 - 70, life: 1.7 });
+          bowCd = 0.35;
+        }
+        return;
+      }
+    }
+  }
+  mouse.down = true;
+});
+addEventListener('pointermove', (e) => { if (mouse.down) { mouse.cx = e.clientX; mouse.cy = e.clientY; } });
+addEventListener('pointerup', (e) => {
+  if (!mouse.down) return;
+  mouse.down = false;
+  const quick = performance.now() - mouse.downAt < 230;
+  const moved = Math.abs(e.clientX - mouse.downCx) + Math.abs(e.clientY - mouse.downCy);
+  if (quick && moved < 12 && gameMode !== 'fly') P.buffer = 0.12;
+});
+addEventListener('pointercancel', () => { mouse.down = false; });
+addEventListener('blur', () => { mouse.down = false; });
+
 const toast = document.getElementById('toast');
 let toastTimer = 0;
 function say(t) {
@@ -676,6 +783,7 @@ function startGame(mode) {
 window.__startPreserveMode = startGame;
 function update(dt) {
   const now = performance.now();
+  if (mouse.down) lastInput = now;
   modeAmbient = gameMode === 'explore' && !selectOpen && (now - lastInput > 8000);
   const pill = gameMode === 'race' ? '🏁 Race' : gameMode === 'fly' ? '🪽 Fly' : (modeAmbient ? '🍃 Ambient' : '▶ You');
   if (modePill.textContent !== pill) modePill.textContent = pill;
@@ -690,6 +798,13 @@ function update(dt) {
     if (keys.ArrowLeft || keys.KeyA || touchState.left) dir -= 1;
     if (keys.ArrowRight || keys.KeyD || touchState.right) dir += 1;
     jumpHeld = !!(keys.ArrowUp || keys.KeyW || keys.Space || touchState.jump);
+    if (mouse.down && !mouse.attack) {
+      const mw = mouseWorld();
+      const mdx = mw.x - P.x;
+      if (Math.abs(mdx) > 12) dir = Math.sign(mdx);
+      if (gameMode === 'fly') jumpHeld = true;
+      else if (dir !== 0 && P.ground && !groundAt(P.x + dir * 34, P.y + P.h, 30)) P.buffer = 0.12;
+    }
     if (jumpHeld && !prevJumpHeld) P.buffer = 0.12;
     if (gameMode === 'explore') {
       const bowHeld = !!(keys.KeyF || touchState.bow);
@@ -1659,8 +1774,9 @@ applyMusic();
 
 /* Test hooks: lets the headless verifier drive and measure the real game. */
 window.__preserve = {
-  P, PLATFORMS, PADS, STRIPS, RINGS, GATES, FRUITS, ENEMIES, DROPS, arrows, race,
+  P, PLATFORMS, PADS, STRIPS, RINGS, GATES, FRUITS, ENEMIES, DROPS, arrows, race, mouse,
   get mode() { return gameMode; },
+  get character() { return currentDef && currentDef.name; },
   get ringsGot() { return ringsGot; },
   get dropsGot() { return dropsGot; },
   start: startGame,
@@ -1671,7 +1787,12 @@ window.__preserve = {
 resize();
 buildRoster();
 refreshCreator();
-openSelect();
+if (new URLSearchParams(location.search).has('world')) {
+  document.querySelectorAll('a[href="/games.html"]').forEach((a) => { a.style.display = 'none'; });
+  startChosenMode();
+} else {
+  openSelect();
+}
 let lastT = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000);
