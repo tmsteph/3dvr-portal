@@ -89,7 +89,8 @@
     background: #101736;
     box-shadow: 0 18px 50px rgba(0,0,0,0.45);
   }
-  canvas#game { display: block; width: 100%; height: auto; touch-action: none; }
+  canvas#game { display: block; width: 100%; height: auto; touch-action: none; cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'32'%20height%3D'32'%20viewBox%3D'0%200%2032%2032'%3E%3Cpath%20d%3D'M16%202.5%2019.3%2012.7%2029.5%2016%2019.3%2019.3%2016%2029.5%2012.7%2019.3%202.5%2016%2012.7%2012.7Z'%20fill%3D'%23ffd166'%20stroke%3D'%237a5410'%20stroke-width%3D'1.5'%20stroke-linejoin%3D'round'%2F%3E%3Ccircle%20cx%3D'16'%20cy%3D'16'%20r%3D'2.2'%20fill%3D'%23fff3d6'%2F%3E%3C%2Fsvg%3E") 16 3, auto; }
+  canvas#game.cursor-idle { cursor: none; }
 
   /* Speech bubble over the companion */
   .cq-bubble {
@@ -1079,6 +1080,19 @@ canvas.addEventListener('pointerdown', event => {
   if (Math.abs(wx - companion.x) < 30 && wy > companion.y - 78 && wy < companion.y + 6) openChat();
   else walkTarget = Math.max(26, Math.min(WORLD_W - 26, wx));
 });
+
+/* Cursor idle fade: after ~2 s without pointer movement over the
+   canvas the cursor hides; the next move or press brings it back
+   instantly. Cosmetic only; nothing in the game reads it. */
+let cursorIdleTimer = 0;
+function wakeCursor() {
+  canvas.classList.remove('cursor-idle');
+  clearTimeout(cursorIdleTimer);
+  cursorIdleTimer = setTimeout(() => canvas.classList.add('cursor-idle'), 2000);
+}
+canvas.addEventListener('pointermove', wakeCursor);
+canvas.addEventListener('pointerdown', wakeCursor);
+canvas.addEventListener('pointerleave', () => { canvas.classList.remove('cursor-idle'); clearTimeout(cursorIdleTimer); });
 
 /* ================================================================
    Character select & creator
