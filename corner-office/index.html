@@ -142,6 +142,9 @@ const LS = {
   customs: 'corner-office.customs', selected: 'corner-office.selectedDef',
   stats: 'corner-office.stats'
 };
+/* The combined game's one shared character record (owned by the 3DVR
+   World shell, mirrored by every mode). Highest-priority store here. */
+const WORLD_CHAR_KEY = 'world.character.v1';
 const SIBLING_STORES = [
   { customs: 'preserve.customs', selected: 'preserve.selectedDef', selectedKind: 'def' },
   { customs: 'valley.customs.v1', selected: 'valley.selected.v1', selectedKind: 'id' },
@@ -181,6 +184,8 @@ function loadAllCustoms() {
   const add = (d) => { if (d && d.name) seen.set(defKey(d), withSuit(d)); };
   (loadJSON(LS.customs, []) || []).forEach(add);
   SIBLING_STORES.forEach((s) => { (loadJSON(s.customs, []) || []).forEach(add); });
+  const wrec = loadJSON(WORLD_CHAR_KEY, null);
+  if (wrec && Array.isArray(wrec.customs)) wrec.customs.forEach(add);
   return [...seen.values()];
 }
 let customs = loadAllCustoms();
@@ -189,11 +194,24 @@ function persistCustoms() {
   /* Mirror into the sibling stores in their own shapes so a character made
      here walks into the other modes as the same person. */
   SIBLING_STORES.forEach((s) => saveJSON(s.customs, customs));
+  persistWorldChar();
+}
+/* Mirror the selection + customs into the one shared record. */
+function persistWorldChar() {
+  if (!currentDef) return;
+  saveJSON(WORLD_CHAR_KEY, { v: 1, selectedId: currentDef.id || null, selectedDef: currentDef, customs });
 }
 function findCharacter(id) {
   return PRESETS.find((c) => c.id === id) || customs.find((c) => c.id === id) || null;
 }
 function initialCharacter() {
+  const wrec = loadJSON(WORLD_CHAR_KEY, null);
+  if (wrec && wrec.selectedDef && wrec.selectedDef.name) {
+    if (wrec.selectedId) { const f = findCharacter(wrec.selectedId); if (f) return withSuit(f); }
+    const byName = PRESETS.find((c) => c.name === wrec.selectedDef.name);
+    if (byName) return withSuit(byName);
+    return withSuit(wrec.selectedDef);
+  }
   const own = loadJSON(LS.selected, null);
   if (own && own.name) return withSuit(own);
   for (const s of SIBLING_STORES) {
@@ -210,6 +228,7 @@ function persistSelection() {
     if (s.selectedKind === 'id') saveJSON(s.selected, currentDef.id || 'thomas');
     else saveJSON(s.selected, currentDef);
   });
+  persistWorldChar();
 }
 
 /* ============ Top-down suited sprite renderer ============
@@ -1025,6 +1044,14 @@ function frame(now) {
 }
 updateHUD();
 requestAnimationFrame(frame);
+
+/* The shell (or a sister mode) changed the shared character: follow. */
+addEventListener('storage', (e) => {
+  if (e.key !== WORLD_CHAR_KEY) return;
+  customs = loadAllCustoms();
+  const next = initialCharacter();
+  if (next && next.name !== currentDef.name) { currentDef = next; updateHUD(); }
+});
 
 /* Verification hooks (used by the live user-like pass; harmless in play). */
 window.__cornerOffice = {

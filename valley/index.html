@@ -81,7 +81,7 @@ button.pill{cursor:pointer;font-family:inherit}
   </div>
 </div>
 
-<div class="hint" id="hint">Tap or press a key to take the walk · let go, and the valley takes over again</div>
+<div class="hint" id="hint">Click or tap a spot to stroll there · drag or use ← → to steer · let go, and the valley takes over again</div>
 
 <div id="ytBox"><button id="ytClose" type="button" aria-label="Close YouTube">×</button><div id="ytSlot"></div></div>
 
@@ -156,6 +156,59 @@ if (!Array.isArray(customs)) customs = [];
 function allCharacters() { return PRESETS.concat(customs); }
 function findCharacter(id) { return allCharacters().find(c => c.id === id) || PRESETS[0]; }
 let currentDef = findCharacter(loadJSON(LS.selected, 'thomas'));
+
+/* ---------- 3DVR World: one shared character across every mode ----------
+   Shared record under 'world.character.v1', owned by the 3DVR World
+   shell and mirrored here on every local change:
+   { v:1, selectedId, selectedDef, customs:[...] }. Valley's own keys
+   stay as a fallback so older saved characters survive. */
+const WORLD_CHAR_KEY = 'world.character.v1';
+const PRESET_IDS = { 'Thomas': 'thomas', '3DVR Girl': 'girl', 'Mark': 'mark', 'Esai': 'esai', 'David': 'david', 'Brandon': 'brandon' };
+function worldCharRead() { try { const v = localStorage.getItem(WORLD_CHAR_KEY); const o = v ? JSON.parse(v) : null; return (o && typeof o === 'object') ? o : null; } catch (_e) { return null; } }
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h).toString(36); }
+function canonDef(d) {
+  if (!d || !d.name) return null;
+  const capCol = d.cap || d.capColor || (d.hat === 'cap' ? d.hatColor : null) || null;
+  const out = {
+    id: d.id || PRESET_IDS[d.name] || null, name: String(d.name), role: d.role || null,
+    skin: d.skin || '#f2c49b', hairStyle: d.hairStyle || 'short', hairColor: d.hairColor || '#4a3220',
+    shirt: d.shirt || '#0f7d8c', pants: d.pants || '#39434f',
+    streak: d.streak || null, beard: !!d.beard, print: !!d.print,
+    cap: capCol, capColor: d.capColor || capCol, hat: d.hat || (capCol ? 'cap' : null), hatColor: d.hatColor || capCol, suit: d.suit || null, shirtC: d.shirtC || null, tie: d.tie || null
+  };
+  if (out.hairStyle === 'cap') { out.hairStyle = 'short'; out.hat = 'cap'; out.hatColor = capCol || '#b91c1c'; out.cap = out.hatColor; out.capColor = out.hatColor; }
+  return out;
+}
+function syncWorldCharacter() {
+  const sel = canonDef(currentDef);
+  if (!sel) return;
+  saveJSON(WORLD_CHAR_KEY, { v: 1, selectedId: sel.id || currentDef.id || null, selectedDef: sel, customs: customs.map(canonDef).filter(Boolean) });
+}
+function adoptWorldCharacter() {
+  const rec = worldCharRead();
+  if (!rec) return;
+  let changed = false;
+  if (Array.isArray(rec.customs)) {
+    for (const c of rec.customs) {
+      const cc = canonDef(c);
+      if (!cc) continue;
+      const exists = customs.some(v => (cc.id && v.id === cc.id) || (v.name === cc.name && v.skin === cc.skin && v.hairStyle === cc.hairStyle && v.shirt === cc.shirt));
+      if (!exists) { if (!cc.id) cc.id = 'custom-w' + hashStr(cc.name + cc.skin + cc.shirt); customs.push(cc); changed = true; }
+    }
+  }
+  if (changed) saveJSON(LS.customs, customs);
+  let sel = null;
+  if (rec.selectedId) sel = allCharacters().find(c => c.id === rec.selectedId) || null;
+  if (!sel && rec.selectedDef) {
+    sel = allCharacters().find(c => c.name === rec.selectedDef.name) || null;
+    if (!sel) {
+      const cc = canonDef(rec.selectedDef);
+      if (cc) { if (!cc.id) cc.id = 'custom-w' + hashStr(cc.name + cc.skin + cc.shirt); customs.push(cc); saveJSON(LS.customs, customs); sel = cc; }
+    }
+  }
+  if (sel && sel.id !== currentDef.id) { currentDef = sel; saveJSON(LS.selected, sel.id); }
+}
+adoptWorldCharacter();
 
 /* ---------- parametric sprite renderer ---------- */
 function roundRect(g, x, y, w, h, r) {
@@ -376,11 +429,18 @@ function ambientTick(dt) {
 /* player control */
 const keys = { left: false, right: false };
 let touchMove = 0, dwell = 0;
+let walkTarget = null;   // mouse: world x the hero is strolling to
 function controlTick(dt) {
   let mv = 0;
   if (keys.left) mv -= 1;
   if (keys.right) mv += 1;
   if (touchMove) mv = touchMove;
+  if (mv !== 0) walkTarget = null;
+  else if (walkTarget != null) {
+    const dx = walkTarget - hero.x;
+    if (Math.abs(dx) <= 9) walkTarget = null;
+    else { mv = Math.sign(dx); lastInputAt = performance.now(); }
+  }
   if (mv !== 0) {
     hero.dir = mv; hero.x += mv * 168 * dt; hero.phase += dt * 9.5;
     if (hero.grounded) hero.pose = 'walk';
@@ -654,6 +714,7 @@ let touchStart = null;
 canvas.addEventListener('pointerdown', e => {
   takeOver();
   touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  walkTarget = clamp(camX + e.clientX, 26, WORLD_W - 26);   // click: stroll there
   try { canvas.setPointerCapture(e.pointerId); } catch (_e) {}
 });
 canvas.addEventListener('pointermove', e => {
@@ -661,13 +722,14 @@ canvas.addEventListener('pointermove', e => {
   lastInputAt = performance.now();
   const dx = e.clientX - touchStart.x;
   touchMove = Math.abs(dx) > 14 ? Math.sign(dx) : 0;
+  if (touchMove) walkTarget = null;   // dragging steers by hand instead
 });
 function endTouch(e) {
   if (!touchStart) return;
   lastInputAt = performance.now();
   const quick = performance.now() - touchStart.t < 260;
   const moved = Math.abs(e.clientX - touchStart.x) + Math.abs(e.clientY - touchStart.y);
-  if (quick && moved < 14) jump();
+  if (quick && moved < 14 && Math.abs(camX + e.clientX - hero.x) < 52) jump();   // a tap on the hero still hops; a tap elsewhere walks
   touchStart = null; touchMove = 0;
 }
 canvas.addEventListener('pointerup', endTouch);
@@ -794,6 +856,7 @@ function renderCast() {
 function selectCharacter(id, close) {
   currentDef = findCharacter(id);
   saveJSON(LS.selected, currentDef.id);
+  syncWorldCharacter();
   modeLabel.textContent = mode === 'control' ? "you're guiding" : 'living';
   renderCast();
   if (close) closeCast();
@@ -802,6 +865,7 @@ function deleteCustom(id) {
   customs = customs.filter(c => c.id !== id);
   saveJSON(LS.customs, customs);
   if (currentDef.id === id) selectCharacter('thomas', false);
+  syncWorldCharacter();
   renderCast();
 }
 function openCast() { castOpen = true; renderCast(); castPanel.classList.add('show'); }
@@ -855,9 +919,20 @@ window.Valley = {
   state: () => ({ mode, fruit, day: dayCount, heroX: Math.round(hero.x), character: currentDef.name, phase: +dayPhase.toFixed(3) }),
   music: () => ({ muted: music.muted, volume: music.volume, station: music.station, mode: music.mode, playing: music.playing, audioSrc: audio.getAttribute('src'), audioPaused: audio.paused, yt: !!ytFrame }),
   select: id => selectCharacter(id, true),
-  customs: () => customs.map(c => c.name)
+  customs: () => customs.map(c => c.name),
+  get walkTarget() { return walkTarget; }
 };
 modeLabel.textContent = 'living';
+
+/* Inside the 3DVR World shell the shell owns the chrome; a character
+   picked there (or in a sister mode) is adopted live via storage. */
+const IN_WORLD = new URLSearchParams(location.search).has('world');
+if (IN_WORLD) document.querySelectorAll('a[href="/games.html"]').forEach(a => { a.style.display = 'none'; });
+addEventListener('storage', event => {
+  if (event.key !== WORLD_CHAR_KEY) return;
+  adoptWorldCharacter();
+  try { if (castOpen) renderCast(); } catch (_e) {}
+});
 if (music.station === 'youtube') { music.mode = 'youtube'; } else { audio.src = STATIONS[music.station] || STATIONS.groovesalad; }
 audio.volume = music.volume; audio.muted = music.muted;
 music.playing = false;
