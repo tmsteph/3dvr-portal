@@ -27,15 +27,22 @@
   /* music deck */
   #deck{position:fixed;right:12px;bottom:12px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
   #deckToggle{width:46px;height:46px;border-radius:50%;border:1px solid #ffffff44;background:#17223bd9;color:#fff;font-size:1.15rem;cursor:pointer;backdrop-filter:blur(10px)}
-  #deckPanel{background:#17223bf2;border:1px solid #ffffff38;border-radius:16px;padding:10px;width:min(320px,calc(100vw - 24px));backdrop-filter:blur(12px)}
+  #deckPanel{background:#17223bf2;border:1px solid #ffffff38;border-radius:16px;padding:10px;width:min(320px,calc(100vw - 24px));backdrop-filter:blur(12px);max-height:min(74vh,620px);overflow-y:auto}
   #deckPanel .row{display:flex;gap:6px;align-items:center;margin-bottom:8px}
   #deckPanel .row:last-child{margin-bottom:0}
   #deckPanel button{background:#ffffff1f;border:1px solid #ffffff30;color:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;font-family:inherit;font-weight:700}
+  #deckPanel button.on{background:#f7b267;color:#17223b;border-color:#f7b267}
   #deckPanel select,#deckPanel input[type=text]{flex:1;min-width:0;background:#0d1526;color:#fff;border:1px solid #ffffff30;border-radius:10px;padding:7px 9px;font-family:inherit;font-size:.8rem}
   #deckPanel input[type=range]{flex:1;accent-color:#f7b267}
   .deck-note{font-size:.68rem;opacity:.75;line-height:1.45}
+  .lbl{font-size:.64rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;opacity:.7;white-space:nowrap}
+  .q-list{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+  .q-item{display:flex;gap:4px;align-items:center;background:#ffffff10;border:1px solid #ffffff1e;border-radius:10px;padding:3px 4px}
+  .q-item.now{border-color:#f7b267;background:#f7b2671f}
+  .q-item .t{flex:1;min-width:0;background:none;border:none;text-align:left;padding:4px 6px;font-weight:600;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q-item .mini{padding:3px 7px;font-size:.68rem;border-radius:8px}
   #ytWrap{margin-top:8px}
-  #ytFrame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;display:block}
+  #ytPlayer{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;display:block;background:#000}
   /* character select */
   #selectScreen{position:fixed;inset:0;z-index:10;background:#10182ee6;backdrop-filter:blur(10px);overflow-y:auto;padding:22px 16px 40px}
   #selectScreen[hidden]{display:none}
@@ -94,16 +101,55 @@
   <div id="deckPanel" hidden>
     <div class="row">
       <button id="playBtn" type="button" title="Play or pause">▶</button>
-      <select id="stationSel" aria-label="Station"></select>
       <button id="muteBtn" type="button" title="Mute">🔊</button>
-      <input id="vol" type="range" min="0" max="1" step="0.05" aria-label="Volume">
+      <span class="lbl">Master</span>
+      <input id="vol" type="range" min="0" max="1" step="0.05" aria-label="Master volume">
     </div>
     <div class="row">
-      <input id="ytInput" type="text" placeholder="Paste a YouTube link" aria-label="YouTube link">
-      <button id="ytBtn" type="button">Load</button>
+      <button id="tabRadio" type="button" class="on">📻 Radio</button>
+      <button id="tabYt" type="button">▶️ YouTube</button>
+      <button id="tabSearch" type="button">🔎 Search</button>
     </div>
-    <div class="deck-note">Stations are SomaFM, ad-free forever. YouTube plays through its standard embed. Mute and volume are remembered on this device.</div>
-    <div id="ytWrap" hidden><iframe id="ytFrame" title="YouTube player" allow="autoplay; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+    <div id="radioDeck">
+      <div class="row">
+        <select id="stationSel" aria-label="Station"></select>
+      </div>
+      <div class="row">
+        <span class="lbl">Deck vol</span>
+        <input id="radioVol" type="range" min="0" max="1" step="0.05" aria-label="Radio deck volume">
+      </div>
+    </div>
+    <div id="ytDeck" hidden>
+      <div class="row">
+        <input id="ytInput" type="text" placeholder="Paste a YouTube link" aria-label="YouTube link">
+        <button id="ytBtn" type="button" title="Add to the queue">＋ Add</button>
+      </div>
+      <div id="ytQueue" class="q-list"></div>
+      <div class="row">
+        <button id="shuffleBtn" type="button" title="Shuffle the queue">🔀 Shuffle</button>
+        <span class="lbl">Deck vol</span>
+        <input id="ytVol" type="range" min="0" max="1" step="0.05" aria-label="YouTube deck volume">
+      </div>
+      <div id="ytWrap" hidden><div id="ytPlayer"></div></div>
+    </div>
+    <div id="searchDeck" hidden>
+      <div id="searchOff" class="deck-note">Search needs a free YouTube API key — a two-minute setup he can approve; paste-link queueing works fully without it.</div>
+      <div id="searchOn" hidden>
+        <div class="row">
+          <input id="searchInput" type="text" placeholder="Search songs and mixes" aria-label="Search YouTube">
+          <button id="searchBtn" type="button">Search</button>
+        </div>
+        <div id="searchResults" class="q-list"></div>
+        <div class="lbl" style="margin:2px 0 4px">More like what's playing</div>
+        <div id="recResults" class="q-list"></div>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">Mix 📻</span>
+      <input id="blend" type="range" min="0" max="1" step="0.01" aria-label="Blend between the radio and YouTube decks">
+      <span class="lbl">▶️</span>
+    </div>
+    <div class="deck-note">Two decks, one mix. SomaFM radio is ad-free forever; the YouTube queue is yours. Switching decks crossfades; slide Mix to blend both. Queue, mix, and mute are remembered on this device.</div>
   </div>
   <button id="deckToggle" type="button" title="Music deck">🎵</button>
 </div>
@@ -866,20 +912,40 @@ function render(time) {
   }
 }
 
-/* ================= Music deck ================= */
+/* ================= Music deck (shared module) =================
+   Two decks, one mix: SomaFM radio + a YouTube queue, with per-deck
+   volume, a blend slider, automatic crossfade on deck switches, and a
+   persisted master mute. Self-contained: it depends only on the #deck
+   markup above, the music-deck CSS block, and the loadJSON / saveJSON
+   / say helpers from the game shell, so Valley and Companion can lift
+   this whole section unchanged.
+   Search + recommendations light up when YT_API_KEY below holds a
+   YouTube Data API v3 key; with no key the search tab says so plainly
+   and the paste-link queue still works fully. */
 const STATIONS = [
   { name: 'Groove Salad · SomaFM', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
   { name: 'Drone Zone · SomaFM', url: 'https://ice1.somafm.com/dronezone-128-mp3' },
   { name: 'Lush · SomaFM', url: 'https://ice1.somafm.com/lush-128-mp3' }
 ];
+const YT_API_KEY = '';
 const radio = document.getElementById('radio');
 const playBtn = document.getElementById('playBtn');
 const muteBtn = document.getElementById('muteBtn');
 const volEl = document.getElementById('vol');
 const stationSel = document.getElementById('stationSel');
+const tabRadio = document.getElementById('tabRadio');
+const tabYt = document.getElementById('tabYt');
+const tabSearch = document.getElementById('tabSearch');
+const radioDeck = document.getElementById('radioDeck');
+const ytDeck = document.getElementById('ytDeck');
+const searchDeck = document.getElementById('searchDeck');
+const radioVolEl = document.getElementById('radioVol');
+const ytVolEl = document.getElementById('ytVol');
+const blendEl = document.getElementById('blend');
 const ytInput = document.getElementById('ytInput');
+const ytQueueEl = document.getElementById('ytQueue');
+const shuffleBtn = document.getElementById('shuffleBtn');
 const ytWrap = document.getElementById('ytWrap');
-const ytFrame = document.getElementById('ytFrame');
 STATIONS.forEach((s, i) => {
   const o = document.createElement('option');
   o.value = String(i);
@@ -887,85 +953,349 @@ STATIONS.forEach((s, i) => {
   stationSel.append(o);
 });
 const LS_MUSIC = 'preserve.music';
-let music = Object.assign({ muted: false, volume: 0.8, station: 0, source: 'radio' }, loadJSON(LS_MUSIC, {}));
-let ytIdCurrent = null;
-function persistMusic() { saveJSON(LS_MUSIC, { muted: music.muted, volume: music.volume, station: music.station, source: music.source }); }
-function ytEmbed(id, autoplay) {
-  return `https://www.youtube-nocookie.com/embed/${id}?autoplay=${autoplay ? 1 : 0}&mute=${music.muted ? 1 : 0}&loop=1&playlist=${id}&rel=0`;
-}
+const LS_QUEUE = 'preserve.ytqueue';
+const storedMusic = loadJSON(LS_MUSIC, {});
+let music = Object.assign({ muted: false, volume: 0.8, station: 0, source: 'radio', radioVol: 1, ytVol: 1, blend: null }, storedMusic);
+if (typeof music.blend !== 'number') music.blend = music.source === 'youtube' ? 1 : 0;
+let queue = Object.assign({ items: [], index: -1, shuffle: false }, loadJSON(LS_QUEUE, {}));
+function persistMusic() { saveJSON(LS_MUSIC, music); }
+function persistQueue() { saveJSON(LS_QUEUE, queue); }
 function parseYtId(s) {
   const m = String(s).match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([\w-]{11})/);
   if (m) return m[1];
   const t = String(s).trim();
   return /^[\w-]{11}$/.test(t) ? t : null;
 }
-function applyMusic() {
-  radio.volume = music.volume;
+
+/* ---- levels + mixing ---- */
+function applyLevels() {
+  const b = music.blend;
+  radio.volume = Math.max(0, Math.min(1, music.volume * music.radioVol * (1 - b)));
   radio.muted = music.muted;
+  if (ytPlayer && ytReady) {
+    try {
+      if (music.muted) ytPlayer.mute(); else ytPlayer.unMute();
+      ytPlayer.setVolume(Math.round(100 * music.volume * music.ytVol * b));
+    } catch { /* player mid-teardown; next apply catches up */ }
+  }
   volEl.value = String(music.volume);
+  radioVolEl.value = String(music.radioVol);
+  ytVolEl.value = String(music.ytVol);
+  blendEl.value = String(music.blend);
   muteBtn.textContent = music.muted ? '🔇' : '🔊';
-  stationSel.value = String(music.station);
 }
+let fadeRaf = null;
+function onBlendSettled() {
+  // a deck faded fully out stops, to save data; Play restarts it
+  if (music.blend <= 0 && ytPlayer && ytReady && ytPlaying) { try { ytPlayer.pauseVideo(); } catch {} }
+  if (music.blend >= 1 && !radio.paused) radio.pause();
+}
+function crossfadeTo(target) {
+  if (fadeRaf) cancelAnimationFrame(fadeRaf);
+  const from = music.blend;
+  const start = performance.now();
+  const dur = 1100;
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / dur);
+    music.blend = from + (target - from) * t;
+    applyLevels();
+    if (t < 1) fadeRaf = requestAnimationFrame(step);
+    else { fadeRaf = null; onBlendSettled(); persistMusic(); }
+  };
+  fadeRaf = requestAnimationFrame(step);
+}
+function syncPlayBtn() {
+  const playing = music.source === 'youtube' ? ytPlaying : !radio.paused;
+  playBtn.textContent = playing ? '⏸' : '▶';
+}
+function applyMusic() {
+  stationSel.value = String(music.station);
+  tabRadio.classList.toggle('on', music.source === 'radio');
+  tabYt.classList.toggle('on', music.source === 'youtube');
+  radioDeck.hidden = music.source !== 'radio';
+  ytDeck.hidden = music.source !== 'youtube';
+  applyLevels();
+  syncPlayBtn();
+}
+function startRadio() {
+  const url = STATIONS[music.station].url;
+  if (!radio.src || !radio.src.includes(url.split('/').pop())) radio.src = url;
+  radio.play().catch(() => { /* stream blocked; button state stays honest */ });
+}
+function activateDeck(which) {
+  music.source = which;
+  tabRadio.classList.toggle('on', which === 'radio');
+  tabYt.classList.toggle('on', which === 'youtube');
+  radioDeck.hidden = which !== 'radio';
+  ytDeck.hidden = which !== 'youtube';
+  if (which === 'radio') {
+    startRadio();
+    crossfadeTo(0);
+  } else if (queue.items.length) {
+    if (!ytPlaying) playQueueAt(queue.index < 0 ? 0 : queue.index);
+    crossfadeTo(1);
+  } else {
+    say('Paste a YouTube link to start the queue');
+  }
+  syncPlayBtn();
+  persistMusic();
+}
+
+/* ---- YouTube player (IFrame API) ---- */
+let ytPlayer = null, ytReady = false, ytPlaying = false, ytFailed = false, ytApiRequested = false, pendingYtId = null;
+function ensureYtPlayer() {
+  if (ytPlayer || ytApiRequested) return;
+  ytApiRequested = true;
+  window.onYouTubeIframeAPIReady = () => {
+    ytPlayer = new YT.Player('ytPlayer', {
+      host: 'https://www.youtube-nocookie.com',
+      width: '100%',
+      height: '100%',
+      playerVars: { rel: 0, playsinline: 1 },
+      events: { onReady: onYtReady, onStateChange: onYtState }
+    });
+  };
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.onerror = () => { ytFailed = true; };
+  document.head.appendChild(tag);
+  setTimeout(() => { if (!ytReady) ytFailed = true; }, 8000);
+}
+function onYtReady() {
+  ytReady = true;
+  ytFailed = false;
+  applyLevels();
+  if (pendingYtId) {
+    const id = pendingYtId;
+    pendingYtId = null;
+    try { ytPlayer.loadVideoById(id); } catch {}
+  }
+}
+function onYtState(e) {
+  if (e.data === YT.PlayerState.PLAYING) { ytPlaying = true; backfillTitle(); refreshRecs(); }
+  if (e.data === YT.PlayerState.PAUSED) ytPlaying = false;
+  if (e.data === YT.PlayerState.ENDED) { ytPlaying = false; advanceQueue(); }
+  if (music.source === 'youtube') syncPlayBtn();
+}
+function backfillTitle() {
+  if (!ytPlayer || !ytPlayer.getVideoData) return;
+  let d = null;
+  try { d = ytPlayer.getVideoData(); } catch { return; }
+  if (d && d.video_id && d.title) {
+    const item = queue.items.find((it) => it.id === d.video_id);
+    if (item && item.title !== d.title) { item.title = d.title; persistQueue(); renderQueue(); }
+  }
+}
+
+/* ---- queue ---- */
+function playQueueAt(i) {
+  if (i < 0 || i >= queue.items.length) return;
+  if (ytFailed) { say('The YouTube player could not load'); return; }
+  queue.index = i;
+  music.source = 'youtube';
+  ytWrap.hidden = false;
+  ensureYtPlayer();
+  if (ytReady) { try { ytPlayer.loadVideoById(queue.items[i].id); } catch {} }
+  else pendingYtId = queue.items[i].id;
+  renderQueue();
+  syncPlayBtn();
+  persistQueue();
+  persistMusic();
+}
+function advanceQueue() {
+  if (!queue.items.length) return;
+  let next;
+  if (queue.shuffle && queue.items.length > 1) {
+    do { next = Math.floor(Math.random() * queue.items.length); } while (next === queue.index);
+  } else next = queue.index + 1;
+  if (next >= queue.items.length) { syncPlayBtn(); return; }
+  playQueueAt(next);
+  if (music.blend < 1) crossfadeTo(1);
+}
+function addToQueue(id, title, startIfIdle) {
+  queue.items.push({ id, title: title || ('Video ' + id) });
+  const i = queue.items.length - 1;
+  persistQueue();
+  renderQueue();
+  say('Queued: ' + (title || id));
+  if (startIfIdle && !ytPlaying && radio.paused) {
+    tabRadio.classList.remove('on');
+    tabYt.classList.add('on');
+    radioDeck.hidden = true;
+    ytDeck.hidden = false;
+    playQueueAt(i);
+    crossfadeTo(1);
+  }
+}
+function moveItem(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= queue.items.length) return;
+  const it = queue.items.splice(i, 1)[0];
+  queue.items.splice(j, 0, it);
+  if (queue.index === i) queue.index = j;
+  else if (queue.index === j) queue.index = i;
+  persistQueue();
+  renderQueue();
+}
+function removeItem(i) {
+  const wasCurrent = i === queue.index;
+  queue.items.splice(i, 1);
+  if (queue.index > i) queue.index--;
+  if (wasCurrent) {
+    if (ytReady && ytPlayer) { try { ytPlayer.stopVideo(); } catch {} }
+    ytPlaying = false;
+    if (queue.index >= queue.items.length) queue.index = queue.items.length - 1;
+    ytWrap.hidden = true;
+  }
+  persistQueue();
+  renderQueue();
+  syncPlayBtn();
+}
+function mkMini(label, title, fn) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'mini';
+  b.textContent = label;
+  b.title = title;
+  b.addEventListener('click', fn);
+  return b;
+}
+function renderQueue() {
+  ytQueueEl.innerHTML = '';
+  if (!queue.items.length) {
+    const d = document.createElement('div');
+    d.className = 'deck-note';
+    d.textContent = 'Queue is empty. Paste a link above to add a video.';
+    ytQueueEl.append(d);
+  }
+  queue.items.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'q-item' + (i === queue.index ? ' now' : '');
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 't';
+    t.textContent = (i === queue.index ? '▶ ' : '') + item.title;
+    t.title = item.title;
+    t.addEventListener('click', () => {
+      tabRadio.classList.remove('on');
+      tabYt.classList.add('on');
+      radioDeck.hidden = true;
+      ytDeck.hidden = false;
+      playQueueAt(i);
+      if (music.blend < 1) crossfadeTo(1);
+    });
+    row.append(t,
+      mkMini('▲', 'Move up', () => moveItem(i, -1)),
+      mkMini('▼', 'Move down', () => moveItem(i, 1)),
+      mkMini('✕', 'Remove', () => removeItem(i)));
+    ytQueueEl.append(row);
+  });
+  shuffleBtn.classList.toggle('on', queue.shuffle);
+}
+
+/* ---- search + recommendations (need YT_API_KEY) ---- */
+async function ytApiSearch(q, max) {
+  const u = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=' + (max || 8) + '&q=' + encodeURIComponent(q) + '&key=' + YT_API_KEY;
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('search failed ' + r.status);
+  const j = await r.json();
+  return (j.items || []).map((it) => ({ id: it.id.videoId, title: it.snippet.title }));
+}
+function renderPickList(el, videos) {
+  el.innerHTML = '';
+  videos.forEach((v) => {
+    const row = document.createElement('div');
+    row.className = 'q-item';
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 't';
+    t.textContent = v.title;
+    t.title = v.title;
+    t.addEventListener('click', () => addToQueue(v.id, v.title, true));
+    row.append(t, mkMini('＋', 'Add to queue', () => addToQueue(v.id, v.title, true)));
+    el.append(row);
+  });
+}
+async function refreshRecs() {
+  if (!YT_API_KEY || queue.index < 0 || !queue.items.length) return;
+  const cur = queue.items[queue.index];
+  const terms = cur.title.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean).slice(0, 4).join(' ');
+  if (!terms) return;
+  try {
+    const found = await ytApiSearch(terms + ' music', 6);
+    renderPickList(document.getElementById('recResults'), found.filter((v) => v.id !== cur.id && !queue.items.some((it) => it.id === v.id)));
+  } catch { /* recommendations are a bonus; no faked rows on failure */ }
+}
+if (YT_API_KEY) {
+  document.getElementById('searchOff').hidden = true;
+  document.getElementById('searchOn').hidden = false;
+  document.getElementById('searchBtn').addEventListener('click', async () => {
+    const q = document.getElementById('searchInput').value.trim();
+    if (!q) return;
+    try {
+      renderPickList(document.getElementById('searchResults'), await ytApiSearch(q, 8));
+    } catch { say('Search failed; the key may be out of quota'); }
+  });
+}
+
+/* ---- deck wiring ---- */
 playBtn.addEventListener('click', () => {
   if (music.source === 'youtube') {
-    if (ytIdCurrent && ytWrap.hidden) {
-      ytFrame.src = ytEmbed(ytIdCurrent, true);
-      ytWrap.hidden = false;
-      playBtn.textContent = '⏸';
-    } else {
-      ytFrame.src = 'about:blank';
-      ytWrap.hidden = true;
-      playBtn.textContent = '▶';
-    }
+    if (!queue.items.length) { say('Paste a YouTube link to start the queue'); return; }
+    ensureYtPlayer();
+    if (ytReady) {
+      let st = -1;
+      try { st = ytPlayer.getPlayerState(); } catch {}
+      if (st === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+      else if (st === YT.PlayerState.PAUSED || st === YT.PlayerState.CUED) ytPlayer.playVideo();
+      else playQueueAt(queue.index < 0 ? 0 : queue.index);
+    } else playQueueAt(queue.index < 0 ? 0 : queue.index);
     return;
   }
-  if (radio.paused) {
-    const url = STATIONS[music.station].url;
-    if (!radio.src || !radio.src.includes(url.split('/').pop())) radio.src = url;
-    radio.play().catch(() => { /* stream blocked; button state stays honest */ });
-    playBtn.textContent = '⏸';
-  } else {
-    radio.pause();
-    playBtn.textContent = '▶';
-  }
+  if (radio.paused) { startRadio(); playBtn.textContent = '⏸'; }
+  else { radio.pause(); playBtn.textContent = '▶'; }
 });
-radio.addEventListener('pause', () => { if (music.source === 'radio') playBtn.textContent = '▶'; });
+radio.addEventListener('play', () => { if (music.source === 'radio') syncPlayBtn(); });
+radio.addEventListener('pause', () => { if (music.source === 'radio') syncPlayBtn(); });
 stationSel.addEventListener('change', () => {
   music.station = Number(stationSel.value);
-  music.source = 'radio';
-  ytWrap.hidden = true;
-  ytFrame.src = 'about:blank';
-  const wasPlaying = !radio.paused;
-  radio.src = STATIONS[music.station].url;
-  if (wasPlaying) radio.play().catch(() => {});
+  if (music.source === 'radio' || !radio.paused) startRadio();
   persistMusic();
 });
+tabRadio.addEventListener('click', () => activateDeck('radio'));
+tabYt.addEventListener('click', () => activateDeck('youtube'));
+tabSearch.addEventListener('click', () => { searchDeck.hidden = !searchDeck.hidden; });
 muteBtn.addEventListener('click', () => {
   music.muted = !music.muted;
-  applyMusic();
-  if (music.source === 'youtube' && ytIdCurrent && !ytWrap.hidden) ytFrame.src = ytEmbed(ytIdCurrent, true);
+  applyLevels();
   persistMusic();
 });
-volEl.addEventListener('input', () => {
-  music.volume = Number(volEl.value);
-  radio.volume = music.volume;
-  persistMusic();
+volEl.addEventListener('input', () => { music.volume = Number(volEl.value); applyLevels(); persistMusic(); });
+radioVolEl.addEventListener('input', () => { music.radioVol = Number(radioVolEl.value); applyLevels(); persistMusic(); });
+ytVolEl.addEventListener('input', () => { music.ytVol = Number(ytVolEl.value); applyLevels(); persistMusic(); });
+blendEl.addEventListener('input', () => {
+  if (fadeRaf) { cancelAnimationFrame(fadeRaf); fadeRaf = null; }
+  music.blend = Number(blendEl.value);
+  applyLevels();
+});
+blendEl.addEventListener('change', () => { onBlendSettled(); persistMusic(); });
+shuffleBtn.addEventListener('click', () => {
+  queue.shuffle = !queue.shuffle;
+  persistQueue();
+  renderQueue();
+  say(queue.shuffle ? 'Shuffle on' : 'Shuffle off');
 });
 document.getElementById('ytBtn').addEventListener('click', () => {
   const id = parseYtId(ytInput.value);
   if (!id) { say('That YouTube link did not parse'); return; }
-  radio.pause();
-  music.source = 'youtube';
-  ytIdCurrent = id;
-  ytFrame.src = ytEmbed(id, true);
-  ytWrap.hidden = false;
-  playBtn.textContent = '⏸';
-  persistMusic();
+  ytInput.value = '';
+  addToQueue(id, null, true);
 });
 document.getElementById('deckToggle').addEventListener('click', () => {
   const panel = document.getElementById('deckPanel');
   panel.hidden = !panel.hidden;
 });
+renderQueue();
 applyMusic();
 
 /* ================= Boot + main loop ================= */
