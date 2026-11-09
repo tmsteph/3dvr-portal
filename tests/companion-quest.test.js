@@ -71,8 +71,9 @@ test('music deck: one ad-free somaFM stream with a sticky mute', async () => {
   assert.match(html, /companion-quest\.muted/);
 });
 
-test('games hub links the companion experiment', async () => {
+test('games hub reaches the companion through the combined 3DVR World card', async () => {
   const games = await readFile(new URL('../games.html', import.meta.url), 'utf8');
-  assert.match(games, /class="game-card companion" href="\/companion-quest\/"/);
-  assert.match(games, /<span class="game-title">Companion<\/span>/);
+  assert.match(games, /class="game-card world" href="\/3dvr-world\/"/);
+  assert.match(games, /Companion/);
+  assert.doesNotMatch(games, /game-card companion/);
 });
