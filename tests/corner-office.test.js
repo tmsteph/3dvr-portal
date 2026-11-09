@@ -40,6 +40,15 @@ test('corner office is mouse-first with an ambient fallback', async () => {
   assert.match(html, /canvas\.setPointerCapture\(e\.pointerId\)/);
   assert.match(html, /canvas#stage \{[^}]*touch-action: none/);
   assert.match(html, /addEventListener\('contextmenu', \(e\) => e\.preventDefault\(\)\)/);
+  // thematic cursor over the canvas: an inline SVG pen, pointer fallback
+  assert.match(html, /canvas#stage \{[^}]*cursor: url\("data:image\/svg\+xml/);
+  // after ~2 s without pointer movement the cursor hides; the next
+  // move or press restores it instantly (class swap, no transition)
+  assert.match(html, /canvas#stage\.cursor-idle \{ cursor: none; \}/);
+  assert.match(html, /function wakeCursor\(\)/);
+  assert.match(html, /setTimeout\(\(\) => canvas\.classList\.add\('cursor-idle'\), 2000\)/);
+  assert.match(html, /canvas\.addEventListener\('pointermove', wakeCursor\)/);
+  assert.match(html, /canvas\.addEventListener\('pointerdown', wakeCursor\)/);
   // leave it alone for ten seconds and the character gets on with their day
   assert.match(html, /now - lastInputAt > 10000/);
 });

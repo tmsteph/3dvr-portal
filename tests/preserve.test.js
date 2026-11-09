@@ -56,3 +56,18 @@ test('preserve canvas captures the pointer', async () => {
   // the touch buttons capture too, so a held direction cannot strand
   assert.match(html, /btn\.setPointerCapture\(e\.pointerId\)/);
 });
+
+test('preserve cursor wears a leaf and fades when idle', async () => {
+  const html = await readFile(new URL('../preserve/index.html', import.meta.url), 'utf8');
+
+  // thematic cursor over the canvas: an inline SVG leaf, plain fallback
+  assert.match(html, /canvas#game\{[^}]*cursor:url\("data:image\/svg\+xml/);
+  assert.match(html, /, auto\}/);
+  // after ~2 s without pointer movement the cursor hides; the next
+  // move or press restores it instantly (class swap, no transition)
+  assert.match(html, /canvas#game\.cursor-idle\{cursor:none\}/);
+  assert.match(html, /function wakeCursor\(\)/);
+  assert.match(html, /setTimeout\(\(\) => gameCanvas\.classList\.add\('cursor-idle'\), 2000\)/);
+  assert.match(html, /gameCanvas\.addEventListener\('pointermove', wakeCursor\)/);
+  assert.match(html, /gameCanvas\.addEventListener\('pointerdown', wakeCursor\)/);
+});

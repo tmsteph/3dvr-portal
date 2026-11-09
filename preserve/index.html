@@ -8,7 +8,8 @@
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,sans-serif;background:#2e2a4a;color:#fff}
-  canvas#game{display:block;width:100%;height:100%;touch-action:none}
+  canvas#game{display:block;width:100%;height:100%;touch-action:none;cursor:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'32'%20height%3D'32'%20viewBox%3D'0%200%2032%2032'%3E%3Cpath%20d%3D'M6%204c11%201%2019%207%2020.5%2018%201%205-1%207.5-6.5%206C10%2026.5%204.5%2016.5%206%204Z'%20fill%3D'%235da24a'%20stroke%3D'%231c2733'%20stroke-width%3D'1.6'%2F%3E%3Cpath%20d%3D'M9.5%208.5C14%2014%2019%2019.5%2024%2024.5'%20fill%3D'none'%20stroke%3D'%232f5d27'%20stroke-width%3D'1.8'%20stroke-linecap%3D'round'%2F%3E%3C%2Fsvg%3E") 6 4, auto}
+  canvas#game.cursor-idle{cursor:none}
   .hud{position:fixed;inset:0;pointer-events:none;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:3}
   .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .pill,.back{pointer-events:auto;background:#17223bd9;border:1px solid #ffffff38;border-radius:999px;padding:8px 11px;color:#fff;text-decoration:none;font-weight:800;font-size:.78rem;backdrop-filter:blur(10px)}
@@ -700,6 +701,20 @@ addEventListener('pointermove', (e) => { if (mouse.down) { mouse.cx = e.clientX;
 addEventListener('pointerup', () => { mouse.down = false; });
 addEventListener('pointercancel', () => { mouse.down = false; });
 addEventListener('blur', () => { mouse.down = false; });
+
+/* Cursor idle fade: after ~2 s without pointer movement over the
+   canvas the cursor hides; the next move or press brings it back
+   instantly. Cosmetic only; nothing in the game reads it. */
+const gameCanvas = document.getElementById('game');
+let cursorIdleTimer = 0;
+function wakeCursor() {
+  gameCanvas.classList.remove('cursor-idle');
+  clearTimeout(cursorIdleTimer);
+  cursorIdleTimer = setTimeout(() => gameCanvas.classList.add('cursor-idle'), 2000);
+}
+gameCanvas.addEventListener('pointermove', wakeCursor);
+gameCanvas.addEventListener('pointerdown', wakeCursor);
+gameCanvas.addEventListener('pointerleave', () => { gameCanvas.classList.remove('cursor-idle'); clearTimeout(cursorIdleTimer); });
 
 const toast = document.getElementById('toast');
 let toastTimer = 0;

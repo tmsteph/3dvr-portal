@@ -81,6 +81,15 @@ test('companion canvas and hold buttons capture the pointer', async () => {
   assert.match(html, /canvas#game \{[^}]*touch-action: none/);
   // no context menu on a long press
   assert.match(html, /addEventListener\('contextmenu', event => event\.preventDefault\(\)\)/);
+  // thematic cursor over the canvas: an inline SVG star, plain fallback
+  assert.match(html, /canvas#game \{[^}]*cursor: url\("data:image\/svg\+xml/);
+  // after ~2 s without pointer movement the cursor hides; the next
+  // move or press restores it instantly (class swap, no transition)
+  assert.match(html, /canvas#game\.cursor-idle \{ cursor: none; \}/);
+  assert.match(html, /function wakeCursor\(\)/);
+  assert.match(html, /setTimeout\(\(\) => canvas\.classList\.add\('cursor-idle'\), 2000\)/);
+  assert.match(html, /canvas\.addEventListener\('pointermove', wakeCursor\)/);
+  assert.match(html, /canvas\.addEventListener\('pointerdown', wakeCursor\)/);
 });
 
 test('games hub reaches the companion through the combined 3DVR World card', async () => {

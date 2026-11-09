@@ -26,7 +26,8 @@
   .tbtn.gold { background: #6b5518; border-color: #a8832a; color: #ffe9a8; }
 
   #stageWrap { position: relative; flex: 1 1 auto; min-height: 0; }
-  canvas#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+  canvas#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'32'%20height%3D'32'%20viewBox%3D'0%200%2032%2032'%3E%3Cg%20fill%3D'none'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M6.5%2021v-3.5a9.5%209.5%200%200%201%2019%200V21'%20stroke%3D'%2316222e'%20stroke-width%3D'5'%2F%3E%3Cpath%20d%3D'M6.5%2021v-3.5a9.5%209.5%200%200%201%2019%200V21'%20stroke%3D'%23aebfd0'%20stroke-width%3D'2.6'%2F%3E%3Cpath%20d%3D'M25.5%2024.5c0%203-2.5%204.5-6%204.5'%20stroke%3D'%2316222e'%20stroke-width%3D'4'%2F%3E%3Cpath%20d%3D'M25.5%2024.5c0%203-2.5%204.5-6%204.5'%20stroke%3D'%23aebfd0'%20stroke-width%3D'2.2'%2F%3E%3C%2Fg%3E%3Crect%20x%3D'3.4'%20y%3D'19'%20width%3D'6.2'%20height%3D'8'%20rx%3D'2.4'%20fill%3D'%23ffd166'%20stroke%3D'%2316222e'%20stroke-width%3D'1.4'%2F%3E%3Crect%20x%3D'22.4'%20y%3D'19'%20width%3D'6.2'%20height%3D'8'%20rx%3D'2.4'%20fill%3D'%23ffd166'%20stroke%3D'%2316222e'%20stroke-width%3D'1.4'%2F%3E%3Ccircle%20cx%3D'18'%20cy%3D'29'%20r%3D'1.9'%20fill%3D'%23ffd166'%20stroke%3D'%2316222e'%20stroke-width%3D'1.1'%2F%3E%3C%2Fsvg%3E") 16 6, pointer; }
+  canvas#stage.cursor-idle { cursor: none; }
 
   #say { position: absolute; left: 12px; bottom: 12px; max-width: min(78vw, 430px); z-index: 4;
     background: rgba(24,26,32,.93); color: #eef1f4; font-size: .82rem; line-height: 1.35;
@@ -793,6 +794,19 @@ canvas.addEventListener('pointerdown', (e) => {
     pendingRoomEvent = null;
   }
 });
+
+/* Cursor idle fade: after ~2 s without pointer movement over the
+   canvas the cursor hides; the next move or press brings it back
+   instantly. Cosmetic only; nothing in the game reads it. */
+let cursorIdleTimer = 0;
+function wakeCursor() {
+  canvas.classList.remove('cursor-idle');
+  clearTimeout(cursorIdleTimer);
+  cursorIdleTimer = setTimeout(() => canvas.classList.add('cursor-idle'), 2000);
+}
+canvas.addEventListener('pointermove', wakeCursor);
+canvas.addEventListener('pointerdown', wakeCursor);
+canvas.addEventListener('pointerleave', () => { canvas.classList.remove('cursor-idle'); clearTimeout(cursorIdleTimer); });
 window.addEventListener('keydown', (e) => {
   if (selectOpen) return;
   const k = e.key.toLowerCase();
