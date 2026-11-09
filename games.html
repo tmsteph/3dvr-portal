@@ -188,19 +188,9 @@ h1 {
   --icon-bg: linear-gradient(135deg, #2e8b57, #f0b429);
 }
 
-.game-card.companion {
-  --card-glow: linear-gradient(135deg, rgba(240, 180, 41, 0.42), rgba(45, 212, 191, 0.34));
-  --icon-bg: linear-gradient(135deg, #0e5a52, #f0b429);
-}
-
-.game-card.preserve {
-  --card-glow: linear-gradient(135deg, rgba(247, 178, 103, 0.44), rgba(105, 168, 79, 0.38));
-  --icon-bg: linear-gradient(135deg, #b3541e, #3e7d3a);
-}
-
-.game-card.valley {
-  --card-glow: linear-gradient(135deg, rgba(255, 176, 102, 0.42), rgba(87, 182, 255, 0.34));
-  --icon-bg: linear-gradient(135deg, #b3541e, #2f7d4f);
+.game-card.world {
+  --card-glow: linear-gradient(135deg, rgba(87, 182, 255, 0.46), rgba(105, 168, 79, 0.38));
+  --icon-bg: linear-gradient(135deg, #1d4ed8, #2f7d4f);
 }
 
 .game-card.racer {
@@ -229,6 +219,17 @@ h1 {
 <p class="hub-intro">Pick a launch tile and jump into one of the portal's quick-play experiments.</p>
 
 <div class="game-grid" aria-label="3DVR game hub">
+  <a class="game-card world" href="/3dvr-world/">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <circle cx="48" cy="48" r="30" fill="currentColor" opacity="0.9"/>
+        <path d="M24 40c8-3 12-9 14-16 6 6 14 8 22 6-3 6-8 10-15 12 7 2 13 6 17 12-9 3-19 1-26-5-4 3-9 4-14 3 3-4 4-8 2-12z" fill="#fff" opacity="0.65"/>
+        <path d="M48 8l3.5 8.5L60 20l-6.5 5 2 9-7.5-4.5L40.5 34l2-9L36 20l8.5-3.5z" fill="#fff" opacity="0.9"/>
+      </svg>
+    </span>
+    <span class="game-title">3DVR World</span>
+    <p class="game-blurb">One character, four modes behind one front door: Preserve, Valley, Companion, and Corner Office. Pick who walks, then wander — keyboard, touch, or mouse.</p>
+  </a>
   <a class="game-card tribes" href="/little-fish/">
     <span class="game-icon" aria-hidden="true">
       <svg viewBox="0 0 96 96">
@@ -272,45 +273,6 @@ h1 {
     </span>
     <span class="game-title">3DVR Adventure</span>
     <p class="game-blurb">Open-world third-person platforming: run, jump, explore, and collect stars.</p>
-  </a>
-  <a class="game-card companion" href="/companion-quest/">
-    <span class="game-icon" aria-hidden="true">
-      <svg viewBox="0 0 96 96" role="img">
-        <circle cx="36" cy="40" r="13" fill="currentColor"/>
-        <path d="M14 78c2-14 11-21 22-21s20 7 22 21z" fill="currentColor" opacity=".85"/>
-        <path d="M62 22l2.5 6.5L71 31l-6.5 2.5L62 40l-2.5-6.5L53 31l6.5-2.5z" fill="#fff" opacity=".9"/>
-        <circle cx="70" cy="62" r="7" fill="#fff" opacity=".55"/>
-      </svg>
-    </span>
-    <span class="game-title">Companion</span>
-    <p class="game-blurb">Experiment: wander a dusk camp with Operator at your side, and talk to him in the world.</p>
-  </a>
-  <a class="game-card preserve" href="/preserve/">
-    <span class="game-icon" aria-hidden="true">
-      <svg viewBox="0 0 96 96" role="img">
-        <circle cx="48" cy="34" r="21" fill="#3e7d3a"/>
-        <circle cx="29" cy="46" r="14" fill="#4d8f4a"/>
-        <circle cx="67" cy="46" r="14" fill="#4d8f4a"/>
-        <rect x="44" y="48" width="8" height="26" rx="3" fill="#6e4f30"/>
-        <circle cx="40" cy="28" r="5" fill="#ff9f2e"/>
-        <circle cx="57" cy="38" r="5" fill="#e74c3c"/>
-        <circle cx="50" cy="20" r="4" fill="#ff9f2e"/>
-      </svg>
-    </span>
-    <span class="game-title">Preserve</span>
-    <p class="game-blurb">A gentle side-scrolling wander through the Human Preserves: coast, orchard, camp ring, wild side. Pick a wanderer, gather fruit, and stop touching it to watch them explore on their own.</p>
-  </a>
-  <a class="game-card valley" href="/valley/">
-    <span class="game-icon" aria-hidden="true">
-      <svg viewBox="0 0 96 96" role="img">
-        <circle cx="66" cy="30" r="11" fill="#ffd166"/>
-        <path d="M4 62c14-12 26-17 40-14 10 2 16 8 24 12 8 4 16 4 24 0v32H4z" fill="currentColor" opacity="0.55"/>
-        <path d="M4 74c16-9 30-11 44-6 14 5 26 6 44-2v26H4z" fill="currentColor"/>
-        <path d="M28 74c3-8 8-12 14-13-1 5-3 9-6 12 4-1 8 0 11 2-6 3-13 2-19-1z" fill="#fff" opacity="0.8"/>
-      </svg>
-    </span>
-    <span class="game-title">Valley</span>
-    <p class="game-blurb">A living valley that wanders, gathers, and watches dusk on its own. Take the walk anytime; the music deck is built in.</p>
   </a>
   <a class="game-card racer" href="/prism-racer/">
     <span class="game-icon" aria-hidden="true">

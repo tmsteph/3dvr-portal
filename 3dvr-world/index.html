@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3DVR World | 3DVR Portal</title>
+<meta name="description" content="One character, four places: Preserve, Valley, Companion, and Corner Office — the 3DVR game modes in one world.">
+<meta name="theme-color" content="#0b1526">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: #0b1526; color: #eef4ff;
+    font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; height: 100dvh; overflow: hidden;
+  }
+  a { color: #9fd0ff; }
+  /* ---------- top bar ---------- */
+  .bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; background: #0e1c33; border-bottom: 1px solid #ffffff22;
+    z-index: 5;
+  }
+  .back {
+    text-decoration: none; background: #ffffff12; border: 1px solid #ffffff2e;
+    padding: 7px 11px; border-radius: 999px; font-size: .8rem; font-weight: 700; color: #eef4ff;
+    white-space: nowrap;
+  }
+  .title { font-weight: 800; letter-spacing: .02em; font-size: 1.02rem; margin-right: 2px; white-space: nowrap; }
+  .modes { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .modes button {
+    background: #ffffff10; border: 1px solid #ffffff2e; color: #eef4ff; cursor: pointer;
+    border-radius: 999px; padding: 7px 12px; font-size: .8rem; font-weight: 700; font-family: inherit;
+    white-space: nowrap;
+  }
+  .modes button:hover { border-color: #ffffff66; }
+  .modes button.sel { background: #57b6ff; border-color: #57b6ff; color: #081426; }
+  .modes button.soon { opacity: .55; }
+  .chip {
+    display: flex; align-items: center; gap: 8px; background: #ffffff10; border: 1px solid #ffffff2e;
+    border-radius: 999px; padding: 3px 12px 3px 5px; cursor: pointer; color: #eef4ff; font-family: inherit;
+  }
+  .chip:hover { border-color: #ffffff66; }
+  .chip canvas { width: 26px; height: 34px; }
+  .chip .nm { font-size: .82rem; font-weight: 800; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip .chg { font-size: .68rem; color: #9fd0ff; font-weight: 700; }
+  /* ---------- views ---------- */
+  main { flex: 1; position: relative; min-height: 0; }
+  #playView { position: absolute; inset: 0; }
+  #playView iframe { width: 100%; height: 100%; border: 0; display: block; background: #0b1526; }
+  #homeView {
+    position: absolute; inset: 0; overflow-y: auto; padding: 22px 14px 34px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    background:
+      radial-gradient(700px 320px at 50% -60px, #2b6cb055, transparent 70%),
+      linear-gradient(180deg, #0e1c33, #0b1526);
+  }
+  .heroChar { text-align: center; }
+  .heroChar canvas { width: 108px; height: 144px; }
+  .heroChar .who { font-size: 1.25rem; font-weight: 800; margin-top: 2px; }
+  .heroChar .sub { color: #b9cee8; font-size: .85rem; margin-top: 2px; }
+  .bigBtn {
+    background: #57b6ff; color: #081426; border: 0; border-radius: 999px; cursor: pointer;
+    padding: 10px 20px; font-size: .9rem; font-weight: 800; font-family: inherit;
+  }
+  .bigBtn.ghost { background: #ffffff12; color: #eef4ff; border: 1px solid #ffffff2e; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; width: min(880px, 100%); }
+  .tile {
+    text-align: left; background: #12233a; border: 1px solid #ffffff24; border-radius: 20px;
+    padding: 16px; cursor: pointer; color: #eef4ff; font-family: inherit; display: block; width: 100%;
+  }
+  .tile:hover { border-color: #ffffff55; }
+  .tile .ic { font-size: 1.7rem; }
+  .tile .nm { font-size: 1.08rem; font-weight: 800; margin-top: 6px; }
+  .tile .bl { color: #b9cee8; font-size: .84rem; line-height: 1.45; margin-top: 4px; }
+  .tile .go { color: #57b6ff; font-weight: 800; font-size: .8rem; margin-top: 10px; display: inline-block; }
+  .tile.soon { opacity: .6; cursor: default; }
+  .tile.soon .go { color: #f0b429; }
+  .foot { color: #7e97b5; font-size: .75rem; text-align: center; max-width: 560px; line-height: 1.5; }
+  /* ---------- character panel ---------- */
+  #charPanel {
+    position: fixed; inset: 0; z-index: 20; display: none; align-items: flex-start; justify-content: center;
+    background: #060a18b8; backdrop-filter: blur(3px); overflow-y: auto; padding: 22px 12px;
+  }
+  #charPanel.show { display: flex; }
+  .sheet { background: #12233a; border: 1px solid #ffffff2e; border-radius: 22px; max-width: 680px; width: 100%; padding: 18px 18px 14px; box-shadow: 0 24px 60px #000a; }
+  .sheet h2 { margin: 2px 0 4px; font-size: 1.15rem; }
+  .sheet p.sub { margin: 0 0 14px; color: #cfe3ff; font-size: .85rem; }
+  .castGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+  .castCard { position: relative; background: #ffffff10; border: 2px solid #ffffff1f; border-radius: 16px; padding: 8px 4px 7px; text-align: center; cursor: pointer; color: #fff; font-family: inherit; }
+  .castCard:hover { border-color: #ffffff55; }
+  .castCard.sel { border-color: #57b6ff; background: #57b6ff22; }
+  .castCard canvas { width: 64px; height: 84px; }
+  .castCard .nm { display: block; font-size: .78rem; font-weight: 700; margin-top: 2px; }
+  .castCard .del {
+    position: absolute; top: 4px; right: 7px; width: 20px; height: 20px; border-radius: 50%;
+    background: #00000055; color: #ffb3ab; font-size: .8rem; line-height: 20px; text-align: center; cursor: pointer;
+  }
+  .creator { margin-top: 16px; border-top: 1px solid #ffffff1f; padding-top: 14px; display: none; }
+  .creator.show { display: block; }
+  .creator .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+  .creator label { display: block; font-size: .72rem; font-weight: 700; color: #cfe3ff; margin: 8px 0 4px; }
+  .creator input[type="text"] {
+    background: #ffffff10; border: 1px solid #ffffff35; color: #fff; border-radius: 10px;
+    padding: 8px 10px; font: inherit; font-size: .9rem; width: 190px;
+  }
+  .creator select {
+    background: #12233a; border: 1px solid #ffffff35; color: #fff; border-radius: 10px; padding: 8px; font: inherit; font-size: .88rem;
+  }
+  .creator input[type="color"] { width: 44px; height: 32px; border: 1px solid #ffffff35; border-radius: 8px; background: none; padding: 2px; cursor: pointer; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ffffff30; cursor: pointer; padding: 0; }
+  .sw.sel { border-color: #fff; transform: scale(1.12); }
+  #creatorPreview { background: #ffffff0d; border: 1px solid #ffffff1f; border-radius: 14px; }
+  .panelBtns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
+    background: #12233a; border: 1px solid #ffffff38; color: #eef4ff; border-radius: 999px;
+    padding: 9px 16px; font-size: .85rem; font-weight: 700; opacity: 0; pointer-events: none; transition: all .25s; z-index: 30;
+    max-width: 92vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  [hidden] { display: none !important; }
+  @media (max-width: 640px) {
+    .title { display: none; }
+    .chip .nm { max-width: 84px; }
+    .modes button { padding: 6px 9px; font-size: .74rem; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="back" href="/games.html">← Games</a>
+  <div class="title">3DVR World</div>
+  <button class="chip" id="charChip" type="button" title="Change character">
+    <canvas id="chipCanvas" width="36" height="48"></canvas>
+    <span class="nm" id="chipName">Thomas</span>
+    <span class="chg">change</span>
+  </button>
+  <nav class="modes" id="modeNav" aria-label="World modes">
+    <button type="button" data-mode="home" class="sel">🏠 Home</button>
+    <button type="button" data-mode="preserve">🍑 Preserve</button>
+    <button type="button" data-mode="valley">🌄 Valley</button>
+    <button type="button" data-mode="companion">🔥 Companion</button>
+    <button type="button" data-mode="office" id="officeNavBtn">🏢 Corner Office</button>
+  </nav>
+</header>
+
+<main>
+  <section id="homeView">
+    <div class="heroChar">
+      <canvas id="heroCanvas" width="144" height="192"></canvas>
+      <div class="who" id="heroName">Thomas</div>
+      <div class="sub">One character, every mode. Pick a place to wander.</div>
+    </div>
+    <button class="bigBtn ghost" id="homeCharBtn" type="button">🧍 Change character</button>
+    <div class="tiles" id="tiles"></div>
+    <p class="foot">Preserve, Valley, Companion, and Corner Office are modes of one game now:
+      same character, same controls (keyboard, touch, or mouse), one front door.
+      The old links still work on their own, too.</p>
+  </section>
+  <section id="playView" hidden>
+    <iframe id="modeFrame" title="3DVR World mode" src="about:blank"></iframe>
+  </section>
+</main>
+
+<div id="charPanel" role="dialog" aria-label="Choose your character">
+  <div class="sheet">
+    <h2>Who is wandering?</h2>
+    <p class="sub">One character for the whole world. Whoever you pick here walks in every mode.</p>
+    <div class="castGrid" id="castGrid"></div>
+    <div class="panelBtns">
+      <button class="bigBtn" id="createBtn" type="button">✨ Create your own</button>
+      <button class="bigBtn ghost" id="charClose" type="button">Done</button>
+    </div>
+    <form class="creator" id="creator">
+      <div class="row">
+        <canvas id="creatorPreview" width="96" height="128"></canvas>
+        <div>
+          <label for="cName">Name</label>
+          <input type="text" id="cName" maxlength="18" placeholder="Wanderer">
+          <label for="cHairStyle">Hair</label>
+          <select id="cHairStyle">
+            <option value="short">Short</option>
+            <option value="long">Long</option>
+            <option value="bun">Bun</option>
+            <option value="mohawk">Mohawk</option>
+            <option value="curly">Curly</option>
+            <option value="bald">Bald</option>
+          </select>
+          <label><input type="checkbox" id="cBeard"> Beard</label>
+        </div>
+        <div>
+          <label>Skin tone</label>
+          <div class="swatches" id="cSkin"></div>
+          <label>Hair color</label>
+          <input type="color" id="cHairColor" value="#7a5a38">
+          <label>Shirt color</label>
+          <input type="color" id="cShirt" value="#17a398">
+          <label>Pants color</label>
+          <input type="color" id="cPants" value="#3a4a5a">
+        </div>
+      </div>
+      <div class="panelBtns">
+        <button class="bigBtn" type="submit">Save &amp; play as them</button>
+        <button class="bigBtn ghost" id="creatorCancel" type="button">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ================================================================
+   3DVR World: one front door for the day's four game modes.
+   The shell owns the character (roster + creator) and the mode
+   switching; each mode page keeps its own gameplay and reads the
+   one shared character record under 'world.character.v1'.
+   ================================================================ */
+const WORLD_CHAR_KEY = 'world.character.v1';
+const PRESET_IDS = { 'Thomas': 'thomas', '3DVR Girl': 'girl', 'Mark': 'mark', 'Esai': 'esai', 'David': 'david', 'Brandon': 'brandon' };
+const PRESETS = [
+  { id: 'thomas',  name: 'Thomas',    skin: '#e8b08a', hairStyle: 'short', hairColor: '#7a5a38', shirt: '#17a398', pants: '#3a4a5a', streak: null,      beard: true,  cap: null },
+  { id: 'girl',    name: '3DVR Girl', skin: '#f2c79b', hairStyle: 'long',  hairColor: '#f0cf6e', shirt: '#17a398', pants: '#274156', streak: '#39b7ff', beard: false, cap: null },
+  { id: 'mark',    name: 'Mark',      skin: '#d99e73', hairStyle: 'short', hairColor: '#2c2320', shirt: '#d33f2e', pants: '#2f3b52', streak: null,      beard: false, cap: '#28418c', capColor: '#28418c', hat: 'cap', hatColor: '#28418c' },
+  { id: 'esai',    name: 'Esai',      skin: '#b57a4e', hairStyle: 'short', hairColor: '#17130f', shirt: '#232329', pants: '#333a45', streak: null,      beard: false, cap: null, print: true },
+  { id: 'david',   name: 'David',     skin: '#c98d5f', hairStyle: 'short', hairColor: '#191512', shirt: '#3f9e4d', pants: '#2e4053', streak: null,      beard: false, cap: null },
+  { id: 'brandon', name: 'Brandon',   skin: '#8a5a34', hairStyle: 'curly', hairColor: '#241a12', shirt: '#ef7d1a', pants: '#374151', streak: null,      beard: false, cap: null }
+];
+const SKIN_TONES = ['#ffe0bd', '#f2c79b', '#e8b08a', '#c98d5f', '#a06838', '#6f4423'];
+const MODES = {
+  preserve: { name: 'Preserve', icon: '🍑', path: '/preserve/', blurb: 'A gentle side-scrolling wander through the Human Preserves: coast, orchard, camp ring, wild side. Explore, race the gates, or fly the rings.' },
+  valley:   { name: 'Valley', icon: '🌄', path: '/valley/', blurb: 'A living valley that wanders, gathers, and watches dusk on its own. Take the walk anytime; the music deck is built in.' },
+  companion:{ name: 'Companion', icon: '🔥', path: '/companion-quest/', blurb: 'A dusk camp where Operator walks at your side. Stroll over, click him, and talk in the world.' },
+  office:   { name: 'Corner Office', icon: '🏢', path: '/corner-office/', blurb: 'The work-safe mode: suits, cubicles, and boardrooms. Fetch the deck pages before the meeting starts.' }
+};
+
+/* ---------- character store ---------- */
+function loadJSON(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+function saveJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode */ } }
+function canonDef(d) {
+  if (!d || !d.name) return null;
+  const capCol = d.cap || d.capColor || (d.hat === 'cap' ? d.hatColor : null) || null;
+  const out = {
+    id: d.id || PRESET_IDS[d.name] || null, name: String(d.name), role: d.role || null,
+    skin: d.skin || '#e8b08a', hairStyle: d.hairStyle || 'short', hairColor: d.hairColor || '#7a5a38',
+    shirt: d.shirt || '#17a398', pants: d.pants || '#3a4a5a',
+    streak: d.streak || null, beard: !!d.beard, print: !!d.print,
+    cap: capCol, capColor: d.capColor || capCol, hat: d.hat || (capCol ? 'cap' : null), hatColor: d.hatColor || capCol, suit: d.suit || null, shirtC: d.shirtC || null, tie: d.tie || null
+  };
+  if (out.hairStyle === 'cap') { out.hairStyle = 'short'; out.cap = capCol || '#28418c'; out.capColor = out.cap; out.hat = 'cap'; out.hatColor = out.cap; }
+  return out;
+}
+function defKey(d) { return [d.name, d.skin, d.hairStyle, d.hairColor, d.shirt, d.pants].join('|'); }
+
+let rec = loadJSON(WORLD_CHAR_KEY, null);
+if (!rec || !rec.selectedDef) {
+  /* First run: adopt whatever the separate modes already saved, so
+     nobody's character vanishes in the move to one world. */
+  rec = { v: 1, selectedId: 'thomas', selectedDef: canonDef(PRESETS[0]), customs: [] };
+  const pSel = loadJSON('preserve.selectedDef', null);
+  const pCustoms = loadJSON('preserve.customs', []);
+  const vCustoms = loadJSON('valley.customs.v1', []);
+  const cCustoms = loadJSON('companion-quest.customCharacters.v1', []);
+  const cSel = loadJSON('companion-quest.player.v1', null);
+  const merged = [];
+  for (const list of [pCustoms, vCustoms, cCustoms]) {
+    if (!Array.isArray(list)) continue;
+    for (const c of list) { const cc = canonDef(c); if (cc && !merged.some(m => defKey(m) === defKey(cc))) merged.push(cc); }
+  }
+  rec.customs = merged;
+  const adopted = canonDef(pSel) || canonDef(cSel);
+  if (adopted) { rec.selectedDef = adopted; rec.selectedId = adopted.id || null; }
+  saveJSON(WORLD_CHAR_KEY, rec);
+}
+let customs = Array.isArray(rec.customs) ? rec.customs.map(canonDef).filter(Boolean) : [];
+let currentDef = canonDef(rec.selectedDef) || canonDef(PRESETS[0]);
+function persistChar() {
+  const sel = canonDef(currentDef);
+  saveJSON(WORLD_CHAR_KEY, { v: 1, selectedId: sel.id || null, selectedDef: sel, customs: customs.map(canonDef).filter(Boolean) });
+}
+function allCharacters() { return PRESETS.concat(customs); }
+function selectCharacter(def, announce) {
+  currentDef = canonDef(def) || canonDef(PRESETS[0]);
+  const local = PRESETS.find(p => p.name === currentDef.name);
+  if (local) currentDef = canonDef(local);
+  persistChar();
+  refreshCharUI();
+  if (announce) say(currentDef.name + ' is your character in every mode');
+}
+
+/* ---------- the sprite renderer (same parametric walker as the modes) ---------- */
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function drawCharacter(g, def, cx, feetY, h, pose) {
+  const dir = pose.dir || 1;
+  const run = pose.run || 0;
+  const air = !!pose.air;
+  const u = h / 44;
+  const legSwing = air ? 3.5 * u : Math.sin(run * Math.PI * 2) * 4.4 * u * (run > 0 ? 1 : 0);
+  const armSwing = air ? -3 * u : -legSwing * 0.8;
+  const bob = (!air && run > 0) ? Math.abs(Math.sin(run * Math.PI * 2)) * 1.4 * u : 0;
+  const hipY = feetY - 13 * u - bob;
+  const shoulderY = hipY - 14 * u;
+  const headR = 7.6 * u;
+  const headY = shoulderY - headR - 1 * u;
+  g.save();
+  g.translate(cx, 0);
+  g.scale(dir, 1);
+  g.fillStyle = def.pants;
+  const legW = 5 * u, legH = 13 * u;
+  g.fillRect(-5.4 * u + legSwing * 0.4, hipY, legW, legH - Math.max(0, legSwing) * 0.4);
+  g.fillRect(0.6 * u - legSwing * 0.4, hipY, legW, legH - Math.max(0, -legSwing) * 0.4);
+  g.fillStyle = '#241f1c';
+  g.fillRect(-5.8 * u + legSwing * 0.55, feetY - 2.6 * u - bob - Math.max(0, legSwing) * 0.4, 6.4 * u, 2.6 * u);
+  g.fillRect(0.2 * u - legSwing * 0.55, feetY - 2.6 * u - bob - Math.max(0, -legSwing) * 0.4, 6.4 * u, 2.6 * u);
+  g.fillStyle = def.shirt;
+  g.fillRect(-8.6 * u + armSwing * 0.4, shoulderY + 1 * u, 3.6 * u, 11 * u);
+  g.fillStyle = def.skin;
+  g.fillRect(-8.6 * u + armSwing * 0.4, shoulderY + 11 * u, 3.6 * u, 2.6 * u);
+  if (def.hairStyle === 'long') {
+    g.fillStyle = def.hairColor;
+    g.fillRect(-headR - 1 * u, headY - 2 * u, headR * 2 + 2 * u, 26 * u);
+  }
+  g.fillStyle = def.shirt;
+  roundRect(g, -7.4 * u, shoulderY, 14.8 * u, 15 * u, 4 * u);
+  g.fill();
+  g.fillRect(5 * u - armSwing * 0.4, shoulderY + 1 * u, 3.6 * u, 11 * u);
+  g.fillStyle = def.skin;
+  g.fillRect(5 * u - armSwing * 0.4, shoulderY + 11 * u, 3.6 * u, 2.6 * u);
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(0, headY, headR, 0, Math.PI * 2); g.fill();
+  if (def.beard) {
+    g.fillStyle = def.hairColor;
+    g.beginPath(); g.arc(0, headY + 2.2 * u, headR * 0.92, 0.15 * Math.PI, 0.95 * Math.PI); g.fill();
+    g.fillStyle = def.skin;
+    g.beginPath(); g.arc(1.6 * u, headY + 2.4 * u, headR * 0.42, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = '#221d1a';
+  g.beginPath(); g.arc(2.6 * u, headY - 0.6 * u, 0.95 * u, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(6 * u, headY - 0.6 * u, 0.8 * u, 0, Math.PI * 2); g.fill();
+  g.fillStyle = def.hairColor;
+  if (def.hairStyle === 'short') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+  } else if (def.hairStyle === 'long') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.04, Math.PI * 0.98, Math.PI * 2.02); g.fill();
+    if (def.streak) {
+      g.fillStyle = def.streak;
+      g.fillRect(2.2 * u, headY - headR - 1 * u, 1.9 * u, 24 * u);
+      g.fillRect(5.4 * u, headY - headR, 1.5 * u, 20 * u);
+    }
+  } else if (def.hairStyle === 'bun') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+    g.beginPath(); g.arc(-0.6 * u, headY - headR - 2.4 * u, 3.4 * u, 0, Math.PI * 2); g.fill();
+  } else if (def.hairStyle === 'mohawk') {
+    roundRect(g, -1.9 * u, headY - headR - 4.6 * u, 3.8 * u, 9 * u, 1.8 * u);
+    g.fill();
+  } else if (def.hairStyle === 'curly') {
+    for (let i = -2; i <= 2; i++) {
+      g.beginPath(); g.arc(i * 3.1 * u, headY - headR + 1.4 * u - Math.abs(i) * -0.4 * u, 3 * u, 0, Math.PI * 2); g.fill();
+    }
+  }
+  if (def.cap) {
+    g.fillStyle = def.cap;
+    g.beginPath(); g.arc(0, headY - 1.2 * u, headR * 1.05, Math.PI, Math.PI * 2); g.fill();
+    g.fillRect(0, headY - 1.6 * u, headR + 4.6 * u, 1.9 * u);
+  }
+  g.restore();
+}
+function previewInto(cv, def, runPhase) {
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  drawCharacter(g, def, cv.width / 2, cv.height - 6, cv.height - 14, { dir: 1, run: runPhase || 0 });
+}
+
+/* ---------- UI: chip, hero, tiles ---------- */
+const toast = document.getElementById('toast');
+let toastTimer = 0;
+function say(t) {
+  toast.textContent = t;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+const chipName = document.getElementById('chipName');
+const heroName = document.getElementById('heroName');
+function refreshCharUI() {
+  chipName.textContent = currentDef.name;
+  heroName.textContent = currentDef.name;
+  previewInto(document.getElementById('chipCanvas'), currentDef, 0);
+}
+/* gentle idle animation on the home hero */
+(function heroLoop(t) {
+  if (document.getElementById('playView').hidden) {
+    previewInto(document.getElementById('heroCanvas'), currentDef, ((t || 0) / 1400) % 1);
+  }
+  requestAnimationFrame(heroLoop);
+})(0);
+
+const availability = { preserve: true, valley: true, companion: true, office: null };
+async function checkMode(key) {
+  try {
+    const r = await fetch(MODES[key].path, { method: 'HEAD' });
+    availability[key] = r.ok;
+  } catch (e) { availability[key] = false; }
+  renderTiles();
+  const navBtn = document.querySelector('#modeNav button[data-mode="' + key + '"]');
+  if (navBtn) navBtn.classList.toggle('soon', availability[key] === false);
+}
+const tilesEl = document.getElementById('tiles');
+function renderTiles() {
+  tilesEl.innerHTML = '';
+  for (const key of Object.keys(MODES)) {
+    const m = MODES[key];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tile' + (availability[key] === false ? ' soon' : '');
+    b.innerHTML = '';
+    const ic = document.createElement('div'); ic.className = 'ic'; ic.textContent = m.icon;
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = m.name;
+    const bl = document.createElement('div'); bl.className = 'bl'; bl.textContent = m.blurb;
+    const go = document.createElement('span'); go.className = 'go';
+    go.textContent = availability[key] === false ? 'Opening soon' : 'Play →';
+    b.append(ic, nm, bl, go);
+    b.addEventListener('click', () => setMode(key));
+    tilesEl.append(b);
+  }
+}
+
+/* ---------- mode switching ---------- */
+const homeView = document.getElementById('homeView');
+const playView = document.getElementById('playView');
+const frame = document.getElementById('modeFrame');
+let currentMode = 'home';
+function setMode(key, skipHash) {
+  if (key !== 'home' && availability[key] === false) {
+    say(MODES[key].name + ' is still being built. It lights up here the moment it opens.');
+    checkMode(key);
+    return;
+  }
+  currentMode = key;
+  document.querySelectorAll('#modeNav button').forEach(b => b.classList.toggle('sel', b.dataset.mode === key));
+  if (key === 'home') {
+    playView.hidden = true;
+    homeView.hidden = false;
+    frame.src = 'about:blank';
+    for (const k of Object.keys(MODES)) checkMode(k);
+  } else {
+    homeView.hidden = true;
+    playView.hidden = false;
+    const want = MODES[key].path + '?world=1';
+    if (!frame.src.endsWith(want)) frame.src = want;
+    setTimeout(() => { try { frame.contentWindow.focus(); } catch (e) {} }, 350);
+  }
+  if (!skipHash) { try { history.replaceState(null, '', key === 'home' ? location.pathname : '#' + key); } catch (e) {} }
+}
+document.querySelectorAll('#modeNav button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+frame.addEventListener('load', () => { try { frame.contentWindow.focus(); } catch (e) {} });
+
+/* ---------- character panel ---------- */
+const charPanel = document.getElementById('charPanel');
+const castGrid = document.getElementById('castGrid');
+function renderCast() {
+  castGrid.innerHTML = '';
+  const addCard = (def, customIdx) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'castCard' + (defKey(def) === defKey(currentDef) ? ' sel' : '');
+    const cv = document.createElement('canvas');
+    cv.width = 72; cv.height = 96;
+    previewInto(cv, def, 0);
+    const nm = document.createElement('span');
+    nm.className = 'nm'; nm.textContent = def.name;
+    card.append(cv, nm);
+    card.addEventListener('click', () => { selectCharacter(def, true); closeCharPanel(); });
+    if (customIdx !== null) {
+      const del = document.createElement('span');
+      del.className = 'del'; del.textContent = '×'; del.title = 'Delete ' + def.name;
+      del.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const removed = customs.splice(customIdx, 1)[0];
+        if (removed && defKey(removed) === defKey(currentDef)) selectCharacter(PRESETS[0], false);
+        persistChar();
+        renderCast();
+      });
+      card.append(del);
+    }
+    castGrid.append(card);
+  };
+  PRESETS.forEach(d => addCard(canonDef(d), null));
+  customs.forEach((d, i) => addCard(d, i));
+}
+function openCharPanel() { renderCast(); charPanel.classList.add('show'); }
+function closeCharPanel() { charPanel.classList.remove('show'); document.getElementById('creator').classList.remove('show'); }
+document.getElementById('charChip').addEventListener('click', openCharPanel);
+document.getElementById('homeCharBtn').addEventListener('click', openCharPanel);
+document.getElementById('charClose').addEventListener('click', closeCharPanel);
+charPanel.addEventListener('click', (e) => { if (e.target === charPanel) closeCharPanel(); });
+
+/* creator */
+const creator = document.getElementById('creator');
+const draft = { name: '', skin: SKIN_TONES[2], hairStyle: 'short', hairColor: '#7a5a38', shirt: '#17a398', pants: '#3a4a5a', beard: false };
+document.getElementById('createBtn').addEventListener('click', () => { creator.classList.add('show'); drawCreatorPreview(); });
+document.getElementById('creatorCancel').addEventListener('click', () => creator.classList.remove('show'));
+const cSkin = document.getElementById('cSkin');
+for (const tone of SKIN_TONES) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'sw' + (tone === draft.skin ? ' sel' : ''); b.style.background = tone; b.title = tone;
+  b.addEventListener('click', () => { draft.skin = tone; cSkin.querySelectorAll('.sw').forEach(el => el.classList.toggle('sel', el === b)); drawCreatorPreview(); });
+  cSkin.append(b);
+}
+function drawCreatorPreview() { previewInto(document.getElementById('creatorPreview'), draft, 0); }
+document.getElementById('cName').addEventListener('input', e => { draft.name = e.target.value; });
+document.getElementById('cHairStyle').addEventListener('change', e => { draft.hairStyle = e.target.value; drawCreatorPreview(); });
+document.getElementById('cBeard').addEventListener('change', e => { draft.beard = e.target.checked; drawCreatorPreview(); });
+document.getElementById('cHairColor').addEventListener('input', e => { draft.hairColor = e.target.value; drawCreatorPreview(); });
+document.getElementById('cShirt').addEventListener('input', e => { draft.shirt = e.target.value; drawCreatorPreview(); });
+document.getElementById('cPants').addEventListener('input', e => { draft.pants = e.target.value; drawCreatorPreview(); });
+creator.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const def = canonDef({ ...draft, name: (draft.name || '').trim().slice(0, 18) || 'Wanderer', streak: null, cap: null });
+  customs.push(def);
+  selectCharacter(def, true);
+  closeCharPanel();
+});
+
+/* A mode changed the character (its own roster): follow along. */
+addEventListener('storage', (e) => {
+  if (e.key !== WORLD_CHAR_KEY) return;
+  const next = loadJSON(WORLD_CHAR_KEY, null);
+  if (!next) return;
+  customs = Array.isArray(next.customs) ? next.customs.map(canonDef).filter(Boolean) : customs;
+  if (next.selectedDef) currentDef = canonDef(next.selectedDef) || currentDef;
+  refreshCharUI();
+  if (charPanel.classList.contains('show')) renderCast();
+});
+
+/* ---------- boot ---------- */
+refreshCharUI();
+renderTiles();
+for (const k of Object.keys(MODES)) checkMode(k);
+const startMode = (location.hash || '').replace('#', '');
+if (MODES[startMode]) setMode(startMode, true);
+
+/* Test hooks for the headless verifier. */
+window.__world = {
+  get character() { return currentDef && currentDef.name; },
+  get mode() { return currentMode; },
+  get availability() { return { ...availability }; },
+  setMode, selectCharacter,
+  customs: () => customs.map(c => c.name)
+};
+</script>
+</body>
+</html>

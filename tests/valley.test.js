@@ -65,8 +65,11 @@ test('valley music deck has persistent mute, volume, stations, and a YouTube slo
   assert.match(html, /youtube-nocookie\.com\/embed\//);
 });
 
-test('games hub links the valley card', async () => {
+test('games hub links the combined 3DVR World card, not standalone modes', async () => {
   const games = await readFile(new URL('../games.html', import.meta.url), 'utf8');
-  assert.match(games, /class="game-card valley" href="\/valley\/"/);
-  assert.match(games, /\.game-card\.valley/);
+  assert.match(games, /class="game-card world" href="\/3dvr-world\/"/);
+  assert.match(games, /\.game-card\.world/);
+  assert.doesNotMatch(games, /game-card valley/);
+  assert.doesNotMatch(games, /game-card preserve/);
+  assert.doesNotMatch(games, /game-card companion/);
 });
