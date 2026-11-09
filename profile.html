@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="auth-identity.js"></script>
   <script src="oauth.js"></script>
+  <script src="account-recovery.js"></script>
   <script src="score.js"></script>
   <link rel="stylesheet" href="styles/global.css">
   <style>
@@ -270,6 +271,51 @@
       display: grid;
       gap: 0.55rem;
       margin-top: 0.5rem;
+    }
+
+    .recovery-email-section {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--surface-border);
+    }
+
+    .recovery-email-section[hidden] {
+      display: none;
+    }
+
+    .recovery-email-current {
+      margin: 0;
+      font-weight: 700;
+      color: var(--color-text);
+      overflow-wrap: anywhere;
+    }
+
+    .recovery-verification-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .recovery-status {
+      margin: 0;
+      color: var(--color-text-muted);
+    }
+
+    .recovery-status[data-tone="success"] {
+      color: #15803d;
+    }
+
+    .recovery-status[data-tone="error"] {
+      color: #b91c1c;
+    }
+
+    @media (max-width: 640px) {
+      .recovery-verification-row {
+        grid-template-columns: 1fr;
+      }
     }
 
     .input-row {
@@ -625,6 +671,29 @@
         </div>
       </form>
 
+      <section class="recovery-email-section" id="profile-recovery-email" aria-labelledby="recovery-email-heading" hidden>
+        <div>
+          <p class="label" id="recovery-email-heading">Recovery email</p>
+          <p class="helper-text">Use this email to find your account alias if you cannot sign in.</p>
+        </div>
+        <p class="recovery-email-current" id="recovery-email-current" aria-live="polite">No recovery email saved.</p>
+        <form class="name-form" onsubmit="event.preventDefault(); saveProfileRecoveryEmail();">
+          <label class="label" for="recovery-email">Email address</label>
+          <div class="input-row">
+            <input type="email" id="recovery-email" name="recovery-email" placeholder="you@example.com" autocomplete="email">
+            <button type="submit" id="save-recovery-email">Save</button>
+          </div>
+        </form>
+        <div class="recovery-verification-row">
+          <input type="text" id="recovery-code" name="recovery-code" placeholder="6-digit code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Recovery email verification code">
+          <button type="button" class="button-secondary" id="send-recovery-code">Send verification code</button>
+          <button type="button" class="button-secondary" id="verify-recovery-code">Verify</button>
+        </div>
+        <p class="recovery-status" id="recovery-status" role="status" aria-live="polite">
+          Verification is optional. Saving this email enables account lookup; verifying it confirms you control the inbox.
+        </p>
+      </section>
+
       <div class="actions">
         <button type="button" class="ghost" onclick="resetScore()">Reset Score</button>
         <button type="button" class="danger" id="profile-sign-out" onclick="handleProfileSignOut()">Sign Out</button>
@@ -829,6 +898,23 @@ const userSearchEl = document.getElementById('user-search');
 const userSearchInput = document.getElementById('user-search-input');
 const userResultsEl = document.getElementById('user-results');
 const oauthProfileStatusEl = document.getElementById('oauth-profile-status');
+const recoveryEmailSection = document.getElementById('profile-recovery-email');
+const recoveryEmailCurrentEl = document.getElementById('recovery-email-current');
+const recoveryEmailInput = document.getElementById('recovery-email');
+const recoveryEmailSaveButton = document.getElementById('save-recovery-email');
+const recoveryCodeInput = document.getElementById('recovery-code');
+const sendRecoveryCodeButton = document.getElementById('send-recovery-code');
+const verifyRecoveryCodeButton = document.getElementById('verify-recovery-code');
+const recoveryStatusEl = document.getElementById('recovery-status');
+
+const profileRecoveryVerificationState = {
+  email: '',
+  verificationId: '',
+  verifiedEmail: '',
+  expiresAt: 0
+};
+let savedProfileRecoveryEmail = '';
+let savedProfileRecoveryEmailVerifiedAt = 0;
 
 const oauthProviderRefs = {
   google: {
@@ -1138,6 +1224,264 @@ function upsertUserDirectory(alias, username) {
   });
 }
 
+function normalizeProfileRecoveryEmail(value) {
+  if (
+    window.AccountRecovery
+    && typeof window.AccountRecovery.normalizeEmail === 'function'
+  ) {
+    return window.AccountRecovery.normalizeEmail(value);
+  }
+  const normalized = String(value || '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : '';
+}
+
+function profileRecoveryAlias() {
+  const storedAlias = readStoredAlias();
+  if (
+    window.AccountRecovery
+    && typeof window.AccountRecovery.normalizeAlias === 'function'
+  ) {
+    return window.AccountRecovery.normalizeAlias(storedAlias) || storedAlias;
+  }
+  return storedAlias;
+}
+
+function setProfileRecoveryStatus(message = '', tone = 'info') {
+  if (!recoveryStatusEl) return;
+  recoveryStatusEl.textContent = message
+    || 'Verification is optional. Saving this email enables account lookup; verifying it confirms you control the inbox.';
+  recoveryStatusEl.dataset.tone = tone;
+}
+
+function renderProfileRecoveryEmail() {
+  if (!recoveryEmailCurrentEl) return;
+  recoveryEmailCurrentEl.textContent = savedProfileRecoveryEmail
+    ? `Saved recovery email: ${savedProfileRecoveryEmail}`
+    : 'No recovery email saved.';
+}
+
+function setProfileRecoveryControlsDisabled(disabled) {
+  [recoveryEmailSaveButton, sendRecoveryCodeButton, verifyRecoveryCodeButton].forEach(button => {
+    setOauthButtonState(button, disabled);
+  });
+}
+
+function resetProfileRecoveryVerification() {
+  profileRecoveryVerificationState.email = '';
+  profileRecoveryVerificationState.verificationId = '';
+  profileRecoveryVerificationState.verifiedEmail = savedProfileRecoveryEmailVerifiedAt
+    ? savedProfileRecoveryEmail
+    : '';
+  profileRecoveryVerificationState.expiresAt = 0;
+  setProfileRecoveryStatus();
+}
+
+function currentProfileRecoveryEmail() {
+  return normalizeProfileRecoveryEmail(recoveryEmailInput ? recoveryEmailInput.value : '');
+}
+
+async function postProfileRecoveryEmail(payload = {}) {
+  const response = await fetch('/api/calendar/reminder-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body.error || 'Unable to verify recovery email.');
+  }
+  return body;
+}
+
+async function persistProfileRecoveryEmail(email, { verified = false } = {}) {
+  const alias = profileRecoveryAlias();
+  if (!alias || !email) return false;
+
+  const recordNode = userIndexNode.get(alias);
+  const existing = await onceGun(recordNode);
+  const username = (existing && existing.username)
+    || portalStoredName
+    || latestProfileName
+    || aliasToDisplay(alias)
+    || 'User';
+  const createdAt = existing && existing.createdAt ? existing.createdAt : Date.now();
+  const lastLogin = existing && existing.lastLogin ? existing.lastLogin : Date.now();
+  const existingEmail = normalizeProfileRecoveryEmail(existing && existing.recoveryEmail);
+  const existingVerifiedAt = Number(existing && existing.recoveryEmailVerifiedAt) || 0;
+  const recoveryEmailVerifiedAt = verified
+    ? Date.now()
+    : (existingEmail === email ? (existingVerifiedAt || null) : null);
+  const nextRecord = {
+    username,
+    alias,
+    createdAt,
+    lastLogin,
+    recoveryEmail: email,
+    recoveryEmailVerifiedAt
+  };
+
+  const saved = await putGun(recordNode, nextRecord);
+  if (!saved) return false;
+
+  if (
+    !window.AccountRecovery
+    || typeof window.AccountRecovery.syncRecoveryEmailIndex !== 'function'
+  ) {
+    return false;
+  }
+
+  const indexResult = await window.AccountRecovery.syncRecoveryEmailIndex({
+    portalRoot,
+    alias,
+    email,
+    source: 'profile',
+    updatedBy: alias
+  });
+  if (!indexResult || !indexResult.saved) return false;
+
+  savedProfileRecoveryEmail = email;
+  savedProfileRecoveryEmailVerifiedAt = recoveryEmailVerifiedAt || 0;
+  if (recoveryEmailInput) recoveryEmailInput.value = email;
+  renderProfileRecoveryEmail();
+  return true;
+}
+
+async function saveProfileRecoveryEmail() {
+  if (!isSignedIn) {
+    setProfileRecoveryStatus('Sign in before saving a recovery email.', 'error');
+    return false;
+  }
+
+  const email = currentProfileRecoveryEmail();
+  if (!email) {
+    setProfileRecoveryStatus('Enter a valid recovery email first.', 'error');
+    return false;
+  }
+
+  const verified = profileRecoveryVerificationState.verifiedEmail === email;
+  setProfileRecoveryControlsDisabled(true);
+  setProfileRecoveryStatus('Saving recovery email...', 'info');
+  try {
+    const saved = await persistProfileRecoveryEmail(email, { verified });
+    if (!saved) throw new Error('Unable to save recovery email.');
+    setProfileRecoveryStatus(
+      verified
+        ? 'Recovery email verified and saved.'
+        : 'Recovery email saved. Verification is optional, but it confirms you control this inbox.',
+      'success'
+    );
+    return true;
+  } catch (error) {
+    setProfileRecoveryStatus(error.message || 'Unable to save recovery email.', 'error');
+    return false;
+  } finally {
+    setProfileRecoveryControlsDisabled(false);
+  }
+}
+
+async function loadProfileRecoveryEmail() {
+  if (recoveryEmailSection) {
+    recoveryEmailSection.hidden = !isSignedIn;
+  }
+  if (!isSignedIn) {
+    renderProfileRecoveryEmail();
+    return;
+  }
+
+  const alias = profileRecoveryAlias();
+  if (!alias) return;
+
+  const existing = await onceGun(userIndexNode.get(alias));
+  savedProfileRecoveryEmail = normalizeProfileRecoveryEmail(existing && existing.recoveryEmail);
+  savedProfileRecoveryEmailVerifiedAt = Number(existing && existing.recoveryEmailVerifiedAt) || 0;
+  if (recoveryEmailInput) {
+    recoveryEmailInput.value = savedProfileRecoveryEmail;
+  }
+  if (savedProfileRecoveryEmail && savedProfileRecoveryEmailVerifiedAt) {
+    profileRecoveryVerificationState.verifiedEmail = savedProfileRecoveryEmail;
+    setProfileRecoveryStatus('Recovery email saved and verified.', 'success');
+  } else if (savedProfileRecoveryEmail) {
+    setProfileRecoveryStatus('Recovery email saved. Verification is optional, but it confirms you control this inbox.', 'info');
+  } else {
+    setProfileRecoveryStatus();
+  }
+  renderProfileRecoveryEmail();
+}
+
+async function sendProfileRecoveryVerificationCode() {
+  const email = currentProfileRecoveryEmail();
+  if (!email) {
+    setProfileRecoveryStatus('Enter a valid recovery email first.', 'error');
+    return;
+  }
+
+  setProfileRecoveryControlsDisabled(true);
+  setProfileRecoveryStatus('Sending verification code...', 'info');
+  try {
+    const body = await postProfileRecoveryEmail({
+      mode: 'recovery-verification',
+      email
+    });
+    profileRecoveryVerificationState.email = email;
+    profileRecoveryVerificationState.verificationId = body.verificationId || '';
+    profileRecoveryVerificationState.verifiedEmail = '';
+    profileRecoveryVerificationState.expiresAt = Number(body.expiresAt || 0);
+    setProfileRecoveryStatus('Check your email for the 6-digit verification code.', 'success');
+    if (recoveryCodeInput) recoveryCodeInput.focus();
+  } catch (error) {
+    profileRecoveryVerificationState.email = '';
+    profileRecoveryVerificationState.verificationId = '';
+    profileRecoveryVerificationState.verifiedEmail = '';
+    profileRecoveryVerificationState.expiresAt = 0;
+    setProfileRecoveryStatus(error.message || 'Unable to send verification code.', 'error');
+  } finally {
+    setProfileRecoveryControlsDisabled(false);
+  }
+}
+
+async function verifyProfileRecoveryCode() {
+  const email = currentProfileRecoveryEmail();
+  const code = String(recoveryCodeInput ? recoveryCodeInput.value : '').trim();
+  if (!email || !profileRecoveryVerificationState.verificationId || profileRecoveryVerificationState.email !== email) {
+    setProfileRecoveryStatus('Send a verification code to this email first.', 'error');
+    return;
+  }
+  if (!/^\d{6}$/.test(code)) {
+    setProfileRecoveryStatus('Enter the 6-digit verification code.', 'error');
+    return;
+  }
+
+  setProfileRecoveryControlsDisabled(true);
+  setProfileRecoveryStatus('Verifying recovery email...', 'info');
+  try {
+    await postProfileRecoveryEmail({
+      mode: 'confirm-recovery-email',
+      email,
+      code,
+      verificationId: profileRecoveryVerificationState.verificationId
+    });
+    profileRecoveryVerificationState.verifiedEmail = email;
+    const saved = await persistProfileRecoveryEmail(email, { verified: true });
+    if (!saved) throw new Error('Recovery email verified, but saving it failed. Click Save to try again.');
+    setProfileRecoveryStatus('Recovery email verified and saved.', 'success');
+  } catch (error) {
+    profileRecoveryVerificationState.verifiedEmail = '';
+    setProfileRecoveryStatus(error.message || 'Recovery email verification failed.', 'error');
+  } finally {
+    setProfileRecoveryControlsDisabled(false);
+  }
+}
+
+if (recoveryEmailInput) {
+  recoveryEmailInput.addEventListener('input', resetProfileRecoveryVerification);
+}
+if (sendRecoveryCodeButton) {
+  sendRecoveryCodeButton.addEventListener('click', sendProfileRecoveryVerificationCode);
+}
+if (verifyRecoveryCodeButton) {
+  verifyRecoveryCodeButton.addEventListener('click', verifyProfileRecoveryCode);
+}
+
 function persistPortalProfileName(usernameHint = '') {
   const alias = readStoredAlias();
   if (!alias) {
@@ -1412,6 +1756,9 @@ function applyDisplayName() {
 }
 
 function updateProfileSignInCallout() {
+  if (recoveryEmailSection) {
+    recoveryEmailSection.hidden = !isSignedIn;
+  }
   if (!profileSignInCallout) return;
   profileSignInCallout.hidden = isSignedIn;
   profileAuthEntryLinks.forEach((link) => {
@@ -1721,6 +2068,7 @@ function initializeSignedInProfile({ oauthOnly = false } = {}) {
   }
 
   watchUsername(activeProfile);
+  void loadProfileRecoveryEmail();
   applyDisplayName();
   subscribeToAdminStatus();
   subscribeToScore();

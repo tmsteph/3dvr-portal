@@ -62,3 +62,28 @@ test('profile page recovers signed-in display names from shared identity and ali
   assert.match(html, /portalStoredName \|\| aliasName \|\| aliasToDisplay\(readStoredAlias\(\)\) \|\| 'User'/);
   assert.doesNotMatch(html, /portalStoredName \|\| aliasName \|\| 'Guest'/);
 });
+
+test('profile page lets signed-in users save and verify a recovery email for account lookup', async () => {
+  const html = await readFile(new URL('../profile.html', import.meta.url), 'utf8');
+
+  assert.match(html, /<script src="account-recovery\.js"><\/script>/);
+  assert.match(html, /id="profile-recovery-email"/);
+  assert.match(html, /id="recovery-email-heading">Recovery email<\/p>/);
+  assert.match(html, /id="recovery-email-current"/);
+  assert.match(html, /id="recovery-email"/);
+  assert.match(html, /id="save-recovery-email"/);
+  assert.match(html, /id="recovery-code"/);
+  assert.match(html, /id="send-recovery-code"/);
+  assert.match(html, /id="verify-recovery-code"/);
+  assert.match(html, /id="recovery-status"/);
+  assert.match(html, /function saveProfileRecoveryEmail\(\)/);
+  assert.match(html, /function loadProfileRecoveryEmail\(\)/);
+  assert.match(html, /recoveryEmailSection\.hidden = !isSignedIn/);
+  assert.match(html, /void loadProfileRecoveryEmail\(\)/);
+  assert.match(html, /recoveryEmail: email/);
+  assert.match(html, /recoveryEmailVerifiedAt/);
+  assert.match(html, /syncRecoveryEmailIndex\(\{\s+portalRoot,\s+alias,\s+email,\s+source: 'profile',\s+updatedBy: alias\s+\}\)/);
+  assert.match(html, /fetch\('\/api\/calendar\/reminder-email'/);
+  assert.match(html, /mode: 'recovery-verification'/);
+  assert.match(html, /mode: 'confirm-recovery-email'/);
+});
