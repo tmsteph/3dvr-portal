@@ -64,7 +64,7 @@ button.pill{cursor:pointer;font-family:inherit}
 .seg button{background:#ffffff12;border:1px solid #ffffff35;color:#fff;border-radius:999px;padding:6px 11px;font-size:.78rem;font-weight:700;cursor:pointer}
 .seg button.sel{background:#57b6ff;color:#0b1526;border-color:#57b6ff}
 #creatorPreview{background:#ffffff0d;border:1px solid #ffffff1f;border-radius:14px}
-@media(max-width:640px){.hint{bottom:118px;font-size:.68rem;max-width:92vw;white-space:normal;text-align:center}.deck{gap:6px}.deck input[type=text]{width:130px}}
+@media(max-width:640px){.hint{bottom:118px;font-size:.68rem;max-width:92vw;white-space:normal;text-align:center}.deck{gap:6px}.deck input[type=text]{width:130px}.bar{gap:5px;padding:8px}.pill,.back{padding:6px 9px;font-size:.72rem}.title{display:none}}
 </style>
 </head>
 <body>
@@ -409,7 +409,7 @@ function setMode(next) {
   if (mode === next) return;
   mode = next;
   modeDot.className = 'dot' + (next === 'control' ? ' you' : '');
-  modeLabel.textContent = next === 'control' ? "you're guiding" : currentDef.name + ' is living';
+  modeLabel.textContent = next === 'control' ? "you're guiding" : 'living';
   if (next === 'ambient') { brain.state = 'idle'; brain.timer = 0.7; dwell = 0; }
 }
 
@@ -794,7 +794,7 @@ function renderCast() {
 function selectCharacter(id, close) {
   currentDef = findCharacter(id);
   saveJSON(LS.selected, currentDef.id);
-  modeLabel.textContent = mode === 'control' ? "you're guiding" : currentDef.name + ' is living';
+  modeLabel.textContent = mode === 'control' ? "you're guiding" : 'living';
   renderCast();
   if (close) closeCast();
 }
@@ -857,7 +857,7 @@ window.Valley = {
   select: id => selectCharacter(id, true),
   customs: () => customs.map(c => c.name)
 };
-modeLabel.textContent = currentDef.name + ' is living';
+modeLabel.textContent = 'living';
 if (music.station === 'youtube') { music.mode = 'youtube'; } else { audio.src = STATIONS[music.station] || STATIONS.groovesalad; }
 audio.volume = music.volume; audio.muted = music.muted;
 music.playing = false;
