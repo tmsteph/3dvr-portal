@@ -24,6 +24,15 @@
   #touch .cluster{display:flex;gap:12px}
   #touch button{pointer-events:auto;width:62px;height:62px;border-radius:50%;border:1px solid #ffffff44;background:#17223b99;color:#fff;font-size:1.35rem;backdrop-filter:blur(8px);touch-action:none;-webkit-user-select:none;user-select:none}
   #touch button.on{background:#f7b267cc;color:#17223b}
+  #touch button.small{width:52px;height:52px;font-size:1.05rem}
+  #touch .downBtn{display:none}
+  body.flymode #touch .downBtn{display:block}
+  /* round 2: mode picker on the select screen */
+  #modePick{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+  #modePick button{flex:1;min-width:104px;background:#ffffff10;border:2px solid #ffffff22;border-radius:14px;color:#fff;padding:9px 10px;cursor:pointer;font-family:inherit;text-align:left}
+  #modePick button.sel{border-color:#f7b267;background:#f7b26722}
+  #modePick button b{display:block;font-size:.92rem;margin-bottom:2px}
+  #modePick button span{font-size:.7rem;opacity:.75;line-height:1.35;display:block}
   /* music deck */
   #deck{position:fixed;right:12px;bottom:12px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
   #deckToggle{width:46px;height:46px;border-radius:50%;border:1px solid #ffffff44;background:#17223bd9;color:#fff;font-size:1.15rem;cursor:pointer;backdrop-filter:blur(10px)}
@@ -80,10 +89,13 @@
     <div class="stats">
       <span class="pill">🍑 <b id="fruitCount">0/0</b></span>
       <span class="pill" id="modePill">▶ You</span>
+      <span class="pill" id="racePill" hidden>⏱ 0.0</span>
+      <span class="pill" id="ringPill" hidden>🌀 0/0</span>
+      <button class="pill" id="raceBtn" type="button" hidden>⟳ Race</button>
       <button class="pill" id="crewBtn" type="button">🧍 Crew</button>
     </div>
   </div>
-  <div class="hint">← → or A D to wander · ↑ / W / Space to jump · bop the lazy critters · stop for 8 seconds and your wanderer explores on their own</div>
+  <div class="hint">← → wander · ↑ jump · F bow · J spear (Explore) · R restart (Race) · stop for 8 seconds and your wanderer explores on their own</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -91,8 +103,11 @@
   <div class="cluster">
     <button type="button" data-k="left">◀</button>
     <button type="button" data-k="right">▶</button>
+    <button type="button" class="downBtn" data-k="down">▼</button>
   </div>
   <div class="cluster">
+    <button type="button" class="small" data-k="bow" title="Bow">🏹</button>
+    <button type="button" class="small" data-k="spear" title="Spear">🗡</button>
     <button type="button" data-k="jump">⤒</button>
   </div>
 </div>
@@ -158,7 +173,12 @@
 <div id="selectScreen" hidden>
   <div class="sheet">
     <h2>Choose your wanderer</h2>
-    <p class="sub">The crew of the Preserve, drawn as sprites. Pick one to play, or build your own below. Your wanderer keeps exploring on their own whenever you stop.</p>
+    <p class="sub">The crew of the Preserve, drawn as sprites. Pick a way to play, then pick your wanderer, or build your own below. In Explore, your wanderer keeps exploring on their own whenever you stop.</p>
+    <div id="modePick" role="group" aria-label="Game mode">
+      <button type="button" data-mode="explore" class="sel"><b>🍃 Explore</b><span>Wander, gather fruit, bow and spear the lazy critters. No game over, ever.</span></button>
+      <button type="button" data-mode="race"><b>🏁 Race</b><span>Coast to the Wild Side gate against the clock. Springboards and speed strips are the fast line.</span></button>
+      <button type="button" data-mode="fly"><b>🪽 Fly</b><span>The same map from the air. Hold jump to rise, let go to sink, thread the rings.</span></button>
+    </div>
     <div id="roster"></div>
     <div class="creator">
       <h3>Make your own</h3>
@@ -354,6 +374,7 @@ function buildRoster() {
       saveJSON(LS_SEL, def);
       buildRoster();
       closeSelect();
+      startChosenMode();
       pokeInput();
       say(def.name + ' is wandering');
     });
@@ -415,9 +436,23 @@ document.getElementById('saveCustom').addEventListener('click', () => {
   saveJSON(LS_SEL, def);
   buildRoster();
   closeSelect();
+  startChosenMode();
   pokeInput();
   say(def.name + ' joins the Preserve');
 });
+
+/* Round 2: the way to play is chosen on this screen; the game script
+   provides the starter hook (window.__startPreserveMode). */
+let startModeChoice = 'explore';
+document.querySelectorAll('#modePick button').forEach((b) => {
+  b.addEventListener('click', () => {
+    startModeChoice = b.dataset.mode;
+    document.querySelectorAll('#modePick button').forEach((o) => o.classList.toggle('sel', o === b));
+  });
+});
+function startChosenMode() {
+  if (window.__startPreserveMode) window.__startPreserveMode(startModeChoice);
+}
 
 let selectOpen = false;
 function openSelect() { selectOpen = true; selectScreen.hidden = false; buildRoster(); refreshCreator(); }
@@ -452,10 +487,26 @@ ground(0, 1080); ground(1180, 320);                    // coast (pit 1080-1180)
 ground(1500, 850); ground(2430, 470);                  // orchard (pit 2350-2430)
 ground(2900, 450); ground(3420, 880);                  // camp (stream 3350-3420)
 ground(4300, 400); ground(4790, 360); ground(5260, 340); // wild side
-[[300, 318, 110], [540, 258, 100], [860, 306, 110],
- [1660, 312, 110], [1990, 262, 110], [2540, 318, 120],
- [3060, 312, 110], [3660, 272, 120], [3980, 318, 100],
- [4460, 302, 100], [4890, 258, 110], [5330, 306, 110]].forEach((p) => slab(p[0], p[1], p[2]));
+/* Floating slabs, laid out as forgiving stair-steps. A held jump rises
+   ~124 world units and carries ~190 at full run, so every step up here is
+   at most ~98 and every elevated hop spans at most ~140 edge to edge:
+   each drawn slab is landable from the previous surface. The four high
+   slabs (y <= 140) are springboard routes, verified with the rest. */
+[[300, 318, 110], [505, 258, 105], [860, 306, 110], [1010, 140, 240],
+ [1660, 312, 110], [1835, 288, 90], [1990, 262, 110], [2540, 318, 120], [2310, 130, 240],
+ [3060, 312, 110], [3300, 330, 95], [3520, 296, 100], [3660, 272, 120], [3980, 318, 100], [3960, 140, 240],
+ [4460, 302, 100], [4700, 284, 100], [4890, 258, 110], [5330, 306, 110], [5110, 120, 240]].forEach((p) => slab(p[0], p[1], p[2]));
+
+/* Springboards: bounce pads that launch you far above a normal jump. */
+const PADS = [{ x: 950 }, { x: 2250 }, { x: 3900 }, { x: 5050 }].map((p) => ({ x: p.x, y: GY, t: 0 }));
+/* Speed strips: ground runs that visibly boost your pace while crossed. */
+const STRIPS = [{ x: 150, to: 430 }, { x: 1560, to: 1900 }, { x: 3480, to: 3860 }, { x: 5280, to: 5560 }];
+/* Flight rings (Fly mode): pass through the middle to collect. */
+const RINGS = [[500, 210], [950, 120], [1350, 240], [1750, 150], [2150, 230], [2550, 130],
+ [2950, 220], [3400, 140], [3850, 240], [4300, 150], [4750, 230], [5250, 140]
+].map((r) => ({ x: r[0], y: r[1], r: 30, got: false }));
+/* Race gates: checkpoint gates in order, then the Wild Side finish. */
+const GATES = [1400, 2800, 4200, 5500];
 
 const FIRES = [{ x: 140 }, { x: 1560 }, { x: 2960 }, { x: 4330 }];
 const PALMS = [420, 980, 1330];
@@ -470,7 +521,9 @@ function fruit(x, y, kind) { FRUITS.push({ x, y, kind, taken: false }); }
  [1600, 362, 'berry'], [1700, 282, 'orange'], [1750, 222, 'fig'], [2035, 232, 'orange'], [2150, 214, 'berry'],
  [2300, 362, 'orange'], [2580, 288, 'fig'], [2750, 228, 'orange'],
  [2980, 340, 'berry'], [3100, 282, 'orange'], [3710, 242, 'fig'], [3850, 362, 'orange'], [4020, 288, 'berry'],
- [4500, 272, 'fig'], [4600, 362, 'orange'], [4940, 228, 'berry'], [5050, 362, 'fig'], [5370, 276, 'orange'], [5480, 362, 'berry']
+ [4500, 272, 'fig'], [4600, 362, 'orange'], [4940, 228, 'berry'], [5050, 362, 'fig'], [5370, 276, 'orange'], [5480, 362, 'berry'],
+ [1105, 108, 'orange'], [1180, 108, 'fig'], [2405, 98, 'berry'], [2480, 98, 'orange'],
+ [4055, 108, 'fig'], [4130, 108, 'orange'], [5205, 88, 'berry'], [5280, 88, 'fig']
 ].forEach((f) => fruit(f[0], f[1], f[2]));
 
 const ENEMIES = [
@@ -480,7 +533,7 @@ const ENEMIES = [
 ].map((e) => ({ ...e, dir: 1, speed: 34, squash: 0, y: GY }));
 
 /* ================= Player + input ================= */
-const P = { x: 120, y: GY - 44, w: 26, h: 44, vx: 0, vy: 0, face: 1, ground: false, coyote: 0, buffer: 0, invuln: 0, runPhase: 0 };
+const P = { x: 120, y: GY - 44, w: 26, h: 44, vx: 0, vy: 0, face: 1, ground: false, coyote: 0, buffer: 0, invuln: 0, runPhase: 0, padT: 0 };
 let checkpoint = { x: 140 };
 let camX = 0;
 let lastInput = performance.now();
@@ -489,8 +542,30 @@ let gateSeen = false;
 let fruitGot = 0;
 const floaters = [];
 
+/* ================= Round 2: modes, weapons, dropped fruit ================= */
+let gameMode = 'explore';           // 'explore' | 'race' | 'fly'
+const arrows = [];
+const DROPS = [];
+let bowCd = 0, spearT = 0, dropsGot = 0;
+let prevBowHeld = false, prevSpearHeld = false, prevRHeld = false;
+const race = { running: false, startT: 0, elapsed: 0, nextGate: 0, finished: false, lastTime: null };
+const LS_RACE_BEST = 'preserve.raceBest';
+let raceBest = loadJSON(LS_RACE_BEST, null);
+let ringsGot = 0;
+function onStrip() {
+  if (!P.ground) return false;
+  return STRIPS.some((s) => P.x >= s.x && P.x <= s.to);
+}
+function bonkCritter(e, why) {
+  if (e.squash > 0) return;
+  e.squash = 3.2;
+  e.respawnX = e.min + Math.random() * (e.max - e.min);
+  DROPS.push({ x: e.x, y: e.y - 30, vy: -120, rest: false, kind: 'orange' });
+  floaters.push({ x: e.x, y: e.y - 40, t: why || 'bonk!', life: 0.9 });
+}
+
 const keys = {};
-const touchState = { left: false, right: false, jump: false };
+const touchState = { left: false, right: false, jump: false, down: false, bow: false, spear: false };
 let prevJumpHeld = false;
 
 function pokeInput() { lastInput = performance.now(); }
@@ -558,6 +633,10 @@ function aiInput() {
 const modePill = document.getElementById('modePill');
 const fruitEl = document.getElementById('fruitCount');
 fruitEl.textContent = '0/' + FRUITS.length;
+const racePill = document.getElementById('racePill');
+const ringPill = document.getElementById('ringPill');
+const raceBtn = document.getElementById('raceBtn');
+raceBtn.addEventListener('click', () => { if (gameMode === 'race') startGame('race'); });
 let modeAmbient = false;
 function moveToward(v, target, delta) {
   return v < target ? Math.min(target, v + delta) : Math.max(target, v - delta);
@@ -572,10 +651,33 @@ function respawn() {
   P.vx = 0; P.vy = 0;
   say('Back to the fire 🔥');
 }
+function startGame(mode) {
+  gameMode = mode;
+  document.body.classList.toggle('flymode', mode === 'fly');
+  race.running = false; race.finished = false; race.nextGate = 0; race.elapsed = 0; race.lastTime = null;
+  arrows.length = 0; DROPS.length = 0; spearT = 0; bowCd = 0;
+  racePill.hidden = mode !== 'race';
+  ringPill.hidden = mode !== 'fly';
+  raceBtn.hidden = mode !== 'race';
+  if (mode === 'race' || mode === 'fly') {
+    P.x = 120; P.y = GY - P.h; P.vx = 0; P.vy = 0; P.face = 1;
+    checkpoint = { x: 140 };
+    camX = 0;
+    if (mode === 'fly') {
+      RINGS.forEach((r) => { r.got = false; });
+      ringsGot = 0;
+      ringPill.textContent = '🌀 0/' + RINGS.length;
+    }
+    if (mode === 'race') racePill.textContent = '⏱ 0.0' + (raceBest !== null ? ' · best ' + raceBest.toFixed(1) : '');
+  }
+  pokeInput();
+  say(mode === 'race' ? '🏁 Race: coast to the Wild Side gate!' : mode === 'fly' ? '🪽 Fly: hold jump to rise, thread the rings' : '🍃 Explore the Preserve');
+}
+window.__startPreserveMode = startGame;
 function update(dt) {
   const now = performance.now();
-  modeAmbient = !selectOpen && (now - lastInput > 8000);
-  const pill = modeAmbient ? '🍃 Ambient' : '▶ You';
+  modeAmbient = gameMode === 'explore' && !selectOpen && (now - lastInput > 8000);
+  const pill = gameMode === 'race' ? '🏁 Race' : gameMode === 'fly' ? '🪽 Fly' : (modeAmbient ? '🍃 Ambient' : '▶ You');
   if (modePill.textContent !== pill) modePill.textContent = pill;
 
   let dir = 0;
@@ -589,26 +691,56 @@ function update(dt) {
     if (keys.ArrowRight || keys.KeyD || touchState.right) dir += 1;
     jumpHeld = !!(keys.ArrowUp || keys.KeyW || keys.Space || touchState.jump);
     if (jumpHeld && !prevJumpHeld) P.buffer = 0.12;
+    if (gameMode === 'explore') {
+      const bowHeld = !!(keys.KeyF || touchState.bow);
+      const spearHeld = !!(keys.KeyJ || touchState.spear);
+      if (bowHeld && !prevBowHeld && bowCd <= 0) {
+        arrows.push({ x: P.x + P.face * 18, y: P.y + 18, vx: P.face * 640, vy: -46, life: 1.7 });
+        bowCd = 0.35;
+      }
+      if (spearHeld && !prevSpearHeld) {
+        spearT = 0.16;
+        const hx = P.face > 0 ? P.x + 8 : P.x - 44;
+        for (const e of ENEMIES) {
+          if (e.squash <= 0 && e.x > hx - 14 && e.x < hx + 50 && Math.abs((e.y - 11) - (P.y + 20)) < 34) bonkCritter(e, 'thock!');
+        }
+      }
+      prevBowHeld = bowHeld;
+      prevSpearHeld = spearHeld;
+    }
+    const rHeld = !!keys.KeyR;
+    if (gameMode === 'race' && rHeld && !prevRHeld) startGame('race');
+    prevRHeld = rHeld;
   }
   prevJumpHeld = jumpHeld;
 
-  const maxS = 235;
+  const strip = onStrip();
+  const maxS = strip ? 430 : 235;
   if (dir !== 0) {
-    P.vx = moveToward(P.vx, dir * maxS, (P.ground ? 2000 : 1300) * dt);
+    P.vx = moveToward(P.vx, dir * maxS, (P.ground ? (strip ? 2600 : 2000) : 1300) * dt);
     P.face = dir;
   } else {
     P.vx = moveToward(P.vx, 0, (P.ground ? 1900 : 260) * dt);
   }
-  const rising = P.vy < 0;
-  P.vy += 1500 * (rising && !jumpHeld && !modeAmbient ? 2.1 : 1) * dt;
-  if (P.vy > 920) P.vy = 920;
-  P.coyote = P.ground ? 0.09 : Math.max(0, P.coyote - dt);
-  P.buffer = Math.max(0, P.buffer - dt);
-  if (P.buffer > 0 && (P.ground || P.coyote > 0)) {
-    P.vy = -565;
+  if (gameMode === 'fly') {
+    // Flight: hold jump to rise, let go to sink gently, Down/S to dive.
+    const sinkHeld = !!(keys.ArrowDown || keys.KeyS || touchState.down);
+    const targetVy = jumpHeld ? -255 : (sinkHeld ? 265 : 130);
+    P.vy = moveToward(P.vy, targetVy, 1500 * dt);
     P.buffer = 0;
     P.coyote = 0;
-    P.ground = false;
+  } else {
+    const rising = P.vy < 0;
+    P.vy += 1500 * (rising && !jumpHeld && !modeAmbient && !(P.padT > 0) ? 2.1 : 1) * dt;
+    if (P.vy > 920) P.vy = 920;
+    P.coyote = P.ground ? 0.09 : Math.max(0, P.coyote - dt);
+    P.buffer = Math.max(0, P.buffer - dt);
+    if (P.buffer > 0 && (P.ground || P.coyote > 0)) {
+      P.vy = -610;
+      P.buffer = 0;
+      P.coyote = 0;
+      P.ground = false;
+    }
   }
   const prevBottom = P.y + P.h;
   P.x += P.vx * dt;
@@ -627,10 +759,37 @@ function update(dt) {
   }
   if (P.ground && Math.abs(P.vx) > 20) P.runPhase += Math.abs(P.vx) * dt / 36;
   P.invuln = Math.max(0, P.invuln - dt);
-  if (P.y > 640) respawn();
+  P.padT = Math.max(0, P.padT - dt);
+  // Springboards: standing on a pad launches you far above a normal jump.
+  // The bounce eats most of your run speed, so the pop is near-vertical
+  // and the high slab overhead catches you on the way down.
+  if (gameMode !== 'fly' && P.ground && P.vy === 0) {
+    for (const pad of PADS) {
+      if (Math.abs(P.x - pad.x) < 24 && Math.abs((P.y + P.h) - pad.y) < 4) {
+        P.vy = -980;
+        P.vx *= 0.3;
+        P.ground = false;
+        P.padT = 0.75; // full-strength arc: the tap-jump gravity cut does not apply to a bounce
+        pad.t = 0.28;
+        floaters.push({ x: pad.x, y: pad.y - 46, t: 'boing!', life: 0.7 });
+        break;
+      }
+    }
+  }
+  for (const pad of PADS) pad.t = Math.max(0, pad.t - dt);
+  if (gameMode === 'fly') {
+    // No fail state in the air: a soft ceiling, and a gentle hover floor
+    // over the pits instead of the respawn drop.
+    if (P.y < 8) { P.y = 8; P.vy = Math.max(0, P.vy); }
+    if (P.y + P.h > GY && !groundAt(P.x, GY, 2)) { P.y = GY - P.h; P.vy = Math.min(0, P.vy); }
+  } else if (P.y > 640) respawn();
 
   for (const e of ENEMIES) {
-    if (e.squash > 0) { e.squash -= dt; continue; }
+    if (e.squash > 0) {
+      e.squash -= dt;
+      if (e.squash <= 0 && e.respawnX !== undefined) { e.x = e.respawnX; e.respawnX = undefined; }
+      continue;
+    }
     e.x += e.dir * e.speed * dt;
     if (e.x < e.min) { e.x = e.min; e.dir = 1; }
     if (e.x > e.max) { e.x = e.max; e.dir = -1; }
@@ -648,6 +807,43 @@ function update(dt) {
       }
     }
   }
+  // Arrows (Explore): they fly, arc, and bonk.
+  bowCd = Math.max(0, bowCd - dt);
+  spearT = Math.max(0, spearT - dt);
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    const a = arrows[i];
+    a.vy += 950 * dt;
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+    a.life -= dt;
+    let dead = a.life <= 0 || a.x < 0 || a.x > WORLD_W;
+    if (!dead) {
+      for (const e of ENEMIES) {
+        if (e.squash <= 0 && Math.abs(a.x - e.x) < 20 && Math.abs(a.y - (e.y - 11)) < 17) { bonkCritter(e, 'thwip!'); dead = true; break; }
+      }
+    }
+    if (!dead && a.y > GY + 30) dead = true;
+    if (dead) arrows.splice(i, 1);
+  }
+  // Dropped fruit: pops out of a bonked critter, falls, rests, collectible.
+  for (let i = DROPS.length - 1; i >= 0; i--) {
+    const d = DROPS[i];
+    if (!d.rest) {
+      const prevDy = d.y;
+      d.vy = Math.min(700, d.vy + 1500 * dt);
+      d.y += d.vy * dt;
+      for (const p of PLATFORMS) {
+        if (d.x > p.x && d.x < p.x + p.w && prevDy <= p.y && d.y >= p.y) { d.y = p.y - 8; d.rest = true; break; }
+      }
+      if (d.y > 620) { d.y = 612; d.rest = true; }
+    }
+    const dx = d.x - P.x, dy = d.y - (P.y + P.h / 2);
+    if (dx * dx + dy * dy < 34 * 34) {
+      DROPS.splice(i, 1);
+      dropsGot++;
+      floaters.push({ x: d.x, y: d.y - 14, t: '+1 drop', life: 0.8 });
+    }
+  }
   for (const f of FRUITS) {
     if (f.taken) continue;
     const dx = f.x - P.x, dy = f.y - (P.y + P.h / 2);
@@ -663,6 +859,44 @@ function update(dt) {
     if (Math.abs(P.x - f.x) < 46 && checkpoint.x !== f.x) {
       checkpoint = { x: f.x };
       say('🔥 The fire remembers you');
+    }
+  }
+  if (gameMode === 'race') {
+    if (!race.running && !race.finished && (dir !== 0 || Math.abs(P.vx) > 30)) {
+      race.running = true;
+      race.startT = now;
+    }
+    if (race.running) {
+      race.elapsed = (now - race.startT) / 1000;
+      if (race.nextGate < GATES.length && P.x >= GATES[race.nextGate]) {
+        checkpoint = { x: GATES[race.nextGate] };
+        race.nextGate++;
+        if (race.nextGate >= GATES.length) {
+          race.running = false;
+          race.finished = true;
+          race.lastTime = race.elapsed;
+          const isBest = raceBest === null || race.elapsed < raceBest;
+          if (isBest) { raceBest = race.elapsed; saveJSON(LS_RACE_BEST, raceBest); }
+          say('🏁 ' + race.elapsed.toFixed(1) + 's' + (isBest ? ' — new best!' : ' · best ' + raceBest.toFixed(1) + 's') + ' · R to race again');
+        } else {
+          say('Gate ' + race.nextGate + '/' + GATES.length + ' · ' + race.elapsed.toFixed(1) + 's');
+        }
+      }
+      racePill.textContent = '⏱ ' + race.elapsed.toFixed(1) + (raceBest !== null ? ' · best ' + raceBest.toFixed(1) : '');
+    }
+  }
+  if (gameMode === 'fly') {
+    const cy = P.y + P.h / 2;
+    for (const r of RINGS) {
+      if (r.got) continue;
+      const prevCx = P.x - P.vx * dt;
+      if (P.vx !== 0 && (prevCx - r.x) * (P.x - r.x) <= 0 && Math.abs(cy - r.y) < r.r) {
+        r.got = true;
+        ringsGot++;
+        ringPill.textContent = '🌀 ' + ringsGot + '/' + RINGS.length;
+        floaters.push({ x: r.x, y: r.y - 40, t: 'ring!', life: 0.8 });
+        if (ringsGot === RINGS.length) say('🌀 Every ring in the Preserve!');
+      }
     }
   }
   const z = zoneIndex(P.x);
@@ -831,6 +1065,61 @@ function render(time) {
       ctx.fillRect(sx + 2, p.y, p.w - 4, 5);
     }
   }
+  // speed strips: a glowing run with chevrons streaming along it
+  for (const s of STRIPS) {
+    if (s.to - camX < -20 || s.x - camX > viewW + 20) continue;
+    ctx.fillStyle = 'rgba(255,209,102,0.8)';
+    ctx.fillRect(s.x - camX, GY, s.to - s.x, 4);
+    ctx.fillStyle = '#fff3c4';
+    const off = (time * 170) % 34;
+    for (let cx = s.x + off - 34; cx < s.to - 8; cx += 34) {
+      if (cx < s.x) continue;
+      const px = cx - camX;
+      ctx.beginPath();
+      ctx.moveTo(px, GY + 12); ctx.lineTo(px + 9, GY + 17); ctx.lineTo(px, GY + 22); ctx.lineTo(px + 3.4, GY + 17);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  // springboards
+  for (const pad of PADS) {
+    const sx = pad.x - camX;
+    if (sx < -40 || sx > viewW + 40) continue;
+    const squash = pad.t > 0 ? 5 : 0;
+    ctx.fillStyle = '#5d6672';
+    roundRect(ctx, sx - 15, GY - 6 + squash * 0.4, 30, 6, 3); ctx.fill();
+    ctx.fillStyle = '#39424e';
+    ctx.fillRect(sx - 3, GY - 12 + squash, 6, 7);
+    ctx.fillStyle = '#e2483d';
+    ctx.beginPath(); ctx.ellipse(sx, GY - 13 + squash, 16, 5.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff8a7a';
+    ctx.beginPath(); ctx.ellipse(sx, GY - 14.6 + squash, 9, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // flight rings
+  if (gameMode === 'fly') {
+    for (const r of RINGS) {
+      const sx = r.x - camX;
+      if (sx < -50 || sx > viewW + 50) continue;
+      ctx.strokeStyle = r.got ? 'rgba(255,209,102,0.35)' : '#ffd166';
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(sx, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+      if (!r.got) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(sx, r.y, r.r - 4.4, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+  }
+  // race checkpoint gates (the finish gate is drawn as scenery below)
+  if (gameMode === 'race') {
+    GATES.forEach((gx, i) => {
+      if (i === GATES.length - 1) return;
+      const sx = gx - camX;
+      if (sx < -60 || sx > viewW + 60) return;
+      ctx.fillStyle = i < race.nextGate ? '#3f9e4d' : '#ffd166';
+      ctx.fillRect(sx - 3, GY - 96, 6, 96);
+      ctx.beginPath(); ctx.moveTo(sx + 3, GY - 96); ctx.lineTo(sx + 30, GY - 86); ctx.lineTo(sx + 3, GY - 76); ctx.closePath(); ctx.fill();
+    });
+  }
   // props
   for (const x of PALMS) if (x - camX > -90 && x - camX < viewW + 90) drawPalm(x, time);
   for (const x of TREES) if (x - camX > -90 && x - camX < viewW + 90) drawTree(x, time, false);
@@ -895,6 +1184,22 @@ function render(time) {
     ctx.fillRect(sx - 11, e.y - 2, 6, 2.6);
     ctx.fillRect(sx + 5, e.y - 2, 6, 2.6);
   }
+  // flight wings, behind the wanderer
+  if (gameMode === 'fly') {
+    const flap = Math.sin(time * 14) * 6;
+    const px = P.x - camX, py = P.y + 16;
+    ctx.fillStyle = 'rgba(240,248,255,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(px - 2, py);
+    ctx.quadraticCurveTo(px - 20, py - 12 - flap, px - 27, py + 2 - flap);
+    ctx.quadraticCurveTo(px - 15, py + 4, px - 2, py + 7);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(px + 2, py);
+    ctx.quadraticCurveTo(px + 20, py - 12 - flap, px + 27, py + 2 - flap);
+    ctx.quadraticCurveTo(px + 15, py + 4, px + 2, py + 7);
+    ctx.closePath(); ctx.fill();
+  }
   // player
   if (!(P.invuln > 0 && Math.floor(time * 12) % 2 === 0)) {
     drawCharacter(ctx, currentDef, P.x - camX, P.y + P.h, 46, {
@@ -902,6 +1207,50 @@ function render(time) {
       run: P.ground && Math.abs(P.vx) > 20 ? (P.runPhase % 1) : 0,
       air: !P.ground
     });
+  }
+  // dropped fruit
+  for (const d of DROPS) {
+    const sx = d.x - camX;
+    if (sx < -30 || sx > viewW + 30) continue;
+    ctx.fillStyle = FRUIT_COLORS[d.kind];
+    ctx.beginPath(); ctx.arc(sx, d.y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4d8f4a';
+    ctx.beginPath(); ctx.ellipse(sx + 3, d.y - 8, 4.4, 2.2, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath(); ctx.arc(sx - 2.6, d.y - 2.6, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  // arrows in flight
+  for (const a of arrows) {
+    const sx = a.x - camX;
+    if (sx < -40 || sx > viewW + 40) continue;
+    const ang = Math.atan2(a.vy, a.vx);
+    const bx = Math.cos(ang) * 11, by = Math.sin(ang) * 11;
+    ctx.strokeStyle = '#e8dcc4';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(sx - bx, a.y - by); ctx.lineTo(sx + bx, a.y + by); ctx.stroke();
+    ctx.fillStyle = '#cfd6dd';
+    ctx.beginPath();
+    ctx.moveTo(sx + bx * 1.5, a.y + by * 1.5);
+    ctx.lineTo(sx + bx * 0.6 - by * 0.32, a.y + by * 0.6 + bx * 0.32);
+    ctx.lineTo(sx + bx * 0.6 + by * 0.32, a.y + by * 0.6 - bx * 0.32);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e2483d';
+    ctx.beginPath(); ctx.arc(sx - bx * 1.15, a.y - by * 1.15, 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+  // spear jab
+  if (spearT > 0) {
+    const ext = Math.sin((spearT / 0.16) * Math.PI) * 30;
+    const hx = (P.x - camX) + P.face * (10 + ext);
+    const hy = P.y + 20;
+    ctx.strokeStyle = '#c9a06a';
+    ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo((P.x - camX) + P.face * 4, hy); ctx.lineTo(hx, hy); ctx.stroke();
+    ctx.fillStyle = '#dfe6ec';
+    ctx.beginPath();
+    ctx.moveTo(hx + P.face * 9, hy);
+    ctx.lineTo(hx - P.face * 2, hy - 3.6);
+    ctx.lineTo(hx - P.face * 2, hy + 3.6);
+    ctx.closePath(); ctx.fill();
   }
   // floaters
   ctx.font = '900 13px Inter,system-ui,sans-serif';
@@ -1307,6 +1656,16 @@ document.getElementById('deckToggle').addEventListener('click', () => {
 });
 renderQueue();
 applyMusic();
+
+/* Test hooks: lets the headless verifier drive and measure the real game. */
+window.__preserve = {
+  P, PLATFORMS, PADS, STRIPS, RINGS, GATES, FRUITS, ENEMIES, DROPS, arrows, race,
+  get mode() { return gameMode; },
+  get ringsGot() { return ringsGot; },
+  get dropsGot() { return dropsGot; },
+  start: startGame,
+  version: 2
+};
 
 /* ================= Boot + main loop ================= */
 resize();
