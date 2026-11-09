@@ -334,6 +334,14 @@ function renderAfterDark() {
   if (!open) {
     const unlock = $('afterDarkUnlock');
     const copy = $('afterDarkLockCopy');
+    // The way out of the curtain for account holders: the same-origin
+    // sign-in page, with a redirect back to this exact page (character
+    // included) so signing in lands the visitor back at her frames.
+    const signIn = $('afterDarkSignIn');
+    if (signIn) {
+      const backHere = `${location.pathname}${location.search}${location.hash}`;
+      signIn.href = `../../sign-in.html?redirect=${encodeURIComponent(backHere)}`;
+    }
     if (AFTER_DARK_PAYWALL.paymentLink) {
       unlock.hidden = false;
       unlock.href = AFTER_DARK_PAYWALL.paymentLink;

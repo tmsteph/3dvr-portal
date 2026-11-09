@@ -331,3 +331,24 @@ test('golden hour attribution follows who each frame shows', () => {
     }
   }
 });
+
+test('the After Dark curtains link to sign-in and back, not the portal homepage', async () => {
+  const [worldHtml, characterHtml, characterApp] = await Promise.all([
+    read('3dvr-girl/index.html'),
+    read('3dvr-girl/character/index.html'),
+    read('3dvr-girl/character/app.js')
+  ]);
+  // World page curtain: the button goes to the sign-in page with a
+  // redirect back to the world page's After Dark stage, on either origin.
+  const lockAt = worldHtml.indexOf('id="afterDarkLock"');
+  assert.ok(lockAt > -1, 'world page carries the After Dark lock');
+  const lock = worldHtml.slice(lockAt, lockAt + 600);
+  assert.match(lock, /href="\.\.\/sign-in\.html\?redirect=%2F3dvr-girl%2F%23after-dark"/);
+  assert.equal(lock.includes('index.html'), false,
+    'the curtain sign-in must not detour through the portal homepage');
+  // Character pages: the lock carries a sign-in link too, and the page
+  // script aims it back at the exact page the visitor started from.
+  assert.match(characterHtml, /id="afterDarkSignIn"/);
+  assert.match(characterApp, /afterDarkSignIn/);
+  assert.match(characterApp, /sign-in\.html\?redirect=\$\{encodeURIComponent\(backHere\)\}/);
+});
