@@ -188,9 +188,16 @@ h1 {
   --icon-bg: linear-gradient(135deg, #2e8b57, #f0b429);
 }
 
+.game-card.companion {
+  --card-glow: linear-gradient(135deg, rgba(240, 180, 41, 0.42), rgba(45, 212, 191, 0.34));
+  --icon-bg: linear-gradient(135deg, #0e5a52, #f0b429);
+}
+
 .game-card.preserve {
   --card-glow: linear-gradient(135deg, rgba(247, 178, 103, 0.44), rgba(105, 168, 79, 0.38));
   --icon-bg: linear-gradient(135deg, #b3541e, #3e7d3a);
+}
+
 .game-card.valley {
   --card-glow: linear-gradient(135deg, rgba(255, 176, 102, 0.42), rgba(87, 182, 255, 0.34));
   --icon-bg: linear-gradient(135deg, #b3541e, #2f7d4f);
@@ -266,6 +273,18 @@ h1 {
     <span class="game-title">3DVR Adventure</span>
     <p class="game-blurb">Open-world third-person platforming: run, jump, explore, and collect stars.</p>
   </a>
+  <a class="game-card companion" href="/companion-quest/">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <circle cx="36" cy="40" r="13" fill="currentColor"/>
+        <path d="M14 78c2-14 11-21 22-21s20 7 22 21z" fill="currentColor" opacity=".85"/>
+        <path d="M62 22l2.5 6.5L71 31l-6.5 2.5L62 40l-2.5-6.5L53 31l6.5-2.5z" fill="#fff" opacity=".9"/>
+        <circle cx="70" cy="62" r="7" fill="#fff" opacity=".55"/>
+      </svg>
+    </span>
+    <span class="game-title">Companion</span>
+    <p class="game-blurb">Experiment: wander a dusk camp with Operator at your side, and talk to him in the world.</p>
+  </a>
   <a class="game-card preserve" href="/preserve/">
     <span class="game-icon" aria-hidden="true">
       <svg viewBox="0 0 96 96" role="img">
@@ -280,6 +299,7 @@ h1 {
     </span>
     <span class="game-title">Preserve</span>
     <p class="game-blurb">A gentle side-scrolling wander through the Human Preserves: coast, orchard, camp ring, wild side. Pick a wanderer, gather fruit, and stop touching it to watch them explore on their own.</p>
+  </a>
   <a class="game-card valley" href="/valley/">
     <span class="game-icon" aria-hidden="true">
       <svg viewBox="0 0 96 96" role="img">
