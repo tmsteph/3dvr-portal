@@ -64,6 +64,7 @@
     let pinchStartScale = 1;
     let dragStart = null;
     let lastTap = 0;
+    let lastToggleAt = 0;
 
     const distance = () => {
       const [a, b] = [...pointers.values()];
@@ -72,7 +73,11 @@
 
     img.addEventListener('pointerdown', event => {
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      img.setPointerCapture(event.pointerId);
+      try {
+        img.setPointerCapture(event.pointerId);
+      } catch {
+        /* an already-released pointer: the gesture still tracks */
+      }
       if (pointers.size === 2) {
         pinchStartDist = distance();
         pinchStartScale = scale;
@@ -114,6 +119,7 @@
         const now = Date.now();
         if (now - lastTap < 300) {
           toggleZoom();
+          lastToggleAt = now;
           lastTap = 0;
         } else {
           lastTap = now;
@@ -127,7 +133,14 @@
       event.preventDefault();
       setScale(scale * Math.exp(-event.deltaY * 0.0015));
     }, { passive: false });
-    img.addEventListener('dblclick', toggleZoom);
+    img.addEventListener('dblclick', () => {
+      /* A double-tap toggles through the pointer path above, and
+         the browser still sends dblclick for the same gesture;
+         toggling again would undo the zoom before it can be seen.
+         (This is why double-tap never appeared to work.) */
+      if (Date.now() - lastToggleAt < 500) return;
+      toggleZoom();
+    });
 
     return { reset, isZoomed: () => scale > 1 };
   }
