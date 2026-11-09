@@ -413,15 +413,15 @@ resize();
 /* ---------- world geometry ---------- */
 const W = 1680, H = 1240;
 const WALLS = [
-  // printer room: right wall (door gap y 170..226), bottom wall (door gap x 170..240)
-  { x: 366, y: 40, w: 14, h: 130 }, { x: 366, y: 226, w: 14, h: 94 },
-  { x: 40, y: 306, w: 130, h: 14 }, { x: 240, y: 306, w: 140, h: 14 },
-  // boardroom: left wall (door gap y 190..256), bottom wall (door gap x 1300..1380)
-  { x: 1180, y: 40, w: 14, h: 150 }, { x: 1180, y: 256, w: 14, h: 144 },
-  { x: 1180, y: 386, w: 120, h: 14 }, { x: 1380, y: 386, w: 260, h: 14 },
-  // kitchen: right wall (door gap y 990..1056), top wall (door gap x 210..290)
-  { x: 426, y: 880, w: 14, h: 110 }, { x: 426, y: 1056, w: 14, h: 144 },
-  { x: 40, y: 880, w: 170, h: 14 }, { x: 290, y: 880, w: 150, h: 14 }
+  // printer room: right wall (door gap y 168..232), bottom wall (door gap x 160..250)
+  { x: 366, y: 40, w: 14, h: 128 }, { x: 366, y: 232, w: 14, h: 88 },
+  { x: 40, y: 306, w: 120, h: 14 }, { x: 250, y: 306, w: 130, h: 14 },
+  // boardroom: left wall (door gap y 184..264), bottom wall (door gap x 1290..1390)
+  { x: 1180, y: 40, w: 14, h: 144 }, { x: 1180, y: 264, w: 14, h: 136 },
+  { x: 1180, y: 386, w: 110, h: 14 }, { x: 1390, y: 386, w: 250, h: 14 },
+  // kitchen: right wall (door gap y 984..1064), top wall (door gap x 200..300)
+  { x: 426, y: 880, w: 14, h: 104 }, { x: 426, y: 1064, w: 14, h: 136 },
+  { x: 40, y: 880, w: 160, h: 14 }, { x: 300, y: 880, w: 140, h: 14 }
 ];
 const FURNITURE = [
   { x: 1270, y: 150, w: 280, h: 110 },              // boardroom table
@@ -459,7 +459,6 @@ const AMBIENT_SPOTS = [
   { x: 1236, y: 452, label: 'boardroom window' }, { x: 1480, y: 1010, label: 'lobby' },
   { x: 250, y: 560, label: 'west corridor' }
 ];
-const HUBS = [{ x: 1140, y: 830 }, { x: 1140, y: 112 }, { x: 250, y: 830 }];
 
 /* ---------- collision + routing ---------- */
 function hitRect(px, py, r, rect, pad) {
@@ -497,26 +496,104 @@ function segClear(x1, y1, x2, y2, r) {
   }
   return true;
 }
-function routeTo(a, tx, ty) {
-  if (segClear(a.x, a.y, tx, ty, a.r)) return [{ x: tx, y: ty }];
-  const plans = [
-    [HUBS[0]], [HUBS[0], HUBS[1]], [HUBS[1]], [HUBS[2]], [HUBS[0], HUBS[2]], [HUBS[2], HUBS[0]]
-  ];
-  for (const plan of plans) {
-    const pts = plan.concat([{ x: tx, y: ty }]);
-    let ok = true, cx = a.x, cy = a.y;
-    for (const p of pts) { if (!segClear(cx, cy, p.x, p.y, a.r)) { ok = false; break; } cx = p.x; cy = p.y; }
-    if (ok) return pts;
+/* Grid A* over the floor plan: click-to-move has to thread doorways and
+   pod aisles reliably, so routes are planned on a 20-unit walkability grid
+   (cached per actor radius) and then smoothed by line of sight. */
+const CELL = 20, COLS = Math.ceil(W / CELL), ROWS = Math.ceil(H / CELL);
+const gridCache = new Map();
+function walkGrid(r) {
+  if (gridCache.has(r)) return gridCache.get(r);
+  const g = new Uint8Array(COLS * ROWS);
+  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+    g[j * COLS + i] = collides(i * CELL + CELL / 2, j * CELL + CELL / 2, r) ? 0 : 1;
   }
-  return [{ x: tx, y: ty }];
+  gridCache.set(r, g);
+  return g;
+}
+function nearestCell(g, x, y) {
+  const ci = Math.round((x - CELL / 2) / CELL), cj = Math.round((y - CELL / 2) / CELL);
+  for (let ring = 0; ring <= 8; ring++) {
+    for (let j = cj - ring; j <= cj + ring; j++) for (let i = ci - ring; i <= ci + ring; i++) {
+      if (i < 0 || j < 0 || i >= COLS || j >= ROWS) continue;
+      if (Math.max(Math.abs(i - ci), Math.abs(j - cj)) !== ring) continue;
+      if (g[j * COLS + i]) return j * COLS + i;
+    }
+  }
+  return -1;
+}
+function routeTo(a, tx, ty) {
+  a.dest = { x: tx, y: ty };
+  if (segClear(a.x, a.y, tx, ty, a.r)) return [{ x: tx, y: ty }];
+  const g = walkGrid(a.r);
+  const start = nearestCell(g, a.x, a.y);
+  const goal = nearestCell(g, tx, ty);
+  if (start < 0 || goal < 0) return [{ x: tx, y: ty }];
+  const gx = goal % COLS, gy = (goal / COLS) | 0;
+  const hOf = (i) => {
+    const dx = Math.abs((i % COLS) - gx), dy = Math.abs(((i / COLS) | 0) - gy);
+    return (dx + dy) + (Math.SQRT2 - 2) * Math.min(dx, dy);
+  };
+  const came = new Map(), gs = new Map([[start, 0]]), closed = new Set();
+  const open = [{ i: start, f: hOf(start) }];
+  let found = false;
+  while (open.length) {
+    let bi = 0;
+    for (let k = 1; k < open.length; k++) if (open[k].f < open[bi].f) bi = k;
+    const cur = open.splice(bi, 1)[0].i;
+    if (cur === goal) { found = true; break; }
+    if (closed.has(cur)) continue;
+    closed.add(cur);
+    const cx = cur % COLS, cy = (cur / COLS) | 0, cg = gs.get(cur) || 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      const ni = cx + di, nj = cy + dj;
+      if (ni < 0 || nj < 0 || ni >= COLS || nj >= ROWS) continue;
+      const n = nj * COLS + ni;
+      if (!g[n] || closed.has(n)) continue;
+      if (di && dj && (!g[cy * COLS + ni] || !g[nj * COLS + cx])) continue;  // no corner cutting
+      const ng = cg + ((di && dj) ? Math.SQRT2 : 1);
+      if (ng < (gs.get(n) === undefined ? Infinity : gs.get(n))) {
+        gs.set(n, ng); came.set(n, cur);
+        open.push({ i: n, f: ng + hOf(n) });
+      }
+    }
+  }
+  if (!found) return [{ x: tx, y: ty }];
+  const cells = [];
+  for (let c = goal; c !== undefined; c = came.get(c)) { cells.push(c); if (c === start) break; }
+  cells.reverse();
+  let pts = cells.map((c) => ({ x: (c % COLS) * CELL + CELL / 2, y: ((c / COLS) | 0) * CELL + CELL / 2 }));
+  pts[pts.length - 1] = { x: tx, y: ty };
+  // line-of-sight smoothing so the walk looks like a person, not a grid
+  const out = [];
+  let anchor = { x: a.x, y: a.y };
+  for (let i = 1; i < pts.length; i++) {
+    if (!segClear(anchor.x, anchor.y, pts[i].x, pts[i].y, a.r)) {
+      out.push(pts[i - 1]);
+      anchor = pts[i - 1];
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
 }
 function followRoute(a, speed, dt) {
   if (!a.route || !a.route.length) { a.moving = false; return true; }
   const t = a.route[0];
   const dx = t.x - a.x, dy = t.y - a.y;
   const d = Math.hypot(dx, dy);
-  if (d < 7) { a.route.shift(); return a.route.length === 0; }
+  const isLast = a.route.length === 1;
+  if (d < (isLast ? 7 : 11)) { a.route.shift(); a._stuck = 0; return a.route.length === 0; }
+  const px = a.x, py = a.y;
   moveActor(a, dx / d * speed, dy / d * speed, dt);
+  const progress = Math.hypot(a.x - px, a.y - py);
+  if (progress < speed * dt * 0.25) {
+    a._stuck = (a._stuck || 0) + dt;
+    if (a._stuck > 0.55) {           // wedged on a corner: skip or replan
+      a._stuck = 0;
+      if (!isLast) a.route.shift();
+      else if (a.dest) a.route = routeTo(a, a.dest.x, a.dest.y);
+    }
+  } else a._stuck = 0;
   return false;
 }
 function nearestClear(x, y, r) {
