@@ -1052,7 +1052,7 @@ function ensureYtPlayer() {
       width: '100%',
       height: '100%',
       playerVars: { rel: 0, playsinline: 1 },
-      events: { onReady: onYtReady, onStateChange: onYtState }
+      events: { onReady: onYtReady, onStateChange: onYtState, onError: onYtError }
     });
   };
   const tag = document.createElement('script');
@@ -1076,6 +1076,15 @@ function onYtState(e) {
   if (e.data === YT.PlayerState.PAUSED) ytPlaying = false;
   if (e.data === YT.PlayerState.ENDED) { ytPlaying = false; advanceQueue(); }
   if (music.source === 'youtube') syncPlayBtn();
+}
+function onYtError() {
+  // e.g. a video whose owner turned embedding off: say so and move on
+  // instead of leaving the deck silently stalled on it
+  ytPlaying = false;
+  say('YouTube refused that video; skipping');
+  const next = queue.index + 1;
+  if (next < queue.items.length) playQueueAt(next);
+  else syncPlayBtn();
 }
 function backfillTitle() {
   if (!ytPlayer || !ytPlayer.getVideoData) return;
