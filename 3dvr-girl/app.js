@@ -402,7 +402,7 @@ function openScene(scene) {
       alt: item.alt,
       label: `${item.mode} \u00b7 ${item.title}`,
       copy: item.copy
-    })), Math.max(0, list.indexOf(scene)));
+    })), Math.max(0, list.indexOf(scene)), 'archive');
     return;
   }
   if (!sceneDialog || !dialogImage) return;
@@ -835,8 +835,26 @@ function openGoldenHour(item) {
     alt: entry.alt,
     label: `Golden hour \u00b7 ${entry.title}`,
     copy: entry.copy
-  })), Math.max(0, list.indexOf(item)));
+  })), Math.max(0, list.indexOf(item)), 'goldenhour');
 }
+
+/* The viewer's section bar and search (viewer.js, driven from
+   gallery.js) browse the whole catalogue, not just the chunk a
+   grid has revealed so far: publish both shelves in viewer shape. */
+window.LadiesGalleryData = {
+  archive: scenes.map(item => ({
+    src: item.image,
+    alt: item.alt,
+    label: `${item.mode} \u00b7 ${item.title}`,
+    copy: item.copy
+  })),
+  goldenHour: goldenHour.filter(entry => entry.kind === 'photo').map(entry => ({
+    src: entry.image,
+    alt: entry.alt,
+    label: `Golden hour \u00b7 ${entry.title}`,
+    copy: entry.copy
+  }))
+};
 
 function applyGoldenHourVisibility() {
   if (!goldenHourGrid) return;

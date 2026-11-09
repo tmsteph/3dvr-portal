@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { runInNewContext } from 'node:vm';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -83,4 +84,95 @@ test('the stage is the scroller: reveals listen on the document, not the window'
   }
   assert.match(css, /\.hud-stage \{[^}]*overflow-y: auto/);
   assert.match(css, /body\.hud \{[^}]*overflow: hidden/);
+});
+
+test('viewer.js is the shared viewer engine, loaded before both viewers', async () => {
+  const [worldHtml, characterHtml, viewer] = await Promise.all([
+    read('3dvr-girl/index.html'),
+    read('3dvr-girl/character/index.html'),
+    read('3dvr-girl/viewer.js')
+  ]);
+  assert.match(viewer, /window\.LadiesViewer = \{ attachZoom, searchItems, mountChrome \}/);
+  assert.match(viewer, /attachZoom/);
+  assert.match(viewer, /dblclick/);
+  assert.match(viewer, /mountChrome/);
+  assert.match(viewer, /searchItems/);
+  // The world page loads it ahead of gallery.js, the character page
+  // ahead of its module app.
+  const viewerAt = worldHtml.indexOf('<script src="viewer.js"></script>');
+  assert.ok(viewerAt > -1, 'world page loads viewer.js');
+  assert.ok(viewerAt < worldHtml.indexOf('<script src="gallery.js"></script>'),
+    'viewer.js loads before gallery.js');
+  assert.match(characterHtml, /<script defer src="\.\.\/viewer\.js"><\/script>/);
+});
+
+test('picture search matches every word across label, alt, copy and search text', async () => {
+  const code = await read('3dvr-girl/viewer.js');
+  const sandbox = { window: {} };
+  runInNewContext(code, sandbox);
+  const { searchItems } = sandbox.window.LadiesViewer;
+  const items = [
+    { label: 'Water · Pool rules', alt: 'Kayla laughing beside a sunlit pool', copy: 'Turquoise water, black bikini' },
+    { label: 'Forest · Trail portrait', alt: 'Kayla on a forest trail', copy: 'Compass on her straps', search: 'Kayla' },
+    { label: 'Sun · Lavender twirl', alt: '3DVR Girl twirling in a lavender field', copy: 'A white linen sundress' }
+  ];
+  // Results come from the vm realm, so compare by label, not by ref.
+  const labels = found => found.map(item => item.label).join(' | ');
+  assert.equal(labels(searchItems(items, 'kayla pool')), 'Water · Pool rules');
+  assert.equal(labels(searchItems(items, 'KAYLA')), 'Water · Pool rules | Forest · Trail portrait');
+  assert.equal(labels(searchItems(items, 'lavender linen')), 'Sun · Lavender twirl');
+  assert.equal(searchItems(items, '').length, 0);
+  assert.equal(searchItems(items, 'snow').length, 0);
+});
+
+test('the world viewer takes zoom, section jumps and search from viewer.js', async () => {
+  const [app, gallery] = await Promise.all([
+    read('3dvr-girl/app.js'),
+    read('3dvr-girl/gallery.js')
+  ]);
+  assert.match(gallery, /LadiesViewer\.attachZoom/);
+  assert.match(gallery, /LadiesViewer\.mountChrome/);
+  assert.match(gallery, /LadiesViewer\.searchItems/);
+  // The catalogue the bar and search browse is published by app.js.
+  assert.match(app, /window\.LadiesGalleryData = \{/);
+  assert.match(app, /, 'archive'\)/);
+  assert.match(app, /, 'goldenhour'\)/);
+  // Arrow keys step the picture, never the search box.
+  assert.match(gallery, /matches\?\.\('input, textarea, select'\)/);
+});
+
+test('the world viewer never surfaces After dark while the curtain is shut', async () => {
+  const gallery = await read('3dvr-girl/gallery.js');
+  // After dark joins the sections locked unless the curtain check
+  // passes, its pictures come only from the open branch, search
+  // skips locked sections, and picking the locked section hands
+  // back to the stage, which shows the curtain.
+  assert.match(gallery, /locked: !open/);
+  assert.match(gallery, /items: open \? cards\.map/);
+  assert.match(gallery, /if \(section\.locked \|\| !section\.items\?\.length\) continue;/);
+  assert.match(gallery, /LadiesHud\?\.activateStage\('afterdark'\)/);
+});
+
+test('the character lightbox takes zoom, section jumps and search from viewer.js', async () => {
+  const [app, css, worldCss] = await Promise.all([
+    read('3dvr-girl/character/app.js'),
+    read('3dvr-girl/character/styles.css'),
+    read('3dvr-girl/styles.css')
+  ]);
+  assert.match(app, /LadiesViewer\.attachZoom/);
+  assert.match(app, /LadiesViewer\.mountChrome/);
+  assert.match(app, /LadiesViewer\.searchItems/);
+  assert.match(app, /matches\?\.\('input, textarea, select'\)/);
+  // Her private frames join in only while her curtain is open, and
+  // the locked pick closes onto her After dark tab.
+  assert.match(app, /locked: !afterDarkState\.open/);
+  assert.match(app, /if \(section\.locked \|\| !section\.items\?\.length\) continue;/);
+  assert.match(app, /activateTab\('afterdark', \{ scroll: true \}\)/);
+  // The lightbox image takes gestures itself, and both pages style
+  // the in-viewer chrome the module builds.
+  assert.match(css, /\.gallery-dialog__figure img \{\s*touch-action: none;/);
+  assert.match(css, /\.viewer-bar \{/);
+  assert.match(css, /\.viewer-search \{/);
+  assert.match(worldCss, /\.viewer-bar \{/);
+  assert.match(worldCss, /\.viewer-search \{/);
 });

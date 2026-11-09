@@ -85,8 +85,9 @@ $('worldGrid').replaceChildren(...character.worlds.map((world, index) => {
 }));
 
 /* ---------- Lightbox: full-screen viewer for the scene + private grids.
-   Prev/next buttons, arrow keys, and swipe; the anchor hrefs stay in
-   place so a card still opens its photo without this script. ---------- */
+   Prev/next buttons, arrow keys, swipe, and the zoom / section /
+   search chrome from viewer.js; the anchor hrefs stay in place so
+   a card still opens its photo without this script. ---------- */
 const lightbox = {
   dialog: $('lightbox'),
   image: $('lightboxImage'),
@@ -96,6 +97,29 @@ const lightbox = {
   items: [],
   index: 0
 };
+let lightboxSection = null;
+let viewerChrome = null;
+/* Her after dark state, kept by renderAfterDark for the viewer
+   chrome: the private frames join the section bar and the search
+   only while her curtain is open for this visitor. */
+let afterDarkState = { open: false, items: [] };
+
+/* Zoom, pan and swipe come from viewer.js, shared with the world
+   page: pinch and wheel zoom, double-tap / double-click toggles
+   zoom, a drag pans while zoomed. Without it, swipe still steps. */
+const lightboxZoom = window.LadiesViewer
+  ? window.LadiesViewer.attachZoom(lightbox.image, { onSwipe: dir => stepLightbox(dir) })
+  : null;
+if (!lightboxZoom) {
+  let lightboxTouchX = null;
+  lightbox.image.addEventListener('pointerdown', event => { lightboxTouchX = event.clientX; });
+  lightbox.image.addEventListener('pointerup', event => {
+    if (lightboxTouchX === null) return;
+    const dx = event.clientX - lightboxTouchX;
+    lightboxTouchX = null;
+    if (Math.abs(dx) > 42) stepLightbox(dx < 0 ? 1 : -1);
+  });
+}
 
 function renderLightbox() {
   const item = lightbox.items[lightbox.index];
@@ -107,6 +131,7 @@ function renderLightbox() {
     ? `${lightbox.index + 1} / ${lightbox.items.length}` : '';
   lightbox.copy.textContent = item.copy || '';
   lightbox.copy.hidden = !item.copy;
+  lightboxZoom?.reset();
   [lightbox.index - 1, lightbox.index + 1].forEach(i => {
     if (lightbox.items[i]) {
       const pre = new Image();
@@ -115,11 +140,13 @@ function renderLightbox() {
   });
 }
 
-function openLightbox(items, index) {
+function openLightbox(items, index, section) {
   if (!items.length) return;
   lightbox.items = items;
   lightbox.index = Math.min(Math.max(index || 0, 0), items.length - 1);
+  if (section) lightboxSection = section;
   renderLightbox();
+  viewerChrome?.refresh();
   if (!lightbox.dialog.open) lightbox.dialog.showModal();
 }
 
@@ -137,16 +164,10 @@ lightbox.dialog.addEventListener('click', event => {
 });
 document.addEventListener('keydown', event => {
   if (!lightbox.dialog.open) return;
+  const target = event.target;
+  if (target && (target.matches?.('input, textarea, select') || target.isContentEditable)) return;
   if (event.key === 'ArrowLeft') stepLightbox(-1);
   if (event.key === 'ArrowRight') stepLightbox(1);
-});
-let lightboxTouchX = null;
-lightbox.image.addEventListener('pointerdown', event => { lightboxTouchX = event.clientX; });
-lightbox.image.addEventListener('pointerup', event => {
-  if (lightboxTouchX === null) return;
-  const dx = event.clientX - lightboxTouchX;
-  lightboxTouchX = null;
-  if (Math.abs(dx) > 42) stepLightbox(dx < 0 ? 1 : -1);
 });
 
 /* ---------- Scroll reveal: long grids reveal in chunks as the
@@ -200,6 +221,36 @@ function visibleItems(cards, read) {
   return cards.filter(card => !card.hidden).map(read);
 }
 
+/* One card, read as a viewer item; shared by the grids' click
+   handlers and the viewer's section bar and search. Her name rides
+   along as search text, so searching her name finds her frames. */
+function cardItem(link) {
+  const img = link.querySelector('img');
+  const mode = link.querySelector('.gallery-card__caption span')?.textContent || '';
+  const strong = link.querySelector('.gallery-card__caption strong')?.textContent || '';
+  const small = link.querySelector('.gallery-card__caption small')?.textContent || '';
+  return {
+    src: link.getAttribute('href'),
+    alt: img?.getAttribute('alt') || '',
+    label: [mode, strong].filter(Boolean).join(' · '),
+    copy: small,
+    search: character.name
+  };
+}
+
+function afterDarkCardItem(entry) {
+  const entryLink = entry.querySelector('a');
+  const entryImg = entry.querySelector('img');
+  const title = entry.querySelector('figcaption strong')?.textContent || '';
+  return {
+    src: entryLink?.getAttribute('href') || '',
+    alt: entryImg?.getAttribute('alt') || '',
+    label: ['After dark', title].filter(Boolean).join(' · '),
+    copy: '',
+    search: character.name
+  };
+}
+
 const galleryCards = character.gallery.map(scene => {
   const link = document.createElement('a');
   link.className = 'gallery-card';
@@ -225,20 +276,9 @@ $('galleryGrid').replaceChildren(...galleryCards);
 galleryCards.forEach(card => {
   card.addEventListener('click', event => {
     event.preventDefault();
-    const items = visibleItems(galleryCards, link => {
-      const img = link.querySelector('img');
-      const mode = link.querySelector('.gallery-card__caption span')?.textContent || '';
-      const strong = link.querySelector('.gallery-card__caption strong')?.textContent || '';
-      const small = link.querySelector('.gallery-card__caption small')?.textContent || '';
-      return {
-        src: link.getAttribute('href'),
-        alt: img?.getAttribute('alt') || '',
-        label: [mode, strong].filter(Boolean).join(' · '),
-        copy: small
-      };
-    });
+    const items = visibleItems(galleryCards, cardItem);
     const visible = galleryCards.filter(entry => !entry.hidden);
-    openLightbox(items, visible.indexOf(card));
+    openLightbox(items, visible.indexOf(card), 'scenes');
   });
 });
 autoReveal($('galleryGrid'), galleryCards, 8);
@@ -292,20 +332,9 @@ if (!goldenHourCards.length) {
     card.addEventListener('click', event => {
       event.preventDefault();
       const photos = goldenHourCards.filter(entry => entry.tagName === 'A');
-      const items = visibleItems(photos, link => {
-        const img = link.querySelector('img');
-        const mode = link.querySelector('.gallery-card__caption span')?.textContent || '';
-        const strong = link.querySelector('.gallery-card__caption strong')?.textContent || '';
-        const small = link.querySelector('.gallery-card__caption small')?.textContent || '';
-        return {
-          src: link.getAttribute('href'),
-          alt: img?.getAttribute('alt') || '',
-          label: [mode, strong].filter(Boolean).join(' · '),
-          copy: small
-        };
-      });
+      const items = visibleItems(photos, cardItem);
       const visible = photos.filter(entry => !entry.hidden);
-      openLightbox(items, visible.indexOf(card));
+      openLightbox(items, visible.indexOf(card), 'goldenhour');
     });
   });
   autoReveal($('goldenHourGrid'), goldenHourCards, 8);
@@ -387,27 +416,21 @@ function renderAfterDark() {
     return figure;
   });
   $('afterDarkGrid').replaceChildren(...afterDarkCards);
+  afterDarkState = open
+    ? { open: true, items: afterDarkCards.map(afterDarkCardItem) }
+    : { open: false, items: [] };
   if (open) {
     afterDarkCards.forEach(card => {
       const link = card.querySelector('a');
       link?.addEventListener('click', event => {
         event.preventDefault();
-        const items = visibleItems(afterDarkCards, entry => {
-          const entryLink = entry.querySelector('a');
-          const entryImg = entry.querySelector('img');
-          const title = entry.querySelector('figcaption strong')?.textContent || '';
-          return {
-            src: entryLink?.getAttribute('href') || '',
-            alt: entryImg?.getAttribute('alt') || '',
-            label: ['After dark', title].filter(Boolean).join(' · '),
-            copy: ''
-          };
-        });
+        const items = visibleItems(afterDarkCards, afterDarkCardItem);
         const visible = afterDarkCards.filter(entry => !entry.hidden);
-        openLightbox(items, visible.indexOf(card));
+        openLightbox(items, visible.indexOf(card), 'afterdark');
       });
     });
   }
+  viewerChrome?.refresh();
   autoReveal($('afterDarkGrid'), afterDarkCards, 12);
 }
 renderAfterDark();
@@ -508,3 +531,63 @@ document.addEventListener('scroll', () => {
 backToTop.addEventListener('click', () => {
   (hudStage || window).scrollTo({ top: 0, behavior: 'smooth' });
 });
+
+/* ---------- In-viewer sections + search (viewer.js chrome) ----------
+   The bar jumps between her picture shelves without leaving full
+   screen, and search runs over all of them at once. After dark only
+   takes part while her curtain is open for this visitor: locked,
+   its frames stay out of the results, and picking its section
+   closes the viewer onto her After dark tab, curtain and all. */
+function lightboxSections() {
+  const sections = [{ id: 'scenes', label: 'Scenes', items: galleryCards.map(cardItem) }];
+  const goldenPhotos = goldenHourCards.filter(entry => entry.tagName === 'A');
+  if (goldenPhotos.length) {
+    sections.push({ id: 'goldenhour', label: 'Golden hour', items: goldenPhotos.map(cardItem) });
+  }
+  if ((character.afterDark || []).length) {
+    sections.push({
+      id: 'afterdark',
+      label: 'After dark',
+      locked: !afterDarkState.open,
+      items: afterDarkState.open ? afterDarkState.items : []
+    });
+  }
+  return sections;
+}
+
+function pickLightboxSection(section) {
+  if (section.locked) {
+    lightbox.dialog.close();
+    activateTab('afterdark', { scroll: true });
+    return;
+  }
+  if (!section.items?.length) return;
+  openLightbox(section.items, 0, section.id);
+}
+
+function lightboxSearch(query) {
+  const found = [];
+  for (const section of lightboxSections()) {
+    if (section.locked || !section.items?.length) continue;
+    for (const item of window.LadiesViewer.searchItems(section.items, query)) {
+      found.push({ sectionId: section.id, index: section.items.indexOf(item), item });
+    }
+  }
+  return found;
+}
+
+function pickLightboxResult(result) {
+  const section = lightboxSections().find(entry => entry.id === result.sectionId);
+  if (!section || section.locked || !section.items?.length) return;
+  openLightbox(section.items, result.index, section.id);
+}
+
+if (window.LadiesViewer) {
+  viewerChrome = window.LadiesViewer.mountChrome(lightbox.dialog, {
+    sections: lightboxSections,
+    activeSection: () => lightboxSection,
+    onSection: pickLightboxSection,
+    search: lightboxSearch,
+    onResult: pickLightboxResult
+  });
+}
