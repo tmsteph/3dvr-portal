@@ -6,6 +6,9 @@ const target = fileURLToPath(new URL('./operator-runtime-worker-e2e.mjs', import
 const cases = [
   { name: 'missing relay', peers: '', expected: 'no default relay is permitted' },
   { name: 'production relay', peers: 'wss://portal.3dvr.tech/gun-relay', expected: 'Production relay blocked' },
+  { name: 'production relay host', peers: 'wss://relay.3dvr.tech/gun', expected: 'Production relay blocked' },
+  { name: 'production relay subdomain', peers: 'https://foo.relay.3dvr.tech/gun', expected: 'Production relay blocked' },
+  { name: 'mixed production relay list', peers: 'http://localhost:8765/gun,wss://relay.3dvr.tech/gun', expected: 'Production relay blocked' },
   { name: 'production subdomain', peers: 'https://foo.portal.3dvr.tech/gun-relay', expected: 'Production relay blocked' },
   { name: 'invalid relay URL', peers: 'not-a-url', expected: 'Invalid THREEDVR_GUN_PEERS URL' }
 ];
