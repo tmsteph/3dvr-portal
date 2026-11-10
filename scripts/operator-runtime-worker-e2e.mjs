@@ -2,10 +2,25 @@ import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
 
-const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay')
+const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
+// This test writes real queue records. Never silently target production.
+if (peers.length === 0) {
+  throw new Error('Set THREEDVR_GUN_PEERS to an isolated test relay; no default relay is permitted.');
+}
+const productionPeer = peers.some(peer => {
+  try {
+    const host = new URL(peer).hostname.toLowerCase();
+    return host === 'portal.3dvr.tech' || host.endsWith('.portal.3dvr.tech');
+  } catch {
+    throw new Error('Invalid THREEDVR_GUN_PEERS URL');
+  }
+});
+if (productionPeer && process.env.OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION !== 'true') {
+  throw new Error('Production relay blocked. Explicit OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION=true required.');
+}
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
