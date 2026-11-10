@@ -13,7 +13,8 @@ if (peers.length === 0) {
 const productionPeer = peers.some(peer => {
   try {
     const host = new URL(peer).hostname.toLowerCase();
-    return host === 'portal.3dvr.tech' || host.endsWith('.portal.3dvr.tech');
+    return ['portal.3dvr.tech', 'relay.3dvr.tech'].some(productionHost =>
+      host === productionHost || host.endsWith('.' + productionHost));
   } catch {
     throw new Error('Invalid THREEDVR_GUN_PEERS URL');
   }
