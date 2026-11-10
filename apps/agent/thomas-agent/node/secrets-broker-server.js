@@ -17,7 +17,7 @@ const LOCAL_BROWSER_AGENT = Object.freeze({
   id: 'local-browser-login',
   label: 'OVH local browser login',
   capabilities: ['browser.login', 'secret.read'],
-  scopes: ['site:portal', 'site:iatse', 'site:ukg', 'site:lighthouse', 'site:4over', 'secrets:password-manager-mirror'],
+  scopes: ['site:portal', 'site:iatse', 'site:ukg', 'site:lighthouse', 'site:4over', 'site:merrick', 'site:capitalone', 'site:cognito', 'secrets:password-manager-mirror'],
 });
 const broker = new SecretsBroker({
   backends: {

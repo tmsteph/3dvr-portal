@@ -56,9 +56,43 @@ const SITE_CONFIG = Object.freeze({
     passwordSelectors: ['#pass', 'input[name="login[password]"]', 'input[type="password"]'],
     submitText: ['sign in'],
   },
+  merrick: {
+    lane: 'general',
+    port: 9222,
+    startUrl: 'https://logon.merrickbank.com/',
+    hosts: ['logon.merrickbank.com'],
+    vaultTerms: ['merrick', 'logon.merrickbank.com'],
+    submitText: ['log in', 'login', 'sign in', 'submit'],
+    usernameSelectors: ['input[name="UserId"]', 'input[autocomplete="username"]', 'input[type="text"]'],
+    passwordSelectors: ['input[name="Password"]', 'input[type="password"]'],
+    submitSelector: '#LogonButton',
+  },
+  capitalone: {
+    lane: 'general',
+    port: 9222,
+    startUrl: 'https://myaccounts.capitalone.com/auth/signin',
+    hosts: ['myaccounts.capitalone.com', 'verified.capitalone.com', 'www.capitalone.com', 'capitalone.com'],
+    vaultTerms: ['capitalone', 'capital one', 'capitalone.com'],
+    usernameSelectors: ['#usernameInputField', 'input[name="username"]', 'input[autocomplete="username"]', 'input[type="text"]'],
+    passwordSelectors: ['#pwInputField', 'input[name="password"]', 'input[type="password"]'],
+    submitText: ['sign in'],
+  },
+  cognito: {
+    lane: 'general',
+    port: 9222,
+    startUrl: 'https://www.cognitoforms.com/butcherlawofficellc/butcherlawofficellcintakeform/3-staff-consultation',
+    hosts: ['cognitoforms.com', 'www.cognitoforms.com'],
+    vaultTerms: ['cognito', 'cognitoforms.com', 'butcher'],
+    usernameSelectors: ['#email-address', 'input[type="email"]', 'input[name="Email Address"]'],
+    passwordSelectors: ['input[type="password"]'],
+    submitText: ['continue with email', 'continue'],
+    multiStep: true,
+    allowPasswordAfterEmail: false,
+    directSecrets: ['butcher.cognito.username', 'butcher.cognito.password'],
+  },
 });
 
-const HUMAN_CHALLENGE = /(verification code|two[- ]factor|multi[- ]factor|authenticator|one[- ]time code|security code|approve sign[- ]in|verify your identity|captcha)/i;
+const HUMAN_CHALLENGE = /(verification code|secure code|security verification|verify the device|two[- ]factor|multi[- ]factor|authenticator|one[- ]time code|security code|approve sign[- ]in|verify your identity|captcha)/i;
 const LOGIN_ERROR = /(invalid|incorrect|not recognized|unable to sign in|login failed|sign-in failed|try again)/i;
 
 function normalizeText(value = '') {
@@ -265,6 +299,16 @@ async function setInput(session, selectors, value) {
   return Boolean(await evaluate(session, expression));
 }
 
+async function clickSelector(session, selector) {
+  const expression = `(() => {
+    const node = document.querySelector(${JSON.stringify(selector)});
+    if (!node || node.disabled) return false;
+    node.click();
+    return true;
+  })()`;
+  return Boolean(await evaluate(session, expression));
+}
+
 async function clickSubmit(session, labels) {
   const expression = `(() => {
     const labels = ${JSON.stringify(labels.map(label => label.toLowerCase()))};
@@ -303,6 +347,9 @@ function classifyState(site, config, state) {
   if (site === 'ukg' && !/login\.aspx/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
   if (site === 'lighthouse' && !/\/login(?:[/?#]|$)/i.test(String(state?.url || '')) && !state.emailCount && !state.passwordCount) return { status: 'authenticated' };
   if (site === '4over' && !/\/customer\/account\/login/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
+  if (site === 'merrick' && !state.passwordCount && !/credit card login/i.test(text)) return { status: 'authenticated' };
+  if (site === 'capitalone' && host === 'myaccounts.capitalone.com' && !/\/auth\/signin/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
+  if (site === 'cognito' && /\/butcherlawofficellc\//i.test(String(state?.url || '')) && !state.passwordCount && !state.emailCount) return { status: 'authenticated' };
   return { status: 'login_required' };
 }
 
@@ -387,7 +434,10 @@ async function runLogin(broker, agent, site) {
       if (!passwordSet) return { status: 424, body: { ok: false, site, status: 'form_changed', reason: 'password-field-missing' } };
     }
 
-    if (!await clickSubmit(session, config.submitText)) {
+    const submitted = config.submitSelector
+      ? await clickSelector(session, config.submitSelector)
+      : await clickSubmit(session, config.submitText);
+    if (!submitted) {
       return { status: 424, body: { ok: false, site, status: 'form_changed', reason: 'submit-control-missing' } };
     }
     await new Promise(resolve => setTimeout(resolve, site === 'portal' ? 3000 : 1600));
