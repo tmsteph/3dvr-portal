@@ -2,6 +2,7 @@ import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { readFileSync } from 'node:fs';
 import nodemailer from 'nodemailer';
 import { createBookingRequestHandler } from '../../src/calendar/booking-request-email.js';
+import { canonicalRecipient, createPublicRequestProtection, requestSource } from '../../src/security/public-request-protection.js';
 import suppressionModule from '../../src/outreach/suppression.cjs';
 
 const { enforcementEnabled, recipientDecision, recordOutboundContact } = suppressionModule;
@@ -974,7 +975,10 @@ export function createLeadOutreachEmailHandler(options = {}) {
 export function createFreeSiteRequestEmailHandler(options = {}) {
   const {
     config = process.env,
-    mailTransport
+    mailTransport,
+    protection = createPublicRequestProtection(),
+    sourceFor = requestSource,
+    audit
   } = options;
 
   function getTransport() {
@@ -989,6 +993,21 @@ export function createFreeSiteRequestEmailHandler(options = {}) {
     const honeypot = normalizeText(req.body?.website);
     if (honeypot) return res.status(200).json({ success: true, mode: 'free-site-request' });
 
+    const source = sourceFor(req);
+    function checkLimit(buckets) {
+      try {
+        const retryAfter = protection.consume(buckets);
+        if (!retryAfter) return false;
+        res.setHeader('Retry-After', String(retryAfter));
+        res.status(429).json({ error: 'Too many free-site requests. Please try again later.' });
+      } catch {
+        res.status(503).json({ error: 'Free-site intake is temporarily unavailable.' });
+      }
+      return true;
+    }
+
+    if (checkLimit([{ key: `free-site:ip:${source}`, limit: 8, windowMs: 600_000 }])) return res;
+
     const rawName = normalizeText(req.body?.name);
     const name = rawName.replace(/\s+/g, ' ').slice(0, 120);
     const email = normalizeEmail(req.body?.email);
@@ -997,11 +1016,17 @@ export function createFreeSiteRequestEmailHandler(options = {}) {
     if (!name || rawName.length > 120) {
       return res.status(400).json({ error: 'A business or project name is required.' });
     }
-    if (!email) {
+    if (!email || email.length > 254 || /[,;<>()[\]":\\]/.test(email)) {
       return res.status(400).json({ error: 'A valid delivery email is required.' });
     }
     if (!offer || offer.length > 1600) {
       return res.status(400).json({ error: 'Describe the website in 1 to 1600 characters.' });
+    }
+
+    const emailOnly = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(offer);
+    if (emailOnly) {
+      audit?.('email-only-description', protection.fingerprint(req, source));
+      return res.status(400).json({ error: 'Describe what the website should explain.' });
     }
 
     const inbox = normalizeEmail(config.GMAIL_USER);
@@ -1015,6 +1040,11 @@ export function createFreeSiteRequestEmailHandler(options = {}) {
     } catch (error) {
       return res.status(503).json({ error: error.message || 'Free-site intake email is unavailable.' });
     }
+
+    if (checkLimit([
+      { key: `free-site:recipient:${canonicalRecipient(email)}`, limit: 2, windowMs: 86_400_000 },
+      { key: 'free-site:global', limit: 30, windowMs: 3_600_000 }
+    ])) return res;
 
     const text = [
       'I want a free live one-page website on a 3DVR-hosted address.',
@@ -1056,13 +1086,15 @@ export function createFreeSiteRequestEmailHandler(options = {}) {
         text: confirmationText
       });
 
+      audit?.('queued', protection.fingerprint(req, source));
       return res.status(200).json({
         success: true,
         mode: 'free-site-request',
         confirmationSent: true
       });
-    } catch (error) {
-      return res.status(500).json({ error: error.message || 'Unable to queue the free-site request.' });
+    } catch {
+      audit?.('mail-failed', protection.fingerprint(req, source));
+      return res.status(500).json({ error: 'Unable to queue the free-site request.' });
     }
   };
 }
@@ -1078,7 +1110,7 @@ export function createUnifiedEmailHandler(options = {}) {
   const operatorAlertHandler = createOperatorAlertEmailHandler({ config, mailTransport });
   const leadOutreachHandler = createLeadOutreachEmailHandler({ config, mailTransport });
   const bookingRequestHandler = createBookingRequestHandler({ config, mailTransport });
-  const freeSiteRequestHandler = createFreeSiteRequestEmailHandler({ config, mailTransport });
+  const freeSiteRequestHandler = createFreeSiteRequestEmailHandler({ config, mailTransport, ...options.freeSite });
 
   return async function unifiedEmailHandler(req, res) {
     setCorsHeaders(res);

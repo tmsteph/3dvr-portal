@@ -164,7 +164,7 @@ async function submitDirectRequest(formData) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload?.success) {
-    throw new Error(payload?.error || `Free-site intake returned ${response.status}`);
+    throw Object.assign(new Error(payload?.error || `Free-site intake returned ${response.status}`), { status: response.status });
   }
   return payload;
 }
@@ -218,13 +218,11 @@ if (form && mailtoLink && handoffCopy) {
     if (submitButton) submitButton.disabled = true;
     handoffCopy.textContent = 'Submitting your request to the automated build queue…';
 
-    const sideEffects = Promise.allSettled([
-      saveBriefToCrm(formData),
-      trackLeadIntent()
-    ]);
-
     try {
-      await submitDirectRequest(formData);
+      const result = await submitDirectRequest(formData);
+      const sideEffects = result.confirmationSent
+        ? Promise.allSettled([saveBriefToCrm(formData), trackLeadIntent()])
+        : Promise.resolve();
       await Promise.race([
         sideEffects,
         new Promise(resolve => setTimeout(resolve, 800))
@@ -233,10 +231,10 @@ if (form && mailtoLink && handoffCopy) {
       if (submitButton) submitButton.textContent = 'Request received';
       form.reset();
     } catch (error) {
-      console.info('Direct free-site intake unavailable; falling back to email.', error.message);
-      handoffCopy.textContent = 'Direct intake is temporarily unavailable. Send the prepared email to place the same request in the build queue.';
+      handoffCopy.textContent = error.status === 400 || error.status === 429
+        ? error.message
+        : 'Direct intake is temporarily unavailable. Please try again later.';
       if (submitButton) submitButton.disabled = false;
-      window.location.href = href;
     }
   });
 

@@ -5,7 +5,8 @@ import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
 import calendarProviderHandler from '../api/calendar/[provider].js';
-import reminderEmailHandler from '../api/calendar/reminder-email.js';
+import { createUnifiedEmailHandler } from '../api/calendar/reminder-email.js';
+import { createPublicRequestProtection, requestSource } from '../src/security/public-request-protection.js';
 import githubPublishHandler from '../api/github-publish.js';
 import growthHomepageHeroCronHandler from '../api/growth/homepage-hero-cron.js';
 import moneyLoopHandler from '../api/money/loop.js';
@@ -37,6 +38,18 @@ const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
 const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
+const publicRequestProtection = createPublicRequestProtection({
+  path: process.env.PORTAL_RATE_LIMIT_DB
+    || (RELEASE_SHA ? '/opt/3dvr-portal-production/state/public-request-protection/limits.sqlite' : ':memory:')
+});
+const sourceFor = req => requestSource(req, { behindCaddy: true });
+const reminderEmailHandler = createUnifiedEmailHandler({
+  freeSite: {
+    protection: publicRequestProtection,
+    sourceFor,
+    audit: (decision, fingerprint) => console.info(JSON.stringify({ event: 'free-site-intake', decision, ...fingerprint }))
+  }
+});
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
 const COMPANION_APK_PATH = resolve(process.env.COMPANION_APK_PATH || '/home/debian/.3dvr/downloads/3dvr-companion-0.4.100.apk');
 const STANDBY_MODE = /^(1|true|yes|on)$/i.test(String(process.env.PORTAL_STANDBY || '').trim());
@@ -212,6 +225,20 @@ async function runRawApiHandler(handler, req, res, url, {
 }
 
 async function runOpenAiSite(req, res, url) {
+  if (req.method === 'POST') {
+    try {
+      const retryAfter = publicRequestProtection.consume([
+        { key: `openai-site:ip:${sourceFor(req)}`, limit: 60, windowMs: 600_000 },
+        { key: 'openai-site:global', limit: 180, windowMs: 3_600_000 }
+      ]);
+      if (retryAfter) {
+        res.setHeader('Retry-After', String(retryAfter));
+        return json(res, 429, { error: 'Too many AI requests. Please try again later.' });
+      }
+    } catch {
+      return json(res, 503, { error: 'AI requests are temporarily unavailable.' });
+    }
+  }
   try {
     if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
     else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
