@@ -1,4 +1,5 @@
 import { createOperatorTaskTracker } from './background-tracking.js';
+import { operatorTaskProgress, operatorTaskReceipt, operatorTaskUrl, readOperatorTask, requestedOperatorTask } from './delegate-task.js';
 import { prepareOperatorChat } from './chat-preparation.js';
 import './home-busy-state.js';
 import { runOperatorAction, watchOperatorActionOutcome } from './actions.js';
@@ -45,6 +46,7 @@ try {
   }
 } catch {}
 const requestedConversation=requestedOperatorConversation(window.location.search);
+const requestedTask = requestedOperatorTask(window.location.search);
 const handoff=readOperatorHandoff(window.location.search);
 const pageContext=handoffPageContext(handoff,{
   path:window.location.pathname,
@@ -71,6 +73,52 @@ const accountSync=createOperatorSync({windowObj:window,onStatus:message=>{syncSt
 let historySyncPromise=null,historySyncComplete=false;
 const attachments=installOperatorAttachments({form,input,onStatus:message=>{status.textContent=message}});
 const escape=value=>String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+
+if (requestedTask) {
+  const panel = document.querySelector('#operator-task');
+  const taskStatus = document.querySelector('#operator-task-status');
+  const result = document.querySelector('#operator-task-result');
+  const refresh = document.querySelector('#operator-task-refresh');
+  const signIn = document.querySelector('#operator-task-sign-in');
+  const returnPath = operatorTaskUrl(`operator-http:${requestedTask}`);
+  signIn.href = `/sign-in.html?${new URLSearchParams({ redirect: returnPath })}`;
+  panel.hidden = false;
+
+  async function refreshTask() {
+    refresh.disabled = true;
+    taskStatus.textContent = 'Checking task…';
+    result.hidden = true;
+    result.textContent = '';
+    signIn.hidden = true;
+    try {
+      const record = await readOperatorTask(requestedTask);
+      const progress = operatorTaskProgress(record);
+      const receipt = operatorTaskReceipt(record);
+      taskStatus.textContent = progress;
+      if (receipt !== progress) {
+        result.textContent = receipt;
+        result.hidden = false;
+      }
+    } catch (error) {
+      signIn.hidden = ![401, 403, 404].includes(error.status);
+      taskStatus.textContent = signIn.hidden
+        ? 'Task status is temporarily unavailable. Try refreshing.'
+        : 'Open this task with the account that submitted it.';
+    } finally {
+      refresh.disabled = false;
+    }
+  }
+
+  refresh.addEventListener('click', refreshTask);
+  void refreshTask();
+}
+
+function messageAction(item) {
+  const taskUrl = item.backgroundTask?.kind === 'operator_runtime' ? operatorTaskUrl(item.backgroundTask.id) : '';
+  const url = taskUrl || item.actionUrl;
+  const label = taskUrl ? 'task status' : item.actionLabel || 'workspace';
+  return url ? `<a class="message-action" href="${escape(url)}">Open ${escape(label)} →</a>` : '';
+}
 function atLatest(){return log.scrollHeight-log.scrollTop-log.clientHeight<48}
 function updateLatest(){latest.hidden=!history.length||atLatest()}
 function scrollLatest(behavior='auto'){log.scrollTo({top:log.scrollHeight,behavior});updateLatest()}
@@ -101,7 +149,7 @@ function operatorBusy(){return Boolean(form.querySelector('button[type="submit"]
 function branchTools(item){if(!item?.id)return'';const siblings=conversationSiblings(activeConversation(),item.id);const index=siblings.findIndex(node=>node.id===item.id);const previous=index>0?siblings[index-1]:null;const next=index>=0&&index<siblings.length-1?siblings[index+1]:null;return `<div class="message-branch-tools"><button type="button" data-branch-from="${escape(item.id)}">Branch here</button>${siblings.length>1?`<span><button type="button" data-switch-node="${escape(previous?.id||'')}" ${previous?'':'disabled'} aria-label="Previous branch">←</button><small>${index+1}/${siblings.length}</small><button type="button" data-switch-node="${escape(next?.id||'')}" ${next?'':'disabled'} aria-label="Next branch">→</button></span>`:''}</div>`}
 function render({forceLatest=false}={}) {
   const shouldFollow=forceLatest||atLatest();
-  log.innerHTML=history.map((item,index)=>`<article class="message ${item.role}${item.streaming?' is-streaming':''}" data-node-id="${escape(item.id||'')}"><span>${item.role==='user'?'You':'Operator'}</span><div class="message-content" data-message-index="${index}"></div>${item.actionUrl?`<a class="message-action" href="${escape(item.actionUrl)}">Open ${escape(item.actionLabel||'workspace')} →</a>`:''}${item.role==='assistant'&&index===history.length-1?`<div class="follow-ups" aria-label="Suggested next steps">${(item.suggestions||[]).map((suggestion,suggestionIndex)=>`<button type="button" data-suggestion="${escape(suggestion)}" style="--suggestion-index:${suggestionIndex}">${escape(suggestion)}</button>`).join('')}</div>`:''}${item.streaming?'':branchTools(item)}</article>`).join('');
+  log.innerHTML=history.map((item,index)=>`<article class="message ${item.role}${item.streaming?' is-streaming':''}" data-node-id="${escape(item.id||'')}"><span>${item.role==='user'?'You':'Operator'}</span><div class="message-content" data-message-index="${index}"></div>${messageAction(item)}${item.role==='assistant'&&index===history.length-1?`<div class="follow-ups" aria-label="Suggested next steps">${(item.suggestions||[]).map((suggestion,suggestionIndex)=>`<button type="button" data-suggestion="${escape(suggestion)}" style="--suggestion-index:${suggestionIndex}">${escape(suggestion)}</button>`).join('')}</div>`:''}${item.streaming?'':branchTools(item)}</article>`).join('');
   log.querySelectorAll('[data-message-index]').forEach(node=>{
     const item=history[Number(node.dataset.messageIndex)];
     if(!item)return;
