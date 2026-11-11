@@ -104,7 +104,10 @@ async function main() {
     put(queue.get('runtime').get(taskId), built.runtime)
   ]);
   console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
-  console.log('E2E_ENQUEUE_ATTEMPTED=true');
+  if (writes.some(write => !write.acknowledged || write.timedOut || write.error)) {
+    throw new Error('Operator runtime enqueue failed: all three queue writes must be acknowledged without errors.');
+  }
+  console.log('E2E_ENQUEUE_ACKNOWLEDGED=true');
 
   const transitions = [];
   const deadline = Date.now() + maxWaitMs;
@@ -131,6 +134,9 @@ async function main() {
 
   if ((record?.status || record?.state) !== 'completed') {
     throw new Error(`Operator runtime task did not complete: ${record?.status || record?.state || 'timeout'} ${record?.error || ''}`);
+  }
+  if (typeof record.workerDeviceId !== 'string' || !record.workerDeviceId.trim()) {
+    throw new Error('Operator runtime completion has no attributable workerDeviceId.');
   }
 }
 
