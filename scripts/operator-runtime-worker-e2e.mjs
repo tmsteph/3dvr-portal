@@ -19,8 +19,8 @@ const productionPeer = peers.some(peer => {
     throw new Error('Invalid THREEDVR_GUN_PEERS URL');
   }
 });
-if (productionPeer && process.env.OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION !== 'true') {
-  throw new Error('Production relay blocked. Explicit OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION=true required.');
+if (productionPeer) {
+  throw new Error('Production relay blocked. Queue-writing E2E must use an isolated relay.');
 }
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
