@@ -65,7 +65,7 @@ function put(node, value) {
       settled = true;
       clearTimeout(timer);
       resolve({
-        acknowledged: !ack?.err,
+        acknowledged: Boolean(ack && typeof ack === 'object' && (ack.ok === 1 || ack.ok === true) && !ack.err),
         error: ack?.err ? String(ack.err) : '',
         ack: ack || {}
       });
