@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaaS Onboarding Email Sprint | 3DVR</title>
+  <meta
+    name="description"
+    content="A 7-day done-for-you paid pilot sprint for early-stage SaaS founders that turns new signups into activated paying users."
+  >
+  <link rel="stylesheet" href="audience-leads.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="audience-leads.js" defer></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    :root {
+      --onboard-bg: #090d16;
+      --onboard-panel: rgba(244, 247, 255, 0.08);
+      --onboard-border: rgba(125, 185, 255, 0.24);
+      --onboard-text: #f7f9ff;
+      --onboard-muted: #c1ccdc;
+      --onboard-blue: #7bb1ff;
+      --onboard-cyan: #38bdf8;
+      --onboard-green: #4ade80;
+      --onboard-gold: #facc15;
+    }
+
+    body {
+      background:
+        linear-gradient(135deg, rgba(56, 189, 248, 0.14), transparent 36%),
+        linear-gradient(230deg, rgba(123, 177, 255, 0.16), transparent 42%),
+        var(--onboard-bg);
+      color: var(--onboard-text);
+    }
+
+    .page {
+      max-width: 1160px;
+    }
+
+    .panel {
+      border-color: var(--onboard-border);
+      border-radius: 8px;
+      background: var(--onboard-panel);
+    }
+
+    .signal-box,
+    .offer-box,
+    .probe-box {
+      border: 1px solid var(--onboard-border);
+      border-radius: 8px;
+      padding: 16px;
+      background: rgba(7, 13, 22, 0.76);
+    }
+
+    .signal-box {
+      display: grid;
+      gap: 12px;
+      margin: 22px 0;
+    }
+
+    .signal-box strong,
+    .offer-box strong,
+    .probe-box strong {
+      color: var(--onboard-cyan);
+    }
+
+    .price-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .price-line strong {
+      color: var(--onboard-gold);
+      font-size: 1.35rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      border: 1px solid rgba(123, 177, 255, 0.34);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: #dce8ff;
+      background: rgba(123, 177, 255, 0.1);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .deliverables {
+      display: grid;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .deliverable {
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 14px;
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    .deliverable strong {
+      display: block;
+      color: #e0f2fe;
+    }
+
+    .deliverable span,
+    .offer-box p,
+    .probe-box p {
+      color: var(--onboard-muted);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .text-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      color: var(--onboard-blue);
+      font-weight: 800;
+    }
+
+    .form-panel {
+      border-color: rgba(250, 204, 21, 0.32);
+    }
+
+    @media (min-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="top-nav" aria-label="SaaS Onboarding Email Sprint navigation">
+      <a href="/ideas/">Ideas Lab</a>
+      <a href="/sales/">Sales</a>
+      <a href="/sales/saas-onboarding-sprint.html">Sales Desk</a>
+      <a href="/index.html">Portal Home</a>
+    </nav>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="headline">
+        <p class="kicker">Paid pilot sprint for early-stage SaaS founders</p>
+        <h1 id="headline">Turn new signups into active, paying SaaS customers.</h1>
+        <p class="subhead">
+          3DVR SaaS Onboarding Email Sprint gives early-stage software companies a 7-day done-for-you onboarding rewrite, behavioral triggers, and direct tool staging.
+        </p>
+
+        <div class="signal-box" aria-label="Founder market signal">
+          <strong>Built for bootstrapped and seed-stage SaaS.</strong>
+          <span>
+            Founders spend time and money acquiring signups, but users drop off before reaching the Aha moment. We eliminate signup leakage with a high-converting, event-based onboarding sequence.
+          </span>
+        </div>
+
+        <div class="body-text">
+          <p>
+            The revenue leak happens between registration and day three. Generic welcome emails get ignored, key features remain undiscovered, and users abandon the trial before seeing value.
+          </p>
+          <p>This 7-day concierge sprint delivers the complete activation pipeline:</p>
+          <ul>
+            <li>Comprehensive baseline teardown of current signup emails and drop-off points.</li>
+            <li>Custom 5-7 part onboarding sequence focused on first-session activation and paid conversion.</li>
+            <li>Direct concierge staging inside Customer.io, Loops, Resend, Postmark, or Mailchimp.</li>
+            <li>Deliverability audit (SPF/DKIM/DMARC) and 30-day cohort retention tracking sheet.</li>
+          </ul>
+        </div>
+
+        <div class="price-line">
+          <strong>$300 setup sprint</strong>
+          <span class="pill">7-day concierge delivery</span>
+          <span class="pill">100% money-back guarantee</span>
+          <span class="pill">$50/month ongoing lane</span>
+        </div>
+
+        <div class="deliverables" aria-label="Sprint deliverables">
+          <div class="deliverable">
+            <strong>Baseline Audit &amp; Gap Analysis</strong>
+            <span>Inspection of existing emails, user milestones, and exact friction points causing Day-1 drop-off.</span>
+          </div>
+          <div class="deliverable">
+            <strong>5-7 Part Activation Sequence</strong>
+            <span>High-deliverability plain-text copy: instant quick-win hook, activation nudge, blueprint, and founder check-in.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Concierge Tool Implementation</strong>
+            <span>Direct setup inside your ESP with event triggers and dynamic user tags without pulling engineering hours.</span>
+          </div>
+          <div class="deliverable">
+            <strong>Cohort Tracking &amp; Review</strong>
+            <span>Weekly cohort metrics spreadsheet to measure activation lift, plus a scheduled 30-day performance review.</span>
+          </div>
+        </div>
+
+        <div class="offer-box" aria-label="Offer proof">
+          <strong>Zero-risk pilot guarantee</strong>
+          <p>
+            If the delivered copy, trigger architecture, and implementation do not improve your onboarding clarity, request a full refund within 14 days. No risk, no developer distraction.
+          </p>
+        </div>
+
+        <div class="probe-box" aria-label="Market probe">
+          <strong>Public probe copy</strong>
+          <p>Question for early-stage SaaS founders:
+
+What percentage of your new signups complete the core setup event within 24 hours?
+
+We are testing whether founders prefer a $300 done-for-you 7-day onboarding email sprint or self-serve sequence templates.</p>
+        </div>
+
+        <div class="button-row">
+          <a
+            class="cta"
+            href="/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dcustom%26amount%3D300%26label%3DSaaS%2520Onboarding%2520Email%2520Sprint%26description%3D7-day%2520done-for-you%2520SaaS%2520onboarding%2520email%2520sprint"
+          >Start $300 sprint</a>
+          <a class="text-link" href="#fit-check">Request fit check</a>
+          <a class="text-link" href="/sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">Continue $50/month</a>
+        </div>
+      </section>
+
+      <aside id="fit-check" class="panel form-panel" aria-label="SaaS Onboarding Email Sprint intake">
+        <h2>Send your current onboarding setup.</h2>
+        <p>
+          Share your SaaS URL, signup volume, email provider, and where new users get stuck.
+        </p>
+        <form
+          class="form-grid"
+          data-audience-form
+          data-audience-key="saas-onboarding-email-sprint"
+          data-audience-label="SaaS Onboarding Email Sprint"
+          data-source-label="SaaS Pilot · Onboarding Email Sprint"
+          data-question-label="What is your SaaS URL, signup volume, and where does onboarding break?"
+        >
+          <label>
+            <span>Founder Name</span>
+            <input name="name" type="text" autocomplete="name" required placeholder="Alex Rivera">
+          </label>
+          <label>
+            <span>Work Email</span>
+            <input name="email" type="email" autocomplete="email" required placeholder="alex@company.com">
+          </label>
+          <label>
+            <span>Product URL &amp; Onboarding Bottlenecks</span>
+            <textarea
+              name="prompt"
+              placeholder="Your product URL, monthly signups, current email tool (Customer.io, Loops, Resend, etc.), and where new users drop off."
+            ></textarea>
+          </label>
+          <button type="submit">Request fit check</button>
+          <p class="status" data-form-status role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      Intake writes to the 3DVR Gun relay under <code>3dvr-audience-tests/v1/saas-onboarding-email-sprint/signups</code>.
+    </footer>
+  </div>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
