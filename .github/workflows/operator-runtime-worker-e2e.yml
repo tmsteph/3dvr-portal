@@ -1,21 +1,17 @@
 name: Operator runtime worker E2E
 
+# This legacy test writes directly to a Gun queue. Never run it automatically
+# against a production-default relay on push. Manual runs remain unsafe until
+# the isolated relay and authenticated-dispatch work is completed (#3311, #3680).
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'operator/delegate-task.js'
-      - 'src/operator-runtime/**'
-      - 'scripts/operator-runtime-worker-e2e.mjs'
-      - '.github/workflows/operator-runtime-worker-e2e.yml'
 
 permissions:
   contents: read
 
 jobs:
   runtime-worker:
+    if: ${{ false }} # Disabled until authenticated isolated E2E replaces direct Gun writes
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
