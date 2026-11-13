@@ -850,7 +850,9 @@ if (form && input && submit && status && result && reply && followUps && actionL
         ? 'Life Space'
         : data.action?.type === 'add_lead'
           ? 'Lead Finder'
-          : 'workspace';
+          : data.action?.type === 'delegate_task'
+            ? 'task status'
+            : 'workspace';
       const label = storedActionLabel === 'workspace' ? 'Open workspace' : `Open ${storedActionLabel}`;
 
       const assistantEntry = {

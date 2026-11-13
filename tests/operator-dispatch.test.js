@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
 import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
 import { createForkRecord, revokeFork } from '../src/agents/fork-contract.js';
-import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt } from '../operator/delegate-task.js';
+import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt, readOperatorTask, requestedOperatorTask } from '../operator/delegate-task.js';
 
 const origin = 'https://operator.3dvr.tech';
 const pair = await SEA.pair();
@@ -119,11 +119,15 @@ test('browser recovers a lost enqueue response by looking up the same signed tas
   try {
     const task=await queueOperatorTask({text:enqueue.text,title:enqueue.title});
     assert.equal(task.confirmed,false);
+    const requestId = requestedOperatorTask(new URL(task.url, origin).search);
+    const reopened = await readOperatorTask(requestId);
+    assert.equal(reopened.status, 'completed');
+    assert.equal(reopened.resultSummary, '42');
     const done=await new Promise(resolve=>watchOperatorTask(task.taskId,{onUpdate:resolve}));
     assert.equal(done.status,'completed');
     assert.equal(done.resultSummary,'42');
-    assert.deepEqual(inputs.map(input=>input.action),['enqueue','status']);
-    assert.equal(inputs[0].id,inputs[1].id);
+    assert.deepEqual(inputs.map(input=>input.action),['enqueue','status','status']);
+    assert.ok(inputs.every(input => input.id === inputs[0].id));
   } finally {for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}}
 });
 
