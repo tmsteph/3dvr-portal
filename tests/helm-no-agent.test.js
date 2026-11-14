@@ -30,3 +30,9 @@ test('Helm translates raw IndexedDB errors into plain language', () => {
 test('Helm history has an empty state', () => {
   assert.match(app, /No conversations yet/);
 });
+
+test('Helm treats the handler 401/403 refusals as the no-agent state', () => {
+  assert.match(app, /error\.noAgent = response\.status === 401 \|\| response\.status === 403/);
+  assert.match(app, /\/private to\/i/);
+  assert.match(app, /no agent assigned to this account';/);
+});

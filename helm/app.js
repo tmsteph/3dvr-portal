@@ -177,8 +177,11 @@ function makeOutbox() {
         if (currentEpoch === epoch) {
           connected = false;
           $('dot').classList.remove('connected');
-          $('connection').textContent = error.retryable ? 'Agent busy' : error.stale ? 'Message expired' : 'Reply not confirmed';
-          $('activity').textContent = error.retryable
+          if (error.noAgent) agentAccess = 'no-agent';
+          $('connection').textContent = error.noAgent ? 'No agent assigned to this account' : error.retryable ? 'Agent busy' : error.stale ? 'Message expired' : 'Reply not confirmed';
+          $('activity').textContent = error.noAgent
+            ? 'This account has no agent assigned yet, so this message was not sent. It stays saved in History.'
+            : error.retryable
             ? 'Agent busy. Your saved message will retry until it expires.'
             : `${error.message} Check History before sending again.`;
         }
@@ -274,6 +277,8 @@ async function request(action, record, onDelta, onQueue, onPreview, onActivity) 
   }
   if (!response.ok || !result.ok) {
     const error = new Error(result.error || 'The selected engine is unavailable.');
+    error.status = response.status;
+    error.noAgent = response.status === 401 || response.status === 403;
     error.stale = result.stale === true;
     // This endpoint rejects 429 before creating a receipt or invoking the agent.
     error.retryable = response.status === 429;
@@ -581,9 +586,10 @@ async function checkConnection({ automatic = false } = {}) {
     // 401/403 for any other identity (security audit, 2026-11-07).
     // That is a permanent state for this account, not a startup
     // delay, so say so plainly instead of promising a ready agent.
-    const noAgent = /owner account/i.test(error.message || '') || error.noAgent === true;
+    const noAgent = error.noAgent === true || /owner account/i.test(error.message || '') || /private to/i.test(error.message || '');
     agentAccess = noAgent ? 'no-agent' : 'unreachable';
     $('connection').textContent = noAgent ? 'No agent assigned to this account' : error.message;
+    if (noAgent) $('account').title = 'Signed in · no agent assigned to this account';
     $('dot').classList.remove('connected');
     $('activity').textContent = noAgent ? 'Helm agents run on a server owned by the member. This account has no agent assigned yet. You can save messages here, but they will not send until an agent is assigned to this account.' : 'You can save a message now. It stays queued until the agent is ready.';
   } finally {
