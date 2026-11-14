@@ -2,10 +2,26 @@ import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
 
-const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay')
+const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
+// This test writes real queue records. Never silently target production.
+if (peers.length === 0) {
+  throw new Error('Set THREEDVR_GUN_PEERS to an isolated test relay; no default relay is permitted.');
+}
+const productionPeer = peers.some(peer => {
+  try {
+    const host = new URL(peer).hostname.toLowerCase();
+    return ['portal.3dvr.tech', 'relay.3dvr.tech'].some(productionHost =>
+      host === productionHost || host.endsWith('.' + productionHost));
+  } catch {
+    throw new Error('Invalid THREEDVR_GUN_PEERS URL');
+  }
+});
+if (productionPeer) {
+  throw new Error('Production relay blocked. Queue-writing E2E must use an isolated relay.');
+}
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
@@ -49,7 +65,7 @@ function put(node, value) {
       settled = true;
       clearTimeout(timer);
       resolve({
-        acknowledged: !ack?.err,
+        acknowledged: Boolean(ack && typeof ack === 'object' && (ack.ok === 1 || ack.ok === true) && !ack.err),
         error: ack?.err ? String(ack.err) : '',
         ack: ack || {}
       });
@@ -88,7 +104,10 @@ async function main() {
     put(queue.get('runtime').get(taskId), built.runtime)
   ]);
   console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
-  console.log('E2E_ENQUEUE_ATTEMPTED=true');
+  if (writes.some(write => !write.acknowledged || write.timedOut || write.error)) {
+    throw new Error('Operator runtime enqueue failed: all three queue writes must be acknowledged without errors.');
+  }
+  console.log('E2E_ENQUEUE_ACKNOWLEDGED=true');
 
   const transitions = [];
   const deadline = Date.now() + maxWaitMs;
@@ -115,6 +134,9 @@ async function main() {
 
   if ((record?.status || record?.state) !== 'completed') {
     throw new Error(`Operator runtime task did not complete: ${record?.status || record?.state || 'timeout'} ${record?.error || ''}`);
+  }
+  if (typeof record.workerDeviceId !== 'string' || !record.workerDeviceId.trim()) {
+    throw new Error('Operator runtime completion has no attributable workerDeviceId.');
   }
 }
 
