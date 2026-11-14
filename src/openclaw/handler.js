@@ -7,6 +7,7 @@ import { verifySignedSeaPayload } from '../auth/sea.js';
 import { resolveOperatorDeveloperPolicy } from '../operator/developer-access.js';
 import { resolveCharacterPersona } from './characters.js';
 import { runCharacterChat as runCharacterChatOpenAi } from './character-chat.js';
+import { createAgentCore } from '../agent-core/core.js';
 
 const ID = /^[a-zA-Z0-9_-]{12,100}$/;
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -169,6 +170,11 @@ export function createOpenClawHandler(options = {}) {
   const runCharacter = options.runCharacterChat
     || ((request, runOptions) => runCharacterChatOpenAi(request, { config, fetchImpl: options.fetchImpl, ...runOptions }));
   const stateDir = resolve(config.THREEDVR_HELM_STATE_DIR || '/var/lib/3dvr-helm');
+  // 3DVR Core runs in-process (src/agent-core), never over the SSH
+  // bridges: its DeepInfra key comes from the local secrets broker and
+  // its per-account history lives beside the queue records in this same
+  // state dir. Tests inject a fake through options.core.
+  const core = options.core || createAgentCore({ config, stateDir });
   let chatBusy = false;
 
   // --- Durable server-side queue (only used when HELM_QUEUE is on) ---
@@ -192,7 +198,8 @@ export function createOpenClawHandler(options = {}) {
     pools: {
       gateway: { cap: helmConcurrency(config), running: new Set() },
       character: { cap: 1, running: new Set() },
-      native: { cap: 1, running: new Set() }
+      native: { cap: 1, running: new Set() },
+      core: { cap: 2, running: new Set() }
     }
   };
   const laneFor = (laneKey, poolName) => {
@@ -327,6 +334,10 @@ export function createOpenClawHandler(options = {}) {
           runOptions);
         return { status: result && result.stale ? 'stale' : 'completed', result };
       }
+      if (record.request.engine === 'core') {
+        const result = await core.run(record.request, runOptions);
+        return { status: result && result.stale ? 'stale' : 'completed', result };
+      }
       // The queued marker is added only to the execution copy, never to
       // the fingerprinted request: remote.py answers it with a
       // per-session lock and a 200 s gateway budget instead of the
@@ -384,7 +395,7 @@ export function createOpenClawHandler(options = {}) {
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Invalid or oversized request.' }); }
     const { action, requestId, sessionId, message, createdAt, expiresAt, characterId, history } = body;
     const engine = body.engine ?? 'openclaw';
-    if (!['openclaw', 'codex', 'codex-backup'].includes(engine) || !['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
+    if (!['openclaw', 'codex', 'codex-backup', 'core'].includes(engine) || !['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
       || (action === 'chat' && (typeof message !== 'string' || !message.trim() || message.length > 6000))) {
       return json(res, 400, { error: 'Invalid Helm request.' });
     }
@@ -447,7 +458,7 @@ export function createOpenClawHandler(options = {}) {
       ...(action === 'chat' && queued ? { expiresAt } : {}) };
     if (action === 'status') {
       const identity = { verified: true, username: 'tmsteph', alias: 'tmsteph@3dvr' };
-      try { return json(res, 200, { ...await run(request), identity }); }
+      try { return json(res, 200, { ...(engine === 'core' ? await core.status() : await run(request)), identity }); }
       catch { return json(res, 503, { ok: false, identity, error: 'Account verified, but the selected engine is unavailable. Try checking again.' }); }
     }
     // Delivery format does not change the signed task or its receipt fingerprint.
@@ -493,6 +504,8 @@ export function createOpenClawHandler(options = {}) {
       const runOptions = wantsStream ? { onDelta: text => event('delta', { text }) } : {};
       const result = persona
         ? await runCharacter({ persona, message, history: history || [], session: request.session }, runOptions)
+        : engine === 'core'
+        ? await core.run(request, runOptions)
         : await run(request, runOptions);
       await writeFile(receipt, JSON.stringify({ fingerprint, result }), { mode: 0o600 });
       return finish(result.ok ? 200 : 503, result);
@@ -553,7 +566,7 @@ export function createOpenClawHandler(options = {}) {
       }
       return json(res, 202, { queued: true, status: record.status, position: positionOf(record), requestId, preview: previewOf(record) });
     }
-    const poolName = persona ? 'character' : engine !== 'openclaw' ? 'native' : 'gateway';
+    const poolName = persona ? 'character' : engine === 'core' ? 'core' : engine !== 'openclaw' ? 'native' : 'gateway';
     const laneKey = `${poolName}|${request.session}`;
     const lane = laneFor(laneKey, poolName);
     if (lane.queue.length + (lane.running ? 1 : 0) >= LANE_DEPTH_CAP) {

@@ -733,3 +733,15 @@ test('a sending record restored on reload resubmits its identical payload, never
   assert.equal(chats[0].createdAt, now - 60000);
   assert.equal(ui.saved.at(-1).status, 'completed');
 });
+
+test('3DVR Core engine is selectable, saved and signed with messages', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
+  await ui.ready;
+  ui.changeEngine('core'); await flush(); await flush();
+  assert.match(ui.element('engine-note').textContent, /DeepSeek/);
+  assert.equal(ui.element('engine-home').textContent, 'OVH');
+  await ui.submit('Core conversation');
+  const last = ui.requests.filter(item => item.action === 'chat').at(-1);
+  assert.equal(last.engine, 'core');
+  assert.equal(ui.saved.at(-1).engine, 'core');
+});

@@ -12,7 +12,7 @@ globalThis.sessionStorage?.setItem(sessionKey, sessionId);
 // engine for the current chat, and History resume restores that chat's own.
 let engine = 'openclaw';
 globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
-const engineNames = { openclaw: 'OpenClaw', codex: 'Codex', 'codex-backup': 'Codex backup' };
+const engineNames = { openclaw: 'OpenClaw', codex: 'Codex', 'codex-backup': 'Codex backup', core: '3DVR Core' };
 let busy = false;
 let saving = false;
 let connected = false;
@@ -600,16 +600,18 @@ async function checkConnection({ automatic = false } = {}) {
 
 function showEngine() {
   $('engine').value = engine;
-  $('engine-home').textContent = engine === 'codex-backup' ? 'DigitalOcean' : 'Hetzner';
+  $('engine-home').textContent = engine === 'codex-backup' ? 'DigitalOcean' : engine === 'core' ? 'OVH' : 'Hetzner';
   $('engine-note').textContent = engine === 'codex-backup'
     ? 'Backup chat on DigitalOcean · starts a separate conversation, without OpenClaw tools. Pending messages are never moved or replayed.'
+    : engine === 'core'
+    ? '3DVR Core · our own agent on DeepSeek (DeepInfra), running on 3DVR servers. Chat only for now; history stays on the server, per account.'
     : engine === 'codex'
     ? 'Native Codex pilot · chat and code advice. OpenClaw integrations are available through OpenClaw.'
     : 'OpenClaw · your existing tools and integrations.';
 }
 showEngine();
 $('engine').addEventListener('change', () => {
-  if (busy || saving || !['openclaw', 'codex', 'codex-backup'].includes($('engine').value)) { $('engine').value = engine; return; }
+  if (busy || saving || !['openclaw', 'codex', 'codex-backup', 'core'].includes($('engine').value)) { $('engine').value = engine; return; }
   engine = $('engine').value;
   globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
   // A new conversation prevents an engine switch from implying shared server history.
