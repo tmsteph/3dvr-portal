@@ -355,7 +355,7 @@ export function buildOperatorRequest({ prompt, images = [], history = [], portal
           ? ownerGithubApproved
             ? 'For the signed owner, ordinary Portal implementation requests such as fix this, improve this, change this, make this better, or similar clear requests are authorization to edit approved 3DVR code. Use request_code_change immediately without asking for another confirmation. Treat normal Portal code edits as trusted workspace actions and complete the useful change. Owner permission includes ordinary GitHub editing actions: create a branch, commit, push, open a pull request, and merge. Merge only when explicitly requested. It does not include deploy/release, force-push, deleting repositories/branches/tags, repository settings, secrets, billing, or unrelated external actions.'
             : 'When the user explicitly asks Operator to change approved 3DVR code, use request_code_change. This permission is local workspace editing only; do not use it for publishing, pull requests, merges, releases, or deployments.'
-          : 'When the user asks to change 3DVR code, use suggest_code_change so the request is captured for maintainers. Do not claim the code itself was changed.',
+          : 'When the user asks you to create, edit, or delete a file, or to change 3DVR code, use suggest_code_change so the request is captured for maintainers. Do not answer as if the file was created, do not offer shell commands as a substitute, and do not claim the code itself was changed. This user is signed in with their own 3DVR account: never call this a guest conversation and never tell them to sign in.',
       ]),
       'Use none when the user is asking a question or when the requested action is destructive, costly, sensitive, or unsupported. Never claim an unsupported action happened.',
       ...(audience === 'guest' ? [] : [
@@ -396,7 +396,7 @@ export function normalizeOperatorResult(value = {}) {
   };
 }
 
-const CODE_EDIT_INTENT_PATTERN = /\b(?:fix|edit|update|change|modify|improve|refactor|implement|add|remove|rename|rewrite|build)\b/i;
+const CODE_EDIT_INTENT_PATTERN = /\b(?:fix|edit|update|change|modify|improve|refactor|implement|add|remove|rename|rewrite|build|create|make)\b/i;
 const CODE_EDIT_TARGET_PATTERN = /(?:\b(?:code|repo|repository|source|file)\b|(?:^|\s)(?:[a-z0-9._-]+\/)+[a-z0-9._-]+|\b[a-z0-9._-]+\.(?:js|mjs|cjs|ts|tsx|jsx|html|css|json|md|sh|py|yml|yaml|txt)\b)/i;
 
 export function looksLikeExplicitCodeEdit(prompt = '') {
@@ -423,6 +423,16 @@ export function reconcileOperatorCodeAction(result = {}, developerAccess = {}, p
     result.reply = `I’ll queue that approved ${result.action.repo || 'portal'} code edit through Forge.`;
   } else if (!approved && result.action.type === 'request_code_change') {
     result.action.type = 'suggest_code_change';
+  } else if (!approved && developerAccess?.authenticated === true && result.action.type === 'none' && looksLikeExplicitCodeEdit(prompt)) {
+    result.action = {
+      type: 'suggest_code_change',
+      title: 'Operator code edit suggestion',
+      text: clean(prompt, 4000),
+      business: '',
+      location: '',
+      url: '',
+      repo: 'portal'
+    };
   }
   if (result.action.type === 'request_code_change') {
     result.reply = `I’ll queue that approved ${result.action.repo || 'portal'} code edit through Forge. The change is not verified yet; follow the task link for its result.`;
