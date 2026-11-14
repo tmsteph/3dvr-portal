@@ -130,7 +130,13 @@ export async function runOperatorAction(action = {}, context = {}) {
     const { saveCodeSuggestion } = await import('./forge.js');
     const outcome = await saveCodeSuggestion(action);
     revealDeveloperKeyButton();
-    return outcome;
+    // A suggestion is not a queued task: say so, and give the one
+    // real next step (developer-key approval) instead of leaving the
+    // user to guess why nothing ran. See issue #3763.
+    return {
+      ...outcome,
+      message: `${outcome.message} This is a suggestion only: no task was queued and no code will change. This account does not have verified developer access yet. Tap Dev key to copy your public developer key and send it to the workspace admin for approval; once approved, ask again and the edit will queue through Forge with a receipt.`
+    };
   }
   if (action.type === 'delegate_task') {
     context.onStatus?.('Delegating to Operator Runtime…');

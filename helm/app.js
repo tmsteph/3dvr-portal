@@ -16,6 +16,7 @@ const engineNames = { openclaw: 'OpenClaw', codex: 'Codex', 'codex-backup': 'Cod
 let busy = false;
 let saving = false;
 let connected = false;
+let agentAccess = 'unknown';
 let verifiedAccount = false;
 let storePromise;
 let store;
@@ -237,7 +238,7 @@ async function request(action, record, onDelta, onQueue, onPreview, onActivity) 
   for (;;) {
     const proof = await createSignedPortalProof('openclaw-helm', action, payload);
     if (requestEpoch !== epoch) throw new Error('Account changed.');
-    if (!proof) throw new Error('Sign in with your owner account, then retry.');
+    if (!proof) { const proofError = new Error('Sign in with your owner account, then retry.'); proofError.noAgent = true; throw proofError; }
     response = await fetch('/api/openclaw', {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(onDelta ? { Accept: 'text/event-stream' } : {}) },
       body: JSON.stringify({ ...payload, action, ...proof }),
@@ -505,7 +506,14 @@ function renderMessages() {
   const ordered = [...groups.values()]
     .map(group => ({ ...group, lastActivity: Math.max(...group.records.map(record => record.updatedAt ?? record.createdAt)) }))
     .sort((a, b) => b.lastActivity - a.lastActivity || a.key.localeCompare(b.key));
-  $('history-list').replaceChildren(...ordered.map(group => historyRow(group)));
+  if (ordered.length) {
+    $('history-list').replaceChildren(...ordered.map(group => historyRow(group)));
+  } else {
+    const empty = document.createElement('p');
+    empty.className = 'history-meta';
+    empty.textContent = 'No conversations yet.';
+    $('history-list').replaceChildren(empty);
+  }
   $('show-history').textContent = ordered.length ? `History (${ordered.length})` : 'History';
   // The queue view answers a different question than History: what is
   // still waiting, across every conversation, in send order. It reads
@@ -528,15 +536,21 @@ function renderMessages() {
   $('queue-list').replaceChildren(...queueRows);
   $('show-queue').textContent = waiting.length ? `Queued (${waiting.length})` : 'Queued';
   const pending = records.filter(record => ['queued', 'deferred'].includes(record.status)).length;
-  $('queue-summary').textContent = pending ? `${pending} queued · sends when ready · expires after 10 minutes` : '';
+  $('queue-summary').textContent = pending ? (agentAccess === 'no-agent' ? `${pending} queued · no agent assigned to this account · expires after 10 minutes` : `${pending} queued · sends when ready · expires after 10 minutes`) : '';
 }
 
-function showStorageError(error) { $('activity').textContent = `Could not save the message: ${error.message} Your text stays in the composer.`; }
+function plainStorageError(error) {
+  // Raw IndexedDB wording helps nobody: translate the known failure
+  // (the local store connection closing mid-write) into plain language.
+  if (/IDBDatabase|IndexedDB|transaction/i.test(error?.message || '')) return 'the local message store closed unexpectedly. Reload Helm to reconnect it.';
+  return error?.message || 'unknown error';
+}
+function showStorageError(error) { $('activity').textContent = `Could not save the message: ${plainStorageError(error)} Your text stays in the composer.`; }
 
 async function drain() {
   const drainEpoch = epoch;
   try { await outbox.drain(); }
-  catch (error) { if (drainEpoch === epoch) $('activity').textContent = `Queue paused: ${error.message}`; }
+  catch (error) { if (drainEpoch === epoch) $('activity').textContent = `Queue paused: ${plainStorageError(error)}`; }
 }
 
 async function checkConnection({ automatic = false } = {}) {
@@ -555,15 +569,23 @@ async function checkConnection({ automatic = false } = {}) {
     if (connectionEpoch !== epoch) return;
     const result = await request('status');
     connected = result.gateway === 'reachable' && result.chatEnabled;
-    $('connection').textContent = connected ? `${engineNames[engine]} ready` : 'Agent reachable · chat setup needed';
+    agentAccess = connected ? 'ready' : 'no-agent';
+    $('connection').textContent = connected ? `${engineNames[engine]} ready` : 'No agent assigned to this account';
     $('dot').classList.toggle('connected', connected);
-    $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'You can queue a message while the agent starts.';
+    $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'Helm agents run on a server owned by the member. This account has no agent assigned yet. You can save messages here, but they will not send until an agent is assigned to this account.';
   } catch (error) {
     if (connectionEpoch !== epoch) return;
     connected = false;
-    $('connection').textContent = error.message;
+    // The status endpoint refuses accounts with no agent binding: the
+    // proof step names the owner account, and the handler answers
+    // 401/403 for any other identity (security audit, 2026-11-07).
+    // That is a permanent state for this account, not a startup
+    // delay, so say so plainly instead of promising a ready agent.
+    const noAgent = /owner account/i.test(error.message || '') || error.noAgent === true;
+    agentAccess = noAgent ? 'no-agent' : 'unreachable';
+    $('connection').textContent = noAgent ? 'No agent assigned to this account' : error.message;
     $('dot').classList.remove('connected');
-    $('activity').textContent = 'You can save a message now. It stays queued until the agent is ready.';
+    $('activity').textContent = noAgent ? 'Helm agents run on a server owned by the member. This account has no agent assigned yet. You can save messages here, but they will not send until an agent is assigned to this account.' : 'You can save a message now. It stays queued until the agent is ready.';
   } finally {
     if (connectionEpoch === epoch) { busy = false; updateControls(); }
   }
@@ -614,7 +636,7 @@ $('chat-form').addEventListener('submit', async event => {
     await outbox.enqueue({ id: journaled.id, sessionId, text, engine, createdAt });
     if ($('message').value.trim() === text) $('message').value = '';
     $('queue-storage').textContent = 'Saved encrypted here · syncing with your GunJS account';
-    $('activity').textContent = connected ? 'Saved. Sending when the agent is free.' : 'Saved. It will send when the agent is ready.';
+    $('activity').textContent = connected ? 'Saved. Sending when the agent is free.' : agentAccess === 'no-agent' ? 'Saved, but not sent: this account has no agent assigned yet. If it expires it stays in History.' : 'Saved. It will send when the agent is ready.';
   } catch (error) { showStorageError(error); }
   finally { saving = false; updateControls(); }
   await drain();
@@ -672,7 +694,7 @@ window.addEventListener('storage', event => {
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
   store?.close(); store = null; storePromise = null;
   busy = false; liveReply = null;
-  connected = false; verifiedAccount = false; outbox = makeOutbox();
+  connected = false; agentAccess = 'unknown'; verifiedAccount = false; outbox = makeOutbox();
   restoreJournal();
   showAccount(); renderMessages(); updateControls();
   void checkConnection({ automatic: true });
@@ -691,9 +713,15 @@ window.addEventListener('offline', () => {
 // Only queued work causes periodic status retries; no inference or chat replay occurs here.
 setInterval(() => {
   if (!signedIn()) return;
+  const waitingBefore = outbox.snapshot().filter(record => ['queued', 'deferred'].includes(record.status)).map(record => record.id);
   void outbox.expire().then(() => {
     // Keep the open queue view's elapsed times and counts honest.
     if (!$('queue').hidden) renderMessages();
+    // Expiry must never be silent: a message that waited out its
+    // 10 minutes without sending is announced here, and the record
+    // itself stays in History marked expired.
+    const expired = outbox.snapshot().filter(record => record.status === 'stale' && waitingBefore.includes(record.id)).length;
+    if (expired) $('activity').textContent = `${expired} queued message${expired === 1 ? '' : 's'} expired without sending. ${expired === 1 ? 'It is' : 'They are'} kept in History.`;
   }).catch(showStorageError);
   if (outbox.snapshot().some(record => ['queued', 'deferred'].includes(record.status))) {
     if (!connected) void checkConnection({ automatic: true });

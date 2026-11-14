@@ -75,3 +75,22 @@ test('a downgraded edit explains suggestion status instead of claiming execution
   assert.match(result.reply, /suggestion/);
   assert.doesNotMatch(result.reply, /Done|fixed/);
 });
+
+test('a downgraded edit explains it is not queued and gives the developer-key next step', () => {
+  const result = reconcileOperatorCodeAction({
+    reply: 'Working on it.',
+    action: { type: 'request_code_change', repo: 'portal', text: 'Fix spinner selection.' }
+  }, { approved: false });
+  assert.equal(result.action.type, 'suggest_code_change');
+  assert.match(result.reply, /not a running task/);
+  assert.match(result.reply, /nothing is queued/);
+  assert.match(result.reply, /Dev key/);
+  assert.match(result.reply, /workspace admin for approval/);
+});
+
+test('Operator suggestion outcome in the UI explains the approval step', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const actions = await readFile(new URL('../operator/actions.js', import.meta.url), 'utf8');
+  assert.match(actions, /This is a suggestion only: no task was queued/);
+  assert.match(actions, /Tap Dev key to copy your public developer key/);
+});

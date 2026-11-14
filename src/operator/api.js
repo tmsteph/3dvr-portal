@@ -427,7 +427,7 @@ export function reconcileOperatorCodeAction(result = {}, developerAccess = {}, p
   if (result.action.type === 'request_code_change') {
     result.reply = `I’ll queue that approved ${result.action.repo || 'portal'} code edit through Forge. The change is not verified yet; follow the task link for its result.`;
   } else if (result.action.type === 'suggest_code_change') {
-    result.reply = 'I’ll save this as a Forge suggestion. Verified developer access is required to run the code edit.';
+    result.reply = 'I’ll save this as a Forge suggestion, not a running task. This account does not have verified developer access yet, so nothing is queued and no code will change. To get access: tap Dev key in Operator to copy your public developer key, send it to the workspace admin for approval, then ask again once approved and the edit will queue through Forge with a task receipt.';
   }
   return result;
 }
