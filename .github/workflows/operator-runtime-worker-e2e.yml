@@ -36,7 +36,9 @@ jobs:
         run: node scripts/operator-runtime-worker-e2e-guard.test.mjs
 
   runtime-worker:
-    if: github.event_name == 'workflow_dispatch'
+    # Legacy direct-Gun queue writes bypass authenticated Operator dispatch.
+    # Keep disabled even for manual runs until isolated signed-dispatch E2E exists.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
