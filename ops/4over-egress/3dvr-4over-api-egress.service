@@ -1,0 +1,21 @@
+[Unit]
+Description=4over api-only TLS egress fallback through existing 3DVR SSH mesh
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=90
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=debian
+WorkingDirectory=/home/debian
+ExecStartPre=+/usr/local/sbin/3dvr-4over-api-egress add 1000
+ExecStart=/usr/bin/ssh -NT -o BatchMode=yes -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 127.0.0.1:18445:mapi.4over.com:443 3dvr-hetzner
+ExecStartPost=/usr/bin/curl --fail --head --silent --show-error --retry 4 --retry-connrefused --retry-delay 1 --connect-timeout 5 --max-time 10 https://mapi.4over.com/
+ExecStopPost=+/usr/local/sbin/3dvr-4over-api-egress remove
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
