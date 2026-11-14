@@ -619,7 +619,7 @@ $('chat-form').addEventListener('submit', async event => {
   finally { saving = false; updateControls(); }
   await drain();
 });
-$('new-chat').addEventListener('click', () => {
+function startNewChat() {
   sessionId = crypto.randomUUID();
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
   // A new chat also returns to the default engine.
@@ -640,7 +640,8 @@ $('new-chat').addEventListener('click', () => {
   $('activity').textContent = 'New conversation. Saved messages remain in history.';
   $('message').focus();
   if (engineChanged) void checkConnection({ automatic: true });
-});
+}
+$('new-chat').addEventListener('click', startNewChat);
 $('show-history').addEventListener('click', () => {
   $('history').hidden = !$('history').hidden;
   $('show-history').setAttribute('aria-expanded', String(!$('history').hidden));
@@ -702,4 +703,17 @@ setInterval(() => {
 }, 15000);
 restoreJournal();
 showAccount(); updateControls();
+try {
+  const key = '3dvr.helm.prefill.v1';
+  const savedDraft = sessionStorage.getItem(key);
+  sessionStorage.removeItem(key);
+  const draft = JSON.parse(savedDraft || 'null');
+  if (draft?.alias === localStorage.getItem('alias') && typeof draft.prompt === 'string') {
+    startNewChat();
+    $('message').value = draft.prompt.slice(0, 6000);
+    updateControls();
+  }
+} catch {
+  // Session storage may be unavailable in restricted browsers.
+}
 void checkConnection({ automatic: true });
