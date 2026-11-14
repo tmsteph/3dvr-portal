@@ -65,10 +65,18 @@ async function signInOrCreate() {
   await page.locator('#password').fill(password);
   await page.locator('#auth-submit').click();
 
-  await page.waitForURL(url => {
-    const path = new URL(url).pathname.replace(/index\.html$/, '');
-    return path === '/operator/' || path === '/operator';
-  }, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+  try {
+    await page.waitForURL(url => {
+      const path = new URL(url).pathname.replace(/index\.html$/, '');
+      return path === '/operator/' || path === '/operator';
+    }, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+  } catch (error) {
+    // Diagnose the initial redirect without logging query strings, account details or page contents.
+    log('E2E_INITIAL_SIGN_IN_PATH', new URL(page.url()).pathname);
+    log('E2E_INITIAL_SIGN_IN_READY_STATE', await page.evaluate(() => document.readyState).catch(() => 'unavailable'));
+    await page.screenshot({ path: `${artifactDir}/initial-sign-in-failure.png`, fullPage: true }).catch(() => {});
+    throw error;
+  }
   await page.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
   await page.locator('#operator-form button[type="submit"]').waitFor({ state: 'visible', timeout: 30_000 });
 
