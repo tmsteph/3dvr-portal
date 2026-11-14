@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { looksLikeExplicitCodeEdit, reconcileOperatorCodeAction } from '../src/operator/api.js';
+import { buildOperatorRequest, looksLikeExplicitCodeEdit, reconcileOperatorCodeAction } from '../src/operator/api.js';
 
 test('approved developers get a Forge edit even if the model chose suggestion', () => {
   const result = reconcileOperatorCodeAction({
@@ -93,4 +93,37 @@ test('Operator suggestion outcome in the UI explains the approval step', async (
   const actions = await readFile(new URL('../operator/actions.js', import.meta.url), 'utf8');
   assert.match(actions, /This is a suggestion only: no task was queued/);
   assert.match(actions, /Tap Dev key to copy your public developer key/);
+});
+
+test('unapproved member file requests are routed to a Forge suggestion, not answered conversationally', () => {
+  const request = buildOperatorRequest({
+    prompt: 'Create a file called x.txt containing pong',
+    developerAccess: { authenticated: true, approved: false, role: 'member', identity: { username: 'member1' } }
+  });
+  assert.match(request.instructions, /create, edit, or delete a file/);
+  assert.match(request.instructions, /use suggest_code_change/);
+  assert.match(request.instructions, /never call this a guest conversation/);
+});
+
+test('unapproved explicit file request becomes a suggestion even when the model chose no action', () => {
+  const result = reconcileOperatorCodeAction({
+    reply: 'I cannot create files in this guest conversation.',
+    action: { type: 'none', title: '', text: '', repo: '' }
+  }, { approved: false, authenticated: true, role: 'member' }, 'Create a file called operator-fix-check.txt containing the word pong');
+  assert.equal(result.action.type, 'suggest_code_change');
+  assert.match(result.action.text, /operator-fix-check\.txt/);
+  assert.match(result.reply, /not a running task/);
+});
+
+test('create counts as an explicit code edit intent when a file target is named', () => {
+  assert.equal(looksLikeExplicitCodeEdit('Create a file called a.txt'), true);
+  assert.equal(looksLikeExplicitCodeEdit('Create a note about my files'), false);
+});
+
+test('guests are not upgraded to a suggestion by the deterministic route', () => {
+  const result = reconcileOperatorCodeAction({
+    reply: 'Sign in to save that.',
+    action: { type: 'none', title: '', text: '', repo: '' }
+  }, { approved: false, authenticated: false, role: 'guest' }, 'Create a file called a.txt');
+  assert.equal(result.action.type, 'none');
 });
