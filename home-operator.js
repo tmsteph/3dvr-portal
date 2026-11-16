@@ -8,6 +8,7 @@ import { fetchOperatorStream } from './operator/stream.js';
 import { operatorHandoffUrl } from './operator/handoff.js';
 import { recallOperatorMemoryBestEffort, rememberOperatorTurnBestEffort } from './operator/organism-chat-bridge.js';
 import { paintOperatorMarkdown } from './operator/markdown.js';
+import { pickConversationStoreSource, retireLegacyConversationHistory } from './operator/conversation-store.js';
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
@@ -277,17 +278,19 @@ if (form && input && submit && status && result && reply && followUps && actionL
     let store = { activeId: '', conversations: [] };
 
     try {
-      const savedRaw = localStorage.getItem(conversationStoreKey)
-        || (conversationStoreKey !== BASE_KEY ? localStorage.getItem(BASE_KEY) : '')
-        || '';
-      const saved = JSON.parse(savedRaw || 'null');
+      const source = pickConversationStoreSource(localStorage, {
+        key: conversationStoreKey,
+        baseKey: BASE_KEY,
+        legacyKey: LEGACY_KEY
+      });
+      const saved = JSON.parse(source.raw || 'null');
       if (saved && Array.isArray(saved.conversations)) {
         store = {
           activeId: String(saved.activeId || ''),
           conversations: saved.conversations
         };
       } else {
-        const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]');
+        const legacy = JSON.parse(source.legacy || '[]');
         if (Array.isArray(legacy) && legacy.length) {
           const migratedAt = now();
           store = {
@@ -435,8 +438,11 @@ if (form && input && submit && status && result && reply && followUps && actionL
       .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
 
     writeConversationStore(store);
-    if (conversationStoreKey !== BASE_KEY) localStorage.removeItem(BASE_KEY);
-    localStorage.removeItem(LEGACY_KEY);
+    retireLegacyConversationHistory(localStorage, {
+      key: conversationStoreKey,
+      baseKey: BASE_KEY,
+      legacyKey: LEGACY_KEY
+    });
     refreshOperatorNavigation();
     void accountSync.save(store);
   };

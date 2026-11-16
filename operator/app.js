@@ -13,6 +13,7 @@ import { handoffPageContext, readOperatorHandoff } from './handoff.js';
 import { recallOperatorMemoryBestEffort, rememberOperatorTurnBestEffort } from './organism-chat-bridge.js';
 import { paintOperatorMarkdown } from './markdown.js';
 import { activeConversationPath, appendConversationNode, conversationSiblings, conversationTreeRows, ensureConversationTree, selectConversationNode } from './conversation-tree.js';
+import { pickConversationStoreSource, retireLegacyConversationHistory } from './conversation-store.js';
 
 document.getElementById('operator-boot-loading')?.remove();
 const form=document.querySelector('#operator-form'), input=document.querySelector('#operator-input'), log=document.querySelector('#operator-log'), status=document.querySelector('#operator-status'), syncStatus=document.querySelector('#operator-sync'), latest=document.querySelector('#operator-latest'), historyPanel=document.querySelector('#conversation-history'), historyList=document.querySelector('#history-list'), historyEmpty=document.querySelector('#history-empty'), showHistory=document.querySelector('#show-history'), treePanel=document.querySelector('#conversation-tree'), treeList=document.querySelector('#conversation-tree-list'), showTree=document.querySelector('#show-tree');
@@ -37,10 +38,11 @@ const now=()=>new Date().toISOString();
 let store={activeId:makeId(),conversations:[]};
 let restoredSavedStore=false;
 try {
-  const saved=JSON.parse(localStorage.getItem(KEY)||(KEY!==BASE_KEY?localStorage.getItem(BASE_KEY):'')||'null');
+  const source=pickConversationStoreSource(localStorage,{key:KEY,baseKey:BASE_KEY,legacyKey:LEGACY_KEY});
+  const saved=JSON.parse(source.raw||'null');
   if(saved?.activeId&&Array.isArray(saved.conversations)) { store=saved; restoredSavedStore=true; }
   else {
-    const legacy=JSON.parse(localStorage.getItem(LEGACY_KEY)||'[]');
+    const legacy=JSON.parse(source.legacy||'[]');
     if(legacy.length) store.conversations=[{id:store.activeId,createdAt:now(),updatedAt:now(),messages:legacy}];
   }
 } catch {}
@@ -112,7 +114,7 @@ function render({forceLatest=false}={}) {
   renderTree();
   shouldFollow?followLatest():updateLatest();
 }
-function save({renderPage=true}={}){const conversation=activeConversation();conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));writeStore(store);if(KEY!==BASE_KEY)localStorage.removeItem(BASE_KEY);localStorage.removeItem(LEGACY_KEY);if(renderPage)render();accountSync.save(store)}
+function save({renderPage=true}={}){const conversation=activeConversation();conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));writeStore(store);retireLegacyConversationHistory(localStorage,{key:KEY,baseKey:BASE_KEY,legacyKey:LEGACY_KEY});if(renderPage)render();accountSync.save(store)}
 
 let streamingPaintTimer=0;
 function paintStreamingMessage(message){
