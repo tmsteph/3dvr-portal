@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Computers · 3DVR Operator</title>
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script defer src="/gun-init.js"></script>
+  <script defer src="/auth-identity.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <a href="/operator/">← Operator</a>
+      <a id="sign-in" href="/sign-in.html?redirect=%2Foperator%2Fcomputers%2F">Sign in</a>
+    </header>
+    <h1>Computers</h1>
+    <section aria-labelledby="add-title">
+      <h2 id="add-title">Add a computer</h2>
+      <p>Get a pairing code here, then open this page on the computer you want to connect.</p>
+      <button id="invite" type="button">Get pairing code</button>
+      <div id="invitation" hidden>
+        <p>Enter this code on the other computer within two minutes.</p>
+        <output id="pairing-code" aria-label="Pairing code"></output>
+      </div>
+      <p id="owner-status" role="status"></p>
+      <h3>Active connections</h3>
+      <button id="refresh" type="button">Refresh connections</button>
+      <ul id="connections"></ul>
+    </section>
+    <section aria-labelledby="target-title">
+      <h2 id="target-title">Connect this computer</h2>
+      <form id="preview">
+        <label for="code">Pairing code</label>
+        <input id="code" type="text" required minlength="16" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button type="submit">Review request</button>
+      </form>
+      <form id="pair" hidden>
+        <p id="requester"></p>
+        <p>Operator can check whether this tab responds. Keep it open to stay connected.</p>
+        <label for="name">Computer name</label>
+        <input id="name" type="text" required maxlength="40" placeholder="Graphics 2">
+        <button type="submit">Allow status checks</button>
+        <button id="cancel" type="button">Cancel</button>
+      </form>
+      <button id="disconnect" hidden type="button">Disconnect this computer</button>
+      <p id="target-status" role="status"></p>
+    </section>
+  </main>
+</body>
+</html>
