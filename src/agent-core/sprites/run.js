@@ -12,6 +12,10 @@
 // pointed elsewhere with --root <dir> or THREEDVR_SPRITES_DIR. Ticks use
 // the real agent core (DeepInfra key via the secrets broker); a tick is
 // refused, not faked, when the key path is unavailable.
+//
+// A sprite may also fork itself at the end of a tick (bounded: see
+// sprite.js). A STOP file placed in the root itself halts every sprite
+// in the terrarium at once; the per-sprite stop above halts just one.
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createSpriteCore, forkSprite, loadIdentity, resumeSprite, spriteStatus, stopSprite, tickSprite } from './sprite.js';
@@ -41,7 +45,10 @@ function printStatus(rows) {
   for (const row of rows) {
     const state = row.stopped ? 'STOPPED' : 'awake-able';
     const last = row.lastTickAt || 'never ticked';
-    console.log(`${row.name}: ${row.ticks} ticks, $${row.spentUsd.toFixed(4)} of $${row.budgetUsd.toFixed(2)} spent, last tick ${last}, ${state}`);
+    const lineage = row.forkedFrom
+      ? `gen ${row.generation}, forked from ${row.forkedFrom}`
+      : `gen ${row.generation}`;
+    console.log(`${row.name}: ${row.ticks} ticks, $${row.spentUsd.toFixed(4)} of $${row.budgetUsd.toFixed(2)} spent, last tick ${last}, ${state} (${lineage})`);
     if (row.lastError) console.log(`  last error: ${row.lastError}`);
   }
 }
