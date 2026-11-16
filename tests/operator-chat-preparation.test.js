@@ -27,6 +27,27 @@ test('failed signing falls back to ordinary chat without fabricating authority',
   });
   assert.deepEqual(result, [{}, null, null]);
 });
+test('a slow proof inside its own budget is kept while context stays bounded', async () => {
+  const proof = { authPub: 'synthetic', authProof: 'verified-elsewhere' };
+  const result = await prepareOperatorChat({
+    collectContext: never,
+    createProof: () => new Promise(resolve => setTimeout(() => resolve(proof), 60)),
+    recallMemory: never,
+    timeoutMs: 20,
+    proofTimeoutMs: 500
+  });
+  assert.deepEqual(result, [{}, proof, null]);
+});
+test('a proof beyond its own budget still falls back to ordinary chat', async () => {
+  const result = await prepareOperatorChat({
+    collectContext: () => ({}),
+    createProof: () => new Promise(resolve => setTimeout(() => resolve({ authPub: 'late' }), 120)),
+    recallMemory: () => null,
+    timeoutMs: 20,
+    proofTimeoutMs: 40
+  });
+  assert.deepEqual(result, [{}, null, null]);
+});
 test('late failed work is handled after preparation has timed out', async () => {
   let rejectProof;
   const result = await prepareOperatorChat({

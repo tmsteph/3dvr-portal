@@ -3,7 +3,7 @@ import { createOperatorSync, mergeOperatorStores } from './operator/sync.js';
 import { ensureConversationTree } from './operator/conversation-tree.js';
 import { runOperatorAction, watchOperatorActionOutcome } from './operator/actions.js';
 import { collectPortalContext } from './operator/portal-context.js';
-import { createOperatorDeveloperProof } from './operator/forge.js';
+import { createOperatorDeveloperProof, warmOperatorDeveloperContext } from './operator/forge.js';
 import { fetchOperatorStream } from './operator/stream.js';
 import { operatorHandoffUrl } from './operator/handoff.js';
 import { recallOperatorMemoryBestEffort, rememberOperatorTurnBestEffort } from './operator/organism-chat-bridge.js';
@@ -339,6 +339,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
   };
 
   const accountSync = createOperatorSync({ windowObj: window });
+  void warmOperatorDeveloperContext();
 
   // A full sync re-reads, decrypts, merges, rewrites, and re-encrypts the
   // whole conversation store. Running it on every window focus made the
@@ -825,7 +826,8 @@ if (form && input && submit && status && result && reply && followUps && actionL
         collectContext: collectPortalContext,
         createProof: createDeveloperProofWithRetry,
         recallMemory: recallOperatorMemoryBestEffort,
-        prompt
+        prompt,
+        proofTimeoutMs: 15000
       });
       portalContext.page = collectPageContext();
 
