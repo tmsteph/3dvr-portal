@@ -37,7 +37,7 @@ test('Operator installs as a distinct app and references available public assets
   assert.equal(manifest.short_name, 'Operator');
   assert.deepEqual(
     manifest.icons.map((icon) => icon.src),
-    ['/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png']
+    ['/icons/operator-192.png', '/icons/operator-512.png', '/icons/operator-maskable-512.png']
   );
   for (const icon of manifest.icons) await readFile(new URL(`.${icon.src}`, root));
   const html = await readFile(new URL('operator/index.html', root), 'utf8');
