@@ -105,3 +105,25 @@ test('games hub links the combined 3DVR World card, not standalone modes', async
   assert.doesNotMatch(games, /game-card preserve/);
   assert.doesNotMatch(games, /game-card companion/);
 });
+
+test('valley embodies one sprite: Pip, Wander\u2019s body, from a dated snapshot', async () => {
+  const html = await readFile(new URL('../valley/index.html', import.meta.url), 'utf8');
+
+  // the snapshot is a hand-generated photograph of the real sprite
+  // state (src/agent-core/living/PET.md), not a live wire
+  assert.match(html, /const PET_SNAPSHOT = \{/);
+  assert.match(html, /sprite: 'wander'/);
+  assert.match(html, /petName: 'Pip'/);
+  assert.match(html, /form: 'fox'/);
+  assert.match(html, /lastTickAt: '2026-11-16T04:54:18\.839Z'/);
+  assert.match(html, /mood: 'curious'/);
+  assert.match(html, /heldQuestion:/);
+  assert.match(html, /snapshotAt: '2026-11-16'/);
+  // the body runs in the same loop and draw pass as everything else
+  assert.match(html, /function updatePet\(dt\)/);
+  assert.match(html, /function drawPet\(\)/);
+  assert.match(html, /updatePet\(dt\);/);
+  assert.match(html, /drawPet\(\);/);
+  // pondering is the visible form of a sprite tick
+  assert.match(html, /pet\.state = 'ponder'/);
+});
