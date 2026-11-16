@@ -127,3 +127,38 @@ test('valley embodies one sprite: Pip, Wander\u2019s body, from a dated snapshot
   // pondering is the visible form of a sprite tick
   assert.match(html, /pet\.state = 'ponder'/);
 });
+
+test('valley pet stays findable on phone-width screens', async () => {
+  const html = await readFile(new URL('../valley/index.html', import.meta.url), 'utf8');
+
+  // regression: drawPet once read draw()'s local `gb`, threw on the
+  // first frame, and froze the whole scene (no hero, no pet, no motion)
+  assert.match(html, /const gy = groundBase\(\) \+ groundY\(pet\.x\);/);
+  assert.doesNotMatch(html, /const gy = gb \+ groundY\(pet\.x\);/);
+  // phone widths raise the ground line into the visible middle, and
+  // the parallax ridges hang off it so they follow it up
+  assert.match(html, /function groundBase\(\) \{ return VH \* \(narrow \? 0\.7 : 0\.8\); \}/);
+  assert.match(html, /ridge\(groundBase\(\) \* 0\.75/);
+  assert.match(html, /ridge\(groundBase\(\) \* 0\.9375/);
+  // phones start slightly zoomed in, already centered on the hero, so
+  // the first screenful holds the action
+  assert.match(html, /let zoomF = narrow \? 1\.3 : 1;/);
+  assert.match(html, /let camX = narrow/);
+  // Pip renders bigger on phones, with a larger name plate
+  assert.match(html, /function petScale\(\) \{ return narrow \? 1\.6 : 1; \}/);
+  assert.match(html, /ctx\.scale\(pet\.dir \* ps, ps\);/);
+  assert.match(html, /narrow \? 12 : 10/);
+  // on phones Pip roams the hero's neighborhood, trots to keep pace,
+  // and follows when it falls behind, instead of crossing the whole
+  // 4200-wide world out of sight
+  assert.match(html, /pet\.targetX = narrow/);
+  assert.match(html, /clamp\(hero\.x \+ \(Math\.random\(\) \* 2 - 1\) \* 150, 60, WORLD_W - 60\)/);
+  assert.match(html, /\(narrow \? 62 : 34\) \* dt/);
+  assert.match(html, /pet\.state = 'follow'/);
+  assert.match(html, /Math\.abs\(hero\.x - pet\.x\) > 130/);
+  // the music deck stays one row on phones instead of wrapping into a
+  // tall card over the ground the pet walks on
+  assert.match(html, /@media\(max-width:640px\)\{[\s\S]*?\.deck\{gap:6px;flex-wrap:nowrap/);
+  // test hook for the pet, beside state/music
+  assert.match(html, /pet: \(\) => \(\{ x: Math\.round\(pet\.x\), state: pet\.state, scale: petScale\(\) \}\)/);
+});

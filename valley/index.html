@@ -65,7 +65,7 @@ button.pill{cursor:pointer;font-family:inherit}
 .seg button{background:#ffffff12;border:1px solid #ffffff35;color:#fff;border-radius:999px;padding:6px 11px;font-size:.78rem;font-weight:700;cursor:pointer}
 .seg button.sel{background:#57b6ff;color:#0b1526;border-color:#57b6ff}
 #creatorPreview{background:#ffffff0d;border:1px solid #ffffff1f;border-radius:14px}
-@media(max-width:640px){.hint{bottom:118px;font-size:.68rem;max-width:92vw;white-space:normal;text-align:center}.deck{gap:6px}.deck input[type=text]{width:130px}.bar{gap:5px;padding:8px}.pill,.back{padding:6px 9px;font-size:.72rem}.title{display:none}}
+@media(max-width:640px){.hint{bottom:118px;font-size:.68rem;max-width:92vw;white-space:normal;text-align:center}.deck{gap:6px;flex-wrap:nowrap;max-width:98vw;padding:6px 8px}.deck.yt{flex-wrap:wrap}.deck button{min-width:34px;height:34px}.deck select{max-width:34vw;height:34px}.deck input[type=range]{width:54px}.deck input[type=text]{width:104px}.bar{gap:5px;padding:8px}.pill,.back{padding:6px 9px;font-size:.72rem}.title{display:none}}
 </style>
 </head>
 <body>
@@ -304,10 +304,11 @@ const hudFruit = document.getElementById('hudFruit');
 const modeDot = document.getElementById('modeDot');
 const modeLabel = document.getElementById('modeLabel');
 const hintEl = document.getElementById('hint');
-let VW = 0, VH = 0;
+let VW = 0, VH = 0, narrow = false;
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   VW = window.innerWidth; VH = window.innerHeight;
+  narrow = VW <= 640;
   canvas.width = Math.round(VW * dpr); canvas.height = Math.round(VH * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
@@ -329,7 +330,9 @@ function groundY(x) {
   }
   return y;
 }
-function groundBase() { return VH * 0.8; }
+/* phone-width screens raise the ground line so the action sits in
+   the visible middle of the screen, not under a panorama of sky */
+function groundBase() { return VH * (narrow ? 0.7 : 0.8); }
 
 /* day-cycle palettes */
 const STOPS = [
@@ -362,9 +365,13 @@ hero.y = groundY(hero.x);
 let mode = 'ambient';
 let lastInputAt = -20000;
 let fruit = 0, dayCount = 1, worldT = 0, dayPhase = 0.16;
-let camX = clamp(hero.x - 400, 0, Math.max(0, WORLD_W - 800));
-let zoomF = 1;
+/* phones start a little zoomed in and already centered on the hero,
+   so the first screenful holds the action; desktop framing is as before */
+let zoomF = narrow ? 1.3 : 1;
 const viewW = () => VW / zoomF;
+let camX = narrow
+  ? clamp(hero.x - viewW() / 2, 0, Math.max(0, WORLD_W - viewW()))
+  : clamp(hero.x - 400, 0, Math.max(0, WORLD_W - 800));
 const fruitTrees = FRUIT_TREES.map(x => ({
   x,
   slots: [-17, -6, 6, 16].map((dx, j) => ({ dx, dy: -96 - (j % 2) * 9, ripe: true, timer: 0 }))
@@ -517,15 +524,36 @@ function petPickNext() {
   // ponders often. Sprite state -> behavior mapping lives in PET.md.
   if (Math.random() < 0.45) { pet.state = 'ponder'; pet.timer = 3 + Math.random() * 4; return; }
   pet.state = 'wander';
-  pet.targetX = 90 + Math.random() * (WORLD_W - 180);
+  // On a phone the camera shows a few hundred world units around the
+  // hero; a whole-world stroll would take Pip out of sight for minutes,
+  // so there it roams the hero's neighborhood instead.
+  pet.targetX = narrow
+    ? clamp(hero.x + (Math.random() * 2 - 1) * 150, 60, WORLD_W - 60)
+    : 90 + Math.random() * (WORLD_W - 180);
 }
 function updatePet(dt) {
-  if (pet.state === 'wander') {
+  // On a phone the camera window is a few hundred world units wide and
+  // the hero crosses the whole valley; a pet left to its own wandering
+  // would be out of sight most of the time, so when it falls behind it
+  // trots after the hero like a pet should, then settles back down.
+  if (narrow && pet.state !== 'follow' && Math.abs(hero.x - pet.x) > 130) pet.state = 'follow';
+  if (pet.state === 'follow') {
+    const anchor = hero.x - hero.dir * 64;
+    const dx = anchor - pet.x;
+    if (Math.abs(dx) < 10) { pet.state = 'idle'; pet.timer = 0.6 + Math.random(); }
+    else {
+      pet.dir = dx > 0 ? 1 : -1;
+      pet.x += Math.sign(dx) * Math.min(Math.abs(dx), 118 * dt);
+      pet.phase += dt * 11;
+    }
+  } else if (pet.state === 'wander') {
     const dx = pet.targetX - pet.x;
     if (Math.abs(dx) < 8) { pet.state = 'idle'; pet.timer = 1 + Math.random() * 2; }
     else {
       pet.dir = dx > 0 ? 1 : -1;
-      pet.x += Math.sign(dx) * Math.min(Math.abs(dx), 34 * dt);
+      // on phones Pip trots at 62, fast enough to keep pace with the
+      // hero's ambient stroll (58/s) and stay near the camera window
+      pet.x += Math.sign(dx) * Math.min(Math.abs(dx), (narrow ? 62 : 34) * dt);
       pet.phase += dt * 9;
     }
   } else {
@@ -534,19 +562,21 @@ function updatePet(dt) {
   }
   pet.x = clamp(pet.x, 30, WORLD_W - 30);
 }
+function petScale() { return narrow ? 1.6 : 1; }
 function drawPet() {
   const sx = pet.x - camX;
-  if (sx < -70 || sx > viewW() + 70) return;
-  const gy = gb + groundY(pet.x);
-  const walking = pet.state === 'wander';
+  if (sx < -90 || sx > viewW() + 90) return;
+  const gy = groundBase() + groundY(pet.x);
+  const ps = petScale();
+  const walking = pet.state === 'wander' || pet.state === 'follow';
   const sit = pet.state === 'ponder';
   const bob = walking ? Math.abs(Math.sin(pet.phase)) * 1.6 : Math.sin(worldT * 1.8) * 0.5;
-  const by = gy - (sit ? 9 : 12) - bob;
+  const by = gy - (sit ? 9 : 12) * ps - bob;
   ctx.fillStyle = 'rgba(10,20,12,.2)';
-  ctx.beginPath(); ctx.ellipse(sx, gy + 3, 15, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(sx, gy + 3 * ps, 15 * ps, 3.2 * ps, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save();
   ctx.translate(sx, by);
-  ctx.scale(pet.dir, 1);
+  ctx.scale(pet.dir * ps, ps);
   /* tail: big, white-tipped, slow wave; near-still while pondering */
   const wag = sit ? Math.sin(worldT * 1.4) * 0.08 : Math.sin(worldT * 2.6) * 0.16;
   ctx.save(); ctx.translate(-15, -1); ctx.rotate(-0.5 + wag);
@@ -581,22 +611,24 @@ function drawPet() {
   ctx.restore();
   if (sit) {
     /* pondering: a sprite tick made visible */
-    const bx = sx + 18, byy = by - 44 + Math.sin(worldT * 2) * 1.5;
+    const bx = sx + 18 * ps, byy = by - 44 * ps + Math.sin(worldT * 2) * 1.5;
     ctx.fillStyle = 'rgba(250,248,240,.92)';
-    ctx.beginPath(); ctx.arc(bx, byy, 8.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(bx - 9, byy + 9, 4.6, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(bx - 14, byy + 15, 2.6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#5a4632'; ctx.font = '700 10px Inter,system-ui,sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('?', bx, byy + 3.5);
+    ctx.beginPath(); ctx.arc(bx, byy, 8.5 * ps, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx - 9 * ps, byy + 9 * ps, 4.6 * ps, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx - 14 * ps, byy + 15 * ps, 2.6 * ps, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#5a4632'; ctx.font = `700 ${Math.round(10 * ps)}px Inter,system-ui,sans-serif`; ctx.textAlign = 'center';
+    ctx.fillText('?', bx, byy + 3.5 * ps);
   } else {
     /* name plate, same style as the hero's */
-    ctx.font = '700 10px Inter,system-ui,sans-serif';
+    ctx.font = `700 ${narrow ? 12 : 10}px Inter,system-ui,sans-serif`;
     const label = PET_SNAPSHOT.petName + ' · ' + PET_SNAPSHOT.sprite;
     const tw = ctx.measureText(label).width;
+    const plateH = narrow ? 17 : 15;
+    const plateY = by - 21 * ps - 13 - (plateH - 15) - (ps - 1) * 8;
     ctx.fillStyle = 'rgba(10,17,28,.55)';
-    roundRect(ctx, sx - tw / 2 - 6, by - 34, tw + 12, 15, 7.5); ctx.fill();
+    roundRect(ctx, sx - tw / 2 - 6, plateY, tw + 12, plateH, plateH / 2); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.textAlign = 'center';
-    ctx.fillText(label, sx, by - 23);
+    ctx.fillText(label, sx, plateY + plateH - 4);
   }
 }
 
@@ -671,11 +703,11 @@ function draw() {
   ctx.scale(zoomF, zoomF);
   /* parallax ridges */
   ctx.fillStyle = pal.far;
-  ctx.save(); ctx.translate(-camX * 0.15, 0); ridge(VH * 0.6, 0.0016, 42, 0.005, 16, 3.1, camX * 0.15 - 60, camX * 0.15 + viewW() + 60); ctx.restore();
+  ctx.save(); ctx.translate(-camX * 0.15, 0); ridge(groundBase() * 0.75, 0.0016, 42, 0.005, 16, 3.1, camX * 0.15 - 60, camX * 0.15 + viewW() + 60); ctx.restore();
   ctx.fillStyle = pal.mid;
-  ctx.save(); ctx.translate(-camX * 0.38, 0); ridge(VH * 0.68, 0.0021, 30, 0.006, 11, 7.7, camX * 0.38 - 60, camX * 0.38 + viewW() + 60); ctx.restore();
+  ctx.save(); ctx.translate(-camX * 0.38, 0); ridge(groundBase() * 0.85, 0.0021, 30, 0.006, 11, 7.7, camX * 0.38 - 60, camX * 0.38 + viewW() + 60); ctx.restore();
   ctx.fillStyle = pal.near;
-  ctx.save(); ctx.translate(-camX * 0.62, 0); ridge(VH * 0.75, 0.0026, 18, 0.008, 7, 12.3, camX * 0.62 - 60, camX * 0.62 + viewW() + 60); ctx.restore();
+  ctx.save(); ctx.translate(-camX * 0.62, 0); ridge(groundBase() * 0.9375, 0.0026, 18, 0.008, 7, 12.3, camX * 0.62 - 60, camX * 0.62 + viewW() + 60); ctx.restore();
   /* ground */
   const gb = groundBase(), fromX = Math.max(0, camX - 40), toX = Math.min(WORLD_W, camX + viewW() + 40);
   ctx.fillStyle = pal.gnd;
@@ -1058,6 +1090,7 @@ document.getElementById('cCancel').addEventListener('click', () => creator.class
 /* ---------- boot + test hooks ---------- */
 window.Valley = {
   state: () => ({ mode, fruit, day: dayCount, heroX: Math.round(hero.x), character: currentDef.name, phase: +dayPhase.toFixed(3) }),
+  pet: () => ({ x: Math.round(pet.x), state: pet.state, scale: petScale() }),
   music: () => ({ muted: music.muted, volume: music.volume, station: music.station, mode: music.mode, playing: music.playing, audioSrc: audio.getAttribute('src'), audioPaused: audio.paused, yt: !!ytFrame }),
   select: id => selectCharacter(id, true),
   customs: () => customs.map(c => c.name),
