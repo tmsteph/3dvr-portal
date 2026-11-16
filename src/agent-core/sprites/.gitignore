@@ -1,0 +1,6 @@
+# Sprite runtime artifacts: journals, state, stop flags, and core history
+# are each sprite's own life on the box it runs on. They are not source.
+instances/*/journal.md
+instances/*/state.json
+instances/*/STOP
+instances/.core-state/
