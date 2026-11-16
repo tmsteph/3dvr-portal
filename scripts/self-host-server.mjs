@@ -11,6 +11,7 @@ import githubPublishHandler from '../api/github-publish.js';
 import growthHomepageHeroCronHandler from '../api/growth/homepage-hero-cron.js';
 import moneyLoopHandler from '../api/money/loop.js';
 import sessionHandler from '../api/session.js';
+import { createOperatorComputersHandler } from '../src/device/operator-computers.js';
 import stripeDashboardHandler from '../api/stripe/[route].js';
 import trialHandler from '../api/trial.js';
 import stripeWebhookHandler from '../api/webhooks/stripe.js';
@@ -23,6 +24,7 @@ import { createPresenceAudioHandler } from '../src/presence-audio/handler.js';
 
 import { createOperatorDispatchHandler } from '../src/operator-runtime/dispatch.js';
 const operatorDispatchHandler = createOperatorDispatchHandler();
+const operatorComputersHandler = createOperatorComputersHandler();
 
 import { createOpenClawHandler } from '../src/openclaw/handler.js';
 const openClawHandler = createOpenClawHandler();
@@ -447,6 +449,13 @@ const server = createServer(async (req, res) => {
     url.pathname.startsWith('/presence-audio/pair/')
   ) {
     return presenceAudioHandler(req, res, url);
+  }
+
+  if (url.pathname === '/api/operator-computers') {
+    if (STANDBY_MODE) return json(res, 503, { error: 'Primary computer service is unavailable.' });
+    const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https:' : 'http:';
+    req.portalOrigin = `${protocol}//${url.host}`;
+    return runJsonApiHandler(operatorComputersHandler, req, res, url, { errorMessage: 'Computer request failed' });
   }
 
   if (url.pathname === '/api/operator-task') {
