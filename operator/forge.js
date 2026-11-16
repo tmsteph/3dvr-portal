@@ -610,6 +610,23 @@ export async function createOperatorDeveloperProof() {
   return createSignedPortalProof('operator-developer-access', 'operator-chat');
 }
 
+export async function warmOperatorDeveloperContext() {
+  // Start the Gun/SEA session restore at page load instead of inside the
+  // first chat send, where a cold restore (runtime load, session recall,
+  // possible re-auth) competes with the send's proof budget and can silently
+  // downgrade a signed-in member to guest (#3763). Best effort only: a failed
+  // warm-up changes nothing, the send still tries to sign on its own.
+  try {
+    if (globalThis.localStorage?.getItem?.('signedIn') !== 'true') return false;
+    const context = await getGunContext();
+    if (!context) return false;
+    await ensurePortalSea(context.user);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function createOrganismRecallProof(query, options = {}) {
   const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
   if (!signedIn) throw new Error('Sign in with your 3DVR account before asking your memory.');

@@ -71,24 +71,33 @@ if (!kind || !id) {
   const gun = window.Gun({ peers: window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'] });
   const collection = kind === 'edit' ? 'editRequests' : 'suggestions';
   const node = gun.get('3dvr-portal').get('forge').get(collection).get(id);
-  let resolved = false;
+  let found = false;
+
+  // Gun answers .once() with an empty shell before the record has synced in
+  // from a peer, so an empty record is not proof the item is missing. Only a
+  // record carrying real fields counts as found; until one arrives the page
+  // stays in its loading state, and the not-found message is reserved for a
+  // record that never shows up at all.
+  const hasRecordFields = record => Boolean(
+    record && typeof record === 'object'
+    && (record.id || record.title || record.status || record.text || record.task)
+  );
 
   const timer = window.setTimeout(() => {
-    if (!resolved) showError('This Forge item did not load. It may still be syncing; try opening the link again.');
-  }, 5000);
+    if (!found) showError('This Forge item could not be found. It may still be syncing; try opening the link again in a moment.');
+  }, 8000);
 
   node.once(record => {
-    resolved = true;
+    if (!hasRecordFields(record)) return;
+    found = true;
     window.clearTimeout(timer);
-    if (!record || typeof record !== 'object' || (!record.id && !record.title && !record.status)) {
-      showError('This Forge item could not be found.');
-      return;
-    }
     renderRecord(record);
   });
 
   node.on(record => {
-    if (!record || typeof record !== 'object') return;
+    if (!hasRecordFields(record)) return;
+    found = true;
+    window.clearTimeout(timer);
     renderRecord(record);
   });
 }
