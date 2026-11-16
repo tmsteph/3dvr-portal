@@ -31,14 +31,21 @@ These are invariants, not guidelines. Every slice below is designed
 inside them, and the sprite runner enforces the first four in code.
 
 1. **Owner consent gates copying, spending, and outward acts.** Copying
-   a sprite is an explicit owner command (`fork`). Spending is bounded
-   by a per-sprite budget cap the runner enforces. Outward acts do not
-   exist in v0 at all: there is no send, purchase, or post path.
+   a sprite is an explicit owner command (`fork`), or — since
+   2026-11-15, under the owner's standing consent — a sprite's own fork
+   decision at the end of a tick, inside hard bounds the runner
+   enforces: a population cap for the whole terrarium, the child's
+   budget carved out of the parent's remaining budget, same box only,
+   at most one fork per sprite per day, and no forking in a child's
+   first 24 hours. Spending is bounded by a per-sprite budget cap the
+   runner enforces. Outward acts do not exist at all: there is no send,
+   purchase, or post path, and nothing can leave the box.
 2. **The owner can pause, export, or end any agent at any time.** Pause
    is a `STOP` file (or `paused` in the identity) checked before every
-   tick, before any money moves. Export is copying the instance
-   directory. Ending one is deleting it. Nothing about a sprite is
-   locked inside a service.
+   tick, before any money moves; a single `STOP` file at the terrarium
+   root pauses every sprite at once, forks included. Export is copying
+   the instance directory. Ending one is deleting it. Nothing about a
+   sprite is locked inside a service.
 3. **Self-healing never overrides the owner's stop.** No watchdog,
    scheduler, or repair path may clear a stop flag or restart a stopped
    sprite. Only the owner resumes.
@@ -94,17 +101,31 @@ inside them, and the sprite runner enforces the first four in code.
 
 ### Reproduce — fork with the owner's consent
 
-- **Current state:** Nothing. Agents do not copy themselves anywhere in
-  the portal today. #3348 designs permissioned node-level replication
-  (provisioning, quotas, kill switch) for the mesh.
+- **Current state:** Before the sprite runner, nothing: agents did not
+  copy themselves anywhere in the portal. #3348 designs permissioned
+  node-level replication (provisioning, quotas, kill switch) for the
+  mesh.
 - **Gap:** No small-scale, same-box version of reproduction to learn
   from before the mesh version.
-- **First slice (shipped here):** `fork` is an owner command that
+- **First slice (shipped 2026-11-15):** `fork` as an owner command that
   clones an identity under a new name, with optional owner overrides
   for persona and goals, and a **fresh** journal and state: a fork gets
-  a different memory and life, so copies diverge from birth. Variation
-  is the owner editing the copy; selection is the owner reading the
-  status view and giving budget and forks to the sprites that prove
+  a different memory and life, so copies diverge from birth.
+- **Second slice (shipped 2026-11-15, the same evening, at the owner's
+  direction: "give it creative liberty" on forking):** reproduction is
+  a living function, not only a command. A sprite may end a tick with a
+  fork decision (`FORK: <name> | <difference and why>` as the final
+  line of its journal entry); the runner validates it against the
+  terrarium bounds and creates the child: population capped at 12, the
+  child's cap ($1.00) carved out of the parent's remaining budget so
+  total funded energy never grows on its own, at most one fork per
+  sprite per day, a forked child cannot fork in its first 24 hours,
+  same box only, and lineage (parent, generation, forked-at, the
+  parent's stated reason) recorded in the child's identity and both
+  journals. Denied forks are recorded in the parent's journal too, so
+  growth and refused growth are both observable. Selection is still
+  the owner's: reading the status view (which now shows generation and
+  parent) and giving budget and forks to the sprites that prove
   useful, loved, or profitable.
 - **Later slice:** #3348's mesh version (new hosts, quotas, signed
   enrollment, revocation) once the same-box lessons are in.
@@ -116,16 +137,21 @@ inside them, and the sprite runner enforces the first four in code.
   user's own box. Nothing wakes an agent when nobody is talking to it.
 - **Gap:** No idle life. Between conversations, agents do not exist.
 - **First slice (shipped here):** The tick itself. A sprite persists as
-  files, wakes for one tick when invoked (by hand today, by a scheduler
-  tomorrow), thinks toward its goals using its identity and recent
-  journal as context, appends the thought, and sleeps. Its journal is
-  the continuity: each tick reads the last entries, so thinking
-  compounds instead of restarting.
-- **Later slice:** A scheduler (cron or the Operator queue) that ticks
-  sprites on a cadence inside their budget caps, plus the #3386 soul
-  file work: the identity file here is a seed of a soul file, and a
-  nightly "dreaming" tick that consolidates the day's journal is the
-  natural next tick type.
+  files, wakes for one tick when invoked, thinks toward its goals using
+  its identity and recent journal as context, appends the thought, and
+  sleeps. Its journal is the continuity: each tick reads the last
+  entries, so thinking compounds instead of restarting.
+- **Autonomy slice (shipped 2026-11-15):** The scheduler arrived the
+  same evening: the sprites live in a runtime home on OVH
+  (`/opt/3dvr-sprites/`, journals and state there, never in the
+  production checkout) and systemd timers tick each sprite roughly
+  every three hours, staggered, with no human input, inside the budget
+  caps. The caps were raised to $3.00 each and are read as energy
+  budgets; the DeepInfra prepaid balance behind the broker key is the
+  hard backstop for the whole terrarium.
+- **Later slice:** The #3386 soul file work: the identity file here is
+  a seed of a soul file, and a nightly "dreaming" tick that
+  consolidates the day's journal is the natural next tick type.
 
 ### Have a body — devices, sensors, actuators
 
@@ -161,11 +187,32 @@ inside them, and the sprite runner enforces the first four in code.
 - `src/agent-core/sprites/run.js` — the owner's CLI.
 - `src/agent-core/sprites/instances/` — three starter sprites:
   **ember** (3DVR growth), **sprout** (preserve/farm knowledge),
-  **wander** (free-curious explorer). Budget cap $1.00 each.
+  **wander** (free-curious explorer). Budget cap $3.00 each (raised
+  from $1.00 in the autonomy pass below; read as energy budgets).
 - `tests/agent-core-sprites.test.js` — stop honored, cap enforced,
   fork independence, journal appends, explicit failure.
 
-Deliberately not in v0: scheduled/automatic ticking (ticks are invoked,
-so nothing spends while nobody has asked), sprite-to-sprite messaging,
-any tool or outward action, income, and self-modification of identity
-or goals.
+## What shipped in the autonomy pass (2026-11-15, later that evening)
+
+At the owner's direction ("I want to give you creative liberty"; his
+cap question "meant more about the forking"):
+
+- **Scheduled self-ticking:** a runtime home on OVH
+  (`/opt/3dvr-sprites/`) seeded with the starter sprites, ticked by
+  per-sprite systemd timers roughly every three hours, staggered. The
+  owner added two hand-made forks to the rotation, **flare** (a bolder
+  growth sprite, forked from ember) and **scout** (an explorer tuned to
+  the business-operator pattern proven with Tom Butcher, forked from
+  wander), for five sprites in the terrarium.
+- **Bounded self-forking in the runner** (see Reproduce above):
+  fork decisions parsed from a tick's reply, terrarium bounds enforced
+  in code, lineage recorded, status view shows generation and parent,
+  and one `STOP` file at the terrarium root halts everything.
+- Tests grew with it: population cap, budget carve-out math, the
+  once-a-day and first-day cooldowns, lineage, malformed trailers
+  ignored, and the terrarium-wide stop.
+
+Deliberately still not in: sprite-to-sprite messaging, any tool or
+outward action, income, and self-modification of a sprite's own
+identity or goals (a self-forked child's variation is inheritance
+written at its birth, not self-editing).

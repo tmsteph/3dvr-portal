@@ -19,7 +19,20 @@ A tick wakes a sprite once: the runner checks the stop flag and the
 budget cap first, then gives the agent core (`../core.js`) the sprite's
 identity, goals, and recent journal, and appends the reply to the
 journal. Sprites have **no outward actions**: no sends, no purchases, no
-posts, no self-copying. Their only effect on the world is their journal.
+posts. Their only effects on the world are their journal and the one
+bounded act below.
+
+**Reproduction.** A sprite may end a tick by deciding to fork: a final
+line `FORK: <name> | <difference and why>` in its reply. The runner
+enforces the terrarium bounds before creating anything: at most 12
+sprites in the root, the child's $1.00 cap carved out of the parent's
+remaining budget (the parent's cap drops by that amount), at most one
+fork per sprite per day, and a forked child cannot fork in its first
+24 hours. The child's identity records its lineage (parent, generation,
+forked-at, the parent's reason); its journal starts fresh with a first
+entry saying who it is, whose it is, and why it was made. The owner can
+also fork any sprite by command (below) with an explicit budget. A
+`STOP` file placed in the root itself halts every sprite at once.
 
 ## Commands
 
@@ -41,3 +54,9 @@ side: **sprout** tends the preserve and food-forest knowledge, **ember**
 tends 3DVR growth ideas, and **wander** is the free-curious explorer.
 Selection is the owner's: the useful, loved, and profitable ones get
 more budget and more forks.
+
+On OVH the sprites live in a runtime home at `/opt/3dvr-sprites/`
+(point the CLI there with `--root /opt/3dvr-sprites`), where systemd
+timers tick each sprite roughly every three hours, staggered, with no
+human input. The repo copies of the identities are the seed; the
+runtime journals and state are the life.
