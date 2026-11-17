@@ -113,6 +113,30 @@ export function advanceRevenueLead(item, event, options = {}) {
 
   const [nextStage, nextState] = transition;
   const evidence = [...(item.evidence || [])];
+  // External actions are records of things that happened, not requested actions.
+  // Require a distinct receipt before marking a message sent or a lead won.
+  // Receipt structure does not verify signatures: provider/webhook adapters must
+  // authenticate their inputs before calling this state transition.
+  if (['outreach_sent', 'follow_up_sent', 'proposal_sent', 'payment_received'].includes(event)) {
+    const receipt = options.evidence;
+    if (!receipt || typeof receipt !== 'object' || typeof receipt.id !== 'string' || !receipt.id.trim()) {
+      throw new TypeError(`${event} requires an external receipt with a stable id`);
+    }
+    if (evidence.some(prior => prior?.id === receipt.id)) {
+      throw new TypeError('external receipt id has already been recorded for this lead');
+    }
+    if (event === 'payment_received') {
+      const valid = receipt.type === 'provider_payment'
+        && typeof receipt.provider === 'string' && receipt.provider.trim()
+        && typeof receipt.invoiceId === 'string' && receipt.invoiceId.trim()
+        && receipt.leadId === item.id
+        && Number.isSafeInteger(receipt.amountCents) && receipt.amountCents > 0
+        && typeof receipt.currency === 'string' && /^[A-Z]{3}$/.test(receipt.currency)
+        && options.result?.amountCents === receipt.amountCents
+        && options.result?.currency === receipt.currency;
+      if (!valid) throw new TypeError('payment_received requires a matching provider receipt, lead and amount');
+    }
+  }
   if (options.evidence) evidence.push(options.evidence);
 
   return transitionWorkItem(item, nextState, {
