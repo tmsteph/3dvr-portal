@@ -1,7 +1,7 @@
 name: Outbound Autopilot
 
 on:
-  # Diagnostic queue builder only. Real outbound sales runs on the DigitalOcean agent.
+  # Diagnostic queue builder only. Keep this no-send and no-delivery even on manual dispatch.
   # Keep this manual so a non-sending diagnostic does not waste scheduled Actions compute.
   workflow_dispatch:
     inputs:
@@ -32,10 +32,6 @@ jobs:
       MONEY_OUTBOUND_DAILY_CAP: ${{ vars.MONEY_OUTBOUND_DAILY_CAP }}
       MONEY_OUTBOUND_SENDER_WEBHOOK_URL: ${{ secrets.MONEY_OUTBOUND_SENDER_WEBHOOK_URL }}
       MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN: ${{ secrets.MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN }}
-      GMAIL_USER: ${{ secrets.GMAIL_USER }}
-      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-      MONEY_OPERATOR_EMAIL_TO: ${{ vars.MONEY_OPERATOR_EMAIL_TO }}
-      MONEY_OPERATOR_EMAIL_DRY_RUN: ${{ vars.MONEY_OPERATOR_EMAIL_DRY_RUN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -58,7 +54,7 @@ jobs:
           npm run money:outbound -- \
             --mode "$INPUT_MODE" \
             --dailyCap "$INPUT_DAILY_CAP" \
-            --sendEmail true \
+            --dryRun true \
             --out artifacts/outbound-autopilot/latest.json \
             --queueOut artifacts/outbound-autopilot/outbound-queue.csv \
             --outcomesOut artifacts/outbound-autopilot/outcome-tracker.csv \
