@@ -10,6 +10,16 @@ const modeRaw = await readFile('.github/e2e/operator-e2e-mode.txt', 'utf8').catc
 const mode = String(process.env.PORTAL_E2E_MODE || modeRaw || '').trim().toLowerCase();
 const usingPublicCredentials = alias === publicAlias && password === publicPassword;
 const artifactDir = 'e2e-artifacts';
+const explicitAlias = Boolean(process.env.PORTAL_E2E_ALIAS?.trim());
+const explicitPassword = Boolean(process.env.PORTAL_E2E_PASSWORD?.trim());
+
+// Never run a production acceptance check against the public, source-disclosed
+// fallback identity. This is a configuration preflight, not an auth attempt.
+if (new URL(baseUrl).hostname === 'portal.3dvr.tech' && (!explicitAlias || !explicitPassword)) {
+  throw new Error(
+    'Operator production E2E identity is unconfigured: both PORTAL_E2E_ALIAS and PORTAL_E2E_PASSWORD must be supplied; refusing public fallback.'
+  );
+}
 await mkdir(artifactDir, { recursive: true });
 
 function log(label, value = '') {
