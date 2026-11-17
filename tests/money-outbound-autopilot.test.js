@@ -231,6 +231,30 @@ test('dispatchOutboundWebhook never posts even if a caller forges auto-send flag
   assert.equal(requests.length, 0, 'no network request may occur');
 });
 
+test('dry-run rejects a forged ready-to-send queue before any webhook request', async () => {
+  const result = await dispatchOutboundWebhook({
+    queue: [{ id: 'synthetic-test', autoSendPlanned: true, approvalStatus: 'ready-to-send' }],
+    webhookUrl: 'https://example.invalid/webhook',
+    token: 'fake-token',
+    dryRun: true,
+    fetchImpl() {
+      throw new Error('network must never be called on dry-run');
+    }
+  });
+  assert.equal(result.attempted, false);
+  assert.equal(result.sent, false);
+  assert.equal(result.skipped, true);
+  assert.equal(result.sentCount, 0);
+  assert.match(result.reason, /dry-run: outbound transport disabled/);
+});
+
+test('outbound CLI gates both brief transports and forwards dry-run to webhook boundary', async () => {
+  const cli = await readFile(new URL('../scripts/money/outbound-autopilot.mjs', import.meta.url), 'utf8');
+  assert.match(cli, /dryRun: dryRun === true/);
+  assert.match(cli, /dryRun !== true && parseBool\(args\.sendEmail, false\)/);
+  assert.match(cli, /dryRun !== true && parseBool\(args\.sendTelegram, false\)/);
+});
+
 test('buildOutboundSummary includes guardrail and first draft', () => {
   const queue = buildOutboundQueue({
     autopilot,
@@ -263,7 +287,9 @@ test('outbound workflow runs manual diagnostic queue generation', async () => {
   assert.doesNotMatch(workflow, /STRIPE_SECRET_KEY/);
   assert.match(workflow, /outbound-queue\.csv/);
   assert.match(workflow, /outcome-tracker\.csv/);
-  assert.match(workflow, /sendEmail true/);
+  assert.match(workflow, /--dryRun true/);
+  assert.doesNotMatch(workflow, /--sendEmail true/);
+  assert.doesNotMatch(workflow, /GMAIL_APP_PASSWORD/);
   assert.match(workflow, /email-message\.txt/);
   assert.match(workflow, /email-delivery\.json/);
   assert.doesNotMatch(workflow, /sendTelegram true/);
