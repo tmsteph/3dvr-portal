@@ -242,7 +242,7 @@ function buildApprovalReason(prospect = {}, mode = 'approval-required') {
   if (mode === 'draft-only') return 'Draft only. No send decision requested.';
   if (!prospect.allowAutoSend) return 'Needs approval because this prospect is not allowlisted for auto-send.';
   if (!prospect.email && prospect.channel === 'email') return 'Needs approval because no email is available.';
-  return 'Allowlisted for auto-send if sender is configured and daily cap allows it.';
+  return 'Human approval with a verified message-bound receipt is required before any external send.';
 }
 
 export function buildOutboundQueue({
@@ -267,24 +267,16 @@ export function buildOutboundQueue({
       || clean(autopilot.promotion?.destinationUrl)
       || 'https://portal.3dvr.tech/free-page/'
   };
-  const cap = Math.max(0, Math.floor(toNumber(dailyCap, 3)));
-  let autoSendSlots = cap;
+  // Keep the existing queue and caps API, but never treat allowlisting as send authorization.
+  // A separately verified, single-use human approval receipt must gate any future sender.
 
   return prospects
     .map((item, index) => normalizeProspect(item, index))
     .map(prospect => {
       const score = scoreProspect(prospect);
-      const eligibleForAutoSend = safeMode === 'allowlisted-auto-send'
-        && prospect.allowAutoSend
-        && !prospect.lastContactedAt
-        && (prospect.email || prospect.channel !== 'email');
-      const autoSendPlanned = eligibleForAutoSend && autoSendSlots > 0;
-      if (autoSendPlanned) autoSendSlots -= 1;
-      const status = safeMode === 'draft-only'
-        ? 'drafted'
-        : autoSendPlanned
-          ? 'ready-to-send'
-          : 'needs-approval';
+      const eligibleForAutoSend = false;
+      const autoSendPlanned = false;
+      const status = safeMode === 'draft-only' ? 'drafted' : 'needs-approval';
 
       return {
         ...prospect,
@@ -414,6 +406,13 @@ export async function dispatchOutboundWebhook({
     return result;
   }
 
+  // No verifiable, durable, recipient/content/channel-bound approval receipt exists here.
+  // Fail closed even for a caller-supplied queue marked autoSendPlanned.
+  result.skipped = true;
+  result.reason = 'verified message-specific human approval required; sender webhook dispatch disabled';
+  return result;
+
+  /* Transport intentionally unreachable until an approval verifier is integrated.
   result.attempted = true;
   try {
     const response = await fetchImpl(webhookUrl, {
@@ -456,6 +455,7 @@ export async function dispatchOutboundWebhook({
     result.reason = `send failed: ${error.message}`;
     return result;
   }
+  */
 }
 
 export function buildOutboundSummary({
@@ -510,6 +510,6 @@ ${firstDraft ? [
 
 ## Guardrail
 
-Auto-send requires mode \`allowlisted-auto-send\`, an allowlisted prospect, daily cap room, and a configured sender webhook.
+Auto-send is disabled until a durable, single-use, message-specific human approval is verified by the outbound transport. Research and drafts remain available.
 `;
 }
