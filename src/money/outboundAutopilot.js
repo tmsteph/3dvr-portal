@@ -17,11 +17,6 @@ function parseBool(value, fallback = false) {
   return fallback;
 }
 
-function toNumber(value, fallback) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : fallback;
-}
-
 function escapeCsv(value = '') {
   const text = String(value ?? '');
   if (!/[",\n\r]/.test(text)) return text;
@@ -240,8 +235,7 @@ function buildMessage(prospect = {}, offer = {}) {
 
 function buildApprovalReason(prospect = {}, mode = 'approval-required') {
   if (mode === 'draft-only') return 'Draft only. No send decision requested.';
-  if (!prospect.allowAutoSend) return 'Needs approval because this prospect is not allowlisted for auto-send.';
-  if (!prospect.email && prospect.channel === 'email') return 'Needs approval because no email is available.';
+  if (!prospect.email && prospect.channel === 'email') return 'Email address is missing; human review required.';
   return 'Human approval with a verified message-bound receipt is required before any external send.';
 }
 
@@ -412,50 +406,6 @@ export async function dispatchOutboundWebhook({
   result.reason = 'verified message-specific human approval required; sender webhook dispatch disabled';
   return result;
 
-  /* Transport intentionally unreachable until an approval verifier is integrated.
-  result.attempted = true;
-  try {
-    const response = await fetchImpl(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({
-        mode: 'outbound-autopilot',
-        messages: ready.map(item => ({
-          id: item.id,
-          channel: item.channel,
-          to: item.email,
-          subject: item.subject,
-          body: item.messageDraft,
-          metadata: {
-            score: item.score,
-            segment: item.segment,
-            offer: item.offer,
-            offerProfile: item.offerProfile,
-            suggestedPrice: item.suggestedPrice,
-            autopilotRunId: item.autopilotRunId,
-            clientReferenceId: item.clientReferenceId,
-            destinationUrl: item.destinationUrl
-          }
-        }))
-      })
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      throw new Error(text || `sender webhook returned ${response.status}`);
-    }
-    result.sent = true;
-    result.sentCount = ready.length;
-    result.reason = 'sent via sender webhook';
-    return result;
-  } catch (error) {
-    result.failed = true;
-    result.reason = `send failed: ${error.message}`;
-    return result;
-  }
-  */
 }
 
 export function buildOutboundSummary({
