@@ -377,6 +377,7 @@ export async function dispatchOutboundWebhook({
   queue = [],
   webhookUrl = '',
   token = '',
+  dryRun = false,
   fetchImpl = fetch
 } = {}) {
   const ready = queue.filter(item => item.autoSendPlanned);
@@ -388,6 +389,14 @@ export async function dispatchOutboundWebhook({
     sentCount: 0,
     reason: ''
   };
+
+  // Safety invariant: dry runs never reach an outbound transport, including if
+  // a future caller supplies a supposedly approved/send-ready queue row.
+  if (dryRun === true) {
+    result.skipped = true;
+    result.reason = 'dry-run: outbound transport disabled';
+    return result;
+  }
 
   if (!ready.length) {
     result.skipped = true;
