@@ -100,7 +100,7 @@ test('fresh email requires human approval even in business hours; policy defers 
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'sms', localHour: 10 }).decision, 'approval');
 });
 
-test('revenue workflow carries a lead from research to verified payment', () => {
+test('revenue workflow records delivery receipts and an attributed provider payment claim', () => {
   let item = createRevenueLeadWorkItem({
     id: 'lead-1',
     leadName: 'ACME',
@@ -118,13 +118,33 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   assert.equal(item.state, 'waiting_external');
   item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z' });
   assert.equal(revenueStage(item), 'proposal');
-  item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z' });
+  item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'msg-2' } });
   assert.equal(revenueStage(item), 'payment');
-  item = advanceRevenueLead(item, 'payment_received', { now: '2026-09-12T18:06:00.000Z', result: { amount: 1200 } });
+  item = advanceRevenueLead(item, 'payment_received', { now: '2026-09-12T18:06:00.000Z', result: { amountCents: 120000, currency: 'USD' }, evidence: { type: 'provider_payment', id: 'evt-1', provider: 'stripe', invoiceId: 'inv-1', leadId: item.id, amountCents: 120000, currency: 'USD' } });
   assert.equal(revenueStage(item), 'won');
   assert.equal(item.state, 'done');
-  assert.equal(item.result.amount, 1200);
-  assert.equal(item.evidence.length, 1);
+  assert.equal(item.result.amountCents, 120000);
+  assert.equal(item.evidence.length, 3);
+});
+
+
+test('revenue events cannot claim sent messages or payments without attributable receipts', () => {
+  let item = createRevenueLeadWorkItem({ id: 'lead-guard', leadName: 'Synthetic lead' });
+  item = advanceRevenueLead(item, 'research_complete');
+  item = advanceRevenueLead(item, 'qualified');
+  assert.throws(() => advanceRevenueLead(item, 'outreach_sent'), /requires an external receipt/);
+  item = advanceRevenueLead(item, 'outreach_sent', { evidence: { type: 'email', id: 'msg-guard' } });
+  item = advanceRevenueLead(item, 'reply_received');
+  assert.throws(() => advanceRevenueLead(item, 'proposal_sent'), /requires an external receipt/);
+  assert.throws(() => advanceRevenueLead(item, 'proposal_sent', { evidence: { type: 'email', id: 'msg-guard' } }), /already been recorded/);
+  item = advanceRevenueLead(item, 'proposal_sent', { evidence: { type: 'email', id: 'proposal-guard' } });
+  const receipt = { type: 'provider_payment', id: 'evt-guard', provider: 'stripe', invoiceId: 'inv-guard', leadId: item.id, amountCents: 5000, currency: 'USD' };
+  const result = { amountCents: 5000, currency: 'USD' };
+  assert.throws(() => advanceRevenueLead(item, 'payment_received', { result }), /requires an external receipt/);
+  assert.throws(() => advanceRevenueLead(item, 'payment_received', { evidence: { ...receipt, leadId: 'different-lead' }, result }), /requires a matching provider receipt/);
+  assert.throws(() => advanceRevenueLead(item, 'payment_received', { evidence: { ...receipt, amountCents: -1 }, result }), /requires a matching provider receipt/);
+  assert.throws(() => advanceRevenueLead(item, 'payment_received', { evidence: receipt, result: { amountCents: 1, currency: 'USD' } }), /requires a matching provider receipt/);
+  assert.equal(item.metadata.stage, 'payment', 'rejected claims do not mutate the source work item');
 });
 
 test('business team keeps one manager plus bounded functional roles', () => {
