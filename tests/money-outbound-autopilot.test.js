@@ -281,7 +281,8 @@ test('outbound workflow runs manual diagnostic queue generation', async () => {
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /money:outbound/);
   assert.match(workflow, /approval-required/);
-  assert.match(workflow, /MONEY_OUTBOUND_SENDER_WEBHOOK_URL/);
+  assert.doesNotMatch(workflow, /MONEY_OUTBOUND_SENDER_WEBHOOK_URL/);
+  assert.doesNotMatch(workflow, /MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN/);
   assert.match(workflow, /MONEY_OUTBOUND_STRATEGY_URL/);
   assert.match(workflow, /MONEY_OUTBOUND_STRATEGY_TOKEN/);
   assert.doesNotMatch(workflow, /STRIPE_SECRET_KEY/);
