@@ -56,7 +56,7 @@ test('buildOutboundQueue defaults to approval-required and drafts personal messa
   assert.match(queue[0].destinationUrl, /free-page/);
 });
 
-test('buildOutboundQueue plans auto-send only for allowlisted prospects inside cap', () => {
+test('buildOutboundQueue never converts allowlisting and daily caps into send approval', () => {
   const queue = buildOutboundQueue({
     autopilot,
     mode: 'allowlisted-auto-send',
@@ -86,8 +86,10 @@ test('buildOutboundQueue plans auto-send only for allowlisted prospects inside c
     ]
   });
 
-  assert.equal(queue.filter(item => item.autoSendPlanned).length, 1);
-  assert.equal(queue.find(item => item.name === 'Morgan').approvalStatus, 'needs-approval');
+  assert.equal(queue.filter(item => item.autoSendPlanned).length, 0);
+  assert.equal(queue.filter(item => item.eligibleForAutoSend).length, 0);
+  assert.ok(queue.every(item => item.approvalStatus === 'needs-approval'));
+  assert.match(queue.find(item => item.name === 'Dana').approvalReason, /human approval/i);
 });
 
 
@@ -185,10 +187,13 @@ test('dispatchOutboundWebhook skips unless allowlisted messages and webhook are 
   });
   const noWebhook = await dispatchOutboundWebhook({ queue });
   assert.equal(noWebhook.skipped, true);
-  assert.match(noWebhook.reason, /sender webhook not configured/);
+  assert.match(noWebhook.reason, /no allowlisted/);
+  const explicitQueue = [{ ...queue[0], autoSendPlanned: true }];
+  const missingWebhook = await dispatchOutboundWebhook({ queue: explicitQueue });
+  assert.match(missingWebhook.reason, /sender webhook not configured/);
 });
 
-test('dispatchOutboundWebhook posts allowlisted messages to configured sender', async () => {
+test('dispatchOutboundWebhook never posts even if a caller forges auto-send flag and configures transport', async () => {
   const queue = buildOutboundQueue({
     autopilot,
     mode: 'allowlisted-auto-send',
@@ -200,8 +205,10 @@ test('dispatchOutboundWebhook posts allowlisted messages to configured sender', 
     }]
   });
   const requests = [];
+  // Simulate a stale/untrusted caller supplying a supposedly send-ready queue row.
+  const forgedQueue = [{ ...queue[0], autoSendPlanned: true, approvalStatus: 'ready-to-send' }];
   const result = await dispatchOutboundWebhook({
-    queue,
+    queue: forgedQueue,
     webhookUrl: 'https://sender.example.com/send',
     token: 'secret-token',
     async fetchImpl(url, options) {
@@ -216,15 +223,12 @@ test('dispatchOutboundWebhook posts allowlisted messages to configured sender', 
     }
   });
 
-  assert.equal(result.sent, true);
-  assert.equal(result.sentCount, 1);
-  assert.equal(requests[0].url, 'https://sender.example.com/send');
-  assert.equal(requests[0].options.headers.Authorization, 'Bearer secret-token');
-  const payload = JSON.parse(requests[0].options.body);
-  assert.equal(payload.mode, 'outbound-autopilot');
-  assert.equal(payload.messages[0].to, 'dana@example.com');
-  assert.equal(payload.messages[0].metadata.autopilotRunId, 'money-1');
-  assert.equal(payload.messages[0].metadata.offerProfile, 'free-page-starter');
+  assert.equal(result.sent, false);
+  assert.equal(result.attempted, false);
+  assert.equal(result.skipped, true);
+  assert.equal(result.sentCount, 0);
+  assert.match(result.reason, /verified message-specific human approval required/);
+  assert.equal(requests.length, 0, 'no network request may occur');
 });
 
 test('buildOutboundSummary includes guardrail and first draft', () => {
@@ -242,7 +246,7 @@ test('buildOutboundSummary includes guardrail and first draft', () => {
   assert.match(summary, /Outbound Autopilot/);
   assert.match(summary, /Money Action/);
   assert.match(summary, /Dana/);
-  assert.match(summary, /Auto-send requires mode/);
+  assert.match(summary, /Auto-send is disabled/);
 });
 
 test('outbound workflow runs manual diagnostic queue generation', async () => {
