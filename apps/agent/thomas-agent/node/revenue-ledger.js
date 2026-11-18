@@ -158,7 +158,16 @@ function transitionProspect(db, input = {}) {
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
   const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
-  if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  if (replay) {
+    // A retry must refer to the *same* prospect, destination state and event
+    // type. Otherwise a shared idempotency key could silently suppress a
+    // different lead's CRM outbox event.
+    if (replay.prospect_id !== id || replay.to_state !== toState
+      || replay.type !== (normalize(input.type) || 'state_transition')) {
+      throw new Error('Idempotency key conflicts with an existing revenue event');
+    }
+    return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  }
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
@@ -225,7 +234,13 @@ function importProspectState(db, input = {}) {
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
   const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
-  if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  if (replay) {
+    if (replay.prospect_id !== id || replay.to_state !== toState
+      || replay.type !== 'legacy_import') {
+      throw new Error('Idempotency key conflicts with an existing revenue event');
+    }
+    return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  }
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (prospect.state !== 'prospect' && prospect.state !== toState) throw new Error(`Cannot import ${toState} over existing ${prospect.state} state`);
