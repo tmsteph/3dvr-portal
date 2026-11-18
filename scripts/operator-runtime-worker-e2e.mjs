@@ -11,13 +11,21 @@ if (peers.length === 0) {
   throw new Error('Set THREEDVR_GUN_PEERS to an isolated test relay; no default relay is permitted.');
 }
 const productionPeer = peers.some(peer => {
+  let url;
   try {
-    const host = new URL(peer).hostname.toLowerCase();
-    return ['portal.3dvr.tech', 'relay.3dvr.tech'].some(productionHost =>
-      host === productionHost || host.endsWith('.' + productionHost));
+    url = new URL(peer);
   } catch {
     throw new Error('Invalid THREEDVR_GUN_PEERS URL');
   }
+  // Gun peers must be actual network endpoints; never accept file/data URLs.
+  if (!['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) {
+    throw new Error('Invalid THREEDVR_GUN_PEERS URL protocol');
+  }
+  const host = url.hostname.toLowerCase();
+  // Keep in sync with the active CRM/Notes/Clipboard Gun relay defaults.
+  const productionHosts = ['portal.3dvr.tech', 'relay.3dvr.tech', 'gun-relay-3dvr.fly.dev'];
+  return productionHosts.some(productionHost =>
+    host === productionHost || host.endsWith('.' + productionHost));
 });
 if (productionPeer) {
   throw new Error('Production relay blocked. Queue-writing E2E must use an isolated relay.');
