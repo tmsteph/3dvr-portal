@@ -21,7 +21,9 @@ const productionPeer = peers.some(peer => {
   if (!['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) {
     throw new Error('Invalid THREEDVR_GUN_PEERS URL protocol');
   }
-  const host = url.hostname.toLowerCase();
+  // DNS treats terminal dots as an absolute hostname; do not let an equivalent
+  // production FQDN such as portal.3dvr.tech. bypass the denylist.
+  const host = url.hostname.toLowerCase().replace(/\.+$/, '');
   // Keep in sync with the active CRM/Notes/Clipboard Gun relay defaults.
   const productionHosts = ['portal.3dvr.tech', 'relay.3dvr.tech', 'gun-relay-3dvr.fly.dev'];
   return productionHosts.some(productionHost =>
