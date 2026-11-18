@@ -73,3 +73,36 @@ test('delivery attempt key cannot be reused for a different prospect', async () 
     assert.equal(value.db.prepare('SELECT state FROM prospects WHERE id=?').get(other.id).state, 'eligible');
   } finally { value.close(); }
 });
+
+test('delivery receipts without an attributable provider message do not mark a prospect sent', async () => {
+  const invalidReceipts = [
+    { label: 'boolean-only acknowledgement', receipt: { acknowledged: true } },
+    { label: 'missing message ID', receipt: { acknowledged: true, transport: 'test' } },
+    { label: 'blank message ID', receipt: { acknowledged: true, messageId: '  ', transport: 'test' } },
+    { label: 'missing transport', receipt: { acknowledged: true, messageId: 'provider-message-1' } },
+    { label: 'blank transport', receipt: { acknowledged: true, messageId: 'provider-message-1', transport: '  ' } },
+    { label: 'negative acknowledgement', receipt: { acknowledged: false, messageId: 'provider-message-1', transport: 'test' } },
+  ];
+  for (const { label, receipt } of invalidReceipts) {
+    const value = fixture();
+    try {
+      let calls = 0;
+      const first = await deliverProspect(
+        value.db,
+        { prospectId: value.prospect.id, attemptId: 'ambiguous-ack' },
+        async () => { calls++; return receipt; }
+      );
+      assert.equal(first.prospect.state, 'failed', label);
+      assert.match(first.error, /attributable delivery acknowledgement/, label);
+      assert.equal(value.db.prepare("SELECT status FROM delivery_attempts WHERE attempt_key='ambiguous-ack'").get().status, 'failed', label);
+      assert.equal(value.db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='delivery_acknowledged'").get().n, 0, label);
+      const retry = await deliverProspect(
+        value.db,
+        { prospectId: value.prospect.id, attemptId: 'ambiguous-ack' },
+        async () => { calls++; throw Error('unexpected resend'); }
+      );
+      assert.equal(retry.replayed, true, label);
+      assert.equal(calls, 1, label + ': retry must not invoke transport');
+    } finally { value.close(); }
+  }
+});
