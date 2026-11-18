@@ -17,6 +17,10 @@ const cases = [
   { name: 'production override cannot bypass', peers: 'wss://portal.3dvr.tech/gun-relay', allowProduction: 'true', expected: 'Production relay blocked' },
   { name: 'production relay host', peers: 'wss://relay.3dvr.tech/gun', expected: 'Production relay blocked' },
   { name: 'production relay subdomain', peers: 'https://foo.relay.3dvr.tech/gun', expected: 'Production relay blocked' },
+  { name: 'active production Fly relay', peers: 'wss://gun-relay-3dvr.fly.dev/gun', expected: 'Production relay blocked' },
+  { name: 'active production Fly relay subdomain', peers: 'https://test.gun-relay-3dvr.fly.dev/gun', expected: 'Production relay blocked' },
+  { name: 'legacy production relay environment', peers: '', legacyRelay: 'https://gun-relay-3dvr.fly.dev/gun', expected: 'Production relay blocked' },
+  { name: 'non-network peer scheme', peers: 'file:///tmp/gun-relay', expected: 'Invalid THREEDVR_GUN_PEERS URL protocol' },
   { name: 'mixed production relay list', peers: 'http://localhost:8765/gun,wss://relay.3dvr.tech/gun', expected: 'Production relay blocked' },
   { name: 'production subdomain', peers: 'https://foo.portal.3dvr.tech/gun-relay', expected: 'Production relay blocked' },
   { name: 'invalid relay URL', peers: 'not-a-url', expected: 'Invalid THREEDVR_GUN_PEERS URL' }
@@ -28,7 +32,7 @@ try {
     const env = {
       ...process.env,
       THREEDVR_GUN_PEERS: testCase.peers,
-      THREEDVR_GUN_RELAY: '',
+      THREEDVR_GUN_RELAY: testCase.legacyRelay || '',
       OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION: testCase.allowProduction || 'false'
     };
     const result = spawnSync(process.execPath, [spyTarget], { env, encoding: 'utf8', timeout: 15000 });
