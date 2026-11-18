@@ -2,7 +2,8 @@ name: Agent Checks
 
 on:
   push:
-    branches: [main, dev]
+    # Test-only push CI for conflicted Operator draft; remove before merge.
+    branches: [main, dev, fix/operator-outbound-human-approval-20261103]
     paths: ["apps/agent/**", ".github/workflows/agent.yml", "package.json"]
   pull_request:
     branches: [main, dev]
