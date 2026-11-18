@@ -3,6 +3,7 @@
 No network, production queue, secrets, or external services are used.
 Run: python3 -m unittest discover -s tests -p test_operator_queue_snapshot.py -v
 """
+import hashlib
 import json
 import pathlib
 import sqlite3
@@ -101,6 +102,47 @@ class OperatorQueueSnapshotTest(unittest.TestCase):
             result = snapshot(source, target)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout)["tasks"], 1)
+
+    def test_standalone_backup_is_portable_after_source_removal(self):
+        # A nightly archive stages only the .sqlite member, not source WAL/SHM.
+        with tempfile.TemporaryDirectory() as root:
+            root = pathlib.Path(root)
+            source = root / "live.sqlite"
+            stage = root / "stage"
+            restore = root / "isolated-restore"
+            stage.mkdir()
+            restore.mkdir()
+            writer = sqlite3.connect(source, isolation_level=None, timeout=3)
+            try:
+                self.assertEqual(writer.execute("PRAGMA journal_mode=WAL").fetchone()[0], "wal")
+                writer.execute("CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT)")
+                writer.executemany(
+                    "INSERT INTO tasks VALUES (?, 'queued')", [(n,) for n in range(12)]
+                )
+                snapshot_path = stage / "task-queue.sqlite"
+                result = snapshot(source, snapshot_path)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                receipt = json.loads(result.stdout)
+                self.assertEqual(receipt["tasks"], 12)
+            finally:
+                writer.close()
+            # Deliberately remove the source and relocate only the staged DB.
+            source.unlink()
+            for suffix in ("-wal", "-shm"):
+                sidecar = pathlib.Path(str(source) + suffix)
+                if sidecar.exists():
+                    sidecar.unlink()
+            restored_path = restore / "task-queue.sqlite"
+            snapshot_path.rename(restored_path)
+            self.assertFalse(pathlib.Path(str(restored_path) + "-wal").exists())
+            self.assertFalse(pathlib.Path(str(restored_path) + "-shm").exists())
+            with sqlite3.connect(f"{restored_path.as_uri()}?mode=ro", uri=True) as db:
+                self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "delete")
+                self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0], 12)
+            self.assertEqual(
+                hashlib.sha256(restored_path.read_bytes()).hexdigest(), receipt["sha256"]
+            )
 
     def test_self_test(self):
         p = subprocess.run(
