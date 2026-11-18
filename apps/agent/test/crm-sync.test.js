@@ -403,3 +403,31 @@ test('writeCrmSync rejects a silent Gun transport instead of claiming persistenc
     errors: ['record synthetic-record: crm sync write timeout', 'touch synthetic-touch: crm sync write timeout']
   });
 });
+
+
+test('CRM contact and reply dates follow actual event times, not failed attempts or import order', () => {
+  const contact = 'mailto:owner@chronology.example';
+  const payload = buildCrmSyncPayload({
+    leads: [{
+      name: 'Chronology Example',
+      link: 'https://chronology.example',
+      contact,
+      status: 'new',
+    }],
+    outreach: [
+      { name: 'Chronology Example', contact, status: 'failed', timestamp: '2026-11-18T20:00:00.000Z' },
+      { name: 'Chronology Example', contact, status: 'replied', timestamp: '2026-11-18T18:00:00.000Z', body: 'Earlier synthetic reply' },
+      { name: 'Chronology Example', contact, status: 'sent', timestamp: '2026-11-17T10:00:00.000Z', messageId: 'synthetic-local-id', route: 'email' },
+      { name: 'Chronology Example', contact, status: 'replied', timestamp: '2026-11-18T19:00:00.000Z', body: 'Later synthetic reply' },
+    ],
+    now: '2026-11-18T21:00:00.000Z',
+    includeAll: true,
+  });
+  assert.equal(payload.records.length, 1);
+  const record = payload.records[0];
+  assert.equal(record.lastContacted, '2026-11-17', 'a later failed attempt cannot advance the last-send date');
+  assert.equal(record.replyCount, 2);
+  assert.equal(record.lastReplyAt, '2026-11-18T19:00:00.000Z', 'latest reply must not depend on import order');
+  assert.equal(record.status, 'Warm - Discovery');
+  assert.equal(record.lastDeliveryStatus, 'failed', 'latest event status is still visible separately');
+});
