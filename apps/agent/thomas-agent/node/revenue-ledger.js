@@ -180,23 +180,23 @@ function transitionProspect(db, input = {}) {
   const toState = normalize(input.toState);
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
-  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
-  if (replay) {
-    // A retry must refer to the *same* prospect, destination state and event
-    // type. Otherwise a shared idempotency key could silently suppress a
-    // different lead's CRM outbox event.
-    if (replay.prospect_id !== id || replay.to_state !== toState
-      || replay.type !== (normalize(input.type) || 'state_transition')) {
-      throw new Error('Idempotency key conflicts with an existing revenue event');
-    }
-    return { event: replay, replayed: true, prospect: getProspect(db, id) };
-  }
   // No authenticated provider adapter is attached to this generic ledger
   // transition. Reject caller-authored payment events instead of letting a
   // forged payload become a CRM "Paid Customer" projection.
   const eventType = normalize(input.type) || 'state_transition';
   if (eventType === 'payment_succeeded') {
     throw new Error('payment_succeeded requires a verified provider adapter');
+  }
+  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  if (replay) {
+    // A retry must refer to the *same* prospect, destination state and event
+    // type. Otherwise a shared idempotency key could silently suppress a
+    // different lead's CRM outbox event.
+    if (replay.prospect_id !== id || replay.to_state !== toState
+      || replay.type !== eventType) {
+      throw new Error('Idempotency key conflicts with an existing revenue event');
+    }
+    return { event: replay, replayed: true, prospect: getProspect(db, id) };
   }
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
