@@ -93,7 +93,15 @@ function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
   const prospect = normalize(prospectId);
   if (!key || !prospect) throw new Error('attemptId and prospectId are required');
   const existing = db.prepare('SELECT * FROM delivery_attempts WHERE attempt_key = ?').get(key);
-  if (existing) return { attempt: existing, replayed: true };
+  if (existing) {
+    // An attempt belongs to exactly one prospect. Reusing its key for a
+    // different lead must not silently suppress that lead's delivery or
+    // mistake the original lead's acknowledgement for theirs.
+    if (existing.prospect_id !== prospect) {
+      throw new Error('Delivery attempt key conflicts with an existing prospect');
+    }
+    return { attempt: existing, replayed: true };
+  }
   const now = new Date().toISOString();
   const attempt = {
     id: randomUUID(), attempt_key: key, prospect_id: prospect, status: 'in_flight',
