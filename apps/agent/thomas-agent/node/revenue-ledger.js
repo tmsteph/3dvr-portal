@@ -115,6 +115,14 @@ function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
 
 function finishDeliveryAttempt(db, { attemptId, status, messageId = '', transport = '', error = '' } = {}) {
   if (!['acknowledged', 'failed'].includes(status)) throw new Error('delivery status must be acknowledged or failed');
+  // This public ledger entry point can be called without deliverProspect. Do not
+  // let a boolean or an unattributed result inflate acknowledged-send counts.
+  if (status === 'acknowledged' && (
+    typeof messageId !== 'string' || !messageId.trim()
+    || typeof transport !== 'string' || !transport.trim()
+  )) {
+    throw new Error('Acknowledged delivery requires messageId and transport');
+  }
   const result = db.prepare(`UPDATE delivery_attempts
     SET status = ?, message_id = ?, transport = ?, error = ?, updated_at = ?
     WHERE attempt_key = ? AND status = 'in_flight'`)
