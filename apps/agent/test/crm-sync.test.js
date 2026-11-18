@@ -200,6 +200,48 @@ test('buildCrmSyncPayload deduplicates a lead and its outreach by email', () => 
   assert.equal(payload.touches.find(touch => touch.source === '3dvr-agent/outreach-log').touchType, 'reply-received');
 });
 
+test('a reply from one of two same-named prospects cannot move the other prospect', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Shared Studio', link: 'https://north.example', contact: 'mailto:north@example.test', status: 'new' },
+      { name: 'Shared Studio', link: 'https://south.example', contact: 'mailto:south@example.test', status: 'new' },
+    ],
+    outreach: [{
+      name: 'Shared Studio', contact: 'mailto:south@example.test', status: 'replied',
+      timestamp: '2026-11-18T15:00:00.000Z', body: 'Synthetic response (never sent)',
+    }],
+    now: '2026-11-18T15:01:00.000Z', includeAll: true,
+  });
+  assert.equal(payload.records.length, 2);
+  const north = payload.records.find(record => record.email === 'north@example.test');
+  const south = payload.records.find(record => record.email === 'south@example.test');
+  assert.equal(north.status, 'Lead');
+  assert.equal(north.replyCount, undefined);
+  assert.equal(south.status, 'Warm - Discovery');
+  assert.equal(south.replyCount, 1);
+  const replies = payload.touches.filter(touch => touch.touchType === 'reply-received');
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0].recordId, south.id, 'reply touch must belong to the matching email');
+});
+
+test('ambiguous name-only reply is not attributed to either buyer', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Shared Studio', link: 'https://north.example', contact: 'north@example.test', status: 'new' },
+      { name: 'Shared Studio', link: 'https://south.example', contact: 'south@example.test', status: 'new' },
+    ],
+    outreach: [{
+      name: 'Shared Studio', site: 'https://unknown.example', status: 'replied',
+      timestamp: '2026-11-18T15:00:00.000Z', body: 'Unattributed synthetic response',
+    }],
+    now: '2026-11-18T15:01:00.000Z', includeAll: true,
+  });
+  assert.equal(payload.records.length, 2);
+  assert.ok(payload.records.every(record => record.status === 'Lead'));
+  assert.ok(payload.records.every(record => record.replyCount === undefined));
+  assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 0);
+});
+
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
   assert.equal(shouldSyncLeadToCrm({
     name: 'Starbucks',
