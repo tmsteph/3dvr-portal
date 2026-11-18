@@ -11,6 +11,22 @@ function withLedger(fn) {
   try { fn(db); } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 }
 
+test('buyer discovery rejects identity-free records without poisoning the CRM ledger', () => withLedger((db) => {
+  assert.throws(() => createProspect(db, { name: 'Shared Agency' }), /contact route or source URL/);
+  assert.throws(() => createProspect(db, { name: 'Shared Agency', contact: '  ', sourceUrl: '' }), /contact route or source URL/);
+  assert.throws(() => createProspect(db, {}), /contact route or source URL/);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 0);
+
+  const sourced = createProspect(db, { name: 'Shared Agency', sourceUrl: 'https://agency-a.example' });
+  const distinct = createProspect(db, { name: 'Shared Agency', sourceUrl: 'https://agency-b.example' });
+  const contactOnly = createProspect(db, { name: 'Owner', contact: 'owner@other.example' });
+  assert.equal(sourced.created, true);
+  assert.equal(distinct.created, true);
+  assert.notEqual(sourced.prospect.id, distinct.prospect.id);
+  assert.equal(contactOnly.created, true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 3);
+}));
+
 test('ledger deduplicates prospects and idempotent transitions', () => withLedger((db) => {
   const first = createProspect(db, { name: 'Acme', contact: 'mailto:info@acme.test', sourceUrl: 'https://acme.test' });
   const second = createProspect(db, { name: 'Acme again', contact: 'mailto:info@acme.test' });
