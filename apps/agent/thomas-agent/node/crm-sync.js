@@ -384,7 +384,12 @@ function putGun(node, payload, timeoutMs = DEFAULT_WRITE_TIMEOUT_MS) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(ack || { ok: true });
+      // A callback without an affirmative acknowledgement is not evidence
+      // that the Portal CRM accepted a record. Never turn missing or negative
+      // Gun acknowledgements into successful revenue/CRM projections.
+      const accepted = ack && typeof ack === 'object'
+        && !ack.err && (ack.ok === 1 || ack.ok === true);
+      resolve(accepted ? ack : { ok: false, err: ack?.err ? String(ack.err) : 'crm sync write unacknowledged' });
     });
   });
 }
