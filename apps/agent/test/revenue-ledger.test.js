@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, finishProjection, openLedger, pendingProjections, startRun, finishRun, importProspectState, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { createProspect, findProspectByContact, finishProjection, openLedger, pendingProjections, startRun, finishRun, importProspectState, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function withLedger(fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-ledger-'));
@@ -20,6 +20,41 @@ test('ledger deduplicates prospects and idempotent transitions', () => withLedge
   const replay = transitionProspect(db, { prospectId: first.prospect.id, toState: 'verified', idempotencyKey: 'verify:acme' });
   assert.equal(verified.prospect.state, 'verified');
   assert.equal(replay.replayed, true);
+}));
+
+test('email and mailto aliases dedupe one real prospect without changing non-email contacts', () => withLedger((db) => {
+  const plain = createProspect(db, {
+    name: 'Synthetic Buyer', contact: 'BUYER@EXAMPLE.TEST', sourceUrl: 'https://example.test'
+  });
+  const mailto = createProspect(db, {
+    name: 'Same Buyer', contact: 'mailto:buyer@example.test', sourceUrl: 'https://other.example.test'
+  });
+  assert.equal(plain.created, true);
+  assert.equal(mailto.created, false);
+  assert.equal(mailto.prospect.id, plain.prospect.id);
+  assert.equal(plain.prospect.contact_key, 'contact:buyer@example.test');
+  assert.equal(findProspectByContact(db, 'mailto:BUYER@example.test').id, plain.prospect.id);
+  assert.equal(findProspectByContact(db, 'buyer@example.test').id, plain.prospect.id);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM prospects').get().n, 1);
+
+  const web = createProspect(db, { name: 'Web Only', contact: 'https://example.test/contact' });
+  assert.equal(web.prospect.contact_key, 'contact:https://example.test/contact');
+  assert.equal(web.created, true);
+}));
+
+test('legacy mailto contact keys remain discoverable and cannot be inserted twice', () => withLedger((db) => {
+  const old = createProspect(db, { name: 'Legacy Buyer', contact: 'mailto:legacy@example.test' }).prospect;
+  // Emulate a row already stored by the older ledger before normalization.
+  db.prepare('UPDATE prospects SET contact_key=? WHERE id=?')
+    .run('contact:mailto:legacy@example.test', old.id);
+  const replay = createProspect(db, {
+    name: 'Duplicate Buyer', contact: 'legacy@example.test', sourceUrl: 'https://new.example.test'
+  });
+  assert.equal(replay.created, false);
+  assert.equal(replay.prospect.id, old.id);
+  assert.equal(findProspectByContact(db, 'legacy@example.test').id, old.id);
+  assert.equal(findProspectByContact(db, 'mailto:legacy@example.test').id, old.id);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM prospects').get().n, 1);
 }));
 
 test('state transitions atomically queue idempotent CRM projections', () => withLedger((db) => {
