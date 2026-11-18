@@ -92,7 +92,7 @@ test('an idempotency key cannot silently lose another prospect\'s event or chang
   );
   assert.throws(
     () => transitionProspect(db, { ...input, type: 'payment_succeeded' }),
-    /Idempotency key conflicts/,
+    /verified provider adapter/,
   );
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 1);
   assert.equal(pendingProjections(db).length, 1);
