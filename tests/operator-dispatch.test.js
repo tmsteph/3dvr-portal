@@ -203,6 +203,43 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
     assert.equal(status.statusCode, 200);
     assert.equal(status.data.record.id, accepted.data.record.id);
     assert.equal(status.data.record.status, 'queued', 'no worker completion is simulated or claimed');
+
+    // Model a separately committed worker result without launching a worker:
+    // the owner-signed status reader must expose attribution and a retry must
+    // never reset an already-finished task to queued or create a second task.
+    const syntheticWorkerId = 'synthetic-worker-fixture-not-a-live-worker';
+    const savedRow = db.prepare('SELECT record_json FROM tasks WHERE owner_alias=? AND id=?')
+      .get('3dvr-managed', accepted.data.record.id);
+    const syntheticResult = {
+      ...JSON.parse(savedRow.record_json),
+      status: 'completed',
+      workerDeviceId: syntheticWorkerId,
+      resultSummary: '42',
+      resultText: '42',
+      updatedAt: '2026-11-17T23:00:00.000Z'
+    };
+    db.prepare('UPDATE tasks SET status=?, updated_at=?, record_json=? WHERE owner_alias=? AND id=?')
+      .run('completed', syntheticResult.updatedAt, JSON.stringify(syntheticResult),
+        '3dvr-managed', accepted.data.record.id);
+
+    const completed = await request(handler, { action: 'status', requestId: item.requestId });
+    assert.equal(completed.statusCode, 200);
+    assert.equal(completed.data.record.status, 'completed');
+    assert.equal(completed.data.record.workerDeviceId, syntheticWorkerId);
+    assert.equal(completed.data.record.resultText, '42');
+
+    const completedRetry = await request(handler, item);
+    assert.equal(completedRetry.statusCode, 202);
+    assert.equal(completedRetry.data.record.status, 'completed');
+    assert.equal(completedRetry.data.record.workerDeviceId, syntheticWorkerId);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n, 1);
+    const independentCompletedReadback = new DatabaseSync(dbPath);
+    try {
+      const row = independentCompletedReadback.prepare('SELECT status,record_json FROM tasks WHERE owner_alias=? AND id=?')
+        .get('3dvr-managed', accepted.data.record.id);
+      assert.equal(row.status, 'completed');
+      assert.equal(JSON.parse(row.record_json).workerDeviceId, syntheticWorkerId);
+    } finally { independentCompletedReadback.close(); }
   } finally {
     db.close();
     await rm(dir, { recursive: true, force: true });
