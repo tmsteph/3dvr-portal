@@ -6,6 +6,7 @@ Example: python3 operator-queue-snapshot-safe.py --source /path/queue.sqlite --o
 Use --self-test to exercise a synthetic WAL source. Never overwrites an output.
 """
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -32,9 +33,9 @@ def snapshot(source, output):
     os.close(fd)
     try:
         source_uri = src.as_uri() + "?mode=ro"  # Encode %, #, ? and other URI metacharacters.
-        with sqlite3.connect(source_uri, uri=True, timeout=3) as conn:
+        with contextlib.closing(sqlite3.connect(source_uri, uri=True, timeout=3)) as conn:
             # sqlite3.backup acquires SQLite's consistent read snapshot, including WAL.
-            with sqlite3.connect(tmp, timeout=3) as dst:
+            with contextlib.closing(sqlite3.connect(tmp, timeout=3)) as dst:
                 def progress(status, remaining, total):
                     if time.monotonic() - started > MAX_SECONDS:
                         raise TimeoutError("sqlite_backup_deadline")
