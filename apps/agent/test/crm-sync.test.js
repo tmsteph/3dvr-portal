@@ -243,3 +243,35 @@ test('normalizeEmail strips mailto and rejects non-email contacts', () => {
   assert.equal(normalizeEmail('mailto:Owner@Example.com'), 'owner@example.com');
   assert.equal(normalizeEmail('https://example.com/contact'), '');
 });
+
+test('writeCrmSync fails closed on absent, negative, or errored Gun acknowledgements', async () => {
+  const payload = { records: [{ id: 'synthetic-record' }], touches: [{ id: 'synthetic-touch' }] };
+  const ackCases = [
+    { name: 'missing', ack: undefined },
+    { name: 'null', ack: null },
+    { name: 'empty object', ack: {} },
+    { name: 'local-only ok 0', ack: { ok: 0 } },
+    { name: 'explicit false', ack: { ok: false } },
+    { name: 'relay error', ack: { err: 'relay unavailable' } },
+  ];
+  for (const scenario of ackCases) {
+    const root = { get() { return { put(_record, callback) { callback(scenario.ack); } }; } };
+    const result = await writeCrmSync(payload, { crmRoot: root, touchRoot: root, timeoutMs: 30 });
+    assert.equal(result.records, 0, scenario.name + ': no CRM record may be counted');
+    assert.equal(result.touches, 0, scenario.name + ': no touch may be counted');
+    assert.equal(result.errors.length, 2, scenario.name + ': each missing receipt is an error');
+  }
+});
+
+test('writeCrmSync rejects a silent Gun transport instead of claiming persistence', async () => {
+  const silentRoot = { get() { return { put() {} }; } };
+  const result = await writeCrmSync(
+    { records: [{ id: 'synthetic-record' }], touches: [{ id: 'synthetic-touch' }] },
+    { crmRoot: silentRoot, touchRoot: silentRoot, timeoutMs: 15 }
+  );
+  assert.deepEqual(result, {
+    records: 0,
+    touches: 0,
+    errors: ['record synthetic-record: crm sync write timeout', 'touch synthetic-touch: crm sync write timeout']
+  });
+});
