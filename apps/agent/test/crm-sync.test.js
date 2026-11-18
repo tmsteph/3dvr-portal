@@ -262,6 +262,25 @@ test('a different concrete contact route cannot impersonate a same-named email b
   assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 0);
 });
 
+test('same-named leads at different website routes do not borrow reply history', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{
+      name: 'Shared Studio', link: 'https://north.example',
+      contact: 'https://north.example/contact', status: 'new',
+    }],
+    outreach: [{
+      name: 'Shared Studio', site: 'https://south.example',
+      contact: 'https://south.example/contact', status: 'replied',
+      timestamp: '2026-11-18T16:05:00.000Z', body: 'Synthetic unrelated response',
+    }],
+    now: '2026-11-18T16:06:00.000Z', includeAll: true,
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Lead');
+  assert.equal(payload.records[0].replyCount, undefined);
+  assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 0);
+});
+
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
   assert.equal(shouldSyncLeadToCrm({
     name: 'Starbucks',
