@@ -110,10 +110,10 @@ test('worker enforces the default one-send daily quota', async () => {
   process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
   let calls = 0;
   try {
-    await run('quota-1', { send: async () => { calls += 1; return { acknowledged: true }; } });
+    await run('quota-1', { send: async () => { calls += 1; return { acknowledged: true, messageId: 'quota-msg-1', transport: 'test' }; } });
     const data = JSON.parse(fs.readFileSync(candidateFile, 'utf8'));
     fs.writeFileSync(candidateFile, JSON.stringify({ ...data, name: 'Beta', contact: 'owner@beta.test', sourceUrl: 'https://beta.test', attemptId: 'canary-2' }));
-    const second = await run('quota-2', { send: async () => { calls += 1; return { acknowledged: true }; } });
+    const second = await run('quota-2', { send: async () => { calls += 1; return { acknowledged: true, messageId: 'quota-msg-2', transport: 'test' }; } });
     assert.equal(calls, 1);
     assert.equal(JSON.parse(second.summary_json).delivery.reason, 'quota exhausted');
   } finally {
