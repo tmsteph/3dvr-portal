@@ -8,6 +8,7 @@ import json
 import pathlib
 import sqlite3
 import subprocess
+import threading
 import sys
 import tempfile
 import unittest
@@ -143,6 +144,71 @@ class OperatorQueueSnapshotTest(unittest.TestCase):
             self.assertEqual(
                 hashlib.sha256(restored_path.read_bytes()).hexdigest(), receipt["sha256"]
             )
+
+    def test_concurrent_wal_writer_snapshots_are_transactionally_consistent(self):
+        # A committed batch and its metadata must appear together, even while
+        # a separate connection actively appends tasks in WAL mode.
+        with tempfile.TemporaryDirectory() as root:
+            root = pathlib.Path(root)
+            source = root / "live.sqlite"
+            with sqlite3.connect(source) as db:
+                self.assertEqual(db.execute("PRAGMA journal_mode=WAL").fetchone()[0], "wal")
+                db.execute("CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT)")
+                db.execute("CREATE TABLE meta (count INTEGER NOT NULL)")
+                db.execute("INSERT INTO meta VALUES (0)")
+            started = threading.Event()
+            stop = threading.Event()
+            errors = []
+
+            def write_batches():
+                try:
+                    writer = sqlite3.connect(source, timeout=5)
+                    try:
+                        count = 0
+                        for _ in range(1000):
+                            if stop.is_set():
+                                break
+                            with writer:
+                                writer.executemany(
+                                    "INSERT INTO tasks(status) VALUES ('queued')",
+                                    [() for _ in range(4)],
+                                )
+                                count += 4
+                                writer.execute("UPDATE meta SET count=?", (count,))
+                            started.set()
+                            stop.wait(0.004)
+                    finally:
+                        writer.close()
+                except Exception as exc:
+                    errors.append(str(exc))
+                    started.set()
+
+            thread = threading.Thread(target=write_batches, daemon=True)
+            thread.start()
+            counts = []
+            try:
+                self.assertTrue(started.wait(3), "writer never committed")
+                for index in range(6):
+                    output = root / f"snapshot-{index}.sqlite"
+                    result = snapshot(source, output)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    receipt = json.loads(result.stdout)
+                    with sqlite3.connect(output) as db:
+                        tasks = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+                        metadata = db.execute("SELECT count FROM meta").fetchone()[0]
+                        self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+                        self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "delete")
+                    self.assertEqual(tasks, metadata)
+                    self.assertEqual(tasks, receipt["tasks"])
+                    self.assertEqual(tasks % 4, 0)
+                    counts.append(tasks)
+            finally:
+                stop.set()
+                thread.join(5)
+            self.assertFalse(thread.is_alive(), "writer did not exit")
+            self.assertEqual(errors, [])
+            self.assertEqual(len(counts), 6)
+            self.assertGreater(counts[0], 0)
 
     def test_self_test(self):
         p = subprocess.run(
