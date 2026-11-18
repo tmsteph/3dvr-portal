@@ -31,7 +31,7 @@ test('CRM projection preserves the legacy stable record identity while waiting q
 test('CRM projection turns a successful payment receipt into a paid-customer activation record', () => {
   const record = recordFor(
     { id: 'esai', name: 'Esai', contact: 'mailto:gamboaesai@gmail.com', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-08-01T00:00:00Z' },
-    { id: 'payment-event', type: 'payment_succeeded', created_at: '2026-08-13T20:00:00Z', payload_json: JSON.stringify({ payment: { amount_cents: 2000, currency: 'usd', paid_at: '2026-08-13T20:00:00Z', recurring_cents: 2000, plan: 'starter', payment_intent_id: 'pi_example', subscription_id: 'sub_example' } }) },
+    { id: 'payment-event', type: 'payment_succeeded', created_at: '2026-08-13T20:00:00Z', payload_json: JSON.stringify({ payment: { status: 'succeeded', amount_cents: 2000, currency: 'usd', paid_at: '2026-08-13T20:00:00Z', recurring_cents: 2000, plan: 'starter', payment_intent_id: 'pi_example', subscription_id: 'sub_example' } }) },
     '2026-08-15T00:00:00Z'
   );
   assert.equal(record.status, 'Paid Customer');
@@ -42,6 +42,27 @@ test('CRM projection turns a successful payment receipt into a paid-customer act
   assert.equal(record.stripePaymentIntentId, 'pi_example');
   assert.match(record.nextBestAction, /Activate the customer/);
   assert.match(record.nextBestAction, /Do not schedule a sales follow-up because payment occurred\.$/i);
+});
+
+test('CRM refuses false paid-customer projections from quotes, pending or invalid payments', () => {
+  const prospect = {
+    id: 'synthetic-lead', name: 'Synthetic Prospect', contact: 'test@example.test',
+    source_url: 'https://example.test', state: 'replied', campaign_id: '', created_at: '2026-11-17T00:00:00Z'
+  };
+  const payment = { status: 'succeeded', amount_cents: 25000, currency: 'usd', payment_intent_id: 'pi_unverified' };
+  const event = (type, value) => ({
+    id: 'synthetic-event', type, payload_json: JSON.stringify({ payment: value })
+  });
+  const projected = (type, value) => recordFor(prospect, event(type, value), '2026-11-17T01:00:00Z');
+  const quote = projected('proposal_quoted', payment);
+  assert.equal(quote.status, 'Warm - Discovery');
+  assert.equal(quote.lastPaymentAmountCents, undefined);
+  assert.equal(projected('payment_succeeded', { ...payment, status: 'pending' }).status, 'Warm - Discovery');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 0 }).status, 'Warm - Discovery');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: -1 }).status, 'Warm - Discovery');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 5.5 }).status, 'Warm - Discovery');
+  assert.equal(projected('payment_succeeded', { ...payment, currency: '' }).status, 'Warm - Discovery');
+  assert.equal(projected('payment_succeeded', { status: 'succeeded', plan: 'starter', payment_intent_id: 'pi_unverified' }).status, 'Warm - Discovery');
 });
 
 test('remote projection roots do not initialize a local radata store', () => {
