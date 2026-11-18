@@ -136,9 +136,23 @@ function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
 }
 
 function contactKey({ contact, sourceUrl, name } = {}) {
-  const contactValue = normalize(contact).toLowerCase();
+  const rawContact = normalize(contact).toLowerCase();
+  const withoutMailto = rawContact.replace(/^mailto:/, '');
+  // Plain email and mailto URLs name one prospect, not two.
+  // Non-email URLs remain distinct contact identities.
+  const contactValue = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(withoutMailto)
+    ? withoutMailto : rawContact;
   if (contactValue) return `contact:${contactValue}`;
   return `source:${normalize(sourceUrl).toLowerCase()}|name:${normalize(name).toLowerCase()}`;
+}
+
+// Preserve lookups of historical mailto:-keyed rows during migration.
+function contactKeyVariants(input = {}) {
+  const canonical = contactKey(input);
+  const normalized = normalize(input.contact).toLowerCase().replace(/^mailto:/, '');
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+    ? [canonical, `contact:mailto:${normalized}`]
+    : [canonical];
 }
 
 function getProspect(db, id) {
@@ -148,7 +162,8 @@ function getProspect(db, id) {
 function createProspect(db, input = {}) {
   const now = new Date().toISOString();
   const key = contactKey(input);
-  const existing = db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
+  const aliases = contactKeyVariants(input);
+  const existing = db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${aliases.map(() => '?').join(',')}) LIMIT 1`).get(...aliases);
   if (existing) return { prospect: existing, created: false };
   const prospect = {
     id: normalize(input.id) || randomUUID(), contact_key: key, name: normalize(input.name) || 'Unknown',
@@ -213,11 +228,8 @@ function finishRun(db, { runId, status, summary } = {}) {
 }
 
 function findProspectByContact(db, contact) {
-  const value = normalize(contact);
-  const keys = [contactKey({ contact: value })];
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) keys.push(contactKey({ contact: `mailto:${value}` }));
-  if (/^mailto:/i.test(value)) keys.push(contactKey({ contact: value.replace(/^mailto:/i, '') }));
-  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')}) LIMIT 1`).get(...new Set(keys)) || null;
+  const keys = contactKeyVariants({ contact });
+  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')}) LIMIT 1`).get(...keys) || null;
 }
 
 function pendingProjections(db, limit = 100) {
