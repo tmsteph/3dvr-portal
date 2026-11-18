@@ -191,3 +191,24 @@ test('isolated CRM acceptance relay configuration fails closed before any Gun co
     'wss://custom-relay.example/gun'
   );
 });
+
+
+test('projectPendingCrm passes isolated relay options to the real writer before any database read', async () => {
+  // Do not open Gun, a real relay, a database, or a sender. Rejected
+  // configurations must stop on the production-capable projection entry point.
+  const neverReadDb = { prepare() { throw new Error('database touched before relay validation'); } };
+  for (const relayUrl of [
+    undefined,
+    '',
+    'wss://gun-relay-3dvr.fly.dev/gun',
+    'ws://localhost/gun',
+    'ws://user:password@localhost:8765/gun',
+    'ws://localhost:8765/gun?peer=prod'
+  ]) {
+    await assert.rejects(
+      projectPendingCrm(neverReadDb, { isolated: true, relayUrl }),
+      /Isolated CRM relay|Invalid isolated CRM relay/,
+      'isolated projection must reject unsafe relay before connecting: ' + relayUrl
+    );
+  }
+});
