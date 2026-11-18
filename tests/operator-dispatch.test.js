@@ -218,7 +218,7 @@ test('signed Operator request persists to the isolated managed SQLite queue and 
   db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
   const script = REMOTE_QUEUE_SCRIPT
     .replace(/if \[ -f .*?fi\n/, '')
-    .replace('cd "$HOME/.3dvr/portal/apps/agent"', \`cd '\${dir}'\`)
+    .replace('cd "$HOME/.3dvr/portal/apps/agent"', `cd '${dir}'`)
     .replace('/opt/node-v22/bin/node', process.execPath);
   let transportCalls = 0;
   const run = async input => {
