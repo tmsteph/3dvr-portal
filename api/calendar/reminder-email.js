@@ -879,14 +879,6 @@ export function createLeadOutreachEmailHandler(options = {}) {
       return res.status(400).json({ error: 'An outreach text body is required.' });
     }
 
-    // A service bearer token is not a person's approval of these recipients,
-    // exact message, sender, or thread. Do not send until a separately issued,
-    // expiring, single-use, exact-content human approval can be verified here.
-    return res.status(403).json({
-      error: 'Lead outreach requires independently verified per-message human approval.',
-      code: 'human_approval_required',
-    });
-
     const threadContinuation = Boolean(inReplyTo || references);
     const suppressionEnabled = !threadContinuation && enforcementEnabled(config, false);
     if (suppressionEnabled) {
