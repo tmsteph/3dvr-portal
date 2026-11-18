@@ -242,6 +242,26 @@ test('ambiguous name-only reply is not attributed to either buyer', () => {
   assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 0);
 });
 
+test('a different concrete contact route cannot impersonate a same-named email buyer', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{
+      name: 'Shared Studio', link: 'https://north.example',
+      contact: 'mailto:north@example.test', status: 'new',
+    }],
+    outreach: [{
+      name: 'Shared Studio', site: 'https://south.example',
+      contact: 'https://south.example/contact', status: 'replied',
+      timestamp: '2026-11-18T16:00:00.000Z', body: 'Synthetic unverified reply',
+    }],
+    now: '2026-11-18T16:01:00.000Z', includeAll: true,
+  });
+  assert.equal(payload.records.length, 1, 'do not invent another lead from a conflicting historical name');
+  assert.equal(payload.records[0].email, 'north@example.test');
+  assert.equal(payload.records[0].status, 'Lead', 'unrelated reply must not advance CRM');
+  assert.equal(payload.records[0].replyCount, undefined);
+  assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 0);
+});
+
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
   assert.equal(shouldSyncLeadToCrm({
     name: 'Starbucks',
