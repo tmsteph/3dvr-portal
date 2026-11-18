@@ -168,6 +168,12 @@ function getProspect(db, id) {
 }
 
 function createProspect(db, input = {}) {
+  // A name by itself is not a reliable unique buyer identity. Without a
+  // contact route or source, different real prospects collapse into the
+  // same "source:|name:" key and contaminate CRM follow-up history.
+  if (!normalize(input.contact) && !normalize(input.sourceUrl)) {
+    throw new Error('Prospect requires a contact route or source URL');
+  }
   const now = new Date().toISOString();
   const key = contactKey(input);
   const aliases = contactKeyVariants(input);
