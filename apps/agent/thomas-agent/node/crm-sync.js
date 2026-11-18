@@ -374,7 +374,6 @@ function buildCrmSyncPayload({
 
   for (const [index, record] of records.entries()) {
     const entries = outreachByIndex[index];
-    const successful = entries.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status)));
     const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
     const chronological = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
     const latest = chronological.at(-1);
