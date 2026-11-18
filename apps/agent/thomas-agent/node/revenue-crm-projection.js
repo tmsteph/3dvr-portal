@@ -1,10 +1,30 @@
 const { finishProjection, getProspect, pendingProjections } = require('./revenue-ledger');
 const { buildLeadId, writeCrmSync } = require('./crm-sync');
 
-function remoteProjectionRoots() {
+// #3774: An isolated acceptance check must never silently fall back to the
+// production Gun relay. Resolve and validate the peer before initializing Gun.
+function projectionPeer(options = {}) {
+  if (options.isolated === true) {
+    const relay = typeof options.relayUrl === 'string' ? options.relayUrl.trim() : '';
+    if (!relay) throw new Error('Isolated CRM relay requires an explicit loopback URL');
+    let parsed;
+    try { parsed = new URL(relay); } catch { throw new Error('Invalid isolated CRM relay URL'); }
+    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+    const allowedProtocol = ['ws:', 'wss:', 'http:', 'https:'].includes(parsed.protocol);
+    if (!loopback || !allowedProtocol || !parsed.port || parsed.username || parsed.password
+      || !['/gun', '/gun/'].includes(parsed.pathname) || parsed.search || parsed.hash) {
+      throw new Error('Isolated CRM relay must be an explicit loopback /gun endpoint with a port and no credentials');
+    }
+    return parsed.href;
+  }
+  return options.relayUrl || process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun';
+}
+
+function remoteProjectionRoots(options = {}) {
+  const peer = projectionPeer(options);
   const Gun = require('gun');
   const gun = Gun({
-    peers: [process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun'],
+    peers: [peer],
     axe: false,
     multicast: false,
     rad: false,
@@ -149,4 +169,4 @@ async function projectPendingCrm(db, options = {}) {
   return result;
 }
 
-module.exports = { paymentReceiptFor, projectPendingCrm, recordFor, remoteProjectionRoots, touchFor };
+module.exports = { paymentReceiptFor, projectPendingCrm, projectionPeer, recordFor, remoteProjectionRoots, touchFor };
