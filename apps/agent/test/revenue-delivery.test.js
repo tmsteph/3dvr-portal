@@ -46,3 +46,30 @@ test('restart with an in-flight attempt quarantines ambiguity without resending'
     assert.match(result.error, /ambiguous/);
   } finally { value.close(); }
 });
+
+test('delivery attempt key cannot be reused for a different prospect', async () => {
+  const value = fixture();
+  try {
+    const other = createProspect(value.db, { name: 'Second lead', contact: 'other@example.test' }).prospect;
+    transitionProspect(value.db, { prospectId: other.id, toState: 'verified', idempotencyKey: 'other:v' });
+    transitionProspect(value.db, { prospectId: other.id, toState: 'eligible', idempotencyKey: 'other:e' });
+
+    const first = reserveDeliveryAttempt(value.db, { prospectId: value.prospect.id, attemptId: 'shared-attempt' });
+    assert.equal(first.replayed, false);
+    assert.equal(reserveDeliveryAttempt(value.db, { prospectId: value.prospect.id, attemptId: 'shared-attempt' }).replayed, true);
+
+    let calls = 0;
+    await assert.rejects(
+      deliverProspect(value.db, { prospectId: other.id, attemptId: 'shared-attempt' }, async () => {
+        calls++;
+        return { acknowledged: true, messageId: 'wrong-recipient', transport: 'test' };
+      }),
+      /Delivery attempt key conflicts/,
+    );
+    assert.equal(calls, 0, 'the conflicting request must not invoke any sender');
+    assert.equal(value.db.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 1);
+    assert.equal(value.db.prepare('SELECT prospect_id FROM delivery_attempts WHERE attempt_key=?')
+      .get('shared-attempt').prospect_id, value.prospect.id);
+    assert.equal(value.db.prepare('SELECT state FROM prospects WHERE id=?').get(other.id).state, 'eligible');
+  } finally { value.close(); }
+});
