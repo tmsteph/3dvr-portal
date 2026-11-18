@@ -119,6 +119,9 @@ function leadFromOutreachEntry(entry = {}) {
 }
 
 function mergeOutreachIntoLead(lead, entries = []) {
+  // Historical outreach is not authorization to reopen a closed record.
+  // A human must explicitly decide that a newly observed reply warrants reopening.
+  if (normalizeLower(lead.status) === 'closed') return lead;
   const relevant = entries.filter(entry => contactsMatch(entry, lead));
   if (!relevant.length) return lead;
   const successful = relevant.filter(entry => ['sent', 'submitted', 'replied'].includes(normalizeLower(entry.status)));
@@ -148,14 +151,15 @@ function statusForLead(lead) {
   if (status === 'contacted') return 'Warm - Follow-up';
   if (status === 'replied') return 'Warm - Discovery';
   if (status === 'nurture') return 'Warm - Awareness';
-  if (status === 'closed') return 'Won';
+  // The legacy CSV "closed" value says nothing about payment or an actual win.
+  if (status === 'closed') return 'Closed';
   if (status === 'failed') return 'Lost';
   return 'Lead';
 }
 
 function warmthForLead(lead) {
   const status = normalizeLower(lead.status);
-  if (status === 'replied' || status === 'closed') return 'hot';
+  if (status === 'replied') return 'hot';
   if (status === 'contacted' || status === 'nurture') return 'warm';
   return 'cold';
 }
@@ -163,6 +167,7 @@ function warmthForLead(lead) {
 function nextActionForLead(lead) {
   const status = normalizeLower(lead.status);
   const action = leadAction(lead);
+  if (status === 'closed') return 'Keep closed. Review verified commercial outcomes before counting a win; do not contact automatically.';
   if (status === 'failed') return 'Repair the contact route before any future outreach.';
   if (status === 'nurture') return 'Revisit later with a more specific reason to reach out.';
   if (status === 'contacted') return 'Wait for a reply; stay quiet unless there is a new material reason to reach out.';
@@ -189,7 +194,7 @@ function buildCrmRecord(lead, options = {}) {
     ? normalizeText(lead.contact)
     : '';
   const link = normalizeText(lead.link);
-  const lastContacted = ['contacted', 'replied', 'failed', 'closed'].includes(status)
+  const lastContacted = ['contacted', 'replied', 'failed'].includes(status)
     ? isoDate(lead.date, new Date(now))
     : '';
   const nextFollowUp = '';
@@ -221,7 +226,7 @@ function buildCrmRecord(lead, options = {}) {
       : route === 'form'
         ? 'Contact form route available.'
         : 'Needs a better verified contact route.',
-    pilotStatus: status === 'closed' ? 'Customer' : status === 'contacted' ? 'Warm' : 'Watching',
+    pilotStatus: status === 'contacted' ? 'Warm' : 'Watching',
     offerAmount: '$20/month launch/support or $50/month Builder when active operations are involved',
     lastSignal: [
       `Agent lead status: ${status}.`,
