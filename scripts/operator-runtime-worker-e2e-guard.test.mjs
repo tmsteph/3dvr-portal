@@ -11,6 +11,14 @@ const instrumented = source.replace(
   /^import Gun from 'gun';/m,
   "const Gun = () => { throw new Error('NETWORK_TRANSPORT_INSTANTIATED'); };"
 );
+// Fail closed if a future workflow edit makes the legacy direct-Gun job runnable
+// on a PR, push, or manual dispatch. This is a static write-free safety check.
+const workflow = readFileSync(new URL('../.github/workflows/operator-runtime-worker-e2e.yml', import.meta.url), 'utf8');
+const workerJob = workflow.split(/\n  runtime-worker:\s*\n/)[1]?.split(/\n  [\w-]+:\s*\n/)[0];
+assert.ok(workerJob, 'expected runtime-worker job');
+assert.match(workerJob, /^\s*if:\s*\$\{\{\s*false\s*\}\}\s*$/m,
+  'workflow must keep direct-Gun worker disabled on every event');
+
 const cases = [
   { name: 'missing relay', peers: '', expected: 'no default relay is permitted' },
   { name: 'production relay', peers: 'wss://portal.3dvr.tech/gun-relay', expected: 'Production relay blocked' },
@@ -45,6 +53,24 @@ try {
     assert.doesNotMatch(result.stdout, /E2E_ENQUEUE_ATTEMPTED=true|E2E_WRITE_RESULTS=|E2E_ENQUEUE_ACKNOWLEDGED=true/, testCase.name + ': must reject before writes');
     console.log('PASS ' + testCase.name + ' (transport not initialized)');
   }
+  // Positive control: prove that an isolated relay reaches the spy.
+  // Gun construction is mocked to throw before any network or queue write.
+  const control = spawnSync(process.execPath, [spyTarget], {
+    env: {
+      ...process.env,
+      THREEDVR_GUN_PEERS: 'http://127.0.0.1:8765/gun',
+      THREEDVR_GUN_RELAY: '',
+      OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION: 'false'
+    },
+    encoding: 'utf8',
+    timeout: 15000
+  });
+  assert.equal(control.status, 1, 'isolated relay must reach mocked Gun constructor');
+  assert.match(control.stderr, /NETWORK_TRANSPORT_INSTANTIATED/,
+    'isolated relay reaches transport spy without actual network initialization');
+  assert.doesNotMatch(control.stdout, /E2E_ENQUEUE_ACKNOWLEDGED=true/,
+    'no enqueue acknowledgment may be reported by the spy');
+  console.log('PASS isolated relay reaches transport spy (no network/queue writes)');
 } finally {
   unlinkSync(spyTarget);
 }
