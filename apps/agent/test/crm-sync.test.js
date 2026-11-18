@@ -54,6 +54,53 @@ test('buildCrmRecord maps an agent lead into the portal CRM shape', () => {
   assert.match(record.notes, /Synced from 3dvr-agent leads\.csv/);
 });
 
+test('a closed CSV lead is not proof of a won or paid customer', () => {
+  const record = buildCrmRecord({
+    name: 'Synthetic Closed Lead',
+    link: 'https://closed.example',
+    contact: 'mailto:owner@closed.example',
+    status: 'closed',
+    date: '2026-11-17',
+    variant: 'manual-closure',
+  }, { now: '2026-11-18T09:00:00.000Z' });
+
+  assert.equal(record.status, 'Closed');
+  assert.equal(record.pilotStatus, 'Watching');
+  assert.equal(record.warmth, 'cold');
+  assert.equal(record.lastContacted, '', 'closing a record does not prove a contact happened');
+  assert.match(record.nextBestAction, /do not contact automatically/);
+  assert.doesNotMatch(record.status + ' ' + record.pilotStatus, /Won|Customer|Paid/);
+});
+
+test('historical outreach must not reopen a manually closed lead', () => {
+  const lead = {
+    name: 'Synthetic Closed Lead',
+    link: 'https://closed.example',
+    contact: 'mailto:owner@closed.example',
+    status: 'closed',
+    date: '2026-11-17',
+    variant: 'manual-closure',
+  };
+  const payload = buildCrmSyncPayload({
+    leads: [lead],
+    outreach: [{
+      timestamp: '2026-11-10T12:00:00.000Z',
+      name: lead.name,
+      site: lead.link,
+      contact: lead.contact,
+      status: 'sent',
+      messageId: 'synthetic-old-message',
+      kind: 'email',
+    }],
+    now: '2026-11-18T09:00:00.000Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Closed');
+  assert.equal(payload.records[0].pilotStatus, 'Watching');
+  assert.match(payload.records[0].nextBestAction, /do not contact automatically/);
+  assert.equal(payload.touches.length, 2, 'keep history without implying a new customer or reopening');
+});
+
 test('buildCrmSyncPayload creates records and stable touch log entries', () => {
   const leads = [
     {
