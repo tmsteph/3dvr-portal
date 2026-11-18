@@ -99,6 +99,11 @@ function contactIdentity(value = {}) {
 }
 
 function contactsMatch(left = {}, right = {}) {
+  const leftEmail = normalizeEmail(left.contact || left.email);
+  const rightEmail = normalizeEmail(right.contact || right.email);
+  // A shared business name cannot override two different, explicit email
+  // identities. Otherwise one buyer's reply can contaminate another's CRM.
+  if (leftEmail && rightEmail && leftEmail !== rightEmail) return false;
   if (contactIdentity(left) === contactIdentity(right)) return true;
   const leftName = normalizeLower(left.name);
   const rightName = normalizeLower(right.name);
@@ -337,25 +342,29 @@ function buildCrmSyncPayload({
   const qualifiedLeads = [...leads, ...outreachOnlyLeads]
     .filter((lead) => shouldSyncLeadToCrm(lead, { includeAll }));
   const selectedLeads = limit > 0 ? qualifiedLeads.slice(0, limit) : qualifiedLeads;
-  const records = selectedLeads.map((lead) => buildCrmRecord(mergeOutreachIntoLead(lead, outreach), { now }));
-  const byIdentity = new Map();
-  const byName = new Map();
-  const byId = new Map();
-  selectedLeads.forEach((lead, index) => {
-    byIdentity.set(contactIdentity(lead), { lead, record: records[index] });
-    if (normalizeLower(lead.name)) byName.set(normalizeLower(lead.name), { lead, record: records[index] });
-    byId.set(records[index].id, { lead, record: records[index] });
+  // Associate each message with exactly one lead before applying status,
+  // touches, reply counts or follow-ups. A name-only match is unsafe when
+  // multiple contacts share that name. Exact identity wins when unique.
+  const outreachByIndex = selectedLeads.map(() => []);
+  for (const entry of outreach) {
+    const exact = selectedLeads.flatMap((lead, index) =>
+      contactIdentity(lead) === contactIdentity(entry) ? [index] : []);
+    const candidates = exact.length ? exact : selectedLeads.flatMap((lead, index) =>
+      contactsMatch(lead, entry) ? [index] : []);
+    if (candidates.length === 1) outreachByIndex[candidates[0]].push(entry);
+  }
+  const records = selectedLeads.map((lead, index) =>
+    buildCrmRecord(mergeOutreachIntoLead(lead, outreachByIndex[index]), { now }));
+  const touches = records.map((record, index) =>
+    buildLeadTouch(selectedLeads[index], record, { now }));
+  records.forEach((record, index) => {
+    for (const entry of outreachByIndex[index]) {
+      touches.push(buildOutreachTouch(entry, record, { now }));
+    }
   });
 
-  const touches = records.map((record) => buildLeadTouch(byId.get(record.id).lead, record, { now }));
-  for (const entry of outreach) {
-    const match = byIdentity.get(contactIdentity(entry)) || byName.get(normalizeLower(entry.name));
-    if (!match) continue;
-    touches.push(buildOutreachTouch(entry, match.record, { now }));
-  }
-
-  for (const record of records) {
-    const entries = outreach.filter(entry => contactsMatch(entry, record));
+  for (const [index, record] of records.entries()) {
+    const entries = outreachByIndex[index];
     const successful = entries.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status)));
     const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
     const latest = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
