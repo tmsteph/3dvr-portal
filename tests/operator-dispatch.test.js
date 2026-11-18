@@ -134,3 +134,77 @@ test('task receipts prefer complete output and explicitly label the storage boun
   assert.match(operatorTaskReceipt({status:'completed',resultText:'partial',resultTruncated:true}), /storage limit/);
   assert.match(operatorTaskReceipt({status:'completed',resultSummary:'legacy result'}), /legacy result/);
 });
+
+
+test('signed Operator HTTP path persists one task in an isolated SQLite queue without worker or network access', async () => {
+  // Local process stands in for the SSH hop, but uses the exact production
+  // REMOTE_QUEUE_SCRIPT and real SEA verification. This is NOT worker/CRM E2E.
+  const dir = await mkdtemp(join(tmpdir(), 'operator-signed-isolated-'));
+  const dbPath = join(dir, 'queue.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
+  const script = REMOTE_QUEUE_SCRIPT
+    .replace(/if \[ -f .*?fi\n/, '')
+    .replace('cd "$HOME/.3dvr/portal/apps/agent"', "cd '" + dir + "'")
+    .replace('/opt/node-v22/bin/node', process.execPath);
+  const seen = [];
+  const handler = createOperatorDispatchHandler({
+    config,
+    run: async input => {
+      seen.push(input);
+      const proc = spawnSync('bash', ['-s', '--', Buffer.from(JSON.stringify(input)).toString('base64url')], {
+        input: script,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+          THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+          THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex,node',
+          THREEDVR_AGENT_QUEUE_DB: dbPath,
+          THREEDVR_AGENT_QUEUE_GUN_SYNC: '0'
+        }
+      });
+      assert.equal(proc.status, 0, proc.stderr);
+      return JSON.parse(proc.stdout);
+    }
+  });
+  const item = { ...enqueue, requestId: 'local-isolated-operator-123' };
+  try {
+    const denied = await request(handler, item, await SEA.pair());
+    assert.equal(denied.statusCode, 403);
+    assert.equal(seen.length, 0, 'wrong signer cannot enter queue transport');
+
+    const accepted = await request(handler, item);
+    assert.equal(accepted.statusCode, 202);
+    assert.equal(accepted.data.record.status, 'queued');
+    assert.match(accepted.data.record.id, /^operator-http-/);
+    assert.equal(seen[0].record.backend, 'codex');
+
+    const retry = await request(handler, item);
+    assert.equal(retry.statusCode, 202);
+    assert.equal(retry.data.record.id, accepted.data.record.id);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n, 1);
+
+    // A second SQLite connection independently verifies durable identity and
+    // provenance. No worker runs, no CRM write occurs, no outbound is enabled.
+    const readback = new DatabaseSync(dbPath);
+    try {
+      const row = readback.prepare('SELECT * FROM tasks WHERE owner_alias=? AND id=?')
+        .get('3dvr-managed', accepted.data.record.id);
+      assert.equal(row.source, 'operator-http');
+      assert.equal(row.status, 'queued');
+      const saved = JSON.parse(row.record_json);
+      assert.equal(saved.task, seen[0].record.task);
+      assert.equal(saved.unsafe, false);
+      assert.equal(saved.approvalStatus, 'not_required');
+    } finally { readback.close(); }
+
+    const status = await request(handler, { action: 'status', requestId: item.requestId });
+    assert.equal(status.statusCode, 200);
+    assert.equal(status.data.record.id, accepted.data.record.id);
+    assert.equal(status.data.record.status, 'queued', 'no worker completion is simulated or claimed');
+  } finally {
+    db.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
