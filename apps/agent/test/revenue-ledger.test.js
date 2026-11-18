@@ -99,6 +99,29 @@ test('an idempotency key cannot silently lose another prospect\'s event or chang
   assert.equal(db.prepare('SELECT state FROM prospects WHERE id=?').get(bob.id).state, 'prospect');
 }));
 
+test('generic ledger cannot forge a paid-customer event without a verified payment adapter', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Synthetic Buyer', contact: 'buyer@example.test' }).prospect;
+  assert.throws(() => transitionProspect(db, {
+    prospectId: prospect.id, toState: 'verified', type: 'payment_succeeded',
+    idempotencyKey: 'forged:payment-success',
+    payload: { payment: { status: 'succeeded', amount_cents: 50000, currency: 'USD' } }
+  }), /verified provider adapter/);
+  assert.equal(getProspectState(db, prospect.id), 'prospect');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 0);
+  assert.equal(pendingProjections(db).length, 0);
+  // Ordinary research / qualification transitions remain usable.
+  const verified = transitionProspect(db, {
+    prospectId: prospect.id, toState: 'verified', idempotencyKey: 'verified:synthetic'
+  });
+  assert.equal(verified.event.type, 'state_transition');
+  assert.equal(verified.prospect.state, 'verified');
+  assert.equal(pendingProjections(db).length, 1);
+}));
+
+function getProspectState(db, id) {
+  return db.prepare('SELECT state FROM prospects WHERE id=?').get(id).state;
+}
+
 test('legacy imports cannot replay a different lead or a normal transition', () => withLedger((db) => {
   const alice = createProspect(db, { name: 'Alice import', contact: 'alice-import@example.test' }).prospect;
   const bob = createProspect(db, { name: 'Bob import', contact: 'bob-import@example.test' }).prospect;
