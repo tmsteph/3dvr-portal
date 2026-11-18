@@ -4,11 +4,16 @@ import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
 import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
 import { createForkRecord, revokeFork } from '../src/agents/fork-contract.js';
 import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt } from '../operator/delegate-task.js';
+
+const require = createRequire(import.meta.url);
+const { runOnce: runPrivateWorkerOnce } = require('../scripts/ops/operator-private-worker.cjs');
+const workerQueue = require('../apps/agent/thomas-agent/node/agent-task-queue.js');
 
 const origin = 'https://operator.3dvr.tech';
 const pair = await SEA.pair();
@@ -215,7 +220,7 @@ test('signed Operator request persists to the isolated managed SQLite queue and 
   const dir = await mkdtemp(join(tmpdir(), 'operator-signed-sqlite-'));
   const dbPath = join(dir, 'isolated-queue.sqlite');
   const db = new DatabaseSync(dbPath);
-  db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
+  db.exec("CREATE TABLE tasks(owner_alias TEXT NOT NULL,id TEXT NOT NULL,status TEXT NOT NULL,updated_at TEXT NOT NULL,record_json TEXT NOT NULL,source TEXT NOT NULL DEFAULT 'sqlite',claim_token TEXT,claim_expires_at INTEGER,PRIMARY KEY(owner_alias,id)) WITHOUT ROWID");
   const script = REMOTE_QUEUE_SCRIPT
     .replace(/if \[ -f .*?fi\n/, '')
     .replace('cd "$HOME/.3dvr/portal/apps/agent"', `cd '${dir}'`)
@@ -265,6 +270,41 @@ test('signed Operator request persists to the isolated managed SQLite queue and 
     assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 1,
       'same signed request must not enqueue a duplicate');
     assert.equal(transportCalls, 3, 'one enqueue, one status and one idempotent retry');
+
+    // Invoke the real private-worker selection, SQLite claim, and result-writing
+    // code with only the model executor stubbed. No Codex, Gun, SSH or network.
+    let syntheticExecutions = 0;
+    const workerOptions = {
+      queueDb: dbPath, ownerAlias: '3dvr-managed', gunSync: false,
+      deviceId: 'ci-isolated-private-worker', workerCapabilities: 'codex,node',
+      workerRiskClasses: 'draft,low',
+    };
+    const isolatedWorkerQueue = {
+      listTasks: options => workerQueue.listTasks({ ...options, ...workerOptions }),
+      canWorkerRunTask: (record, options) =>
+        workerQueue.canWorkerRunTask(record, { ...options, ...workerOptions }),
+      runQueuedTask: (record, options) => workerQueue.runQueuedTask(record, {
+        ...options, ...workerOptions,
+        runAgentTaskImpl: async () => {
+          syntheticExecutions++;
+          return { ok: true, result: { stdout: '42 (synthetic executor)' } };
+        },
+      }),
+    };
+    assert.equal(await runPrivateWorkerOnce(isolatedWorkerQueue), 1,
+      'private worker must select and claim the signed task');
+    assert.equal(syntheticExecutions, 1);
+    const completed = await request(handler, { action: 'status', requestId: enqueue.requestId });
+    assert.equal(completed.statusCode, 200);
+    assert.equal(completed.data.record.status, 'completed');
+    assert.equal(completed.data.record.workerDeviceId, 'ci-isolated-private-worker');
+    assert.equal(completed.data.record.resultSummary, '42 (synthetic executor)');
+    assert.equal(completed.data.record.resultText, '42 (synthetic executor)');
+    assert.equal(await runPrivateWorkerOnce(isolatedWorkerQueue), 0,
+      'completed task is not replayed');
+    assert.equal(syntheticExecutions, 1, 'model executor is invoked only once');
+    assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 1);
+
   } finally {
     db.close();
     await rm(dir, { recursive: true, force: true });
