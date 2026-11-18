@@ -191,11 +191,18 @@ function transitionProspect(db, input = {}) {
     }
     return { event: replay, replayed: true, prospect: getProspect(db, id) };
   }
+  // No authenticated provider adapter is attached to this generic ledger
+  // transition. Reject caller-authored payment events instead of letting a
+  // forged payload become a CRM "Paid Customer" projection.
+  const eventType = normalize(input.type) || 'state_transition';
+  if (eventType === 'payment_succeeded') {
+    throw new Error('payment_succeeded requires a verified provider adapter');
+  }
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
   const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: normalize(input.type) || 'state_transition', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
+  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: eventType, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
