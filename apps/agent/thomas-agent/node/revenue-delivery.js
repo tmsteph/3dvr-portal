@@ -19,7 +19,14 @@ async function deliverProspect(db, input = {}, send) {
   let receipt;
   try {
     receipt = await send();
-    if (!receipt || receipt.acknowledged !== true) throw new Error('Sender did not return an acknowledgement');
+    if (!receipt || receipt.acknowledged !== true
+      || typeof receipt.messageId !== 'string' || !receipt.messageId.trim()
+      || typeof receipt.transport !== 'string' || !receipt.transport.trim()) {
+      // A process exiting successfully or a caller-supplied boolean alone
+      // cannot establish a provider-attributable send. Keep an ambiguous
+      // attempt quarantined rather than advance the CRM to "sent".
+      throw new Error('Sender did not return an attributable delivery acknowledgement');
+    }
   } catch (error) {
     const failed = transitionProspect(db, {
       prospectId: input.prospectId,
