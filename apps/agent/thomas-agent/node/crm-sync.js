@@ -349,8 +349,17 @@ function buildCrmSyncPayload({
   for (const entry of outreach) {
     const exact = selectedLeads.flatMap((lead, index) =>
       contactIdentity(lead) === contactIdentity(entry) ? [index] : []);
-    const candidates = exact.length ? exact : selectedLeads.flatMap((lead, index) =>
-      contactsMatch(lead, entry) ? [index] : []);
+    const candidates = exact.length ? exact : selectedLeads.flatMap((lead, index) => {
+      const leadIdentity = contactIdentity(lead);
+      const entryIdentity = contactIdentity(entry);
+      // A shared name cannot prove that an email buyer and a different
+      // website/contact route are the same person. Quarantine that reply
+      // rather than project it as a verified contact or follow-up.
+      const conflictingRoutes = leadIdentity !== entryIdentity
+        && !leadIdentity.startsWith('name:')
+        && !entryIdentity.startsWith('name:');
+      return contactsMatch(lead, entry) && !conflictingRoutes ? [index] : [];
+    });
     if (candidates.length === 1) outreachByIndex[candidates[0]].push(entry);
   }
   const records = selectedLeads.map((lead, index) =>
