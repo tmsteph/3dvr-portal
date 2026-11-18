@@ -154,3 +154,40 @@ test('CRM projection keeps its outbox retryable when an adapter omits or partial
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('isolated CRM acceptance relay configuration fails closed before any Gun connection', () => {
+  const { projectionPeer, remoteProjectionRoots } = require('../thomas-agent/node/revenue-crm-projection');
+  const cases = [
+    '', 'wss://gun-relay-3dvr.fly.dev/gun', 'wss://gun-relay-3dvr.fly.dev./gun',
+    'wss://gun-relay-3dvr.fly.dev.evil/gun',
+    'ws://localhost.evil:8765/gun', 'ws://127.0.0.1.evil:8765/gun',
+    'ws://localhost/gun', 'file:///tmp/gun', 'ws://user:pass@localhost:8765/gun',
+    'ws://localhost:8765/other', 'ws://localhost:8765/gun?peer=prod',
+    'ws://localhost:8765/gun#fragment'
+  ];
+  for (const relayUrl of cases) {
+    assert.throws(
+      () => remoteProjectionRoots({ isolated: true, relayUrl }),
+      /Isolated CRM relay|Invalid isolated CRM relay/,
+      `unsafe isolated relay must fail before Gun initialization: ${relayUrl}`
+    );
+  }
+  assert.equal(
+    projectionPeer({ isolated: true, relayUrl: 'ws://127.0.0.1:8765/gun' }),
+    'ws://127.0.0.1:8765/gun'
+  );
+  assert.equal(
+    projectionPeer({ isolated: true, relayUrl: 'http://localhost:9876/gun' }),
+    'http://localhost:9876/gun'
+  );
+  assert.equal(
+    projectionPeer({ isolated: true, relayUrl: 'ws://[::1]:9876/gun' }),
+    'ws://[::1]:9876/gun'
+  );
+  // Only the new opt-in isolated mode changes default behavior. Legacy
+  // production configuration is kept intact until separately reviewed.
+  assert.equal(
+    projectionPeer({ relayUrl: 'wss://custom-relay.example/gun' }),
+    'wss://custom-relay.example/gun'
+  );
+});
