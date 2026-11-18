@@ -18,9 +18,9 @@ const explicitPassword = Boolean(process.env.PORTAL_E2E_PASSWORD?.trim());
 
 // Never run a production acceptance check against the public, source-disclosed
 // fallback identity. This is a configuration preflight, not an auth attempt.
-if (new URL(baseUrl).hostname === 'portal.3dvr.tech' && (!explicitAlias || !explicitPassword)) {
+if (new URL(baseUrl).hostname === 'portal.3dvr.tech' && (!explicitAlias || !explicitPassword || usingPublicCredentials)) {
   throw new Error(
-    'Operator production E2E identity is unconfigured: both PORTAL_E2E_ALIAS and PORTAL_E2E_PASSWORD must be supplied; refusing public fallback.'
+    'Operator production E2E requires explicitly configured non-public credentials; refusing public fallback.'
   );
 }
 await mkdir(artifactDir, { recursive: true });
