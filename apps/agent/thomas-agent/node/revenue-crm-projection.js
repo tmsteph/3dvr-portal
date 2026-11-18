@@ -122,8 +122,21 @@ async function projectPendingCrm(db, options = {}) {
     try {
       if (!(prospect && event)) throw new Error('Projection references missing canonical data');
       const now = new Date().toISOString();
-      const response = await write({ records: [recordFor(prospect, event, now)], touches: [touchFor(prospect, event, now)] }, writeOptions);
-      if (response?.errors?.length) throw new Error(response.errors.join('; '));
+      const payload = {
+        records: [recordFor(prospect, event, now)],
+        touches: [touchFor(prospect, event, now)],
+      };
+      const response = await write(payload, writeOptions);
+      // A writer that returns nothing (or acknowledges only some writes) must
+      // never clear the retryable outbox entry. This checks the writer's receipt,
+      // not durable readback from an independent CRM client.
+      if (!response || !Array.isArray(response.errors)) {
+        throw new Error('CRM projection missing a structured write receipt');
+      }
+      if (response.errors.length) throw new Error(response.errors.join('; '));
+      if (response.records !== payload.records.length || response.touches !== payload.touches.length) {
+        throw new Error('CRM projection missing affirmative record/touch write counts');
+      }
       finishProjection(db, { id: row.id, status: 'succeeded' });
       result.succeeded += 1;
     } catch (error) {
