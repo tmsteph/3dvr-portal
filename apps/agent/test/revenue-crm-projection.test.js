@@ -72,3 +72,42 @@ test('remote projection roots do not initialize a local radata store', () => {
   assert.match(source, /radisk:\s*false/);
   assert.match(source, /stats:\s*false/);
 });
+
+test('revenue outbox stays pending if the real CRM writer receives no positive Gun acknowledgement', async () => {
+  const { writeCrmSync } = require('../thomas-agent/node/crm-sync');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-unacked-projection-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  const rootWithAck = (ack) => ({
+    get() { return { put(_record, callback) { callback(ack); } }; }
+  });
+  try {
+    const prospect = createProspect(db, {
+      name: 'Synthetic No-Send Prospect',
+      contact: 'synthetic@example.test',
+      sourceUrl: 'https://example.test'
+    }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'synthetic-verify' });
+
+    const unacknowledgedRoot = rootWithAck({});
+    const writeWithoutReceipt = payload => writeCrmSync(payload, {
+      crmRoot: unacknowledgedRoot, touchRoot: unacknowledgedRoot, timeoutMs: 25
+    });
+    const failed = await projectPendingCrm(db, { write: writeWithoutReceipt });
+    assert.equal(failed.succeeded, 0);
+    assert.equal(failed.failed, 1);
+    assert.equal(pendingProjections(db).length, 1, 'an unacknowledged write must remain retryable');
+
+    const acknowledgedRoot = rootWithAck({ ok: true });
+    const accepted = await projectPendingCrm(db, {
+      write: payload => writeCrmSync(payload, {
+        crmRoot: acknowledgedRoot, touchRoot: acknowledgedRoot, timeoutMs: 25
+      })
+    });
+    assert.equal(accepted.succeeded, 1);
+    assert.equal(accepted.failed, 0);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
