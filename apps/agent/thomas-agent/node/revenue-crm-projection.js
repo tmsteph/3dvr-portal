@@ -19,16 +19,22 @@ function remoteProjectionRoots() {
 }
 
 function paymentReceiptFor(event = {}) {
+  // CRM display must never interpret a quoted plan, a payment-intent ID or
+  // a generic lead event as proof that a customer actually paid. This is only
+  // structural screening; the upstream payment adapter still MUST authenticate
+  // the provider callback before persisting a payment_succeeded event.
+  if (event.type !== 'payment_succeeded') return null;
   let payload = {};
   try { payload = JSON.parse(event.payload_json || '{}'); } catch {}
   const payment = payload.payment && typeof payload.payment === 'object' ? payload.payment : payload;
   const amountCents = Number(payment.amount_cents ?? payment.amountCents ?? payment.amount_paid ?? payment.amount_total);
-  const currency = String(payment.currency || 'usd').trim().toUpperCase();
+  const currency = String(payment.currency || '').trim().toUpperCase();
   const paidAt = String(payment.paid_at || payment.paidAt || payment.created_at || event.created_at || '').trim();
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
-  const hasAmount = Number.isFinite(amountCents) && amountCents >= 0;
-  const hasRecurring = Number.isFinite(recurringCents) && recurringCents >= 0;
-  if (!hasAmount && !payment.payment_intent_id && !payment.subscription_id && !payment.plan) return null;
+  const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
+  const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
+  if (String(payment.status || '').trim().toLowerCase() !== 'succeeded'
+    || !hasAmount || !/^[A-Z]{3}$/.test(currency)) return null;
   return {
     amountCents: hasAmount ? amountCents : null,
     amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
