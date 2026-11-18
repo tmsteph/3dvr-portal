@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, findProspectByContact, finishProjection, openLedger, pendingProjections, startRun, finishRun, importProspectState, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { acknowledgedDeliveryCount, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, importProspectState, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function withLedger(fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-ledger-'));
@@ -66,6 +66,38 @@ test('state transitions atomically queue idempotent CRM projections', () => with
   assert.equal(finishProjection(db, { id: queued[0].id, status: 'failed', error: 'timeout' }).attempts, 1);
   assert.equal(finishProjection(db, { id: queued[0].id, status: 'succeeded' }).attempts, 2);
   assert.equal(pendingProjections(db).length, 0);
+}));
+
+test('ledger refuses unattributed acknowledged deliveries at the persistence boundary', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Synthetic no-send', contact: 'synthetic@example.test' }).prospect;
+  const malformed = [
+    ['', 'test'], ['message-123', ''], ['  ', 'test'],
+    ['message-123', '  '], [123, 'test'], ['message-123', 123],
+  ];
+  for (const [index, [messageId, transport]] of malformed.entries()) {
+    const attemptId = `invalid-receipt-${index}`;
+    reserveDeliveryAttempt(db, { attemptId, prospectId: prospect.id });
+    assert.throws(
+      () => finishDeliveryAttempt(db, { attemptId, status: 'acknowledged', messageId, transport }),
+      /Acknowledged delivery requires messageId and transport/,
+    );
+    assert.equal(db.prepare('SELECT status FROM delivery_attempts WHERE attempt_key=?')
+      .get(attemptId).status, 'in_flight');
+  }
+  assert.equal(acknowledgedDeliveryCount(db), 0, 'no malformed acknowledgement is counted as sent');
+  const attemptId = 'valid-attributed-receipt';
+  reserveDeliveryAttempt(db, { attemptId, prospectId: prospect.id });
+  const saved = finishDeliveryAttempt(db, {
+    attemptId, status: 'acknowledged', messageId: 'message-123', transport: 'test-provider',
+  });
+  assert.equal(saved.status, 'acknowledged');
+  assert.equal(saved.message_id, 'message-123');
+  assert.equal(saved.transport, 'test-provider');
+  assert.equal(acknowledgedDeliveryCount(db), 1);
+  assert.throws(() => finishDeliveryAttempt(db, {
+    attemptId, status: 'acknowledged', messageId: 'message-123', transport: 'test-provider',
+  }), /not in flight/);
+  assert.equal(acknowledgedDeliveryCount(db), 1, 'replay must not double count a send');
 }));
 
 test('ledger prevents invalid send transitions and records one run per trigger', () => withLedger((db) => {
