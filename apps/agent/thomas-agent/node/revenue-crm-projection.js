@@ -133,7 +133,7 @@ function touchFor(prospect, event, now) {
 
 async function projectPendingCrm(db, options = {}) {
   const write = options.write || writeCrmSync;
-  const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots());
+  const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots(options));
   const rows = pendingProjections(db, options.limit || 100);
   const result = { attempted: rows.length, succeeded: 0, failed: 0, errors: [] };
   for (const row of rows) {
