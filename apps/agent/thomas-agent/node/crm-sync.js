@@ -376,12 +376,17 @@ function buildCrmSyncPayload({
     const entries = outreachByIndex[index];
     const successful = entries.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status)));
     const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
-    const latest = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
+    const chronological = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
+    const latest = chronological.at(-1);
+    const latestSend = chronological.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status))).at(-1);
+    const latestReply = chronological.filter(entry => normalizeLower(entry.status) === 'replied').at(-1);
     if (!latest) continue;
-    record.lastContacted = successful.length ? isoDate(latest.timestamp, new Date(now)) : record.lastContacted;
+    // A later failed attempt is not evidence of a later delivered message.
+    // Imported log order is not necessarily chronological, especially for replies.
+    record.lastContacted = latestSend ? isoDate(latestSend.timestamp, new Date(now)) : record.lastContacted;
     record.lastTouchType = replies.length ? 'reply-received' : 'outreach-sent';
     record.replyCount = replies.length;
-    record.lastReplyAt = replies.length ? replies[replies.length - 1].timestamp : '';
+    record.lastReplyAt = latestReply?.timestamp || '';
     record.lastCampaign = normalizeText(latest.campaignId || latest.experiment || latest.experimentId);
     record.lastVariant = normalizeText(latest.variant);
     record.lastMessageSubject = normalizeText(latest.subject);
