@@ -111,3 +111,46 @@ test('revenue outbox stays pending if the real CRM writer receives no positive G
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('CRM projection keeps its outbox retryable when an adapter omits or partially acknowledges writes', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-incomplete-receipt-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, {
+      name: 'Synthetic Prospect - No Send', contact: 'local-only@example.test',
+      sourceUrl: 'https://example.test/local-only'
+    }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-incomplete' });
+    const incomplete = [
+      undefined, null, {}, { records: 1, touches: 1 },
+      { records: 0, touches: 1, errors: [] },
+      { records: 1, touches: 0, errors: [] },
+      { records: 2, touches: 1, errors: [] },
+      { records: '1', touches: 1, errors: [] },
+      { records: 1, touches: 1, errors: 'not-an-array' }
+    ];
+    for (const [index, reply] of incomplete.entries()) {
+      const result = await projectPendingCrm(db, { write: async payload => {
+        assert.equal(payload.records.length, 1);
+        assert.equal(payload.touches.length, 1);
+        return reply;
+      } });
+      assert.equal(result.succeeded, 0, 'no incomplete receipt may close the outbox');
+      assert.equal(result.failed, 1);
+      const pending = pendingProjections(db);
+      assert.equal(pending.length, 1);
+      assert.equal(pending[0].attempts, index + 1);
+      assert.equal(pending[0].status, 'failed');
+      assert.match(pending[0].last_error, /CRM projection/i);
+    }
+    const accepted = await projectPendingCrm(db, {
+      write: async payload => ({ records: payload.records.length, touches: payload.touches.length, errors: [] })
+    });
+    assert.equal(accepted.succeeded, 1);
+    assert.equal(accepted.failed, 0);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
