@@ -5,6 +5,9 @@ const baseUrl = process.env.PORTAL_E2E_URL || 'https://portal.3dvr.tech';
 const publicAlias = 'operator-e2e-20260823@3dvr';
 const publicPassword = 'PublicE2E-20260823-Disposable-Account!';
 const alias = process.env.PORTAL_E2E_ALIAS || publicAlias;
+// sign-in.html appends "@3dvr" to the typed username; E2E aliases may already include it.
+// Normalize only the form input, preserving the full Gun alias for identity assertions.
+const signInUsername = alias.endsWith('@3dvr') ? alias.slice(0, -'@3dvr'.length) : alias;
 const password = process.env.PORTAL_E2E_PASSWORD || publicPassword;
 const modeRaw = await readFile('.github/e2e/operator-e2e-mode.txt', 'utf8').catch(() => 'bootstrap');
 const mode = String(process.env.PORTAL_E2E_MODE || modeRaw || '').trim().toLowerCase();
@@ -71,7 +74,7 @@ async function saveArtifacts(name) {
 async function signInOrCreate() {
   const signInUrl = `${baseUrl}/sign-in.html?redirect=${encodeURIComponent('/operator/')}`;
   await page.goto(signInUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.locator('#username').fill(alias);
+  await page.locator('#username').fill(signInUsername);
   await page.locator('#password').fill(password);
   await page.locator('#auth-submit').click();
 
@@ -110,7 +113,7 @@ async function signInOrCreate() {
 async function signInFreshPage(targetPage) {
   const signInUrl = `${baseUrl}/sign-in.html?redirect=${encodeURIComponent('/operator/')}`;
   await targetPage.goto(signInUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await targetPage.locator('#username').fill(alias);
+  await targetPage.locator('#username').fill(signInUsername);
   await targetPage.locator('#password').fill(password);
   await targetPage.locator('#auth-submit').click();
   try {
