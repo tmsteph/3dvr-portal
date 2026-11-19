@@ -155,6 +155,11 @@ async function projectPendingCrm(db, options = {}) {
     const event = db.prepare('SELECT * FROM revenue_events WHERE id = ?').get(row.event_id);
     try {
       if (!(prospect && event)) throw new Error('Projection references missing canonical data');
+      // Both FKs can be valid while an outbox row points to another lead's
+      // event. Never project that person's reply/payment into this CRM record.
+      if (event.prospect_id !== prospect.id) {
+        throw new Error('CRM projection prospect/event identity mismatch');
+      }
       const now = new Date().toISOString();
       const payload = {
         records: [recordFor(prospect, event, now)],
