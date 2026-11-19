@@ -1,8 +1,63 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { runInNewContext } from 'node:vm';
+import { operatorHandoffUrl } from '../operator/handoff.js';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+
+test('a Workspace thread link opens the matching project and creates a reviewable agent draft', async () => {
+  const source = await read('workspace/main.js');
+  const elements = new Map();
+  const session = new Map();
+  const location = {
+    origin: 'https://portal.3dvr.tech',
+    pathname: '/workspace/',
+    hash: '#project=target&thread=linked',
+    assign(path) { this.destination = path; }
+  };
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) {
+        elements.set(id, {
+          addEventListener() {},
+          appendChild() {},
+          content: { cloneNode: () => ({ querySelector: () => ({}) }) }
+        });
+      }
+      return elements.get(id);
+    }
+  };
+  const app = source.slice(0, source.indexOf('\nboot().catch')).replace(/^import [^\n]+\n/, '');
+  const result = runInNewContext(`${app}
+    alias = 'tmsteph';
+    state = normalize({ projects: [
+      { id: 'other', name: 'Other', threads: [{ id: 'fallback' }] },
+      { id: 'target', name: 'Private project', threads: [
+        { id: 'other-thread' },
+        { id: 'linked', title: 'Exact thread', messages: [
+          { content: 'x'.repeat(5000) + ' newest update' }
+        ] }
+      ], memory: [{ text: 'Private context' }] }
+    ] });
+    render();
+    openAgent('operator');
+  `, {
+    operatorHandoffUrl, URLSearchParams, location, document, window: {}, requestAnimationFrame() {},
+    sessionStorage: { setItem: (key, value) => session.set(key, value) }
+  });
+  assert.equal(result, undefined);
+  assert.equal(elements.get('threadTitle').textContent, 'Exact thread');
+  assert.equal(elements.get('threadLinkStatus').hidden, true);
+  const draft = JSON.parse(session.get('3dvr.operator.prefill.v1'));
+  assert.equal(draft.submit, false);
+  assert.equal(draft.alias, 'tmsteph');
+  assert.ok(draft.prompt.length <= 4000);
+  assert.match(draft.prompt, /Private context[\s\S]*newest update$/);
+  const destination = new URL(location.destination, location.origin);
+  assert.equal(destination.searchParams.get('from'), '/workspace/#project=target&thread=linked');
+  assert.doesNotMatch(destination.href, /Private|newest/);
+});
 
 test('fresh workspace state yields to an existing cloud record', async () => {
   const source = await read('workspace/main.js');

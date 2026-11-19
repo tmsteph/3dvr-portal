@@ -62,7 +62,8 @@ function screen(result, status = 200, signedIn = true, gate, sessions = new Map(
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, String(value)),
       removeItem: key => storage.delete(key) }, crypto: { randomUUID }, AbortSignal,
     Date: Clock,
-    sessionStorage: { getItem: key => sessions.get(key), setItem: (key, value) => sessions.set(key, value) },
+    sessionStorage: { getItem: key => sessions.get(key), setItem: (key, value) => sessions.set(key, value),
+      removeItem: key => sessions.delete(key) },
     setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
     clearInterval: id => intervals.delete(id),
     setTimeout: fn => { queueMicrotask(fn); return 0; }, clearTimeout: () => {}, createOutbox, MESSAGE_TTL_MS, validMessage, readHelmResponse, paintOperatorMarkdown,
@@ -124,6 +125,27 @@ test('signed-out visitors cannot submit or send automatic agent requests', async
   assert.equal(ui.requests.length, 0);
   assert.equal(ui.saved.length, 0);
   assert.equal(ui.element('send').disabled, true);
+});
+
+test('a Workspace handoff opens as an unsent Helm draft for its account', async () => {
+  const key = '3dvr.helm.prefill.v1';
+  const sessionKey = '3dvr.helm.session.tmsteph@3dvr';
+  const sessions = new Map([
+    [sessionKey, 'existing-chat'],
+    [key, JSON.stringify({ alias: 'tmsteph@3dvr', prompt: 'Continue the linked project.' })]
+  ]);
+  const ui = screen({ ok: false }, 503, true, undefined, sessions);
+  await ui.ready;
+  assert.notEqual(sessions.get(sessionKey), 'existing-chat');
+  assert.equal(sessions.has(key), false);
+  assert.equal(ui.element('message').value, 'Continue the linked project.');
+  assert.equal(ui.saved.length, 0);
+  assert.equal(ui.requests.some(request => request.action === 'chat'), false);
+  sessions.set(key, JSON.stringify({ alias: 'another-account', prompt: 'Private draft' }));
+  const other = screen({ ok: false }, 503, true, undefined, sessions);
+  await other.ready;
+  assert.equal(other.element('message').value, '');
+  assert.equal(sessions.has(key), false);
 });
 
 test('queued messages from an earlier conversation remain cancellable in history', async () => {

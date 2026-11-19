@@ -1,3 +1,5 @@
+import { operatorHandoffUrl } from '../operator/handoff.js';
+
 const peers = Array.isArray(window.__GUN_PEERS__) && window.__GUN_PEERS__.length
   ? window.__GUN_PEERS__
   : ['wss://portal.3dvr.tech/gun-relay'];
@@ -14,7 +16,11 @@ const ui = {
   projectList: $('projectList'),
   newProjectButton: $('newProjectButton'),
   newThreadButton: $('newThreadButton'),
+  copyThreadLinkButton: $('copyThreadLinkButton'),
   copyHandoffButton: $('copyHandoffButton'),
+  openOperatorButton: $('openOperatorButton'),
+  openHelmButton: $('openHelmButton'),
+  threadLinkStatus: $('threadLinkStatus'),
   projectLabel: $('projectLabel'),
   threadTitle: $('threadTitle'),
   threadTabs: $('threadTabs'),
@@ -62,6 +68,11 @@ let secret = '';
 let node = null;
 let activeProjectId = storage.get(KEYS.project);
 let activeThreadId = storage.get(KEYS.thread);
+const linkedSelection = new URLSearchParams(location.hash.slice(1));
+let pendingThreadLink = linkedSelection.has('project') && linkedSelection.has('thread');
+if (pendingThreadLink) {
+  $('signInLink').href = `/sign-in.html?${new URLSearchParams({ next: location.pathname + location.hash })}`;
+}
 let applyingRemote = false;
 let saveTimer = null;
 
@@ -208,6 +219,24 @@ function empty(container, title, detail) {
 }
 
 function render() {
+  if (pendingThreadLink) {
+    const linkedProject = state.projects.find(item => item.id === linkedSelection.get('project'));
+    const linkedThread = linkedProject?.threads.find(item => item.id === linkedSelection.get('thread'));
+    if (linkedThread) {
+      activeProjectId = linkedProject.id;
+      activeThreadId = linkedThread.id;
+      storage.set(KEYS.project, activeProjectId);
+      storage.set(KEYS.thread, activeThreadId);
+      pendingThreadLink = false;
+    }
+  }
+  ui.threadLinkStatus.hidden = !pendingThreadLink;
+  ui.threadLinkStatus.textContent = pendingThreadLink
+    ? 'Waiting for the linked thread. You can also select another thread.'
+    : '';
+  for (const button of [ui.copyThreadLinkButton, ui.copyHandoffButton, ui.openOperatorButton, ui.openHelmButton]) {
+    button.disabled = pendingThreadLink;
+  }
   const project = currentProject();
   const thread = currentThread();
 
@@ -363,7 +392,11 @@ function addRun(prompt) {
   scheduleSave();
 }
 
-function handoff() {
+function threadPath(project, thread) {
+  return `/workspace/#${new URLSearchParams({ project: project.id, thread: thread.id })}`;
+}
+
+function handoff(maxLength = Infinity) {
   const project = currentProject();
   const thread = currentThread();
   if (!project || !thread) return '';
@@ -375,12 +408,28 @@ function handoff() {
     ? thread.messages.map(message => `${message.role.toUpperCase()}: ${message.content}`).join('\n\n')
     : 'No messages yet.';
 
-  return `# 3DVR Workspace Handoff\n\nProject: ${project.name}\nThread: ${thread.title}\n\n## Project memory\n${memory}\n\n## Thread\n${transcript}\n\nContinue this work using the project memory and thread above. Return durable decisions and results to the 3DVR workspace.`;
+  const title = `# 3DVR Workspace handoff\n\nProject: ${project.name.slice(0, 160)}\nThread: ${thread.title.slice(0, 160)}\nSource: ${location.origin}${threadPath(project, thread)}\n`;
+  const intro = '\nUse the context below to continue this work. Return the result and any decisions or blockers.\n';
+  const excerpt = (text, limit) => {
+    const marker = '[Excerpt]\n';
+    if (limit <= marker.length) return '';
+    return text.length > limit ? marker + text.slice(-(limit - marker.length)) : text;
+  };
+  const memoryExcerpt = excerpt(memory, Math.floor(maxLength / 3));
+  const prefix = `${title}${intro}\n## Project memory\n${memoryExcerpt}\n\n## Thread\n`;
+  return prefix + excerpt(transcript, maxLength - prefix.length);
+}
+
+function selectThreadManually() {
+  if (!pendingThreadLink) return;
+  pendingThreadLink = false;
+  history.replaceState(null, '', location.pathname + location.search);
 }
 
 ui.projectList.addEventListener('click', event => {
   const button = event.target.closest('[data-project-id]');
   if (!button) return;
+  selectThreadManually();
   activeProjectId = button.dataset.projectId;
   activeThreadId = '';
   storage.set(KEYS.project, activeProjectId);
@@ -391,6 +440,7 @@ ui.projectList.addEventListener('click', event => {
 ui.threadTabs.addEventListener('click', event => {
   const button = event.target.closest('[data-thread-id]');
   if (!button) return;
+  selectThreadManually();
   activeThreadId = button.dataset.threadId;
   storage.set(KEYS.thread, activeThreadId);
   render();
@@ -399,6 +449,7 @@ ui.threadTabs.addEventListener('click', event => {
 ui.newProjectButton.addEventListener('click', () => {
   const name = prompt('Project name?')?.trim();
   if (!name) return;
+  selectThreadManually();
   const project = newProject(name);
   state.projects.push(project);
   activeProjectId = project.id;
@@ -412,6 +463,7 @@ ui.newThreadButton.addEventListener('click', () => {
   const project = currentProject();
   const title = prompt('Thread name?')?.trim();
   if (!project || !title) return;
+  selectThreadManually();
   const thread = newThread(title);
   project.threads.push(thread);
   activeThreadId = thread.id;
@@ -453,17 +505,42 @@ ui.memoryForm.addEventListener('submit', event => {
   scheduleSave();
 });
 
-ui.copyHandoffButton.addEventListener('click', async () => {
-  const text = handoff();
+async function copyText(button, text) {
   if (!text) return;
   try {
     await navigator.clipboard.writeText(text);
-    ui.copyHandoffButton.textContent = 'Copied';
-    setTimeout(() => { ui.copyHandoffButton.textContent = 'Copy handoff'; }, 1200);
+    ui.threadLinkStatus.hidden = false;
+    ui.threadLinkStatus.textContent = `${button.textContent.replace(/^Copy /, '')} copied.`;
   } catch (_err) {
-    prompt('Copy this handoff:', text);
+    prompt(button.textContent, text);
   }
+}
+
+ui.copyHandoffButton.addEventListener('click', () => copyText(ui.copyHandoffButton, handoff()));
+ui.copyThreadLinkButton.addEventListener('click', () => {
+  const path = threadPath(currentProject(), currentThread());
+  return copyText(ui.copyThreadLinkButton, location.origin + path);
 });
+
+function openAgent(agent) {
+  const path = threadPath(currentProject(), currentThread());
+  const isOperator = agent === 'operator';
+  try {
+    sessionStorage.setItem(`3dvr.${agent}.prefill.v1`, JSON.stringify({
+      prompt: handoff(isOperator ? 4000 : 6000),
+      alias,
+      submit: false
+    }));
+  } catch (_err) {
+    ui.threadLinkStatus.hidden = false;
+    ui.threadLinkStatus.textContent = 'Could not open a draft. Use Copy handoff to transfer the context.';
+    return;
+  }
+  location.assign(isOperator ? operatorHandoffUrl({ path, title: 'Workspace thread' }) : '/helm/');
+}
+
+ui.openOperatorButton.addEventListener('click', () => openAgent('operator'));
+ui.openHelmButton.addEventListener('click', () => openAgent('helm'));
 
 async function startWorkspace() {
   showApp();

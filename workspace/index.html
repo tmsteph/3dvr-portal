@@ -47,9 +47,13 @@
           </div>
           <div class="conversation-actions">
             <button id="newThreadButton" class="button-secondary" type="button">New thread</button>
+            <button id="copyThreadLinkButton" class="button-secondary" type="button">Copy thread link</button>
             <button id="copyHandoffButton" class="button-secondary" type="button">Copy handoff</button>
+            <button id="openOperatorButton" class="button-secondary" type="button">Open in Operator</button>
+            <button id="openHelmButton" class="button-secondary" type="button">Open in Helm</button>
           </div>
         </div>
+        <p id="threadLinkStatus" class="helper" role="status" hidden></p>
 
         <div id="threadTabs" class="thread-tabs"></div>
         <div id="messageList" class="message-list" aria-live="polite"></div>
@@ -101,7 +105,7 @@
         <p class="eyebrow">3DVR Workspace</p>
         <h1>Your context should travel with you.</h1>
         <p id="authMessage">Sign in to your 3DVR account to unlock encrypted cross-device workspace sync.</p>
-        <a class="primary-link" href="../sign-in.html?next=%2Fworkspace%2F">Sign in</a>
+        <a id="signInLink" class="primary-link" href="../sign-in.html?next=%2Fworkspace%2F">Sign in</a>
       </div>
     </section>
   </div>
