@@ -19,6 +19,7 @@ const {
   subjectMatchesPublicAgentGate,
   subjectMatchesFreeDesignGate,
   recordLeadReplyFeedback,
+  upsertMessageState,
 } = require('../thomas-agent/node/inbox-monitor');
 
 test('detects bounce mail and extracts candidate addresses', () => {
@@ -259,4 +260,24 @@ test('triages subject-gated public 3dvr-agent requests separately', () => {
   } finally {
     console.log = originalLog;
   }
+});
+
+test('inbox state preserves thread headers and bounce recipients for later ledger checks', () => {
+  const state = { messages: {} };
+  upsertMessageState(state, {
+    messageId: '<reply-one@test.example>', fromEmail: 'owner@test.example',
+    subject: 'Re: Automation', inReplyTo: '<sent-one@test.example>',
+    references: '<start@test.example> <sent-one@test.example>',
+  }, null);
+  assert.equal(state.messages['<reply-one@test.example>'].inReplyTo, '<sent-one@test.example>');
+  assert.equal(state.messages['<reply-one@test.example>'].references,
+    '<start@test.example> <sent-one@test.example>');
+
+  upsertMessageState(state, {
+    messageId: '<bounce-one@test.example>', from: 'Mailer Daemon',
+    fromEmail: 'mailer-daemon@test.example',
+    subject: 'Delivery Status Notification (Failure)',
+    preview: 'Message undeliverable to buyer@test.example',
+  }, null);
+  assert.deepEqual(state.messages['<bounce-one@test.example>'].bounceEmails, ['buyer@test.example']);
 });
