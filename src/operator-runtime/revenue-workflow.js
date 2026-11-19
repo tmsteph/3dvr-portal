@@ -140,6 +140,13 @@ export function advanceRevenueLead(item, event, options = {}) {
     if (evidence.some(prior => prior?.id === receipt.id)) {
       throw new TypeError('external receipt id has already been recorded for this lead');
     }
+    // A generic note, research artifact, inbound reply or payment intent is
+    // not evidence that a provider sent an external message. This is a shape
+    // check only; sender adapters must still authenticate provider receipts.
+    if (['outreach_sent', 'follow_up_sent', 'proposal_sent'].includes(event)
+      && !['email', 'provider_send'].includes(receipt.type)) {
+      throw new TypeError(`${event} requires a provider send receipt`);
+    }
     if (event === 'reply_received') {
       // A proposed reply must refer to a message already recorded as sent for
       // this lead. Never turn an unverified narrative into a CRM reply event.
