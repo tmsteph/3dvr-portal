@@ -121,24 +121,42 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
   try {
     const started = startRun(db, { triggerId, releaseSha: releaseSha() });
     if (started.replayed) return { ...started.run, replayed: true };
-    const inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
-    const delivery = await deliverCandidate(db, options);
-    const crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
-      ? await projectPendingCrm(db, options.crm || {})
-      : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
-    const failed = inbox.errors.length || crm.failed || delivery.error;
-    const finished = finishRun(db, {
-      runId: started.run.id,
-      status: failed ? 'failed' : 'succeeded',
-      summary: {
-        mode: delivery.disabled ? 'no-send-canary' : 'bounded-delivery',
-        sends: delivery.sends,
-        delivery,
-        inbox,
-        crm,
-      },
-    });
-    return { ...finished, replayed: false };
+    let inbox;
+    let delivery;
+    let crm;
+    try {
+      inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
+      delivery = await deliverCandidate(db, options);
+      crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
+        ? await projectPendingCrm(db, options.crm || {})
+        : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
+      const failed = inbox.errors.length || crm.failed || delivery.error;
+      const finished = finishRun(db, {
+        runId: started.run.id,
+        status: failed ? 'failed' : 'succeeded',
+        summary: {
+          mode: delivery.disabled ? 'no-send-canary' : 'bounded-delivery',
+          sends: delivery.sends,
+          delivery,
+          inbox,
+          crm,
+        },
+      });
+      return { ...finished, replayed: false };
+    } catch (error) {
+      // A malformed candidate or invalid isolated relay must not strand a
+      // trigger in "running": replays would then appear active forever.
+      // Preserve what completed before the error; delivery may have been
+      // attempted, so never invent a zero-send receipt when it is unknown.
+      const summary = {
+        mode: 'failed-before-completion',
+        error: String(error?.message || error).slice(0, 500),
+        ...(inbox ? { inbox } : {}),
+        ...(delivery ? { delivery, sends: delivery.sends } : {}),
+        ...(crm ? { crm } : {}),
+      };
+      return { ...finishRun(db, { runId: started.run.id, status: 'failed', summary }), replayed: false };
+    }
   } finally {
     db.close();
   }
