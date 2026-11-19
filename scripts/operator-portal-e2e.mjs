@@ -10,13 +10,16 @@ const signInUsername = alias.replace(/@3dvr$/i, '');
 const password = process.env.PORTAL_E2E_PASSWORD || publicPassword;
 const modeRaw = await readFile('.github/e2e/operator-e2e-mode.txt', 'utf8').catch(() => 'bootstrap');
 const mode = String(process.env.PORTAL_E2E_MODE || modeRaw || '').trim().toLowerCase();
-const usingPublicCredentials = alias === publicAlias && password === publicPassword;
+// A mixed pair is unsafe too: neither half of the published fixture is private.
+const usingPublicCredentials = alias.trim().toLowerCase() === publicAlias.toLowerCase() || password === publicPassword;
 // Source-disclosed fallback credentials are never suitable for live acceptance.
 // Refuse before launching a browser, and keep all private credentials in CI secrets.
 if (new URL(baseUrl).hostname === 'portal.3dvr.tech' &&
     (!process.env.PORTAL_E2E_ALIAS?.trim() || !process.env.PORTAL_E2E_PASSWORD?.trim() || usingPublicCredentials)) {
   throw new Error('Operator production E2E requires explicit non-public credentials; refusing public fallback.');
 }
+// Failed sign-in pages can display an identity; do not collect their page text or screenshots.
+let signInVerified = false;
 const artifactDir = 'e2e-artifacts';
 await mkdir(artifactDir, { recursive: true });
 
@@ -104,6 +107,7 @@ async function signInExistingAccount() {
   if (identity.signedIn !== 'true' || !identity.pub) {
     throw new Error(`Portal sign-in did not establish a SEA identity: ${JSON.stringify(identity)}`);
   }
+  signInVerified = true;
   return identity;
 }
 
@@ -123,7 +127,8 @@ async function signInFreshPage(targetPage) {
     // Record navigation progress without exporting credentials or page contents.
     log('E2E_FRESH_SIGN_IN_PATH', new URL(targetPage.url()).pathname);
     log('E2E_FRESH_SIGN_IN_READY_STATE', await targetPage.evaluate(() => document.readyState).catch(() => 'unavailable'));
-    await targetPage.screenshot({ path: `${artifactDir}/fresh-sign-in-failure.png`, fullPage: true }).catch(() => {});
+    log('E2E_FRESH_SIGN_IN_FORM_VISIBLE', await targetPage.locator('#auth-submit').isVisible().catch(() => false));
+    log('E2E_FRESH_SIGN_IN_RELOAD_VISIBLE', await targetPage.locator('#auth-reload').isVisible().catch(() => false));
     throw error;
   }
   await targetPage.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
@@ -408,7 +413,8 @@ try {
   }
   log('E2E_PASS', mode || 'bootstrap');
 } catch (error) {
-  await saveArtifacts('failure');
+  // No sign-in screenshots or body dumps until identity verification completes.
+  if (signInVerified) await saveArtifacts('failure');
   console.error(error?.stack || error?.message || String(error));
   process.exitCode = 1;
 } finally {
