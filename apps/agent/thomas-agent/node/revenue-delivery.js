@@ -9,18 +9,29 @@ async function deliverProspect(db, input = {}, send) {
   // suppressed, bounced or already-contacted prospect before the ledger
   // rejects the state transition (too late to undo an external email).
   // Preserve idempotent reads of the original attempt after its state changes.
-  const existing = db.prepare('SELECT prospect_id FROM delivery_attempts WHERE attempt_key = ?').get(attemptId);
-  if (!existing) {
-    const prospect = getProspect(db, input.prospectId);
-    if (!prospect || prospect.state !== 'eligible') {
-      throw new Error('Prospect must be eligible before delivery');
+  // Atomically check + reserve across competing worker processes. A plain
+  // SELECT followed by INSERT could let two different attempt IDs send to
+  // the same prospect if concurrent workers both saw no prior attempt.
+  db.exec('BEGIN IMMEDIATE');
+  let reserved;
+  try {
+    const existing = db.prepare('SELECT prospect_id FROM delivery_attempts WHERE attempt_key = ?').get(attemptId);
+    if (!existing) {
+      const prospect = getProspect(db, input.prospectId);
+      if (!prospect || prospect.state !== 'eligible') {
+        throw new Error('Prospect must be eligible before delivery');
+      }
+      const prior = db.prepare('SELECT attempt_key FROM delivery_attempts WHERE prospect_id = ? LIMIT 1').get(prospect.id);
+      if (prior) {
+        throw new Error('Prior delivery attempt requires manual reconciliation before a new attempt');
+      }
     }
-    const prior = db.prepare('SELECT attempt_key FROM delivery_attempts WHERE prospect_id = ? LIMIT 1').get(prospect.id);
-    if (prior) {
-      throw new Error('Prior delivery attempt requires manual reconciliation before a new attempt');
-    }
+    reserved = reserveDeliveryAttempt(db, { attemptId, prospectId: input.prospectId });
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
   }
-  const reserved = reserveDeliveryAttempt(db, { attemptId, prospectId: input.prospectId });
   if (reserved.replayed) {
     const error = reserved.attempt.status === 'in_flight'
       ? 'Delivery attempt is ambiguous after interruption; refusing to resend'
