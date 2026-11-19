@@ -142,6 +142,11 @@ function resolveIsolatedLedgerFile(options = {}) {
   if (resolved === active || existing?.isSymbolicLink()) {
     throw new Error('Isolated revenue ledger cannot use the active ledger or a symlink');
   }
+  // A hard link can point at a host ledger despite having a different path.
+  // Reject shared inodes before SQLite can touch an existing scratch file.
+  if (existing?.nlink > 1) {
+    throw new Error('Isolated revenue ledger cannot use a hard-linked file');
+  }
   return resolved;
 }
 
