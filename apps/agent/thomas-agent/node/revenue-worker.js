@@ -77,6 +77,12 @@ async function sendCandidate(candidate) {
 }
 
 async function deliverCandidate(db, options = {}) {
+  // Isolated Operator→CRM acceptance must remain no-send even when a host has
+  // delivery enabled. Refuse before reading candidate data, quotas or the DB.
+  if (options.isolated === true || options.crm?.isolated === true) {
+    return { attempted: 0, sends: 0, disabled: true,
+      reason: 'isolated acceptance forbids outbound delivery' };
+  }
   if (!enabled(process.env.THREEDVR_REVENUE_DELIVERY_ENABLED)) {
     return { attempted: 0, sends: 0, disabled: true };
   }
