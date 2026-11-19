@@ -764,7 +764,7 @@
 
     const postSignInDestination = resolvePostSignInDestination();
     const redirectContext = describeRedirectTarget(postSignInDestination);
-    let gunRelayConnected = false;
+    const connectedGunRelayPeers = new Set();
     const gunRelayWaiters = new Set();
 
     function resolveGunPeers() {
@@ -777,11 +777,13 @@
     function watchGunRelay() {
       if (gunIsStub || !gun || typeof gun.on !== 'function') return;
       try {
-        gun.on('hi', () => {
-          gunRelayConnected = true;
+        // The pinned Gun runtime emits the same peer object on open and close.
+        gun.on('hi', peer => {
+          if (!peer || typeof peer !== 'object') return;
+          connectedGunRelayPeers.add(peer);
           for (const resolve of [...gunRelayWaiters]) resolve(true);
         });
-        gun.on('bye', () => { gunRelayConnected = false; });
+        gun.on('bye', peer => { connectedGunRelayPeers.delete(peer); });
       } catch (err) {
         console.warn('Unable to watch Gun relay state during sign-in', err);
       }
@@ -789,7 +791,7 @@
 
     function waitForGunRelay() {
       if (gunIsStub) return Promise.resolve(false);
-      if (gunRelayConnected) return Promise.resolve(true);
+      if (connectedGunRelayPeers.size) return Promise.resolve(true);
       // An old fulfilled promise must not treat a disconnected relay as ready.
       return new Promise(resolve => {
         const finish = ready => {
@@ -910,9 +912,9 @@
       button.disabled = Boolean(busy);
       button.textContent = busy
         ? (label || 'Working…')
-        : (redirectContext.destination === DEFAULT_POST_SIGN_IN_DESTINATION
-          ? 'Sign in'
-          : 'Sign in and continue');
+        : (createAccountControl.checked
+          ? 'Create new account'
+          : redirectContext.destination === DEFAULT_POST_SIGN_IN_DESTINATION ? 'Sign in' : 'Sign in and continue');
     }
 
     function setOauthStatus(message = '', tone = 'info') {
@@ -1108,8 +1110,8 @@
       });
     }
 
-    // Gun auth has no verified cancellation contract. Never reuse an attempt
-    // after failure/timeout: require a fresh document, not an in-place retry.
+    // Gun auth has no verified cancellation contract. After auth/create
+    // starts, failures or timeouts require a fresh document.
     let authAttemptState = 'idle';
     let authAttemptTimer;
     let authWasCreation = false;
@@ -1128,6 +1130,13 @@
       setAuthBusy(true, 'Reload required');
       setAuthStatus(message + ' Reload this page before trying again.' + (authWasCreation ? ' Creation may have completed; try signing in after reloading, rather than creating again.' : ' No account was created.'), 'error');
       document.getElementById('auth-reload').hidden = false;
+    }
+    function restorePreAuthRetry() {
+      if (authAttemptState !== 'relay') return;
+      authAttemptState = 'idle';
+      createAccountControl.disabled = false;
+      setAuthBusy(false);
+      setAuthStatus('The secure sync relay has not connected yet. Try again on this page.', 'error');
     }
     window.addEventListener('pagehide', () => {
       authAttemptState = 'terminal';
@@ -1159,19 +1168,29 @@
         return;
       }
       const alias = username + '@3dvr';
-      authWasCreation = creating;
       createAccountControl.disabled = true;
       authAttemptState = 'relay'; // Before await; Enter cannot submit twice.
       setAuthBusy(true, 'Connecting…');
       setAuthStatus('Connecting to secure account storage…');
-      authAttemptTimer = setTimeout(() => requireAuthReload('Account verification timed out.'), 25000);
       try {
-        if (gunIsStub || !await waitForGunRelay()) {
-          requireAuthReload('The secure sync relay is unavailable.');
+        if (gunIsStub) {
+          requireAuthReload('The secure sync runtime could not load.');
+          return;
+        }
+        if (!await waitForGunRelay()) {
+          restorePreAuthRetry();
           return;
         }
         if (authAttemptState !== 'relay') return;
-        authAttemptState = 'auth';
+      } catch {
+        restorePreAuthRetry();
+        return;
+      }
+
+      authWasCreation = creating;
+      authAttemptState = creating ? 'create' : 'auth';
+      authAttemptTimer = setTimeout(() => requireAuthReload('Account verification timed out.'), 25000);
+      try {
         setAuthBusy(true, 'Verifying…');
         setAuthStatus('Connected. Verifying your account…');
         const authenticate = () => user.auth(alias, password, ack => {
@@ -1211,7 +1230,6 @@
           }
         });
         if (creating) {
-          authAttemptState = 'create';
           setAuthBusy(true, 'Creating…');
           setAuthStatus('Creating the new account you requested…');
           user.create(alias, password, ack => {
