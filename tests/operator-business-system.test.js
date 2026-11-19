@@ -116,7 +116,7 @@ test('revenue workflow records delivery receipts and an attributed provider paym
   item = advanceRevenueLead(item, 'outreach_sent', { now: '2026-09-12T18:03:00.000Z', evidence: { type: 'email', id: 'msg-1' } });
   assert.equal(revenueStage(item), 'waiting_reply');
   assert.equal(item.state, 'waiting_external');
-  item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z' });
+  item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z', evidence: { type: 'provider_reply', id: 'reply-1', provider: 'gmail', inReplyToId: 'msg-1' } });
   assert.equal(revenueStage(item), 'proposal');
   item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'msg-2' } });
   assert.equal(revenueStage(item), 'payment');
@@ -134,7 +134,16 @@ test('revenue events cannot claim sent messages or payments without attributable
   item = advanceRevenueLead(item, 'qualified');
   assert.throws(() => advanceRevenueLead(item, 'outreach_sent'), /requires an external receipt/);
   item = advanceRevenueLead(item, 'outreach_sent', { evidence: { type: 'email', id: 'msg-guard' } });
-  item = advanceRevenueLead(item, 'reply_received');
+  assert.throws(() => advanceRevenueLead(item, 'reply_received'), /requires an external receipt/);
+  assert.throws(() => advanceRevenueLead(item, 'reply_received', {
+    evidence: { type: 'provider_reply', id: 'unlinked-reply', provider: 'gmail', inReplyToId: 'unknown-message' }
+  }), /linked to an earlier send/);
+  assert.throws(() => advanceRevenueLead(item, 'reply_received', {
+    evidence: { type: 'email', id: 'fake-reply', inReplyToId: 'msg-guard' }
+  }), /linked to an earlier send/);
+  item = advanceRevenueLead(item, 'reply_received', {
+    evidence: { type: 'provider_reply', id: 'reply-guard', provider: 'gmail', inReplyToId: 'msg-guard' }
+  });
   assert.throws(() => advanceRevenueLead(item, 'proposal_sent'), /requires an external receipt/);
   assert.throws(() => advanceRevenueLead(item, 'proposal_sent', { evidence: { type: 'email', id: 'msg-guard' } }), /already been recorded/);
   item = advanceRevenueLead(item, 'proposal_sent', { evidence: { type: 'email', id: 'proposal-guard' } });
@@ -162,9 +171,12 @@ test('replies, completed follow-ups and terminal outcomes clear stale sales foll
   const oldReminder = '2026-11-20T18:00:00.000Z';
   let replied = createRevenueLeadWorkItem({
     id: 'followup-reply', leadName: 'Synthetic reply', stage: 'waiting_reply',
-    state: 'waiting_external', nextFollowUpAt: oldReminder
+    state: 'waiting_external', nextFollowUpAt: oldReminder,
+    evidence: [{ type: 'email', id: 'synthetic-outreach-reply' }]
   });
-  replied = advanceRevenueLead(replied, 'reply_received');
+  replied = advanceRevenueLead(replied, 'reply_received', {
+    evidence: { type: 'provider_reply', id: 'synthetic-inbound-reply', provider: 'gmail', inReplyToId: 'synthetic-outreach-reply' }
+  });
   assert.equal(revenueStage(replied), 'proposal');
   assert.equal(replied.metadata.nextFollowUpAt, null, 'a reply consumes the pending follow-up');
 
