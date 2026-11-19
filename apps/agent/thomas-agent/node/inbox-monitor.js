@@ -626,6 +626,12 @@ function upsertMessageState(state, message, lead, options = {}) {
   }
   existing.subject = message.subject;
   existing.fromEmail = message.fromEmail;
+  // Persist RFC 5322 thread links for the canonical revenue ledger. Without
+  // these, an unrelated inbound email from the same contact can be mistaken
+  // for a reply to an acknowledged proposal.
+  existing.inReplyTo = normalizeText(message.inReplyTo);
+  existing.references = normalizeText(message.references);
+  if (looksLikeBounce(message)) existing.bounceEmails = extractBounceEmails(message);
   existing.leadName = lead?.name || existing.leadName || '';
   if (options.publicAgent) {
     existing.publicAgent = true;
@@ -2261,6 +2267,7 @@ module.exports = {
   updateLeadStatusByEmail,
   latestOutboundForLead,
   recordLeadReplyFeedback,
+  upsertMessageState,
 };
 
 if (require.main === module) {
