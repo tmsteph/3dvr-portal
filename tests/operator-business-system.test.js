@@ -157,3 +157,53 @@ test('business team keeps one manager plus bounded functional roles', () => {
     'engineering'
   ]);
 });
+
+test('replies, completed follow-ups and terminal outcomes clear stale sales follow-up reminders', () => {
+  const oldReminder = '2026-11-20T18:00:00.000Z';
+  let replied = createRevenueLeadWorkItem({
+    id: 'followup-reply', leadName: 'Synthetic reply', stage: 'waiting_reply',
+    state: 'waiting_external', nextFollowUpAt: oldReminder
+  });
+  replied = advanceRevenueLead(replied, 'reply_received');
+  assert.equal(revenueStage(replied), 'proposal');
+  assert.equal(replied.metadata.nextFollowUpAt, null, 'a reply consumes the pending follow-up');
+
+  let due = createRevenueLeadWorkItem({
+    id: 'followup-due', leadName: 'Synthetic reminder', stage: 'waiting_reply',
+    state: 'waiting_external', nextFollowUpAt: oldReminder
+  });
+  due = advanceRevenueLead(due, 'follow_up_due');
+  assert.equal(due.metadata.nextFollowUpAt, null, 'due reminder is not left to fire again');
+  due = advanceRevenueLead(due, 'follow_up_sent', { evidence: { type: 'email', id: 'synthetic-msg-1' } });
+  assert.equal(due.metadata.nextFollowUpAt, null, 'sent follow-up does not inherit the expired reminder');
+  due = advanceRevenueLead(due, 'follow_up_due', {
+    nextFollowUpAt: '2026-11-25T18:00:00.000Z'
+  });
+  assert.equal(due.metadata.nextFollowUpAt, '2026-11-25T18:00:00.000Z', 'explicit new scheduling is preserved on an open lead');
+
+  let lost = createRevenueLeadWorkItem({
+    id: 'followup-lost', stage: 'outreach', nextFollowUpAt: oldReminder
+  });
+  lost = advanceRevenueLead(lost, 'closed_lost', {
+    nextFollowUpAt: '2026-12-01T18:00:00.000Z'
+  });
+  assert.equal(revenueStage(lost), 'lost');
+  assert.equal(lost.metadata.nextFollowUpAt, null, 'closed leads never keep a sales follow-up');
+
+  let paid = advanceRevenueLead(replied, 'proposal_sent', {
+    evidence: { type: 'email', id: 'synthetic-proposal-1' },
+    nextFollowUpAt: '2026-11-23T18:00:00.000Z'
+  });
+  assert.equal(paid.metadata.nextFollowUpAt, '2026-11-23T18:00:00.000Z');
+  paid = advanceRevenueLead(paid, 'payment_received', {
+    evidence: {
+      type: 'provider_payment', id: 'synthetic-payment-1', provider: 'test',
+      invoiceId: 'synthetic-invoice', leadId: paid.id, amountCents: 100,
+      currency: 'USD'
+    },
+    result: { amountCents: 100, currency: 'USD' },
+    nextFollowUpAt: '2026-12-01T18:00:00.000Z'
+  });
+  assert.equal(revenueStage(paid), 'won');
+  assert.equal(paid.metadata.nextFollowUpAt, null, 'paid leads never keep a sales follow-up');
+});
