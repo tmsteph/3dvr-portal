@@ -78,7 +78,7 @@ let suppressCalendarClickAfterDrag = false;
 
 const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay'
 ];
 const gun = typeof Gun === 'function' ? Gun(GUN_PEERS) : null;
 const portalRoot = gun ? gun.get('3dvr-portal') : null;

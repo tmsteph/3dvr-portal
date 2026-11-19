@@ -1,7 +1,7 @@
 (function initGunPeers(global) {
   const defaultPeers = [
-    'wss://gun-relay-3dvr.fly.dev/gun',
-    'https://gun-relay-3dvr.fly.dev/gun'
+    'wss://portal.3dvr.tech/gun-relay',
+    'https://portal.3dvr.tech/gun-relay'
   ];
   const disabledPeers = new Set([
     'wss://relay.3dvr.tech/gun'

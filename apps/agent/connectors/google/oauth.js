@@ -6,7 +6,7 @@ const {
   loadGoogleCredential,
   saveGoogleCredential,
 } = require('./oauth-vault');
-const { OpenBaoBackend } = require('../secrets/openbao');
+const { resolveSecretsBackend } = require('../secrets/backend');
 
 const GOOGLE_BOOTSTRAP_SECRETS = Object.freeze({
   '3dvr': { key: 'GOOGLE_OAUTH_3DVR', email: '3dvr.tech@gmail.com' },
@@ -25,12 +25,7 @@ function normalizeEmail(value) {
 }
 
 function resolveOpenBao(options = {}) {
-  const backend = options.openBaoBackend || new OpenBaoBackend();
-  try {
-    return backend.ready() ? backend : null;
-  } catch {
-    return null;
-  }
+  return resolveSecretsBackend(options.openBaoBackend);
 }
 
 function refreshEndpoint() {

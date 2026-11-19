@@ -3,10 +3,10 @@
   const TAU = Math.PI * 2;
   const BASE_FACE_SPIN = TAU / 5200;
   const DRAG_WIND_FACTOR = 0.00012;
-  const MAX_EXTRA_SPIN = 0.035;
+  const MAX_EXTRA_SPIN = 0.046;
   const PULL_WINDUP_FACTOR = 0.00007;
   const MAX_PULL_WINDUP_SPIN = 0.012;
-  const SPIN_DECAY = 0.995;
+  const SPIN_DECAY = 0.9965;
   const FLIP_DECAY = 0.965;
   const MIN_FLIP_VELOCITY = 0.005;
   const TILT_X_LIMIT = 0.52;
@@ -16,7 +16,7 @@
   const TWIST_FACTOR = 0.0012;
   const FLIP_DISTANCE_THRESHOLD = 42;
   const FLIP_DISTANCE_FULL_CHARGE = 110;
-  const FLIP_STREAK_REQUIRED = 4;
+  const FLIP_STREAK_REQUIRED = 3;
   const FLIP_ENERGY_DECAY = 0.4;
   const FLIP_STREAK_WINDOW = 3200;
   const SWIPE_STREAK_MAX = 5;
@@ -37,8 +37,8 @@
   const TOUCH_INSTABILITY_DECAY = 0.985;
   const MAX_TOUCH_INSTABILITY = 0.075;
   const MAX_FLIP_ENERGY = 1.15;
-  const FLIP_IMPULSE_X = 0.22;
-  const FLIP_IMPULSE_Y = 0.26;
+  const FLIP_IMPULSE_X = 0.25;
+  const FLIP_IMPULSE_Y = 0.30;
   const FLIP_CROSS_IMPULSE = 0.055;
   const FLIP_SPIN_BOOST = 0.006;
   const FLIP_BUILD_SPIN_STEP = 0.0025;
@@ -53,13 +53,13 @@
   const DRAG_WOBBLE_FACTOR = 0.0009;
   const DRAG_TWIST_WOBBLE_FACTOR = 0.00042;
   const DRAG_WOBBLE_STREAK_GAIN = 0.48;
-  const FLIP_WOBBLE_IMPULSE = 0.075;
+  const FLIP_WOBBLE_IMPULSE = 0.092;
   const WOBBLE_SPRING = 0.12;
-  const WOBBLE_DECAY = 0.89;
-  const MAX_WOBBLE = 0.18;
-  const MAX_WOBBLE_Z = 0.09;
-  const SPARK_BURST_MAX = 18;
-  const SPARK_LIFETIME_MS = 720;
+  const WOBBLE_DECAY = 0.905;
+  const MAX_WOBBLE = 0.21;
+  const MAX_WOBBLE_Z = 0.11;
+  const SPARK_BURST_MAX = 26;
+  const SPARK_LIFETIME_MS = 800;
   const ROOT_SELECTOR = '[data-portal-swirl-logo]';
   const CANVAS_SELECTOR = '[data-portal-swirl-canvas]';
 
@@ -237,21 +237,21 @@
     });
     const frontMaterial = new THREE.MeshPhysicalMaterial({
       map: frontFaceTexture,
-      metalness: 0.66,
-      roughness: 0.16,
+      metalness: 0.35,
+      roughness: 0.24,
       clearcoat: 0.72,
       clearcoatRoughness: 0.08,
     });
     const backMaterial = new THREE.MeshPhysicalMaterial({
       map: backFaceTexture,
-      metalness: 0.68,
-      roughness: 0.17,
+      metalness: 0.37,
+      roughness: 0.25,
       clearcoat: 0.7,
       clearcoatRoughness: 0.08,
     });
 
     const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.45, 1.45, 0.28, 128, 1, false),
+      new THREE.CylinderGeometry(1.45, 1.45, 0.46, 128, 1, false),
       [sideMaterial, frontMaterial, backMaterial],
     );
     body.rotation.x = Math.PI / 2;
@@ -264,12 +264,12 @@
       clearcoat: 0.66,
       clearcoatRoughness: 0.06,
     });
-    const frontRim = new THREE.Mesh(new THREE.TorusGeometry(1.47, 0.052, 18, 128), rimMaterial);
-    frontRim.position.z = 0.153;
+    const frontRim = new THREE.Mesh(new THREE.TorusGeometry(1.47, 0.058, 18, 128), rimMaterial);
+    frontRim.position.z = 0.245;
     group.add(frontRim);
 
     const backRim = frontRim.clone();
-    backRim.position.z = -0.153;
+    backRim.position.z = -0.245;
     group.add(backRim);
 
     const aquaRimMaterial = new THREE.MeshPhysicalMaterial({
@@ -280,10 +280,10 @@
       clearcoatRoughness: 0.08,
     });
     const frontInnerRim = new THREE.Mesh(new THREE.TorusGeometry(1.16, 0.024, 14, 128), aquaRimMaterial);
-    frontInnerRim.position.z = 0.154;
+    frontInnerRim.position.z = 0.246;
     group.add(frontInnerRim);
     const backInnerRim = frontInnerRim.clone();
-    backInnerRim.position.z = -0.154;
+    backInnerRim.position.z = -0.246;
     group.add(backInnerRim);
 
     const textGeometry = new THREE.PlaneGeometry(2.22, 2.22);
@@ -295,7 +295,7 @@
         depthWrite: false,
       }),
     );
-    frontText.position.z = 0.182;
+    frontText.position.z = 0.268;
     group.add(frontText);
 
     const backText = new THREE.Mesh(
@@ -306,7 +306,7 @@
         depthWrite: false,
       }),
     );
-    backText.position.z = -0.182;
+    backText.position.z = -0.268;
     backText.rotation.y = Math.PI;
     group.add(backText);
 
@@ -319,7 +319,7 @@
     for (let index = 0; index < 72; index += 1) {
       const angle = (index / 72) * TAU;
       const ridge = new THREE.Mesh(
-        new THREE.BoxGeometry(0.015, 0.19, 0.014),
+        new THREE.BoxGeometry(0.015, 0.34, 0.014),
         ridgeMaterial,
       );
       ridge.position.set(Math.cos(angle) * 1.458, 0, Math.sin(angle) * 1.458);
@@ -334,9 +334,42 @@
     return group;
   }
 
+  function createContactShadow(THREE) {
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width = 256;
+    shadowCanvas.height = 256;
+    const context = shadowCanvas.getContext('2d');
+    const gradient = context.createRadialGradient(128, 128, 8, 128, 128, 128);
+    gradient.addColorStop(0, 'rgba(1, 4, 10, 0.55)');
+    gradient.addColorStop(0.55, 'rgba(1, 4, 10, 0.28)');
+    gradient.addColorStop(1, 'rgba(1, 4, 10, 0)');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 256, 256);
+
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1.32, 48),
+      new THREE.MeshBasicMaterial({
+        map: new THREE.CanvasTexture(shadowCanvas),
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    shadow.position.set(0, -1.58, -0.5);
+    shadow.scale.set(1.18, 0.36, 1);
+    return shadow;
+  }
+
   function setupPortalLogo(root) {
     const canvas = root.querySelector(CANVAS_SELECTOR);
     if (!canvas) return null;
+
+    root.style.userSelect = 'none';
+    root.style.webkitUserSelect = 'none';
+    root.style.touchAction = 'none';
+    root.style.setProperty('-webkit-touch-callout', 'none');
+    canvas.style.userSelect = 'none';
+    canvas.style.webkitUserSelect = 'none';
+    canvas.style.touchAction = 'none';
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const state = {
@@ -391,6 +424,7 @@
       scene: null,
       camera: null,
       token: null,
+      shadow: null,
       fallbackContext: null,
       sparkLayer: null,
       frame: 0,
@@ -654,7 +688,7 @@
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
-      spawnSparks(12, 1.15);
+      spawnSparks(16, 1.3);
       state.flipStreakCount = 0;
       state.flipStreakEnergy = 0;
     };
@@ -679,12 +713,14 @@
         MAX_EXTRA_SPIN,
       );
       state.wobbleVelocityY += FLIP_BUILD_WOBBLE_STEP * getTouchWobbleScale();
-      spawnSparks(5, 0.74);
+      spawnSparks(7, 0.85);
     };
 
     const startDrag = (event) => {
       const point = getPointer(event);
       state.dragging = true;
+      const activeSelection = window.getSelection?.();
+      if (activeSelection && !activeSelection.isCollapsed) activeSelection.removeAllRanges();
       clearHoldPauseTimer();
       state.holdPauseTimer = window.setTimeout(() => {
         if (state.dragging && !state.pointerMoved) setPaused(true);
@@ -769,12 +805,16 @@
         -MAX_EXTRA_SPIN,
         MAX_EXTRA_SPIN,
       );
-      spawnSparks(7, 0.88);
+      spawnSparks(10, 1);
       setPaused(false);
     };
 
     const setupInteraction = () => {
       window.addEventListener('resize', resize);
+      root.addEventListener('selectstart', (event) => event.preventDefault());
+      document.addEventListener('selectstart', (event) => {
+        if (state.dragging) event.preventDefault();
+      });
       root.addEventListener('pointerdown', startDrag);
       root.addEventListener('pointermove', drag);
       root.addEventListener('pointerup', endDrag);
@@ -835,6 +875,17 @@
       const tiltScaleY = Math.max(0.52, Math.cos(state.currentX + state.flipX + state.wobbleX) * 0.2 + 0.78);
 
       context.clearRect(0, 0, width, height);
+      context.save();
+      context.translate(centerX - surfaceY * radius * 0.12, centerY + radius * 1.04);
+      context.scale(Math.max(0.4, tiltScaleX), 0.3);
+      const shadowGradient = context.createRadialGradient(0, 0, radius * 0.08, 0, 0, radius * 1.02);
+      shadowGradient.addColorStop(0, 'rgba(1, 4, 10, 0.4)');
+      shadowGradient.addColorStop(1, 'rgba(1, 4, 10, 0)');
+      context.beginPath();
+      context.arc(0, 0, radius * 1.02, 0, TAU);
+      context.fillStyle = shadowGradient;
+      context.fill();
+      context.restore();
       context.save();
       context.translate(centerX, centerY);
       context.rotate(state.currentZ + state.wobbleZ);
@@ -912,6 +963,10 @@
 
       if (state.renderer && state.scene && state.camera && state.token) {
         state.token.rotation.set(rotationX, rotationY, rotationZ);
+        if (state.shadow) {
+          state.shadow.position.x = clamp(-rotationY * 0.2, -0.28, 0.28);
+          state.shadow.position.y = -1.58 + clamp(rotationX * 0.06, -0.05, 0.05);
+        }
         for (const texture of state.token.userData.faceTextures || []) {
           texture.rotation = state.faceSpin;
         }
@@ -1039,17 +1094,19 @@
 
         const token = createPortalToken(THREE);
         scene.add(token);
-        scene.add(new THREE.AmbientLight(0xdffff8, 0.66));
+        state.shadow = createContactShadow(THREE);
+        scene.add(state.shadow);
+        scene.add(new THREE.AmbientLight(0xdffff8, 0.5));
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.55);
+        const key = new THREE.DirectionalLight(0xffffff, 1.7);
         key.position.set(2.7, 3.1, 4.8);
         scene.add(key);
 
-        const fill = new THREE.DirectionalLight(0x79edf4, 0.66);
+        const fill = new THREE.DirectionalLight(0x79edf4, 0.5);
         fill.position.set(-3.2, -1.6, 2.2);
         scene.add(fill);
 
-        const warmRim = new THREE.DirectionalLight(0xf0c34f, 0.52);
+        const warmRim = new THREE.DirectionalLight(0xf0c34f, 0.62);
         warmRim.position.set(2.2, -2.8, -2.6);
         scene.add(warmRim);
 

@@ -21,11 +21,6 @@ body.notes-page {
   color: var(--notes-ink);
 }
 
-body.notes-page .install-banner {
-  border-color: var(--notes-line);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
-}
-
 body.notes-page .notes-shell {
   min-height: calc(100vh - var(--notes-navbar-height, 56px));
 }

@@ -4,7 +4,6 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Gun Compat Check</title>
-  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 <pre id="log" style="white-space:pre-wrap;padding:12px;font:13px/1.4 ui-monospace,Consolas,monospace"></pre>
@@ -23,7 +22,7 @@
     ? window.__GUN_PEERS__
     : [
       'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
+      'wss://portal.3dvr.tech/gun-relay'
     ];
 
   out('Peers', JSON.stringify(PEERS));

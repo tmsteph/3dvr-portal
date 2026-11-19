@@ -4,7 +4,7 @@ const AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_CAMPAIGN = 'my-skill';
 const DEFAULT_PEERS = [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay'
 ];
 
 const CAMPAIGN_PRESETS = Object.freeze({

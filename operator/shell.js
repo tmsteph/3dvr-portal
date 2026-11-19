@@ -5,6 +5,10 @@ const form=document.querySelector('#operator-form');
 const historyList=document.querySelector('#history-list');
 const treeList=document.querySelector('#conversation-tree-list');
 const latestButton=document.querySelector('#operator-latest');
+const viewToggle=document.querySelector('#toggle-view');
+const VIEW_MODE_KEY='3dvr.operator.view-mode.v1';
+let viewMode='focus';
+try{if(window.localStorage.getItem(VIEW_MODE_KEY)==='chat')viewMode='chat'}catch{}
 let focusedNodeId='';
 let previousLatestId='';
 let restoring=false;
@@ -59,7 +63,18 @@ function addMessageNavigation(article,index,total){
   article.prepend(nav);
 }
 
+function showAllMessages(){
+  decorating=true;
+  messageArticles().forEach(article=>{
+    article.hidden=false;
+    article.removeAttribute('aria-hidden');
+    article.querySelector('.message-focus-nav')?.remove();
+  });
+  decorating=false;
+}
+
 function focusMessage(nodeId,{push=false,replace=false}={}){
+  if(viewMode==='chat'){showAllMessages();return messageArticles().length>0}
   const articles=messageArticles();
   if(!articles.length){
     focusedNodeId='';
@@ -99,6 +114,11 @@ function syncFromDom(){
   decorateActionLinks();
   const articles=messageArticles();
   const latestId=articles.at(-1)?.dataset.nodeId||'';
+  if(viewMode==='chat'){
+    showAllMessages();
+    previousLatestId=latestId;
+    return;
+  }
   const shouldFollow=!focusedNodeId||focusedNodeId===previousLatestId;
 
   if(!previousLatestId){
@@ -151,6 +171,7 @@ log.addEventListener('click',event=>{
 });
 
 form.addEventListener('submit',()=>{
+  if(viewMode==='chat')return;
   const articles=messageArticles();
   const latestId=articles.at(-1)?.dataset.nodeId||'';
   if(!focusedNodeId||focusedNodeId===latestId)return;
@@ -159,6 +180,7 @@ form.addEventListener('submit',()=>{
 },true);
 
 latestButton.addEventListener('click',event=>{
+  if(viewMode==='chat')return;
   event.preventDefault();
   event.stopImmediatePropagation();
   const latestId=messageArticles().at(-1)?.dataset.nodeId||'';
@@ -168,5 +190,27 @@ latestButton.addEventListener('click',event=>{
 // App links use native browser navigation. Operator visualizes app data in chat;
 // it does not host app pages or intercept links, modifier keys, or downloads.
 window.addEventListener('popstate',event=>{void restoreState(event.state)});
+
+function syncViewToggle(){
+  if(!viewToggle)return;
+  const chat=viewMode==='chat';
+  viewToggle.textContent=chat?'Focus view':'Chat view';
+  viewToggle.setAttribute('aria-pressed',String(chat));
+  viewToggle.setAttribute('aria-label',chat?'Switch to focus view':'Switch to chat view');
+  viewToggle.title=chat?'Switch to focus view':'Switch to chat view';
+}
+
+function setViewMode(next){
+  viewMode=next==='chat'?'chat':'focus';
+  try{window.localStorage.setItem(VIEW_MODE_KEY,viewMode)}catch{}
+  document.body.classList.toggle('operator-chat-view',viewMode==='chat');
+  syncViewToggle();
+  if(viewMode==='chat')showAllMessages();
+  else focusMessage(focusedNodeId,{replace:true});
+}
+
+viewToggle?.addEventListener('click',()=>setViewMode(viewMode==='chat'?'focus':'chat'));
+document.body.classList.toggle('operator-chat-view',viewMode==='chat');
+syncViewToggle();
 
 queueSync();

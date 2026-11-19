@@ -352,6 +352,7 @@
   .btn-outline-light:hover{border-color:var(--dark-text)}
   .form-status{grid-column:1/-1;font-size:14px;color:var(--dark-muted);min-height:1.4em}
   .form-status.ok{color:#8fd6a8}
+  .trap{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
   .composed{
     grid-column:1/-1;display:none;background:#0b0e09;border:1px solid var(--dark-line);
     border-radius:10px;padding:16px;font-family:"IBM Plex Mono",monospace;font-size:13px;
@@ -694,7 +695,7 @@
     <div class="request">
       <div>
         <h2>Get your free Lead Leak Audit</h2>
-        <p class="sub">Fill this in and it opens a pre-written email in your own mail app, addressed to us. Nothing sends until you press send — and nothing is stored by this page.</p>
+        <p class="sub">Fill this in and send it straight to us. No mail app, no account, nothing to install. We get your request right away and take it from there.</p>
         <ul>
           <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e4572e" stroke-width="2.4" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b>Reply within 1 business day</b> confirming we're on it.</span></li>
           <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e4572e" stroke-width="2.4" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b>Report in 3–5 business days</b> — one page, by email.</span></li>
@@ -710,6 +711,10 @@
         <div class="field">
           <label for="fName">Your name *</label>
           <input id="fName" name="name" type="text" autocomplete="name" placeholder="e.g. Alex Rivera" required />
+        </div>
+        <div class="field">
+          <label for="fEmail">Email for your report *</label>
+          <input id="fEmail" name="email" type="email" autocomplete="email" placeholder="e.g. alex@riveraroofing.com" required />
         </div>
         <div class="field">
           <label for="fWeb">Website</label>
@@ -732,9 +737,10 @@
           <label for="fNote">Anything you already suspect is leaking? (optional)</label>
           <textarea id="fNote" name="note" placeholder="e.g. “I think our contact form is broken, and we miss evening calls constantly.”"></textarea>
         </div>
+        <label class="trap" aria-hidden="true">Leave this empty<input id="fTrap" name="websiteTrap" type="text" tabindex="-1" autocomplete="off" /></label>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Compose my audit request →</button>
-          <button type="button" class="btn btn-outline-light" id="copyBtn">Copy instead</button>
+          <button type="submit" class="btn btn-primary" id="sendBtn">Send my audit request →</button>
+          <button type="button" class="btn btn-outline-light" id="copyBtn">Copy my request</button>
           <button type="button" class="btn btn-outline-light" id="dlBtn">Download prep sheet</button>
         </div>
         <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
@@ -772,7 +778,7 @@
       </details>
       <details>
         <summary>What happens to my information?<span class="plus" aria-hidden="true">+</span></summary>
-        <p>It goes in one email, from you to us, and it's used to run your audit and send your report. No mailing list, no selling data, no sharing your findings with anyone. Anonymized lessons ("a roofer's form went to a dead inbox") may become a public teardown post — never with your name or business attached unless you say yes.</p>
+        <p>It comes straight to us when you send the form, and it's used to run your audit and send your report. No mailing list, no selling data, no sharing your findings with anyone. Anonymized lessons ("a roofer's form went to a dead inbox") may become a public teardown post — never with your name or business attached unless you say yes.</p>
       </details>
     </div>
   </section>
@@ -838,6 +844,7 @@
   var form = $("auditForm"), status = $("formStatus"), composed = $("composed");
   function buildMessage(){
     var biz = $("fBiz").value.trim(), name = $("fName").value.trim(),
+        email = $("fEmail").value.trim(),
         web = $("fWeb").value.trim(), phone = $("fPhone").value.trim(),
         type = $("fType").value, note = $("fNote").value.trim();
     var leaks = items.filter(function(i){ return i.getAttribute("aria-pressed")==="true"; })
@@ -847,6 +854,7 @@
       "",
       "Business: " + (biz || "—"),
       "Your name: " + (name || "—"),
+      "Email: " + (email || "—"),
       "Type: " + type,
       "Website: " + (web || "(none / not sure)"),
       "Number customers call: " + (phone || "—"),
@@ -865,6 +873,7 @@
     var missing = [];
     if(!$("fBiz").value.trim()) missing.push("business name");
     if(!$("fName").value.trim()) missing.push("your name");
+    if(!$("fEmail").value.trim()) missing.push("your email");
     if(!$("fPhone").value.trim()) missing.push("the phone number customers call");
     return missing;
   }
@@ -877,26 +886,61 @@
       composed.classList.remove("show");
       return;
     }
-    var body = buildMessage();
-    composed.textContent = body;
-    composed.classList.add("show");
-    var subject = encodeURIComponent("Free Lead Leak Audit — " + $("fBiz").value.trim());
-    var href = "mailto:3dvrtech@gmail.com?subject=" + subject + "&body=" + encodeURIComponent(body);
-    status.innerHTML = "Opening your email app with the request ready to send. If nothing opens, use <b>Copy instead</b> and paste it into any email to 3dvrtech@gmail.com.";
-    status.className = "form-status ok";
-    var a = document.createElement("a");
-    a.href = href;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function(){ a.remove(); }, 400);
+    var email = $("fEmail").value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      status.textContent = "Almost — that email doesn't look complete. It's where your report goes, so it's worth a quick check.";
+      status.className = "form-status";
+      composed.classList.remove("show");
+      return;
+    }
+    var btn = $("sendBtn");
+    btn.disabled = true;
+    status.textContent = "Sending your request…";
+    status.className = "form-status";
+    var payload = {
+      business: $("fBiz").value.trim(),
+      name: $("fName").value.trim(),
+      email: email,
+      website: $("fWeb").value.trim(),
+      phone: $("fPhone").value.trim(),
+      businessType: $("fType").value,
+      note: $("fNote").value.trim(),
+      leaks: items.filter(function(i){ return i.getAttribute("aria-pressed")==="true"; })
+        .map(function(i){ return i.querySelector(".leak-title").textContent; }),
+      leadsPerMonth: $("leadsVal").textContent,
+      valuePerJob: $("valueVal").textContent,
+      websiteTrap: $("fTrap").value
+    };
+    function sendFailed(message){
+      btn.disabled = false;
+      status.innerHTML = message + " Nothing is lost: your request is written out below. Copy it and email it to <b>3dvrtech@gmail.com</b> and we'll run your audit.";
+      status.className = "form-status";
+      composed.textContent = buildMessage();
+      composed.classList.add("show");
+    }
+    var options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ request: payload })
+    };
+    if(window.AbortSignal && AbortSignal.timeout) options.signal = AbortSignal.timeout(20000);
+    fetch("/api/lead-leak-audit", options).then(function(response){
+      return response.json().catch(function(){ return {}; }).then(function(result){
+        if(!response.ok) throw new Error(result.error || "send failed");
+        status.innerHTML = "<b>Got it.</b> Your audit request is in. We reply within 1 business day confirming we're on it, and your one-page report lands at " + email + " in 3 to 5 business days.";
+        status.className = "form-status ok";
+        composed.classList.remove("show");
+      });
+    }).catch(function(){
+      sendFailed("That didn't go through.");
+    });
   });
   $("copyBtn").addEventListener("click", function(){
     var body = buildMessage();
     composed.textContent = body;
     composed.classList.add("show");
     function done(){
-      status.textContent = "Copied. Paste it into an email to 3dvrtech@gmail.com with the subject “Free Lead Leak Audit” — we'll take it from there.";
+      status.textContent = "Copied. Normally the send button is all you need — this copy is your backup if a send ever fails: paste it into an email to 3dvrtech@gmail.com.";
       status.className = "form-status ok";
     }
     if(navigator.clipboard && navigator.clipboard.writeText){

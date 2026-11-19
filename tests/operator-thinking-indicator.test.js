@@ -29,10 +29,11 @@ test('empty streaming bubble shows a live thinking indicator that clears on firs
   assert.match(css, /prefers-reduced-motion:reduce/);
 });
 
-test('install help explains the standalone origin instead of moving the user there', async () => {
+test('install is the shared footer link, with no instructions dialog', async () => {
   const html = await read('operator/index.html');
-  const installer = await read('operator/install.js');
-  assert.doesNotMatch(installer, /operator\.3dvr\.tech\/operator/);
-  assert.doesNotMatch(installer, /location\.assign/);
-  assert.match(html, /Open the Operator web app \(operator\.3dvr\.tech\)/);
+  assert.match(html, /data-install-link/);
+  assert.doesNotMatch(html, /data-install-banner/);
+  assert.match(html, /src="\/pwa-install\.js\?v=2026-11-07-footer1" data-sw-url="\/operator\/service-worker\.js" data-sw-scope="\/operator\/"/);
+  assert.doesNotMatch(html, /operator-install-help/);
+  assert.doesNotMatch(html, /Add to Home screen/);
 });

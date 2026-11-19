@@ -396,6 +396,48 @@ describe('account recovery email api', () => {
     assert.equal(mail.sendMail.mock.calls.length, 0);
   });
 
+  it('blocks email-only descriptions and excessive requests before either email', async () => {
+    const mail = createMailTransport();
+    const audit = mock.fn();
+    const handler = createUnifiedEmailHandler({
+      config: baseConfig,
+      mailTransport: mail,
+      freeSite: { audit }
+    });
+    const submit = async (email, offer, ip) => {
+      const res = createMockRes();
+      await handler({
+        method: 'POST',
+        socket: { remoteAddress: ip },
+        headers: { 'user-agent': 'Free Site Test Browser' },
+        body: { mode: 'free-site-request', name: 'Garden Care', email, offer }
+      }, res);
+      return res;
+    };
+
+    const spam = await submit('requester@example.com', 'requester@example.com', '192.0.2.1');
+    assert.equal(spam.statusCode, 400);
+    assert.equal(mail.sendMail.mock.calls.length, 0);
+    const [decision, fingerprint] = audit.mock.calls[0].arguments;
+    assert.equal(decision, 'email-only-description');
+    assert.match(fingerprint.browser, /^[a-f0-9]{20}$/);
+
+    const offer = 'Garden maintenance and native plants.';
+    assert.equal((await submit('requester.name@gmail.com', offer, '192.0.2.2')).statusCode, 200);
+    assert.equal((await submit('requestername+garden@googlemail.com', offer, '192.0.2.3')).statusCode, 200);
+    assert.equal((await submit('requestername@gmail.com', offer, '192.0.2.4')).statusCode, 429);
+    assert.equal(mail.sendMail.mock.calls.length, 4);
+    const queued = audit.mock.calls[1].arguments[1];
+    assert.equal(queued.browser, fingerprint.browser);
+    assert.notEqual(queued.network, fingerprint.network);
+
+    for (let index = 0; index < 7; index += 1) {
+      assert.equal((await submit('requester@example.com', 'requester@example.com', '192.0.2.1')).statusCode, 400);
+    }
+    assert.equal((await submit('other@example.com', offer, '192.0.2.1')).statusCode, 429);
+    assert.equal(mail.sendMail.mock.calls.length, 4);
+  });
+
   it('rejects operator alerts without the shared token', async () => {
     const mail = createMailTransport();
     const handler = createUnifiedEmailHandler({

@@ -1,5 +1,5 @@
 // Partial text is presentation only; a final result confirms durable completion.
-export async function readHelmResponse(response, onDelta = () => {}) {
+export async function readHelmResponse(response, onDelta = () => {}, onActivity = () => {}) {
   if (!response.headers?.get('content-type')?.includes('text/event-stream')) return response.json();
   if (!response.body) throw new Error('Reply stream is unavailable. Delivery is uncertain.');
   const reader = response.body.getReader();
@@ -17,6 +17,9 @@ export async function readHelmResponse(response, onDelta = () => {}) {
     if (name === 'delta') {
       if (typeof data.text !== 'string') throw new Error('Invalid reply fragment.');
       onDelta(data.text);
+    } else if (name === 'activity') {
+      if (typeof data.text !== 'string') throw new Error('Invalid activity update.');
+      onActivity(data.text);
     } else if (name === 'result') {
       if (typeof data.ok !== 'boolean') throw new Error('Invalid final reply.');
       result = data;

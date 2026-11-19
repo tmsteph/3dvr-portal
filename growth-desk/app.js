@@ -1,5 +1,5 @@
 const gun = window.Gun
-  ? window.Gun({ peers: window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'] })
+  ? window.Gun({ peers: window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'] })
   : null;
 const SPRINT_TAG = 'follow-up-leak-sprint';
 

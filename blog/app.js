@@ -1,7 +1,7 @@
 const form = document.querySelector('#subscriberForm');
 const status = document.querySelector('#subscriberStatus');
 const source = document.querySelector('input[name="source"]')?.value || location.pathname;
-const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun']) : null;
+const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay']) : null;
 const crm = gun?.get('3dvr-crm');
 const touchLog = gun?.get('3dvr-portal')?.get('crm-touch-log');
 const pendingKey = '3dvr-blog-signups-pending';

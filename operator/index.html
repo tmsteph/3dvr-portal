@@ -6,11 +6,11 @@
   <title>3DVR Operator</title>
   <meta name="theme-color" content="#101719">
   <link rel="manifest" href="/operator/operator.webmanifest">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/operator-192.png">
+  <link rel="apple-touch-icon" href="/icons/operator-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Operator">
-  <link rel="stylesheet" href="/operator/install.css">
+  <link rel="stylesheet" href="/styles/install-link.css">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="mobile-header-fix.css">
   <link rel="stylesheet" href="app-search.css">
@@ -34,7 +34,6 @@
   <script type="module" src="shell.js"></script>
   <script type="module" src="live-awareness.js"></script>
   <script type="module" src="secrets.js"></script>
-  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <div class="operator-boot-loading" id="operator-boot-loading" role="status">Loading Operator…</div>
@@ -51,16 +50,17 @@
         <a href="/sign-in.html?redirect=%2Foperator%2F" data-operator-external="true">Sign in</a>
       </div>
       <div class="header-actions">
-        <a href="/helm/" aria-label="Helm OpenClaw workspace">Helm</a>
-        <a href="/operator/open/" aria-label="About the open-source Operator">About</a>
-        <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">Chats</button>
-        <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Branches</button>
-        <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
+        <nav class="header-nav" aria-label="Operator sections">
+          <a href="/helm/" aria-label="Helm OpenClaw workspace">Helm</a>
+          <a href="/operator/open/" aria-label="About the open-source Operator">About</a>
+          <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">Chats</button>
+          <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Branches</button>
+          <button id="copy-conversation" type="button" aria-label="Copy conversation" title="Copy conversation">Copy</button>
+          <button id="toggle-view" type="button" aria-label="Switch to chat view" aria-pressed="false" title="Switch to chat view">Chat view</button>
+        </nav>
+        <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋ New chat</button>
       </div>
     </header>
-    <div class="operator-install-entry">
-      <button id="operator-install" type="button">Install Operator</button>
-    </div>
     <section id="operator-context" hidden aria-label="Active Portal context">
       <small>Continuing from</small>
       <a id="operator-context-link" href="/"></a>
@@ -122,17 +122,18 @@
         <button class="secret-save" type="submit">Save securely</button>
       </form>
     </dialog>
+    <dialog id="copy-dialog" aria-labelledby="copy-dialog-title">
+      <div class="copy-dialog-body">
+        <button class="copy-close" type="button" aria-label="Close">×</button>
+        <p>OPERATOR</p>
+        <h2 id="copy-dialog-title">Copy conversation</h2>
+        <span>Your browser blocked automatic copying. Select the text below and copy it manually.</span>
+        <textarea id="copy-text" readonly rows="12" aria-label="Conversation text"></textarea>
+      </div>
+    </dialog>
   </main>
-  <dialog id="operator-install-help" aria-labelledby="operator-install-title">
-    <h2 id="operator-install-title">Install Operator</h2>
-    <p>On Android in Brave or Chrome, open the browser’s <strong>⋮ menu</strong> and choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>
-    <p>On iPhone or iPad, open this page in Safari, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</p>
-    <p>On desktop in Chrome or Edge, use the install icon in the address bar or the browser’s app menu.</p>
-    <p>If your browser only offers a shortcut, try Chrome for app installation.</p>
-    <p>Prefer the standalone app? <a href="https://operator.3dvr.tech/operator/">Open the Operator web app (operator.3dvr.tech)</a> — the same app, with its own sign-in and storage on that site.</p>
-    <form method="dialog"><button type="submit">Got it</button></form>
-  </dialog>
-  <script src="/operator/install.js" defer></script>
+  <script src="/pwa-install.js?v=2026-11-07-footer1" data-sw-url="/operator/service-worker.js" data-sw-scope="/operator/" defer></script>
+  <footer class="install-footer"><a href="#" data-install-link hidden>Install Operator</a></footer>
   <footer aria-label="Portal feedback"></footer>
   <script src="teach-handoff.js"></script>
   <script defer src="/issue-launcher.js"></script>

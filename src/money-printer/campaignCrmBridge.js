@@ -229,7 +229,7 @@ function putGun(node, value, timeoutMs = 2500) {
 
 export function createBrowserCampaignCrmBridge({
   GunCtor = globalThis.Gun,
-  peers = globalThis.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'],
+  peers = globalThis.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'],
   lookupWaitMs = 650,
 } = {}) {
   if (typeof GunCtor !== 'function') {

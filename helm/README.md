@@ -31,7 +31,23 @@ https://docs.openclaw.ai/gateway/openai-http-api
   owned by the Portal service account; default `/var/lib/3dvr-helm` works when the
   service account can create it. Preserve it across upgrades and rollback.
 - `THREEDVR_HELM_ALLOWED_ORIGINS` defaults to `https://portal.3dvr.tech`.
+- `HELM_CODEX_TOOLS` is the kill switch for the Native Codex agent posture. It
+  defaults to enabled for the owner engine. Set it to `0` in the Portal service
+  environment and restart the service to return Helm's Codex sessions to the
+  chat-only pilot with no deploy; remove it (or set `1`) and restart to re-enable.
 - Python 3 is required on Hetzner; the Portal uses its existing Node runtime.
+- The agent posture needs a dedicated clone of the portal repo on the Codex host
+  (Hetzner), created once; never the server's working checkout and never a
+  production release:
+  `git clone https://github.com/tmsteph/3dvr-portal.git /root/.codex/helm/portal-worktree`
+  In that clone, set the git identity and the GitHub credential helper to match
+  the working checkout (`user.name`, `user.email`, and
+  `credential.https://github.com.helper` set to `!/usr/bin/gh auth git-credential`),
+  and mark it trusted in `/root/.codex/config.toml`:
+  `[projects."/root/.codex/helm/portal-worktree"]` with `trust_level = "trusted"`.
+  The clone owns its own `.git`, so everything the agent's sandbox may write
+  stays inside the worktree. If the clone is missing, agent chats fail closed
+  with a setup error instead of guessing a workspace.
 
 Chat requests use persistent exclusive receipts to avoid replay after timeouts or
 server restarts. A pending receipt means uncertain delivery and must not be
@@ -147,9 +163,9 @@ browser or SSE events. Chat startup/inference timeouts are unchanged.
 Focused verification adds `tests/helm-stream.test.js` to the existing Helm suite.
 Streaming reduces the wait to see text; it does not itself shorten model inference.
 
-## Optional native Codex chat pilot
+## Optional native Codex engine
 
-Select **Native Codex · pilot** in Helm's Engine menu. OpenClaw remains the default
+Select **Native Codex** in Helm's Engine menu. OpenClaw remains the default
 and keeps its tool integrations. Switching engines starts a new conversation;
 History preserves old replies. A tab reload restores its selected engine and session.
 Queued records retain their original engine, and only the selected engine's queue
@@ -164,11 +180,46 @@ new listener/service, copied credentials or OpenClaw restart is needed. The
 installed managed package can also be found while its gateway is stopped. Python
 3.11+ is required (`tomllib`). Native status reports local installation/login
 configuration only; a completed chat turn establishes working authentication.
+It uses `gpt-6.1-sol` at medium effort. Operator/Forge task execution is unchanged.
 
-This pilot provides conversation and code advice, without tool execution. Shell
-and web search are disabled, existing MCP servers are disabled for this child
-process, and its sandbox is read-only. Interactive/tool requests fail closed. It
-uses `gpt-6.1-sol` at medium effort. Operator/Forge task execution is unchanged.
+### Agent posture (default for the owner engine)
+
+Since 2026-11-05 the owner engine runs as Helm's agent, not a chat pilot. The
+Portal handler marks its own Codex requests `toolsEnabled` unless
+`HELM_CODEX_TOOLS` is off (see Deployment setup). In agent posture the bridge
+launches the app-server with the shell tool enabled and web search live, and
+starts the thread with a `workspace-write` sandbox rooted at the dedicated
+portal clone at `/root/.codex/helm/portal-worktree`. Turns carry a
+`workspaceWrite` policy with network access for git operations. Approvals stay
+`never`: the sandbox is the wall, so workspace-internal commands run without an
+approval round-trip and anything the sandbox would escalate fails instead of
+asking. The developer instructions give it an agent's job: inspect and edit code
+in the worktree, run tests, branch, commit, push, open pull requests, and merge
+small self-contained changes whose checks pass, reporting branch names, commit
+hashes, and PR links. Messaging, purchases, account changes, and anything
+outside the worktree are out of scope. Native status reports profile
+`native-agent` in this posture.
+
+Three things do **not** change in agent posture:
+
+- Existing MCP servers stay force-disabled for this child process; the session
+  never inherits the `config.toml` MCP integrations, and an MCP tool item still
+  aborts the turn.
+- Server-initiated approval or user-input requests still fail closed; only
+  sandbox-internal work runs unattended.
+- The backup engine and Operator task mode keep the original chat posture.
+
+Flipping `HELM_CODEX_TOOLS` changes posture, and a thread keeps the posture it
+was created in: the first message after a flip starts a fresh conversation
+instead of resuming across postures.
+
+### Chat posture (flag off, backup engine, Operator tasks)
+
+With the flag off, the engine is the original chat pilot: conversation and code
+advice, without tool execution. Shell and web search are disabled, existing MCP
+servers are disabled for this child process, and its sandbox is read-only.
+Interactive/tool requests fail closed. Native status reports profile
+`native-chat`.
 
 Native thread mappings and a global chat lock live under `/root/.codex/helm/`,
 with private file permissions. The server derives the conversation key from the
@@ -182,8 +233,10 @@ Treat native rollouts and thread mappings as private conversation data in backup
 Verification: add `tests/helm-native.test.js` to the Helm suite. Manually switch
 engines, send a harmless prompt, reload and verify recall; confirm queued messages
 never change engine, unknown users remain denied, and partial replies require a
-final receipt. Timings depend on backend load; the initial three-prompt benchmark
-is evidence of lower overhead, not a promise of latency or coding-tool parity.
+final receipt. For the agent posture, ask for a small change on a branch and
+require the reported pull request to exist. Timings depend on backend load;
+agent turns run tests and git operations, so their bridge window is longer
+than a chat reply's.
 
 ## Independent backup chat
 

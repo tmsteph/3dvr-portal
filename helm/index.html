@@ -4,14 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
   <meta name="theme-color" content="#101819">
+  <link rel="manifest" href="/helm/helm.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/helm-192.png">
+  <link rel="apple-touch-icon" href="/icons/helm-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Helm">
   <title>Helm · 3DVR</title>
   <link rel="stylesheet" href="styles.css">
-  <style>#engine { width:100%; min-height:42px; margin:8px 0; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; } #engine-note { font-size:12px; line-height:1.5; color:var(--muted); }</style>
+  <style>#engine { width:100%; min-height:42px; margin:8px 0; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; } #engine-note { font-size:12px; line-height:1.5; color:var(--muted); } </style>
   <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script defer src="/gun-init.js"></script>
   <script defer src="/auth-identity.js"></script>
   <script type="module" src="app.js"></script>
+  <link rel="stylesheet" href="/styles/install-link.css">
+  <script src="/pwa-install.js?v=2026-11-07-footer1" data-sw-url="/helm/service-worker.js" data-sw-scope="/helm/" defer></script>
 </head>
 <body>
   <div class="workspace">
@@ -28,19 +35,21 @@
       <div class="sidebar-note"><span class="eyebrow">ONE PLACE TO STEER</span><p>Your agent, connected to the tools you already use.</p><a href="/auth/sign-in.html?returnTo=%2Fhelm%2F">Account & sign in ↗</a></div>
     </aside>
     <main>
-      <header><a id="account" class="account" href="/auth/sign-in.html?returnTo=%2Fhelm%2F" aria-label="Account status">Sign in</a><div class="agent-title"><span class="eyebrow">HELM</span><h1>Agent chat <span class="badge">Private · tmsteph</span></h1></div><button id="show-history" class="quiet" type="button" aria-expanded="false" aria-controls="history">History</button><button id="new-chat" class="quiet" type="button">＋ New chat</button></header>
-      <aside id="history" hidden aria-label="Message history"><h2>Message history</h2><p>Expired and uncertain messages stay here. Use as new message only prepares a new draft.</p><div id="history-list"></div></aside>
+      <header><a id="account" class="account" href="/auth/sign-in.html?returnTo=%2Fhelm%2F" aria-label="Account status">Sign in</a><div class="agent-title"><span class="eyebrow">HELM</span><h1>Agent chat <span class="badge">Private workspace</span></h1></div><button id="show-history" class="quiet" type="button" aria-expanded="false" aria-controls="history">History</button><button id="show-queue" class="quiet" type="button" aria-expanded="false" aria-controls="queue">Queued</button><button id="new-chat" class="quiet" type="button">＋ New chat</button></header>
+      <aside id="history" hidden aria-label="Conversation history"><h2>Conversations</h2><p>Your conversations, newest first. Open one to read its messages, or resume it to keep going.</p><div id="history-list"></div></aside>
+      <aside id="queue" hidden aria-label="Queued messages"><h2>Queued</h2><p>Messages still waiting, from every conversation, in the order they will send. Open one to go to its chat.</p><div id="queue-list"></div></aside>
       <div class="content">
         <section class="conversation" aria-label="Agent conversation">
           <div class="welcome" id="welcome"><span class="orbit" aria-hidden="true">✳</span><p class="eyebrow">A CLEARER COURSE</p><h2>What shall we move forward?</h2><p>Your private agent workspace.<br>Keep the work in view.</p>
-            <div class="suggestions"><button type="button" data-prompt="Tell me what you can help me do today. Do not start tasks yet.">Explore what’s possible <span>↗</span></button><button type="button" data-prompt="Summarize your current runtime status. Do not run or resume queued tasks.">Check the agent <span>↗</span></button></div>
+            <div class="suggestions"><button type="button" data-prompt="Tell me what you can help me do today. Do not start tasks yet.">Explore what’s possible</button><button type="button" data-prompt="Summarize your current runtime status. Do not run or resume queued tasks.">Check the agent</button></div>
           </div>
           <div id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
-          <div class="composer-wrap"><form id="chat-form"><label class="sr-only" for="message">Message your agent</label><textarea id="message" rows="2" maxlength="6000" placeholder="Give your agent a direction…" required></textarea><div class="composer-footer"><span>✳ Helm <small>· private workspace</small></span><button id="send" type="submit">Send ↑</button></div></form><p id="activity" role="status">Connecting to your agent…</p><p id="queue-summary" role="status"></p><small id="queue-storage" class="history-note">Messages are encrypted in your GunJS account and saved on this device. Queued messages expire after 10 minutes.</small></div>
+          <div class="composer-wrap"><form id="chat-form"><label class="sr-only" for="message">Message your agent</label><textarea id="message" rows="2" maxlength="6000" placeholder="Ask a question or give your agent a task…" required></textarea><div class="composer-footer"><span>✳ Helm <small>· private workspace</small></span><button id="send" type="submit">Send ↑</button></div></form><p id="activity" role="status">Connecting to your agent…</p><p id="queue-summary" role="status"></p><small id="queue-storage" class="history-note">Messages are encrypted in your GunJS account and saved on this device. Queued messages expire after 10 minutes.</small></div>
         </section>
-        <aside class="details" aria-label="Connection details"><div class="section-heading"><h2>Agent connection</h2><span class="dot" id="dot"></span></div><p id="connection" role="status">Not checked</p><label for="engine">Engine</label><select id="engine" aria-describedby="engine-note"><option value="codex">Native Codex · chat</option><option value="openclaw">OpenClaw · tools</option><option value="codex-backup">Codex · backup server</option></select><p id="engine-note">Native Codex · chat and code advice. Use Operator for tasks.</p><details class="connection-info"><summary>Connection details</summary><dl><div><dt>Runtime</dt><dd>Selected engine</dd></div><div><dt>Home</dt><dd id="engine-home">Hetzner</dd></div><div><dt>Profile</dt><dd>cloud</dd></div><div><dt>Transport</dt><dd>Private SSH bridge</dd></div></dl></details><button id="connect" type="button">Retry connection</button><div class="detail-note"><span class="eyebrow">KEEP YOUR BEARINGS</span><p>A reachable gateway and a completed task are different things. Helm confirms completion only when the selected engine returns a final result.</p><a href="/operator/">Continue in Operator →</a></div><a class="telegram" href="https://t.me/tmstephOpenClawBot" target="_blank" rel="noopener noreferrer">Open existing Telegram chat ↗</a></aside>
+        <aside class="details" aria-label="Connection details"><div class="section-heading"><h2>Agent connection</h2><span class="dot" id="dot"></span></div><p id="connection" role="status">Not checked</p><label for="engine">Engine</label><select id="engine" aria-describedby="engine-note"><option value="openclaw">OpenClaw · tools</option><option value="codex">Native Codex · chat</option><option value="codex-backup">Codex · backup server</option><option value="core">3DVR Core · DeepSeek</option></select><p id="engine-note">OpenClaw · your existing tools and integrations.</p><details class="connection-info"><summary>Connection details</summary><dl><div><dt>Runtime</dt><dd>Selected engine</dd></div><div><dt>Home</dt><dd id="engine-home">Hetzner</dd></div><div><dt>Profile</dt><dd>cloud</dd></div><div><dt>Transport</dt><dd>Private SSH bridge</dd></div></dl></details><button id="connect" type="button">Retry connection</button><div class="detail-note"><span class="eyebrow">KEEP YOUR BEARINGS</span><p>A reachable gateway and a completed task are different things. Helm confirms completion only when the selected engine returns a final result.</p><a href="/operator/">Continue in Operator →</a></div><a class="telegram" href="https://t.me/tmstephOpenClawBot" target="_blank" rel="noopener noreferrer">Open existing Telegram chat ↗</a></aside>
       </div>
     </main>
+    <footer class="install-footer"><a href="#" data-install-link hidden>Install Helm</a></footer>
   </div>
 </body>
 </html>

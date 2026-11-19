@@ -267,7 +267,7 @@
       ? global.__GUN_PEERS__
       : [
         'wss://relay.3dvr.tech/gun',
-        'wss://gun-relay-3dvr.fly.dev/gun'
+        'wss://portal.3dvr.tech/gun-relay'
       ];
 
     const gun = global.Gun({ peers, axe: true });

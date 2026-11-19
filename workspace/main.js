@@ -1,6 +1,6 @@
 const peers = Array.isArray(window.__GUN_PEERS__) && window.__GUN_PEERS__.length
   ? window.__GUN_PEERS__
-  : ['wss://gun-relay-3dvr.fly.dev/gun'];
+  : ['wss://portal.3dvr.tech/gun-relay'];
 const gun = typeof window.Gun === 'function' ? window.Gun({ peers }) : null;
 const user = gun && typeof gun.user === 'function' ? gun.user() : null;
 

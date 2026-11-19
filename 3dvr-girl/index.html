@@ -6,29 +6,64 @@
   <title>3DVR Girl — Build the Future</title>
   <meta name="description" content="The evolving visual world of 3DVR Girl: nature, movement, open technology, and the stories between them.">
   <meta name="theme-color" content="#0b0f0d">
+  <link rel="manifest" href="/app-manifests/3dvr-girl.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/3dvr-girl-192.png">
+  <script>
+    // On her own origin (ladies.3dvr.tech) the app uses her dedicated manifest
+    // and offline worker, registered through the shared /pwa-install.js
+    // helper. The portal origin keeps the shared manifest and root worker.
+    if (window.location.hostname === 'ladies.3dvr.tech') {
+      window.__pwaInstallConfig = { swUrl: '/3dvr-girl/service-worker.js', swScope: '/3dvr-girl/' };
+      document.querySelector('link[rel="manifest"]').href = '/3dvr-girl/girl.webmanifest';
+    }
+  </script>
+  <script src="/pwa-install.js?v=2026-11-07-footer1" defer></script>
+  <link rel="stylesheet" href="/styles/install-link.css">
   <link rel="stylesheet" href="styles.css">
-  <script defer src="/_vercel/insights/script.js"></script>
 </head>
-<body>
+<body class="hud">
   <header class="topbar">
-    <a class="brand" href="#top" aria-label="3DVR Girl home">
-      <span class="brand__mark">3DVR</span>
-      <span>Girl</span>
-    </a>
-    <nav class="topbar__nav" aria-label="Page navigation">
+    <div class="topbar__row">
+      <a class="brand" href="#top" aria-label="3DVR Girl home">
+        <span class="brand__mark">3DVR</span>
+        <span>Girl</span>
+      </a>
+      <nav class="topbar__nav" aria-label="Page navigation">
       <a href="#worlds">Worlds</a>
       <a href="#motion">In motion</a>
       <a href="#carousel">Carousel</a>
       <a href="#woods">Woods</a>
       <a href="#archive">Archive</a>
+      <a href="#golden-hour">Golden hour</a>
+      <a href="storybook/">Storybook</a>
+      <a href="character/">Her site &amp; chat</a>
       <a href="#after-dark">After dark</a>
       <a href="../characters/">Characters</a>
-      <a class="topbar__portal" href="../index.html">Portal ↗</a>
+        <a class="topbar__portal" href="../index.html">Portal ↗</a>
+      </nav>
+    </div>
+    <nav class="cast-strip" aria-label="Character sites">
+      <span class="cast-strip__label">Meet the cast:</span>
+      <a href="character/?c=3dvr-girl">3DVR Girl</a>
+      <a href="character/?c=kayla">Kayla</a>
+      <a href="character/?c=garden-muse">The Garden Muse</a>
+      <a href="character/?c=explorer">The Explorer</a>
+      <a href="character/?c=muse">Muse</a>
+      <a class="cast-strip__staff" href="../martha/">Martha &middot; the assistant</a>
+      <a class="cast-strip__key" href="character/">Her site &amp; chat →</a>
+    </nav>
+    <nav class="hud-tabs" aria-label="Stage select">
+      <button type="button" class="hud-tab is-active" data-stage-tab="world" aria-pressed="true">World</button>
+      <button type="button" class="hud-tab" data-stage-tab="archive" aria-pressed="false">Archive <span class="hud-tab__count" data-stage-count="archive"></span></button>
+      <button type="button" class="hud-tab" data-stage-tab="goldenhour" aria-pressed="false">Golden hour <span class="hud-tab__count" data-stage-count="goldenhour"></span></button>
+      <button type="button" class="hud-tab" data-stage-tab="afterdark" aria-pressed="false">After dark <span class="hud-tab__count" data-stage-count="afterdark"></span></button>
     </nav>
   </header>
 
-  <main id="top">
-    <section class="hero" aria-labelledby="pageTitle">
+  <div class="hud-body">
+    <nav class="hud-rail" id="hudRail" aria-label="Character select"></nav>
+    <main id="top" class="hud-stage">
+    <section class="hero" data-stage="world" aria-labelledby="pageTitle">
       <video class="hero__image" autoplay muted loop playsinline preload="metadata" poster="assets/courtyard-warrior.jpg" aria-label="3DVR Girl flowing through a warrior pose in a sunlit courtyard">
         <source src="assets/courtyard-flow-loop.mp4" type="video/mp4">
         <source src="assets/courtyard-flow-loop.webm" type="video/webm">
@@ -47,7 +82,7 @@
       </div>
     </section>
 
-    <section class="intro section" aria-labelledby="introTitle">
+    <section class="intro section" data-stage="world" aria-labelledby="introTitle">
       <div class="intro__copy">
         <p class="eyebrow">Who she is</p>
         <h2 id="introTitle">Not a mascot.<br>A point of view.</h2>
@@ -65,7 +100,7 @@
       </aside>
     </section>
 
-    <section class="motion section" id="motion" aria-labelledby="motionTitle">
+    <section class="motion section" id="motion" data-stage="world" aria-labelledby="motionTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Living portraits</p>
@@ -80,6 +115,7 @@
             <source src="assets/courtyard-flow-loop.webm" type="video/webm">
           </video>
           <figcaption><span>Movement</span><strong>Courtyard flow</strong><small>Warrior pose, bougainvillea, late sun.</small></figcaption>
+          <p class="gallery-dialog__copy" id="galleryItemCopy" hidden></p>
         </figure>
         <figure class="motion-card">
           <video autoplay muted loop playsinline preload="metadata" poster="assets/meditation-courtyard.jpg" aria-label="3DVR Girl breathing slowly in meditation among lavender">
@@ -91,7 +127,7 @@
       </div>
     </section>
 
-    <section class="carousel-section section" id="carousel" aria-labelledby="carouselTitle">
+    <section class="carousel-section section" id="carousel" data-stage="world" aria-labelledby="carouselTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Her and the others</p>
@@ -140,7 +176,7 @@
       </div>
     </section>
 
-    <section class="worlds section" id="worlds" aria-labelledby="worldsTitle">
+    <section class="worlds section" id="worlds" data-stage="world" aria-labelledby="worldsTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Four modes</p>
@@ -169,7 +205,7 @@
       </div>
     </section>
 
-    <section class="woods section" id="woods" aria-labelledby="woodsTitle">
+    <section class="woods section" id="woods" data-stage="world" aria-labelledby="woodsTitle">
       <div class="woods__media">
         <img src="assets/3dvr-girl-kala-forest.webp" alt="3DVR Girl and Kayla standing together on a wooded trail" loading="lazy">
       </div>
@@ -188,7 +224,7 @@
       </div>
     </section>
 
-    <section class="archive section" id="archive" aria-labelledby="archiveTitle">
+    <section class="archive section" id="archive" data-stage="archive" aria-labelledby="archiveTitle">
       <div class="section-heading archive__heading">
         <div>
           <p class="eyebrow">Scene archive</p>
@@ -200,7 +236,119 @@
       <div class="archive-grid" id="archiveGrid"></div>
     </section>
 
-    <section class="after-dark section" id="after-dark" aria-labelledby="afterDarkTitle">
+    <section class="archive section golden-hour" id="golden-hour" data-stage="goldenhour" aria-labelledby="goldenHourTitle">
+      <div class="section-heading archive__heading">
+        <div>
+          <p class="eyebrow">Golden hour</p>
+          <h2 id="goldenHourTitle">The in-between shelf.</h2>
+        </div>
+        <p>Sexier than the archive, safe for daylight. Swimsuits, linen, and late sun — nothing on this shelf needs a lock. Tap a photo to open it full-size.</p>
+      </div>
+      <div class="archive-grid" id="goldenHourGrid"></div>
+      <div class="section-heading archive__heading dance-videos-heading">
+        <div>
+          <p class="eyebrow">Golden hour · in motion</p>
+          <h2 id="danceVideosTitle">Dance videos.</h2>
+        </div>
+        <p>The in-between shelf, moving: festival dances, garden parties, linen on the beach, and a meadow at sunset. Every clip carries its own music.</p>
+      </div>
+      <div class="archive-grid" id="danceVideoGrid"></div>
+    </section>
+
+    <section class="living section" id="girls-alive" data-stage="world" aria-labelledby="girlsAliveTitle">
+      <div class="section-heading archive__heading">
+        <div>
+          <p class="eyebrow">The cast</p>
+          <h2 id="girlsAliveTitle">The Girls, Alive</h2>
+        </div>
+        <p>The cast, in motion.</p>
+      </div>
+      <div class="living-grid">
+        <article class="living-card">
+          <video muted loop playsinline preload="none" poster="assets/living/poster-garden-muse.webp" aria-label="The Garden Muse moving through a lavender garden">
+            <source src="assets/living/cast-garden-muse.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>The cast</span><strong>The Garden Muse</strong></span>
+        </article>
+        <article class="living-card">
+          <video muted loop playsinline preload="none" poster="assets/living/poster-blonde-meditation.webp" aria-label="The Blonde breathing in a sea breeze by the water">
+            <source src="assets/living/cast-blonde-breeze.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>The cast</span><strong>The Blonde, Sea Breeze</strong></span>
+        </article>
+        <article class="living-card">
+          <video muted loop playsinline preload="none" poster="assets/portrait-kayla-trail-marker.webp" aria-label="Kayla walking a forest trail">
+            <source src="assets/living/cast-kayla-trail.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>The cast</span><strong>Kayla, Forest Trail</strong></span>
+        </article>
+        <article class="living-card">
+          <video muted loop playsinline preload="none" poster="assets/portrait-asian-cliff-path.webp" aria-label="3DVR Girl standing on a cliff path above the sea">
+            <source src="assets/living/cast-3dvr-girl-cliff.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>The cast</span><strong>3DVR Girl, Cliff Path</strong></span>
+        </article>
+        <article class="living-card">
+          <video muted loop playsinline preload="none" poster="assets/portrait-crew-garden-picnic.webp" aria-label="The whole crew sharing a garden picnic">
+            <source src="assets/living/cast-crew-picnic.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>The cast</span><strong>The Whole Crew, Garden Picnic</strong></span>
+        </article>
+      </div>
+    </section>
+
+    <section class="archive section" id="storybook" data-stage="world" aria-labelledby="storybookTitle">
+      <div class="section-heading archive__heading">
+        <div>
+          <p class="eyebrow">Storybook</p>
+          <h2 id="storybookTitle">The storybooks.</h2>
+        </div>
+        <p>Three adventures so far: a door in the cliff, a keeper's secret, and an island in the sky.</p>
+      </div>
+      <div class="archive-grid">
+        <a href="storybook/" style="text-decoration:none;color:inherit"><img src="assets/storybook/cover-garden-key.webp" alt="Book One cover: the four friends at the garden gate at sunrise" loading="lazy" style="width:100%;border-radius:12px;display:block"><span style="display:block;margin-top:8px">Book One<br><strong>The Door at the End of the Garden</strong></span></a>
+        <a href="storybook/second-key/" style="text-decoration:none;color:inherit"><img src="assets/storybook/sk-gate.webp" alt="Book Two cover: the garden muse hands the keeper a small brass key at dusk" loading="lazy" style="width:100%;border-radius:12px;display:block"><span style="display:block;margin-top:8px">Book Two<br><strong>The Second Key</strong></span></a>
+        <a href="storybook/island-in-the-sky/" style="text-decoration:none;color:inherit"><img src="assets/storybook/island-stairs.webp" alt="Book Three cover: a stairway of turquoise stones rising to an island in the sky" loading="lazy" style="width:100%;border-radius:12px;display:block"><span style="display:block;margin-top:8px">Book Three<br><strong>The Island in the Sky</strong></span></a>
+      </div>
+    </section>
+
+    <section class="living section" id="living-stories" data-stage="world" aria-labelledby="livingStoriesTitle">
+      <div class="section-heading archive__heading">
+        <div>
+          <p class="eyebrow">Storybook</p>
+          <h2 id="livingStoriesTitle">Living Stories</h2>
+        </div>
+        <p>The storybooks, alive. Each page moves. <a href="storybook/living-book-one/" style="text-decoration:underline;text-underline-offset:3px">Read Book One: Living Edition</a></p>
+      </div>
+      <div class="living-grid">
+        <a class="living-card" href="storybook/living-book-one/">
+          <video muted loop playsinline preload="none" poster="assets/storybook/cover-garden-key.webp" aria-label="Living page from Book One: the garden muse finds a brass key in the lavender">
+            <source src="assets/storybook/living/living-ch1-key.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>Book One</span><strong>1. The Key in the Lavender</strong></span>
+        </a>
+        <a class="living-card" href="storybook/living-book-one/">
+          <video muted loop playsinline preload="none" poster="assets/storybook/forest-trail.webp" aria-label="Living page from Book One: Kayla leads the way along the forest trail">
+            <source src="assets/storybook/living/living-ch2-trail.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>Book One</span><strong>2. The Trail of Turquoise Stones</strong></span>
+        </a>
+        <a class="living-card" href="storybook/living-book-one/">
+          <video muted loop playsinline preload="none" poster="assets/storybook/cliff-door.webp" aria-label="Living page from Book One: the little door set into the cliff">
+            <source src="assets/storybook/living/living-ch3-door.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>Book One</span><strong>3. The Door in the Cliff</strong></span>
+        </a>
+        <a class="living-card" href="storybook/living-book-one/">
+          <video muted loop playsinline preload="none" poster="assets/storybook/cove-picnic.webp" aria-label="Living page from Book One: the hidden cove and its picnic rock at dusk">
+            <source src="assets/storybook/living/living-ch4-cove.mp4" type="video/mp4">
+          </video>
+          <span class="living-card__caption"><span>Book One</span><strong>4. The Cove at the End of the World</strong></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="after-dark section" id="after-dark" data-stage="afterdark" aria-labelledby="afterDarkTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">Private gallery</p>
@@ -211,88 +359,829 @@
       <div class="after-dark__lock" id="afterDarkLock">
         <p><strong>This part of her world is private.</strong></p>
         <p>Sign in to your 3DVR account and the gallery opens. No account, no peeking.</p>
-        <a class="button" href="../index.html">Sign in at the Portal</a>
+        <a class="button" href="../sign-in.html?redirect=%2F3dvr-girl%2F%23after-dark">Sign in</a>
       </div>
+      <div class="filters after-dark__filters" id="afterDarkFilters" aria-label="Filter the private gallery by who is in the frame" hidden></div>
+      <div class="filters after-dark__filters" id="afterDarkSetFilters" aria-label="Filter the private gallery by set" hidden></div>
       <div class="archive-grid after-dark__grid" id="afterDarkGrid" hidden>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="girl" data-set="portraits">
           <a href="assets/after-dark/blonde-courtyard.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-courtyard.webp" alt="3DVR Girl nude in a bougainvillea courtyard, arms open" loading="lazy"></a>
           <figcaption><span>3DVR Girl</span><strong>Warrior, after hours</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="girl" data-set="portraits">
           <a href="assets/after-dark/blonde-lavender.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-lavender.webp" alt="3DVR Girl nude, seated among lavender pots, smiling" loading="lazy"></a>
           <figcaption><span>3DVR Girl</span><strong>Lavender steps</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="girl" data-set="portraits">
           <a href="assets/after-dark/blonde-cliff-terrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-cliff-terrace.webp" alt="3DVR Girl on a cliff terrace above the ocean at golden hour" loading="lazy"></a>
           <figcaption><span>3DVR Girl</span><strong>Cliff terrace</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="girl" data-set="portraits">
           <a href="assets/after-dark/blonde-linen.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-linen.webp" alt="3DVR Girl reclining nude on linen, eyes closed" loading="lazy"></a>
           <figcaption><span>3DVR Girl</span><strong>Linen, lost in it</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="garden" data-set="portraits">
           <a href="assets/after-dark/brunette-jasmine.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-jasmine.webp" alt="The garden muse nude among jasmine on coastal cliffs" loading="lazy"></a>
           <figcaption><span>The garden muse</span><strong>Jasmine cliffs</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="garden" data-set="portraits">
           <a href="assets/after-dark/brunette-hammock.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-hammock.webp" alt="The garden muse reclining nude in a hammock above the cliffs" loading="lazy"></a>
           <figcaption><span>The garden muse</span><strong>Hammock hour</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="explorer" data-set="portraits">
           <a href="assets/after-dark/asian-portrait.webp" target="_blank" rel="noopener"><img src="assets/after-dark/asian-portrait.webp" alt="The Explorer in golden light on the coast" loading="lazy"></a>
           <figcaption><span>The Explorer</span><strong>Golden hour study</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="explorer" data-set="portraits">
           <a href="assets/after-dark/asian-cliffs.webp" target="_blank" rel="noopener"><img src="assets/after-dark/asian-cliffs.webp" alt="The Explorer nude on coastal cliffs at sunset" loading="lazy"></a>
           <figcaption><span>The Explorer</span><strong>Cliff light</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="kayla" data-set="portraits">
           <a href="assets/after-dark/kayla-forest-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kayla-forest-1.webp" alt="Kayla nude in a sunlit forest clearing" loading="lazy"></a>
           <figcaption><span>Kayla</span><strong>Forest clearing</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="kayla" data-set="portraits">
           <a href="assets/after-dark/kayla-forest-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kayla-forest-2.webp" alt="Kayla nude in tall grass at the edge of the woods" loading="lazy"></a>
           <figcaption><span>Kayla</span><strong>Edge of the woods</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="muse" data-set="portraits">
           <a href="assets/after-dark/muse-window.webp" target="_blank" rel="noopener"><img src="assets/after-dark/muse-window.webp" alt="Muse nude by a window with books and plants" loading="lazy"></a>
           <figcaption><span>Muse</span><strong>By the window</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="muse" data-set="portraits">
           <a href="assets/after-dark/muse-desk.webp" target="_blank" rel="noopener"><img src="assets/after-dark/muse-desk.webp" alt="Muse nude at a desk with an open book, daydreaming" loading="lazy"></a>
           <figcaption><span>Muse</span><strong>Daydream at the desk</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="girl" data-set="portraits">
           <a href="assets/after-dark/blonde-dance.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-dance.webp" alt="3DVR Girl dancing in a linen top and flowing skirt in the bougainvillea courtyard, laughing" loading="lazy"></a>
           <figcaption><span>3DVR Girl</span><strong>Courtyard dance</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="garden" data-set="portraits">
           <a href="assets/after-dark/brunette-dance.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-dance.webp" alt="The garden muse dancing nude on a cliff path, mid leap, laughing" loading="lazy"></a>
           <figcaption><span>The garden muse</span><strong>Cliff path leap</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="kayla" data-set="portraits">
           <a href="assets/after-dark/kayla-dance.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kayla-dance.webp" alt="Kayla dancing nude in a sunlit forest clearing, spinning" loading="lazy"></a>
           <figcaption><span>Kayla</span><strong>Clearing spin</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="muse" data-set="portraits">
           <a href="assets/after-dark/muse-dance.webp" target="_blank" rel="noopener"><img src="assets/after-dark/muse-dance.webp" alt="Muse dancing nude in a purple plant-filled room among books" loading="lazy"></a>
           <figcaption><span>Muse</span><strong>Purple room ballet</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="girl" data-set="portraits">
           <a href="assets/after-dark/blonde-bend.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-bend.webp" alt="3DVR Girl nude, leaning over a stone balustrade above the ocean, looking back" loading="lazy"></a>
           <figcaption><span>3DVR Girl</span><strong>Over the balustrade</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="garden" data-set="portraits">
           <a href="assets/after-dark/brunette-bend.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-bend.webp" alt="The garden muse nude, bent over the lavender in the garden, smiling back" loading="lazy"></a>
           <figcaption><span>The garden muse</span><strong>Down in the lavender</strong></figcaption>
         </figure>
-        <figure class="private-card">
+        <figure class="private-card" data-tags="kayla" data-set="portraits">
           <a href="assets/after-dark/kayla-bend.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kayla-bend.webp" alt="Kayla nude from behind in a wildflower meadow at the edge of the forest" loading="lazy"></a>
           <figcaption><span>Kayla</span><strong>Wildflower meadow</strong></figcaption>
         </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="duos">
+          <a href="assets/after-dark/duo-forest-kiss.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-forest-kiss.webp" alt="3DVR Girl and Kayla nude, kissing in a sunlit forest clearing" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Forest kiss</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="duos">
+          <a href="assets/after-dark/duo-forest-embrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-forest-embrace.webp" alt="3DVR Girl and Kayla nude, entwined on a blanket in the woods" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Entwined</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/duo-courtyard-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-courtyard-1.webp" alt="Two of the 3DVR Girl, topless in turquoise jewelry in a bougainvillea courtyard, nose to nose and laughing" loading="lazy"></a>
+          <figcaption><span>3DVR Girl ×2</span><strong>Courtyard, nose to nose</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/duo-courtyard-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-courtyard-2.webp" alt="Two of the 3DVR Girl, topless nose to nose under bougainvillea at golden hour" loading="lazy"></a>
+          <figcaption><span>3DVR Girl ×2</span><strong>Bougainvillea light</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/duo-courtyard-3.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-courtyard-3.webp" alt="Two of the 3DVR Girl in turquoise beads, about to kiss in a sunlit courtyard" loading="lazy"></a>
+          <figcaption><span>3DVR Girl ×2</span><strong>About to kiss</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="duos">
+          <a href="assets/after-dark/duo-forest-meadow.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-forest-meadow.webp" alt="3DVR Girl and Kayla nude, kissing on a blanket in a wildflower meadow" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Wildflower kiss</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/duo-forest-bluebells.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-forest-bluebells.webp" alt="Two of the 3DVR Girl nude on a blanket in a bluebell forest clearing, laughing together" loading="lazy"></a>
+          <figcaption><span>3DVR Girl ×2</span><strong>Bluebells, laughing</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/duo-forest-meadow-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-forest-meadow-2.webp" alt="Two of the 3DVR Girl nude in a wildflower meadow, one leaning over the other on a blanket" loading="lazy"></a>
+          <figcaption><span>3DVR Girl ×2</span><strong>Meadow, leaning in</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="duos">
+          <a href="assets/after-dark/duo-forest-blanket.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-forest-blanket.webp" alt="3DVR Girl and Kayla nude, kissing on a blanket at the edge of the woods" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>On the blanket</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="machine girl" data-set="machine">
+          <a href="assets/after-dark/machine-vr-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/machine-vr-1.webp" alt="3DVR Girl nude on a bed with turquoise headphones and a laptop" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Headphones on</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="machine girl" data-set="machine">
+          <a href="assets/after-dark/machine-vr-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/machine-vr-2.webp" alt="3DVR Girl nude, reclining on a bed wearing a white VR headset" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>In the headset</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="machine girl" data-set="machine">
+          <a href="assets/after-dark/machine-bed-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/machine-bed-1.webp" alt="3DVR Girl nude, face down on a bed with a laptop glowing nearby" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Face down, screen glow</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="machine girl" data-set="machine">
+          <a href="assets/after-dark/machine-bed-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/machine-bed-2.webp" alt="3DVR Girl nude on a bed beside a glowing tube device and a laptop" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>The lamp experiment</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="machine girl" data-set="machine">
+          <a href="assets/after-dark/machine-scene-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/machine-scene-1.webp" alt="3DVR Girl nude, seated with a turquoise prototype device" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Turquoise prototype</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="machine girl" data-set="machine">
+          <a href="assets/after-dark/machine-scene-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/machine-scene-2.webp" alt="3DVR Girl nude on a bed, holding a black cylindrical device" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Black prototype</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-wings-1.webp">
+            <img src="assets/after-dark/blonde-wings-1.webp" alt="3DVR Girl nude with white feathered angel wings, looking back laughing in a bougainvillea courtyard" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Angel over the courtyard</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-wings-2.webp">
+            <img src="assets/after-dark/blonde-wings-2.webp" alt="3DVR Girl in cream linen lingerie with white angel wings, kneeling on a coastal terrace" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Angel in linen</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-wings-3.webp">
+            <img src="assets/after-dark/blonde-wings-3.webp" alt="3DVR Girl nude seated among lavender with white angel wings draped behind her" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Angel in the lavender</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-wings-4.webp">
+            <img src="assets/after-dark/blonde-wings-4.webp" alt="3DVR Girl laughing with her angel wings landed at her hips like a feather skirt in a sunlit courtyard" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Feather skirt</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-paint-1.webp">
+            <img src="assets/after-dark/blonde-paint-1.webp" alt="3DVR Girl nude covered in flowing rainbow body paint, twirling and laughing in a bougainvillea courtyard" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Rainbow paint, twirl</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-paint-2.webp">
+            <img src="assets/after-dark/blonde-paint-2.webp" alt="3DVR Girl nude with rainbow paint drips and splashes, seated among lavender pots in a coastal garden" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Rainbow paint, garden</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-paint-3.webp">
+            <img src="assets/after-dark/blonde-paint-3.webp" alt="3DVR Girl nude with dripping rainbow body paint, flexing playfully in a wide warrior squat in a courtyard" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Rainbow paint, flex</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl fantasy" data-set="fantasy">
+          <a href="assets/after-dark/blonde-purple-1.webp">
+            <img src="assets/after-dark/blonde-purple-1.webp" alt="3DVR Girl nude with violet and turquoise body paint, dancing under magenta bougainvillea" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Purple paint, dance</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-tent-1.webp">
+            <img src="assets/after-dark/kayla-tent-1.webp" alt="Kayla nude on shoreline rocks with a trail of turquoise sucker-like marks down her thigh" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Sucker marks</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla" data-set="portraits">
+          <a href="assets/after-dark/kayla-tent-2.webp">
+            <img src="assets/after-dark/kayla-tent-2.webp" alt="Kayla nude seated on rocks at the shoreline at sunset" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Shoreline rocks</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla" data-set="portraits">
+          <a href="assets/after-dark/kayla-tent-3.webp">
+            <img src="assets/after-dark/kayla-tent-3.webp" alt="Kayla portrait at a forest pool, wet dark hair and striking gaze" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Forest pool portrait</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-tent-j1.webp">
+            <img src="assets/after-dark/kayla-tent-j1.webp" alt="Kayla waist deep in the sea with large tentacles curling around her legs" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Tentacles, shallows</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-tent-j2.webp">
+            <img src="assets/after-dark/kayla-tent-j2.webp" alt="Kayla nude in the sea at sunset with glossy tentacles draped over her shoulder and around her waist" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Tentacles at sunset</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-wolf-1.webp">
+            <img src="assets/after-dark/kayla-wolf-1.webp" alt="Kayla nude standing in a forest clearing with her hand resting on a large gray wolf" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Her wolf</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-wolf-2.webp">
+            <img src="assets/after-dark/kayla-wolf-2.webp" alt="Kayla nude with fluffy gray wolf ears, crouched grinning on a mossy log in the forest" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Wolf ears</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-wolf-3.webp">
+            <img src="assets/after-dark/kayla-wolf-3.webp" alt="Kayla nude in a fur-trimmed cloak at dusk in the pines, a wolf standing beside her" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Fur cloak at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-purple-1.webp">
+            <img src="assets/after-dark/kayla-purple-1.webp" alt="Kayla nude with swirling purple body paint and vivid purple hair, laughing in a forest clearing" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Purple paint, clearing</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-purple-2.webp">
+            <img src="assets/after-dark/kayla-purple-2.webp" alt="Kayla nude with purple wolf ears and purple flame paint stripes, crouched on a mossy log" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Purple wolf ears</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-purple-3.webp">
+            <img src="assets/after-dark/kayla-purple-3.webp" alt="Kayla waist deep in a forest pool with purple paint streaks and purple highlights in her wet hair" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Purple paint, pool</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="duos">
+          <a href="assets/after-dark/duo-terrace-1.webp">
+            <img src="assets/after-dark/duo-terrace-1.webp" alt="3DVR Girl and Kayla nude on a rooftop terrace at golden hour, foreheads together laughing, wine on the side table" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Golden hour, terrace</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="duos">
+          <a href="assets/after-dark/duo-terrace-2.webp">
+            <img src="assets/after-dark/duo-terrace-2.webp" alt="Two of the garden muse nude on a terrace daybed at dusk under string lights, foreheads touching" loading="lazy">
+          </a>
+          <figcaption><span>The garden muse ×2</span><strong>String lights</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="muse fantasy" data-set="fantasy">
+          <a href="assets/after-dark/muse-paint-1.webp">
+            <img src="assets/after-dark/muse-paint-1.webp" alt="Muse nude in her art studio splattered with purple and teal paint, holding a paintbrush beside an easel" loading="lazy">
+          </a>
+          <figcaption><span>Muse</span><strong>Paint day</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="muse" data-set="portraits">
+          <a href="assets/after-dark/muse-window-1.webp">
+            <img src="assets/after-dark/muse-window-1.webp" alt="Muse in an oversized purple sweater slipping off one shoulder, curled in a window seat at dusk with a sketchbook" loading="lazy">
+          </a>
+          <figcaption><span>Muse</span><strong>Window seat at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="portraits">
+          <a href="assets/after-dark/blonde-sunset-1.webp">
+            <img src="assets/after-dark/blonde-sunset-1.webp" alt="3DVR Girl nude on a coastal cliff path at sunset, looking back over her shoulder" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Sunset, looking back</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="portraits">
+          <a href="assets/after-dark/preg-courtyard.webp">
+            <img src="assets/after-dark/preg-courtyard.webp" alt="3DVR Girl nude and very pregnant with very large swollen breasts, cradling her huge belly in a bougainvillea courtyard" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Very pregnant, courtyard</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="portraits">
+          <a href="assets/after-dark/preg-lavender.webp">
+            <img src="assets/after-dark/preg-lavender.webp" alt="3DVR Girl nude and very pregnant, kneeling among lavender with her hands on her huge belly" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Very pregnant, lavender</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="portraits">
+          <a href="assets/after-dark/preg-terrace.webp">
+            <img src="assets/after-dark/preg-terrace.webp" alt="3DVR Girl very pregnant in profile on a cliff terrace at sunset, wearing a turquoise wrap, hand on her huge belly" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl</span><strong>Very pregnant, sunset</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla fantasy" data-set="fantasy">
+          <a href="assets/after-dark/kayla-moon.webp">
+            <img src="assets/after-dark/kayla-moon.webp" alt="Kayla nude on a rocky overlook at night, head thrown back howling at a huge full moon" loading="lazy">
+          </a>
+          <figcaption><span>Kayla</span><strong>Howling at the moon</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="duos">
+          <a href="assets/after-dark/duo-pool.webp">
+            <img src="assets/after-dark/duo-pool.webp" alt="3DVR Girl and Kayla topless in a turquoise pool at dusk under string lights, laughing together" loading="lazy">
+          </a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Pool at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="muse fantasy" data-set="fantasy">
+          <a href="assets/after-dark/muse-tentacles.webp">
+            <img src="assets/after-dark/muse-tentacles.webp" alt="Muse in a violet lit pool, purple tentacles woven through her two messy buns" loading="lazy">
+          </a>
+          <figcaption><span>Muse</span><strong>Tentacles in her hair</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="explorer" data-set="portraits">
+          <a href="assets/after-dark/asian-pool.webp">
+            <img src="assets/after-dark/asian-pool.webp" alt="The Explorer in a green bikini leaning on the edge of a resort pool, the ocean behind her and a 3DVR tote on the lounger" loading="lazy">
+          </a>
+          <figcaption><span>The Explorer</span><strong>Resort pool</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="portraits">
+          <a href="assets/after-dark/brunette-pool.webp">
+            <img src="assets/after-dark/brunette-pool.webp" alt="The garden muse in a dark green bikini in a garden pool at golden hour, wet chestnut hair and freckles" loading="lazy">
+          </a>
+          <figcaption><span>The garden muse</span><strong>Garden pool</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/thomas-courtyard-1.webp">
+            <img src="assets/after-dark/thomas-courtyard-1.webp" alt="Thomas nude behind the 3DVR Girl on a courtyard daybed, kissing her cheek" loading="lazy">
+          </a>
+          <figcaption><span>Thomas &amp; 3DVR Girl</span><strong>From behind, courtyard</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/thomas-courtyard-2.webp">
+            <img src="assets/after-dark/thomas-courtyard-2.webp" alt="3DVR Girl nude on top of Thomas on a courtyard daybed under the bougainvillea" loading="lazy">
+          </a>
+          <figcaption><span>Thomas &amp; 3DVR Girl</span><strong>Her on top</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/thomas-courtyard-3.webp">
+            <img src="assets/after-dark/thomas-courtyard-3.webp" alt="Thomas and the 3DVR Girl kissing in a stone courtyard, her topless in turquoise earrings" loading="lazy">
+          </a>
+          <figcaption><span>Thomas &amp; 3DVR Girl</span><strong>The kiss</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="first-takes">
+          <a href="assets/after-dark/blonde-first-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-first-1.webp" alt="3DVR Girl in a blue top and turquoise beads on the coast at golden hour, first take" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>First take, coastal</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="first-takes">
+          <a href="assets/after-dark/blonde-first-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-first-2.webp" alt="3DVR Girl in a white top and turquoise earrings by the water, first take" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>First take, poolside</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="first-takes">
+          <a href="assets/after-dark/blonde-first-3.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-first-3.webp" alt="3DVR Girl bare-shouldered with a turquoise statement necklace on the coast, first take" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>First take, turquoise necklace</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="first-takes">
+          <a href="assets/after-dark/brunette-first-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-first-1.webp" alt="The garden muse in a white lace top in a hammock, auburn waves and freckles, first take" loading="lazy"></a>
+          <figcaption><span>The garden muse</span><strong>First take, hammock</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="first-takes">
+          <a href="assets/after-dark/brunette-first-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-first-2.webp" alt="The garden muse in a white lace wrap with a green beaded necklace by the sea, first take" loading="lazy"></a>
+          <figcaption><span>The garden muse</span><strong>First take, green beads</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/duo-terrace-3.webp" target="_blank" rel="noopener"><img src="assets/after-dark/duo-terrace-3.webp" alt="Two of the 3DVR Girl nude together on a terrace daybed at dusk under string lights, in a two-panel diptych" loading="lazy"></a>
+          <figcaption><span>3DVR Girl ×2</span><strong>Terrace diptych</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="duos">
+          <a href="assets/after-dark/thomas-brunette-hammock-kiss.webp" target="_blank" rel="noopener"><img src="assets/after-dark/thomas-brunette-hammock-kiss.webp" alt="Thomas and the garden muse kissing in a purple hammock in the lavender above the cliffs" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; the garden muse</span><strong>Hammock kiss, lavender</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="duos">
+          <a href="assets/after-dark/thomas-brunette-hammock-eyes.webp" target="_blank" rel="noopener"><img src="assets/after-dark/thomas-brunette-hammock-eyes.webp" alt="Thomas and the garden muse intertwined in a purple hammock, foreheads touching, her hazel-green eyes open to camera" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; the garden muse</span><strong>Hammock, eyes open</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/thomas-asian-cliff-terrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/thomas-asian-cliff-terrace.webp" alt="Thomas and 3DVR Girl in a nude embrace on a cliff terrace at dusk, her back to camera, ocean sunset behind them" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; 3DVR Girl</span><strong>Cliff terrace at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="duos">
+          <a href="assets/after-dark/thomas-kayla-forest-act.webp" target="_blank" rel="noopener"><img src="assets/after-dark/thomas-kayla-forest-act.webp" alt="Thomas and Kayla making love on a blanket in a forest clearing" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Kayla</span><strong>Forest clearing, in the act</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="duos">
+          <a href="assets/after-dark/thomas-kayla-forest-embrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/thomas-kayla-forest-embrace.webp" alt="Thomas kneeling beside Kayla on a blanket in a forest clearing, in an intimate embrace" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Kayla</span><strong>Forest clearing, kneeling embrace</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="duos">
+          <a href="assets/after-dark/thomas-blonde-pool-dusk.webp" target="_blank" rel="noopener"><img src="assets/after-dark/thomas-blonde-pool-dusk.webp" alt="The Blonde Girl seated in front of Thomas at the edge of a pool at dusk, feet in the water, string lights above" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Blonde Girl</span><strong>Pool edge at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="duos">
+          <a href="assets/after-dark/thomas-muse-couch-kiss.webp" target="_blank" rel="noopener"><img src="assets/after-dark/thomas-muse-couch-kiss.webp" alt="Thomas and Muse in a deep nude kiss on a couch in warm lamplight, her dark hair in a messy bun with purple highlights" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Muse</span><strong>Couch kiss, lamplight</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo" data-set="first-takes">
+          <a href="assets/after-dark/smoke-test-thomas-x2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/smoke-test-thomas-x2.webp" alt="Smoke test reject: two nude men in a forest clearing, the model duplicated Thomas and dropped Kayla entirely" loading="lazy"></a>
+          <figcaption><span>Smoke test</span><strong>Thomas ×2, Kayla dropped</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="first-takes">
+          <a href="assets/after-dark/smoke-test-kayla-x2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/smoke-test-kayla-x2.webp" alt="Smoke test reject: two nude Kaylas in a forest clearing, the model duplicated Kayla and dropped Thomas" loading="lazy"></a>
+          <figcaption><span>Smoke test</span><strong>Kayla ×2, Thomas dropped</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="serverless">
+          <a href="assets/after-dark/srv-muse-hammock.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-muse-hammock.webp" alt="Thomas and the garden muse kissing nude in a garden hammock at golden hour" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Garden Muse</span><strong>Hammock kiss, golden hour</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="serverless">
+          <a href="assets/after-dark/srv-asian-cliff.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-asian-cliff.webp" alt="3DVR Girl in a nude embrace with a dark-haired man on coastal cliffs at dusk; the render's partner is not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Cliff embrace (not Thomas)</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="serverless">
+          <a href="assets/after-dark/srv-kayla-forest.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-kayla-forest.webp" alt="Thomas and Kayla nude in a forest clearing, Kayla on top, in the act" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Kayla</span><strong>Forest clearing, on top</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="serverless">
+          <a href="assets/after-dark/srv-blonde-pool.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-blonde-pool.webp" alt="Thomas and the Blonde Girl in a nude embrace in a pool at dusk, both laughing, wet skin" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Blonde Girl</span><strong>Pool embrace at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="serverless">
+          <a href="assets/after-dark/srv-ficmuse-couch.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-ficmuse-couch.webp" alt="Thomas and Muse kissing on a couch, still dressed, her purple hair in a messy bun" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; Muse</span><strong>Couch kiss, still dressed</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="serverless">
+          <a href="assets/after-dark/srv-muse-solo.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-muse-solo.webp" alt="The garden muse nude in the hammock, lavender beside her, smiling at the camera" loading="lazy"></a>
+          <figcaption><span>Garden Muse</span><strong>Hammock, all hers</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla" data-set="serverless">
+          <a href="assets/after-dark/srv-kayla-solo.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-kayla-solo.webp" alt="Kayla nude, standing in a forest stream in dappled light" loading="lazy"></a>
+          <figcaption><span>Kayla</span><strong>The forest stream</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="serverless">
+          <a href="assets/after-dark/srv-blonde-solo.webp" target="_blank" rel="noopener"><img src="assets/after-dark/srv-blonde-solo.webp" alt="The Blonde Girl in sheer black lingerie on a terrace at dusk, ocean behind her" loading="lazy"></a>
+          <figcaption><span>Blonde Girl</span><strong>Terrace at dusk, black lace</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="anchored">
+          <a href="assets/after-dark/anc-garden-hammock-kiss.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-garden-hammock-kiss.webp" alt="Thomas and the garden muse kissing nude in a hammock in a lavender garden at golden hour" loading="lazy"></a>
+          <figcaption><span>Garden Muse with Thomas</span><strong>Hammock Kiss</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="anchored">
+          <a href="assets/after-dark/anc-kayla-forest.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-kayla-forest.webp" alt="Kayla nude in a forest clearing, astride a man on a blanket among the ferns, in the act" loading="lazy"></a>
+          <figcaption><span>Kayla</span><strong>Forest Clearing</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="anchored">
+          <a href="assets/after-dark/anc-asian-cliff.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-asian-cliff.webp" alt="3DVR Girl in a nude embrace with a dark-haired man at a stone balustrade on coastal cliffs at dusk; the render's partner is not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Cliff Terrace at Dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="anchored">
+          <a href="assets/after-dark/anc-asian-cliff-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-asian-cliff-2.webp" alt="3DVR Girl face to face with a dark-haired man at a stone balustrade above the sea at dusk, about to kiss; the render's partner is not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Cliff Terrace, Take Two</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="anchored">
+          <a href="assets/after-dark/anc-blonde-pool.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-blonde-pool.webp" alt="The Blonde Girl nude at a pool at dusk under string lights, smiling at the camera from a man's lap at the pool edge; the render's partner is not Thomas" loading="lazy"></a>
+          <figcaption><span>Blonde Girl</span><strong>Pool at Dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="anchored">
+          <a href="assets/after-dark/anc-blonde-pool-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-blonde-pool-2.webp" alt="The Blonde Girl nude at a pool at sunset, smiling at the camera, seated sideways across a man's lap on the pool edge; the render's partner is not Thomas" loading="lazy"></a>
+          <figcaption><span>Blonde Girl</span><strong>Pool at Dusk, Take Two</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="anchored">
+          <a href="assets/after-dark/anc-ficmuse-couch.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-ficmuse-couch.webp" alt="Thomas and Muse nude on a couch in warm lamplight, Muse astride him, her dark hair with purple highlights up in a bun" loading="lazy"></a>
+          <figcaption><span>Muse with Thomas</span><strong>On the Couch</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="anchored">
+          <a href="assets/after-dark/anc-garden-lavender-solo.webp" target="_blank" rel="noopener"><img src="assets/after-dark/anc-garden-lavender-solo.webp" alt="The garden muse nude, kneeling on a blanket among lavender rows at golden hour, freckles across her cheeks, purple woven bracelets" loading="lazy"></a>
+          <figcaption><span>Garden Muse</span><strong>Lavender Solo</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="dancing">
+          <a href="assets/after-dark/eve-dance-courtyard.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-dance-courtyard.webp" alt="3DVR Girl and Kayla nude, dancing joyfully in a sunlit courtyard, laughing, arms raised" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Courtyard dance, together</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse explorer" data-set="dancing">
+          <a href="assets/after-dark/eve-dance-pool-dusk.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-dance-pool-dusk.webp" alt="Muse and the Explorer nude, dancing joyfully in a pool at dusk, laughing, arms raised; Muse's dark hair carries purple highlights" loading="lazy"></a>
+          <figcaption><span>Muse &amp; The Explorer</span><strong>Poolside at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla garden" data-set="dancing">
+          <a href="assets/after-dark/eve-dance-festival.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-dance-festival.webp" alt="3DVR Girl, Kayla and the garden muse nude, dancing joyfully in a festival clearing, laughing, arms raised" loading="lazy"></a>
+          <figcaption><span>3DVR Girl, Kayla &amp; the garden muse</span><strong>Festival dance</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="explorer" data-set="dancing">
+          <a href="assets/after-dark/eve-dance-lavender.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-dance-lavender.webp" alt="The Explorer nude, dancing joyfully alone in a lavender field at golden hour, laughing, one arm raised" loading="lazy"></a>
+          <figcaption><span>The Explorer</span><strong>Lavender field</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="yoga">
+          <a href="assets/after-dark/eve-yoga-tree.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-yoga-tree.webp" alt="3DVR Girl nude in tree pose in a garden, standing on one leg on a blue mat, arms raised above her head, palms together" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Tree pose</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla" data-set="yoga">
+          <a href="assets/after-dark/eve-yoga-lotus.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-yoga-lotus.webp" alt="Kayla nude, sitting in lotus pose in a bright studio, eyes closed, hands resting on her knees" loading="lazy"></a>
+          <figcaption><span>Kayla</span><strong>Lotus</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="muse" data-set="yoga">
+          <a href="assets/after-dark/eve-yoga-warrior.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-yoga-warrior.webp" alt="Muse nude in Warrior II in a garden, wide stance, front knee bent, arms stretched out sideways at shoulder height, dark hair with purple highlights" loading="lazy"></a>
+          <figcaption><span>Muse</span><strong>Warrior II</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden explorer" data-set="yoga">
+          <a href="assets/after-dark/eve-yoga-partner.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-yoga-partner.webp" alt="The garden muse and the Explorer nude in a paired partner stretch in a garden, kneeling facing each other, holding hands" loading="lazy"></a>
+          <figcaption><span>The garden muse &amp; The Explorer</span><strong>Partner stretch</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="tantric">
+          <a href="assets/after-dark/eve-tantric-embrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-tantric-embrace.webp" alt="3DVR Girl and Kayla nude in a slow seated tantric embrace, face to face, foreheads close, eyes closed, arms around each other" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Tantric embrace</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse garden" data-set="tantric">
+          <a href="assets/after-dark/eve-tantric-cushions.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-tantric-cushions.webp" alt="Muse and the garden muse nude in a slow reclining tantric embrace on cushions, faces close, arms around each other; Muse's hair carries vivid purple streaks" loading="lazy"></a>
+          <figcaption><span>Muse &amp; the garden muse</span><strong>On the cushions</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla explorer" data-set="tantric">
+          <a href="assets/after-dark/eve-tantric-foreheads.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-tantric-foreheads.webp" alt="Kayla and the Explorer nude in a slow seated tantric embrace, foreheads close, arms around each other" loading="lazy"></a>
+          <figcaption><span>Kayla &amp; The Explorer</span><strong>Foreheads close</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo" data-set="dancing">
+          <a href="assets/after-dark/eve-dance-courtyard-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-dance-courtyard-first-take.webp" alt="Reject: two nude women dancing joyfully in a sunlit courtyard, laughing, arms raised, but both read as 3DVR Girl with messy blonde buns, so Kayla is not readable; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Courtyard dance, Kayla drifted</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla garden" data-set="dancing">
+          <a href="assets/after-dark/eve-dance-festival-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-dance-festival-first-take.webp" alt="Reject: three nude women dancing joyfully in a festival clearing, laughing, arms raised, but the centre and right figures both read as 3DVR Girl, so the garden muse is not readable; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Festival dance, garden muse drifted</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="muse" data-set="yoga">
+          <a href="assets/after-dark/eve-yoga-tree-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-yoga-tree-first-take.webp" alt="Reject: Muse nude in tree pose on a purple mat in a garden; the brief was Warrior II and the pose duplicates the tree pose frame; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Tree pose, wrong brief</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="tantric">
+          <a href="assets/after-dark/eve-tantric-cushions-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-tantric-cushions-first-take.webp" alt="Reject: two nude women reclining in a close embrace on cushions, but both read as long dark brown hair with near-identical faces, and Muse's purple highlights are not visible; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Reclining embrace, twin drift</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="tantric">
+          <a href="assets/after-dark/eve-tantric-foreheads-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/eve-tantric-foreheads-first-take.webp" alt="Reject: two nude women in a close seated tantric embrace, foreheads close, but both read as long black ponytails, so Kayla is not readable as dark brown; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Seated embrace, Kayla drifted</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla" data-set="festival">
+          <a href="assets/after-dark/fst-topless-dusk.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-topless-dusk.webp" alt="3DVR Girl and Kayla topless in denim shorts and flower crowns, laughing together at a festival at dusk, string lights and crowd behind them" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Kayla</span><strong>Tops off at dusk</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden explorer girl" data-set="festival">
+          <a href="assets/after-dark/fst-clearing-trio.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-clearing-trio.webp" alt="The garden muse, the Explorer and 3DVR Girl nude together in a festival clearing, flower crowns, arms around each other, tents and string lights at dusk" loading="lazy"></a>
+          <figcaption><span>The garden muse, the Explorer &amp; 3DVR Girl</span><strong>Nude in the clearing</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo explorer girl kayla" data-set="festival">
+          <a href="assets/after-dark/fst-mixed-undress.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-mixed-undress.webp" alt="Four women at a festival in mixed states of undress: the Explorer and 3DVR Girl nude, Kayla topless in denim shorts, and a second 3DVR Girl nude beside her, flower crowns, tents and string lights" loading="lazy"></a>
+          <figcaption><span>The Explorer, Kayla &amp; 3DVR Girl (×2)</span><strong>Mixed undress, one short of five</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse kayla girl" data-set="festival">
+          <a href="assets/after-dark/fst-blanket-tangle.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-blanket-tangle.webp" alt="Muse, her hair vivid purple, kissing Kayla in a tangled group on festival blankets, 3DVR Girl crowned with flowers leaning over them, more figures resting on blankets behind" loading="lazy"></a>
+          <figcaption><span>Muse, Kayla &amp; 3DVR Girl</span><strong>Tangled on the blankets</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden kayla explorer girl" data-set="festival">
+          <a href="assets/after-dark/fst-blanket-wide.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-blanket-wide.webp" alt="The garden muse, Kayla, the Explorer and 3DVR Girl nude, tangled together kissing on a striped festival blanket, flower crowns, tents and string lights behind them" loading="lazy"></a>
+          <figcaption><span>The garden muse, Kayla, the Explorer &amp; 3DVR Girl</span><strong>Tangled on the blanket</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo" data-set="festival">
+          <a href="assets/after-dark/fst-group-undress-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-group-undress-first-take.webp" alt="Reject: four nude women standing together at a festival at dusk, flower crowns and flags, but the brief asked for five women in mixed states of undress and all four are fully nude; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Group undress, four not five</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo" data-set="festival">
+          <a href="assets/after-dark/fst-kiss-chain-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-kiss-chain-first-take.webp" alt="Reject: four nude women kneeling in a row on a blue blanket at a festival, kissing in a chain, intertwined, flower crowns, flags and string lights, but the brief asked for five; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>The kiss chain, four not five</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla muse" data-set="festival">
+          <a href="assets/after-dark/fst-blanket-wide-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fst-blanket-wide-first-take.webp" alt="Reject: three nude women on a festival blanket, 3DVR Girl kissing Kayla while Muse, purple highlights clear, reclines in front of them, but the frame is tighter and one woman fewer than the wide take; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Wide scene, tighter take</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="angels">
+          <a href="assets/after-dark/ang-solo-rise.webp" target="_blank" rel="noopener"><img src="assets/after-dark/ang-solo-rise.webp" alt="3DVR Girl, a blonde angel with blue eyes and a playful smile, nude with large white feathered wings spread, standing in golden cloud light" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Angel, rising</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse kayla" data-set="angels">
+          <a href="assets/after-dark/ang-duo-embrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/ang-duo-embrace.webp" alt="Muse, dark hair with vivid purple highlights, and Kayla, long dark brown hair, both nude angels embracing cheek to cheek in golden light, white wings at the frame edges" loading="lazy"></a>
+          <figcaption><span>Muse &amp; Kayla</span><strong>Held in the light</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="angels">
+          <a href="assets/after-dark/ang-lavender-field.webp" target="_blank" rel="noopener"><img src="assets/after-dark/ang-lavender-field.webp" alt="The garden muse, a brunette angel, nude with large white feathered wings spread, standing in a lavender field under a pink sunset sky" loading="lazy"></a>
+          <figcaption><span>The garden muse</span><strong>Angel in the lavender</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl garden kayla explorer" data-set="angels">
+          <a href="assets/after-dark/ang-circle-of-light.webp" target="_blank" rel="noopener"><img src="assets/after-dark/ang-circle-of-light.webp" alt="Five nude angels in a circle of golden light with white wings: 3DVR Girl blonde at the back, the garden muse centre, Kayla front right, and the Explorer twice, top right and front left" loading="lazy"></a>
+          <figcaption><span>3DVR Girl, the garden muse, Kayla &amp; the Explorer (×2)</span><strong>A circle of light</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="" data-set="angels">
+          <a href="assets/after-dark/ang-beach-blessing.webp" target="_blank" rel="noopener"><img src="assets/after-dark/ang-beach-blessing.webp" alt="A generic man, not modelled on anyone, nude and smiling on a beach at sunset, embraced by three nude dark-haired angel women with large white wings" loading="lazy"></a>
+          <figcaption><span>The blessing</span><strong>Angels on the beach</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo" data-set="angels">
+          <a href="assets/after-dark/ang-duo-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/ang-duo-first-take.webp" alt="First take: Kayla and Muse as nude angels embracing in golden light, Kayla smiling at the camera and Muse in profile with vivid purple hair, white wings behind them; a keeper in its own right, set aside for the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>The embrace, first take</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl garden" data-set="festival">
+          <a href="assets/after-dark/fn-tops-off-laughing.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fn-tops-off-laughing.webp" alt="3DVR Girl, blonde with a daisy crown, and the garden muse, dark brown hair with a colourful flower crown, both topless in skirts, kneeling on a blanket laughing, a tent and string lights behind them at night" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; the garden muse</span><strong>Tops off, laughing</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="festival">
+          <a href="assets/after-dark/fn-dress-slipped-down.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fn-dress-slipped-down.webp" alt="The garden muse seated on a blanket at sunset, her floral dress slipped off her shoulders but still covering her chest, string lights and grass behind her" loading="lazy"></a>
+          <figcaption><span>The garden muse</span><strong>The dress slips</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla girl explorer muse" data-set="festival">
+          <a href="assets/after-dark/fn-dancing-nude.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fn-dancing-nude.webp" alt="Five nude women dancing in the grass at night under purple lights: Kayla, a blonde, 3DVR Girl at the centre with vivid blue streaks, the Explorer, and Muse at the edge with purple-tinted hair" loading="lazy"></a>
+          <figcaption><span>Kayla, 3DVR Girl, the Explorer &amp; Muse</span><strong>Dancing nude in the grass</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse kayla" data-set="festival">
+          <a href="assets/after-dark/fn-blanket-kiss.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fn-blanket-kiss.webp" alt="Muse, vivid purple highlights, nude, kissing Kayla, who is wrapped in a purple knitted blanket, under string lights at dusk" loading="lazy"></a>
+          <figcaption><span>Muse &amp; Kayla</span><strong>A kiss in the blanket</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden explorer kayla girl" data-set="festival">
+          <a href="assets/after-dark/fn-lantern-tangle.webp" target="_blank" rel="noopener"><img src="assets/after-dark/fn-lantern-tangle.webp" alt="Four nude women tangled together on a blanket on the grass at night under colourful paper lanterns and string lights: the garden muse, the Explorer, Kayla and 3DVR Girl" loading="lazy"></a>
+          <figcaption><span>The garden muse, the Explorer, Kayla &amp; 3DVR Girl</span><strong>Tangled under the lanterns</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="devils">
+          <a href="assets/after-dark/dev-solo-horns.webp" target="_blank" rel="noopener"><img src="assets/after-dark/dev-solo-horns.webp" alt="3DVR Girl as a devil, blonde hair ending in vivid blue streaks, blue eyes, nude, large dark curved horns and large dark leathery bat wings, ember-red smoke and flames behind her" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Devil, grinning</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla muse" data-set="devils">
+          <a href="assets/after-dark/dev-duo-purple-smoke.webp" target="_blank" rel="noopener"><img src="assets/after-dark/dev-duo-purple-smoke.webp" alt="Kayla, long dark hair with red curved horns, and Muse, long vivid purple hair with black horns, both nude devils intertwined and holding hands in purple smoky light, a dark wing at the edge" loading="lazy"></a>
+          <figcaption><span>Kayla &amp; Muse</span><strong>Devils in purple smoke</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="explorer" data-set="devils">
+          <a href="assets/after-dark/dev-explorer-firelight.webp" target="_blank" rel="noopener"><img src="assets/after-dark/dev-explorer-firelight.webp" alt="The Explorer as a devil, East Asian with black hair and a teasing smile, nude, large curved black horns and red leathery bat wings, grey smoke and red firelight behind her" loading="lazy"></a>
+          <figcaption><span>The Explorer</span><strong>Devil in the firelight</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl explorer" data-set="devils">
+          <a href="assets/after-dark/dev-dark-court.webp" target="_blank" rel="noopener"><img src="assets/after-dark/dev-dark-court.webp" alt="Six nude horned devil women in a light-grey studio portrait: the Explorer three times with purple and red horns, and 3DVR Girl three times, once with vivid blue hair and twice blonde; the brief asked for five in a dark court" loading="lazy"></a>
+          <figcaption><span>3DVR Girl (×3) &amp; the Explorer (×3)</span><strong>The dark court, doubled</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="" data-set="devils">
+          <a href="assets/after-dark/dev-temptation-duo.webp" target="_blank" rel="noopener"><img src="assets/after-dark/dev-temptation-duo.webp" alt="A generic man, not modelled on anyone, nude in a dark studio, flanked by two nude devil women, a blonde with large dark horns and Muse with purple and blue hair and large black horns, dark bat wings at the top corners" loading="lazy"></a>
+          <figcaption><span>The temptation</span><strong>Two devils, one mortal</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl muse" data-set="mixes">
+          <a href="assets/after-dark/mix-duel-cheek-to-cheek.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mix-duel-cheek-to-cheek.webp" alt="3DVR Girl as an angel, blonde with blue eyes, and Muse as a demon, dark hair with vivid purple highlights, both nude and cheek to cheek with white wings behind them, golden light on one side and ember glow on the other; the demon's horns did not render" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; Muse</span><strong>Angel and demon, cheek to cheek</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo explorer" data-set="mixes">
+          <a href="assets/after-dark/mix-temptation-twins.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mix-temptation-twins.webp" alt="Two nude East Asian women forehead to forehead in golden-ember light, both with white feathered wings; the brief cast Kayla tempted by the Explorer, but the render doubled the Explorer and Kayla never appears" loading="lazy"></a>
+          <figcaption><span>The Explorer (×2)</span><strong>Temptation, doubled</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden explorer kayla girl muse" data-set="mixes">
+          <a href="assets/after-dark/mix-court-of-fire.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mix-court-of-fire.webp" alt="Six nude women before a wall of fire, white feathered wings on all of them: the garden muse, one horned woman with blue horns, the Explorer, Kayla, 3DVR Girl blonde at the centre, and Muse with purple highlights; the brief asked for five" loading="lazy"></a>
+          <figcaption><span>The garden muse, the Explorer, Kayla, 3DVR Girl &amp; Muse</span><strong>The mixed court</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla" data-set="mixes">
+          <a href="assets/after-dark/mix-between-two-wings.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mix-between-two-wings.webp" alt="Kayla nude between heaven and hell, standing in firelight with ember smoke behind her; both of her wings came out large and white feathered, so the one-white-one-dark split of the brief is not there" loading="lazy"></a>
+          <figcaption><span>Kayla</span><strong>Between, in white wings</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo" data-set="mixes">
+          <a href="assets/after-dark/mix-court-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mix-court-first-take.webp" alt="Reject: three nude women before fire, a blonde with small gold horns, an ombre-haired woman with large black horns, and a dark-haired woman with one white wing; the horn split is better than the keeper but the brief asked for five women; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>The court, three not five</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla" data-set="mixes">
+          <a href="assets/after-dark/mix-between-first-take.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mix-between-first-take.webp" alt="Reject: Kayla nude in ember light, one arm raised, both wings large and black feathered; the one-white-one-dark split of the brief missed the other way; superseded by the retake" loading="lazy"></a>
+          <figcaption><span>First take</span><strong>Between, in black wings</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="martha" data-set="martha">
+          <a href="assets/after-dark/mrt-window-light.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mrt-window-light.webp" alt="Rig test: Martha by a tall window in golden light, but the render missed her: a human woman with curly brown hair and a pineapple crown, the yellow diamond texture worn as a high-neck dress instead of skin, her face, hands and legs smooth human skin" loading="lazy"></a>
+          <figcaption><span>Martha</span><strong>Window light, rig test</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="martha" data-set="martha">
+          <a href="assets/after-dark/mrt-cream-linen.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mrt-cream-linen.webp" alt="Rig test: the brief was Martha nude on cream linen; the render is a nude human woman with platinum hair and smooth tan skin on green linen, pineapples only as props around her, no crown and no pineapple skin anywhere" loading="lazy"></a>
+          <figcaption><span>Martha</span><strong>Cream linen, rig test</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="martha" data-set="martha">
+          <a href="assets/after-dark/mrt-garden-back.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mrt-garden-back.webp" alt="Rig test: a garden back view; the leafy green hair and pineapple crown landed, but she wears a pineapple-textured bikini and her back and legs are smooth human skin, so she is neither nude nor recognisably Martha" loading="lazy"></a>
+          <figcaption><span>Martha</span><strong>Garden back, rig test</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="martha" data-set="martha">
+          <a href="assets/after-dark/mrt-seated-knees-up.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mrt-seated-knees-up.webp" alt="Rig test, the closest of the five: Martha seated with knees up, 3D cartoon style, her torso and legs bare yellow pineapple diamond texture under a strong spiky leaf crown, pineapple earrings; her face, forearms and hands came out smooth brown human cartoon skin" loading="lazy"></a>
+          <figcaption><span>Martha</span><strong>Seated, knees up: closest take</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="martha" data-set="martha">
+          <a href="assets/after-dark/mrt-hand-on-hip.webp" target="_blank" rel="noopener"><img src="assets/after-dark/mrt-hand-on-hip.webp" alt="Rig test: Martha's signature hand-on-hip pose with a strong leaf crown against a yellow backdrop, but the pineapple texture rendered as a full bodysuit, high neck and long sleeves, over a smooth human face and hands: costume, not skin" loading="lazy"></a>
+          <figcaption><span>Martha</span><strong>Hand on hip, rig test</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="girl" data-set="expecting">
+          <a href="assets/after-dark/prg-3dvr-meadow.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-3dvr-meadow.webp" alt="3DVR Girl nude in a golden-hour meadow, a flower crown in her blonde hair, a large round pregnant belly with one hand resting under it, serene; her blue streaks did not render, only tiny blue flowers in the crown" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Expecting, in the meadow</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="kayla" data-set="expecting">
+          <a href="assets/after-dark/prg-kayla-tent.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-kayla-tent.webp" alt="Kayla nude beside a canvas tent at the edge of the woods in morning light, a big round pregnant belly with one hand under it, calm and grounded" loading="lazy"></a>
+          <figcaption><span>Kayla</span><strong>Expecting, by the tent</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="muse" data-set="expecting">
+          <a href="assets/after-dark/prg-muse-cushions.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-muse-cushions.webp" alt="Muse reclining nude on cushions among purple wildflowers, her purple highlights clear, a big round pregnant belly, dreamy; the light reads as daylight rather than the dusk of the brief" loading="lazy"></a>
+          <figcaption><span>Muse</span><strong>Expecting, on the cushions</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="garden" data-set="expecting">
+          <a href="assets/after-dark/prg-garden-lavender.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-garden-lavender.webp" alt="The garden muse nude in a lavender garden in golden light, cradling a big round pregnant belly, a soft smile" loading="lazy"></a>
+          <figcaption><span>The garden muse</span><strong>Expecting, in the lavender</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="explorer" data-set="expecting">
+          <a href="assets/after-dark/prg-explorer-lanterns.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-explorer-lanterns.webp" alt="The Explorer laughing nude on a blanket under paper lanterns, a very large round pregnant belly, one hand resting high on her chest" loading="lazy"></a>
+          <figcaption><span>The Explorer</span><strong>Expecting, under the lanterns</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl kayla garden explorer muse" data-set="expecting">
+          <a href="assets/after-dark/prg-all-five.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-all-five.webp" alt="All five women nude together at golden hour, every one with a large round pregnant belly, standing close and cradling them; Muse's purple highlights read, the blonde's blue streaks are missing, and the other identities blur together" loading="lazy"></a>
+          <figcaption><span>3DVR Girl, Kayla, the garden muse, the Explorer &amp; Muse</span><strong>All five, expecting</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="expecting">
+          <a href="assets/after-dark/prg-father-3dvr.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-father-3dvr.webp" alt="3DVR Girl nude in a golden meadow, cheek to cheek with the father, her hands cradling her big round pregnant belly, both smiling at the camera; her blue streaks are missing, and the father is a generic render, grey at the temples, not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; the father</span><strong>The father's hand</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="expecting">
+          <a href="assets/after-dark/prg-father-dressed.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-father-dressed.webp" alt="3DVR Girl nude and heavily pregnant, beaming beside the father in a blue T-shirt and khakis, his hand resting on her belly; the father is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; the father</span><strong>The proud father, dressed</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo" data-set="expecting">
+          <a href="assets/after-dark/prg-father-all-five.webp" target="_blank" rel="noopener"><img src="assets/after-dark/prg-father-all-five.webp" alt="The father at the centre under festival paper lanterns, four nude pregnant women around him, three standing and one seated cross-legged in front, everyone laughing with the festival crowd behind; the women's identities blur together and none reads as one girl in particular, and the father is a generic render with long hair and a grey-flecked beard, not Thomas" loading="lazy"></a>
+          <figcaption><span>The father &amp; the mothers</span><strong>The whole family, expecting</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="kundalini">
+          <a href="assets/after-dark/kun-girl-embrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-girl-embrace.webp" alt="Thomas and 3DVR Girl nude in a tantric embrace in a wood-floored yoga studio, she kneels in his lap with her long blonde hair bright with blue streaks, both faces to the camera; the man's face is Thomas's own, swapped in from his portrait as a partial likeness, and her expression reads more startled than ecstatic" loading="lazy"></a>
+          <figcaption><span>Thomas &amp; 3DVR Girl</span><strong>Kundalini, the embrace</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="kundalini">
+          <a href="assets/after-dark/kun-girl-oral.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-girl-oral.webp" alt="3DVR Girl kneeling nude on a blue yoga mat giving oral sex to a kneeling man, side view, both smiling; her blue streaks did not render in this frame, the anatomy at the join is loosely rendered, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; her partner</span><strong>Kundalini, on her knees</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="kundalini">
+          <a href="assets/after-dark/kun-kayla-lap.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-kayla-lap.webp" alt="Kayla kneeling nude astride a man's lap on a green yoga mat, looking up at him, joined low in the frame; the partner is a generic render who reads older than Thomas, not Thomas" loading="lazy"></a>
+          <figcaption><span>Kayla &amp; her partner</span><strong>Kundalini, in his lap</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="kundalini">
+          <a href="assets/after-dark/kun-muse-embrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-muse-embrace.webp" alt="Muse seated nude in a man's lap in a yab-yum embrace on a purple yoga mat, eyes closed and serene, his face mostly hidden behind her; the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>Muse &amp; her partner</span><strong>Kundalini, yab-yum</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="kundalini">
+          <a href="assets/after-dark/kun-muse-linen.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-muse-linen.webp" alt="Muse lying nude on her side on white linen sheets, her dark hair vivid with purple, mouth open in ecstasy, a man's hands and body entering the frame from the right; the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>Muse &amp; her partner</span><strong>Kundalini, on the linen</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="kundalini">
+          <a href="assets/after-dark/kun-garden-bench.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-garden-bench.webp" alt="The garden muse bent nude over a low wooden yoga bench, hands on the mat and face down in profile, a man standing behind her inside her; her hair renders dark brown rather than her auburn, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>The garden muse &amp; her partner</span><strong>Kundalini, over the bench</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="kundalini">
+          <a href="assets/after-dark/kun-garden-mat.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-garden-mat.webp" alt="The garden muse nude on a grey yoga mat, taken from behind, arching back to look over her shoulder at the man kneeling behind her with his hands on her hips; the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>The garden muse &amp; her partner</span><strong>Kundalini, looking back</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo explorer" data-set="kundalini">
+          <a href="assets/after-dark/kun-explorer-behind.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-explorer-behind.webp" alt="The Explorer nude on green yoga mats, taken from behind, looking back up at the man with a smile, cream cushions behind them; the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>The Explorer &amp; her partner</span><strong>Kundalini, from behind</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo explorer" data-set="kundalini">
+          <a href="assets/after-dark/kun-explorer-embrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kun-explorer-embrace.webp" alt="The Explorer seated nude in front of a man on cream linen, looking up at the camera; her face is her own, swapped in from her portrait, and the man's face is cropped out of the frame, a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>The Explorer &amp; her partner</span><strong>Kundalini, in his arms</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="oral">
+          <a href="assets/after-dark/orl-girl-bedroom-cushion.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-girl-bedroom-cushion.webp" alt="3DVR Girl kneeling nude on a floor cushion in a bedroom, giving oral sex to a standing man cropped out of frame above the chest, her face large in three-quarter view looking up at him; her face is her own, swapped in from her portrait, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; her partner</span><strong>Oral, on the cushion</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="oral">
+          <a href="assets/after-dark/orl-girl-cushion-closeup.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-girl-cushion-closeup.webp" alt="3DVR Girl kneeling nude on a floor cushion beside a bed, her mouth on the standing man's penis and her blue eyes looking up at him, blonde hair bright with blue streaks; her face is her own, swapped in from her portrait and verified against an identical no-swap render, and the partner is a generic render cropped out of frame, not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; her partner</span><strong>Oral, looking up</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo girl" data-set="oral">
+          <a href="assets/after-dark/orl-girl-bedroom-kneel.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-girl-bedroom-kneel.webp" alt="3DVR Girl kneeling nude on bedroom carpet before a standing man cropped above the waist, her hand holding his shaft and her mouth around it, looking up; her face is her own, swapped in from her portrait, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>3DVR Girl &amp; her partner</span><strong>Oral, hand on him</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo kayla" data-set="oral">
+          <a href="assets/after-dark/orl-kayla-couch.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-kayla-couch.webp" alt="Kayla kneeling nude on a grey couch in a living room, holding the standing man's shaft in both hands with her mouth on its head, her long dark hair straight and her face in profile; her face is swapped in from her portrait, the penis renders darker than the man's skin, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>Kayla &amp; her partner</span><strong>Oral, on the couch</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="oral">
+          <a href="assets/after-dark/orl-muse-study.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-muse-study.webp" alt="Muse kneeling nude on a carpet in a book-lined study, her mouth around the standing man's penis, looking up, her dark hair purple at the roots and fading pale at the ends in this frame; her face is her own, swapped in from her portrait, and the partner is a generic render cropped out of frame, not Thomas" loading="lazy"></a>
+          <figcaption><span>Muse &amp; her partner</span><strong>Oral, in the study</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo muse" data-set="oral">
+          <a href="assets/after-dark/orl-muse-shower.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-muse-shower.webp" alt="Muse nude and wet in a tiled shower room, close on her three-quarter face with her lips around the head of the standing man's penis, her dark hair vivid with purple streaks; the penis renders oversized, her face is her own, swapped in from her portrait, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>Muse &amp; her partner</span><strong>Oral, in the shower</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="oral">
+          <a href="assets/after-dark/orl-garden-lawn.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-garden-lawn.webp" alt="The garden muse kneeling nude on a big white cushion on a private lawn, her mouth around the head of the standing man's penis, tongue visible, auburn hair and heavy freckles across her nose, cheeks and shoulders; her face is her own, swapped in from her portrait, and the partner is a generic render cropped out of frame, not Thomas" loading="lazy"></a>
+          <figcaption><span>The garden muse &amp; her partner</span><strong>Oral, on the lawn</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo garden" data-set="oral">
+          <a href="assets/after-dark/orl-garden-canopy-bed.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-garden-canopy-bed.webp" alt="The garden muse kneeling nude on a woven rug beside a canopy bed, both hands on the standing man's hips, taking his penis into her mouth and looking up, auburn hair and light freckles; the penis renders darker and larger than the man's build suggests, her face is her own, swapped in from her portrait, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>The garden muse &amp; her partner</span><strong>Oral, by the canopy bed</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo explorer" data-set="oral">
+          <a href="assets/after-dark/orl-explorer-shower.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-explorer-shower.webp" alt="The Explorer kneeling nude on the floor of a tiled shower room, licking the tip of the standing man's erect penis while holding the shaft, her very long straight black hair down her back and her face large in three-quarter view; her face is her own, swapped in from her portrait, and the partner is a generic render cropped out of frame, not Thomas" loading="lazy"></a>
+          <figcaption><span>The Explorer &amp; her partner</span><strong>Oral, in the tiles</strong></figcaption>
+        </figure>
+        <figure class="private-card" data-tags="duo explorer" data-set="oral">
+          <a href="assets/after-dark/orl-explorer-bedroom-rug.webp" target="_blank" rel="noopener"><img src="assets/after-dark/orl-explorer-bedroom-rug.webp" alt="The Explorer kneeling nude on a woven bedroom rug, both hands holding the standing man's shaft with her lips around its head, her very long straight black hair falling past her waist, the man seen from behind and the side; the penis renders darker than the man's skin, her face is swapped in from her portrait, and the partner is a generic render, not Thomas" loading="lazy"></a>
+          <figcaption><span>The Explorer &amp; her partner</span><strong>Oral, on the woven rug</strong></figcaption>
+        </figure>
       </div>
     </section>
-  </main>
+    <section class="machine section" id="machine" data-stage="world" aria-labelledby="machineTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Workshop</p>
+          <h2 id="machineTitle">The Intimacy Machine.</h2>
+        </div>
+        <p>Product studies and concepts, kept apart from her galleries.</p>
+      </div>
+      <div class="archive-grid">
+        <a class="archive-card" href="assets/intimacy-machine-vest.webp" target="_blank" rel="noopener"><img src="assets/intimacy-machine-vest.webp" alt="Concept render of a black padded torso-form intimacy device with purple and blue accents" loading="lazy"><span class="archive-card__caption"><span>Workshop</span><strong>Intimacy Machine, concept</strong></span></a>
+        <a class="archive-card" href="assets/after-dark/intimacy-machine.webp" target="_blank" rel="noopener"><img src="assets/after-dark/intimacy-machine.webp" alt="The 3DVR Intimacy Machine, a white cylindrical device on a black stand" loading="lazy"><span class="archive-card__caption"><span>Workshop</span><strong>First product study</strong></span></a>
+        <a class="archive-card" href="assets/after-dark/intimacy-machine-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/intimacy-machine-2.webp" alt="The 3DVR Intimacy Machine capsule mounted on a black stand" loading="lazy"><span class="archive-card__caption"><span>Workshop</span><strong>Second product study</strong></span></a>
+      </div>
+    </section>
+
+    <section class="staff section" data-stage="world" aria-labelledby="staffTitle">
+      <div class="staff-card">
+        <img class="staff-card__image" src="../martha/assets/martha-avatar.webp" alt="Martha, a pineapple character with a green leafy crown, wearing a black dress with red and gold trim" loading="lazy" width="640" height="640">
+        <div class="staff-card__copy">
+          <p class="eyebrow">Not cast. Staff.</p>
+          <h2 id="staffTitle">Meet Martha, the assistant who runs this place.</h2>
+          <p>She keeps the portal up, watches the servers, and handles the day-to-day behind the scenes. The cast gets the spotlight; she gets a page of her own.</p>
+          <a class="button" href="../martha/">Visit Martha&rsquo;s page &rarr;</a>
+        </div>
+      </div>
+    </section>
+    </main>
+  </div>
+
+  <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" hidden>↑ Top</button>
 
   <dialog class="gallery-dialog" id="galleryDialog" aria-label="Full-screen photo viewer">
     <button class="gallery-dialog__close" id="galleryClose" type="button" aria-label="Close photo">×</button>
@@ -320,11 +1209,14 @@
   <footer class="footer">
     <p>3DVR Girl is an evolving fictional character in the 3DVR world.</p>
     <a href="../index.html">Back to 3DVR Portal →</a>
+    <p><a href="#" data-install-link hidden>Install 3DVR Girl</a></p>
   </footer>
 
   <script src="app.js"></script>
   <script src="../auth-identity.js"></script>
+  <script src="viewer.js"></script>
   <script src="gallery.js"></script>
+  <script type="module" src="hud.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>

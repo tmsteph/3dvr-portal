@@ -10,7 +10,7 @@
     // Create a Gun instance for the meetings workspace so reads/writes persist across sessions and peers
     window.gun = Gun(window.__GUN_PEERS__ || [
       'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
+      'wss://portal.3dvr.tech/gun-relay'
     ]);
   </script>
   <link rel="stylesheet" href="/styles/global.css">
@@ -294,7 +294,6 @@
     .empty-copy { margin: 0; color: var(--muted); }
   </style>
 
-  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to main content</a>

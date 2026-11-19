@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Girl — Her Site</title>
+  <meta name="description" content="Her own corner of the portal: her world, her scenes, her stories, and a private chat.">
+  <meta name="theme-color" content="#0b0f0d">
+  <link rel="manifest" href="/app-manifests/3dvr-girl.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/3dvr-girl-192.png">
+  <script>
+    // On her own origin (ladies.3dvr.tech) the app uses her dedicated manifest
+    // and offline worker, registered through the shared /pwa-install.js
+    // helper. The portal origin keeps the shared manifest and root worker.
+    if (window.location.hostname === 'ladies.3dvr.tech') {
+      window.__pwaInstallConfig = { swUrl: '/3dvr-girl/service-worker.js', swScope: '/3dvr-girl/' };
+      document.querySelector('link[rel="manifest"]').href = '/3dvr-girl/girl.webmanifest';
+    }
+  </script>
+  <script src="/pwa-install.js?v=2026-11-07-footer1" defer></script>
+  <link rel="stylesheet" href="/styles/install-link.css">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script defer src="/gun-init.js"></script>
+  <script defer src="/auth-identity.js"></script>
+  <script defer src="../viewer.js"></script>
+  <script type="module" src="app.js"></script>
+  <script type="module" src="chat.js"></script>
+</head>
+<body class="hud">
+  <header class="topbar">
+    <div class="topbar__row">
+      <a class="brand" href="../" aria-label="Back to the 3DVR Girl world page">
+        <span class="brand__mark">3DVR</span>
+        <span>Girl</span>
+      </a>
+      <a class="topbar__portal" href="../../index.html">Portal ↗</a>
+    </div>
+    <div class="topbar__strip">
+      <nav class="topbar__nav" aria-label="Page navigation">
+        <a href="#worlds" data-tab="about">Worlds</a>
+        <a href="#gallery" data-tab="scenes">Scenes</a>
+        <a href="#golden-hour" data-tab="goldenhour">Golden Hour</a>
+        <a href="#after-dark" data-tab="afterdark">After Dark</a>
+        <a href="#stories" data-tab="stories">Storybooks</a>
+        <a href="#chat" data-tab="chat">Chat</a>
+        <a href="../">Her world</a>
+      </nav>
+    </div>
+  </header>
+
+
+  <div class="hud-body">
+    <nav class="hud-rail" id="characterRail" aria-label="Character select"></nav>
+    <main id="top" class="hud-stage">
+    <section class="hero" aria-labelledby="pageTitle">
+      <img class="hero__image" id="heroImage" alt="">
+      <div class="hero__veil" aria-hidden="true"></div>
+      <div class="hero__content">
+        <p class="eyebrow" id="heroEyebrow"></p>
+        <h1 id="pageTitle"></h1>
+        <p class="hero__copy" id="heroTagline"></p>
+        <div class="hero__tags" id="heroTags" aria-label="Character qualities"></div>
+        <div class="hero__actions">
+          <a class="button" href="#worlds" data-tab="about">See her world <span aria-hidden="true">↓</span></a>
+          <a class="button button--quiet" href="#chat" data-tab="chat">Talk with her <span aria-hidden="true">↓</span></a>
+        </div>
+      </div>
+    </section>
+
+    <div class="tab-panel" data-tab-panel="about">
+      <section class="intro section" aria-labelledby="aboutTitle">
+        <div class="intro__copy">
+          <p class="eyebrow">Who she is</p>
+          <h2 id="aboutTitle"></h2>
+          <div id="aboutCopy"></div>
+        </div>
+        <aside class="identity-card" aria-label="Character notes">
+          <p class="eyebrow">Field notes</p>
+          <dl id="fieldNotes"></dl>
+        </aside>
+      </section>
+
+      <section class="section" id="worlds" aria-labelledby="worldsTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Her modes</p>
+            <h2 id="worldsTitle">One character.<br>Different worlds.</h2>
+          </div>
+          <p>Less glowing-logo sci-fi. More places you can almost step into.</p>
+        </div>
+        <div class="world-grid" id="worldGrid"></div>
+      </section>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="scenes" hidden>
+      <section class="section" id="gallery" aria-labelledby="galleryTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Scene archive</p>
+            <h2 id="galleryTitle">Her scenes.</h2>
+          </div>
+          <p>Tap a scene to open it full-size.</p>
+        </div>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </section>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="goldenhour" hidden>
+      <section class="section" id="golden-hour" aria-labelledby="goldenHourTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Golden hour</p>
+            <h2 id="goldenHourTitle">Her in-between shelf.</h2>
+          </div>
+          <p>Sexier than her scenes, dressed enough for daylight. Nothing here needs a lock. Tap a photo to open it full-size.</p>
+        </div>
+        <div class="gallery-grid" id="goldenHourGrid"></div>
+      </section>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="afterdark" hidden>
+      <section class="section after-dark" id="after-dark" aria-labelledby="afterDarkTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">After dark</p>
+            <h2 id="afterDarkTitle">Her private frames.</h2>
+          </div>
+          <p>The side of her archive that is not for the open page.</p>
+        </div>
+        <div class="after-dark__lock" id="afterDarkLock">
+          <p><strong>This part of her world is private.</strong></p>
+          <p id="afterDarkLockCopy">Members will be able to unlock these frames here. The owner sees them open.</p>
+          <a class="button" id="afterDarkUnlock" href="#" hidden>Unlock After Dark</a>
+          <a class="button" id="afterDarkSignIn" href="../../sign-in.html">Sign in</a>
+        </div>
+        <div class="gallery-grid" id="afterDarkGrid"></div>
+      </section>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="stories" hidden>
+      <section class="section" id="stories" aria-labelledby="storiesTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Storybook</p>
+            <h2 id="storiesTitle">The storybooks.</h2>
+          </div>
+          <p id="storiesNote"></p>
+        </div>
+        <div class="story-grid" id="storyGrid"></div>
+      </section>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="chat" hidden>
+      <section class="section chat-section" id="chat" aria-labelledby="chatTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Private chat</p>
+            <h2 id="chatTitle">Talk with her</h2>
+          </div>
+          <p id="chatNote"></p>
+        </div>
+        <div class="chat-panel">
+          <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversation"></div>
+          <form class="chat-form" id="chatForm">
+            <label class="sr-only" for="chatMessage">Message</label>
+            <textarea id="chatMessage" rows="2" maxlength="6000" required></textarea>
+            <button class="button" id="chatSend" type="submit">Send ↑</button>
+          </form>
+          <p class="chat-status" id="chatStatus" role="status"></p>
+        </div>
+      </section>
+    </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>Part of the <a href="../../index.html">3DVR portal</a> · Back to <a href="../">her world page</a> · Meet <a href="../../characters/">the Portal Crew</a> · <a href="#" data-install-link hidden>Install 3DVR Girl</a></p>
+  </footer>
+
+  <dialog class="gallery-dialog" id="lightbox" aria-label="Full-screen photo viewer">
+    <button class="gallery-dialog__close" id="lightboxClose" type="button" aria-label="Close photo">×</button>
+    <button class="gallery-dialog__nav gallery-dialog__nav--prev" id="lightboxPrev" type="button" aria-label="Previous photo">‹</button>
+    <figure class="gallery-dialog__figure">
+      <img id="lightboxImage" alt="">
+      <figcaption class="gallery-dialog__caption">
+        <span id="lightboxCounter"></span>
+        <strong id="lightboxCaption"></strong>
+      </figcaption>
+      <p class="gallery-dialog__copy" id="lightboxCopy" hidden></p>
+    </figure>
+    <button class="gallery-dialog__nav gallery-dialog__nav--next" id="lightboxNext" type="button" aria-label="Next photo">›</button>
+  </dialog>
+
+  <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top" hidden>↑ Top</button>
+</body>
+</html>

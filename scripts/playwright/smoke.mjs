@@ -92,7 +92,8 @@ try {
   const pageTitle = await page.title();
   const heading = (await page.locator('#home-title').innerText()).trim();
   const operatorLink = page.locator('.operator-link');
-  const spinner = page.locator('[data-spinner-nav-toggle]');
+  const spinner = page.locator('[data-portal-swirl-logo]');
+  const spinnerNavToggle = page.locator('[data-spinner-nav-toggle]');
   const coreActions = page.locator('.action-card');
   const responseAboveComposer = await page.evaluate(() => {
     const response = document.querySelector('#homeOperatorResult');
@@ -104,6 +105,7 @@ try {
   assert.equal(heading, 'What do you want to do?');
   assert.equal(await operatorLink.count(), 1);
   assert.equal(await spinner.count(), 1);
+  assert.equal(await spinnerNavToggle.count(), 0, 'Homepage spinner is a toy, not a navigation toggle');
   assert.equal(await coreActions.count(), 0);
   assert.equal(responseAboveComposer, true, 'Homepage Operator response must appear above the composer');
 

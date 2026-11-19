@@ -7,7 +7,7 @@ import { OperatorCore } from "../core";
 import { Device, OwnerPolicy } from "../types";
 import { nowIso } from "../crypto";
 import { ModelRouter } from "./router";
-import { FakeProvider, OllamaProvider, OpenAiCompatibleProvider, FetchLike } from "./providers";
+import { FakeProvider, OllamaProvider, OpenAiCompatibleProvider, OpenAiResponsesProvider, FetchLike } from "./providers";
 import { routerFromEnv } from "./config";
 import { PlanContext } from "./types";
 
@@ -151,6 +151,59 @@ test("provider HTTP failure is a clean error, not a plan", async () => {
   await assert.rejects(() => router.propose(CONTEXT), /status 500/);
 });
 
+test("responses provider posts the responses shape and extracts output_text", async () => {
+  let seenUrl = "";
+  let seenAuth: string | undefined;
+  let seenBody: Record<string, unknown> = {};
+  const fetchFn: FetchLike = async (url, init) => {
+    seenUrl = url;
+    seenAuth = init.headers["authorization"];
+    seenBody = JSON.parse(init.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        output: [
+          { type: "reasoning", content: [] },
+          { type: "message", content: [{ type: "output_text", text: VALID_PLAN }] },
+        ],
+      }),
+    };
+  };
+  const provider = new OpenAiResponsesProvider({
+    baseUrl: "https://models.example/v1",
+    model: "gpt-test",
+    apiKey: "sk-test-not-real",
+    fetchFn,
+  });
+  const router = new ModelRouter([provider]);
+  const result = await router.propose(CONTEXT);
+  assert.equal(result.provider_id, "responses:gpt-test");
+  assert.equal(result.proposals.length, 2);
+  assert.equal(seenUrl, "https://models.example/v1/responses");
+  assert.equal(seenAuth, "Bearer sk-test-not-real");
+  assert.equal(seenBody.model, "gpt-test");
+  assert.equal(seenBody.store, false);
+  const input = seenBody.input as Array<{ role: string; content: string }>;
+  assert.equal(input.length, 1);
+  assert.equal(input[0].role, "user");
+  assert.match(input[0].content, /Save notes to the laptop/);
+});
+
+test("responses provider fails cleanly on HTTP errors and missing output_text", async () => {
+  const httpFail: FetchLike = async () => ({ ok: false, status: 401, json: async () => ({}) });
+  const p1 = new OpenAiResponsesProvider({ baseUrl: "https://x/v1", model: "m", fetchFn: httpFail });
+  await assert.rejects(() => new ModelRouter([p1]).propose(CONTEXT), /status 401/);
+
+  const noText: FetchLike = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ output: [{ type: "message", content: [{ type: "refusal", refusal: "no" }] }] }),
+  });
+  const p2 = new OpenAiResponsesProvider({ baseUrl: "https://x/v1", model: "m", fetchFn: noText });
+  await assert.rejects(() => new ModelRouter([p2]).propose(CONTEXT), /no text content/);
+});
+
 test("env config builds an api-first router and requires a model name", () => {
   const router = routerFromEnv({
     OPERATOR_MODEL_PROVIDER: "api",
@@ -160,4 +213,17 @@ test("env config builds an api-first router and requires a model name", () => {
   });
   assert.deepEqual(router.providerIds(), ["api:some-model", "ollama:local-model"]);
   assert.throws(() => routerFromEnv({ OPERATOR_MODEL_PROVIDER: "api" }), /NAME is required/);
+});
+
+test("env config builds a responses primary with an api fallback that has its own key", () => {
+  const router = routerFromEnv({
+    OPERATOR_MODEL_PROVIDER: "responses",
+    OPERATOR_MODEL_NAME: "gpt-test",
+    OPERATOR_MODEL_FALLBACK: "api",
+    OPERATOR_MODEL_FALLBACK_NAME: "openclaw/main",
+    OPERATOR_MODEL_FALLBACK_BASE_URL: "http://127.0.0.1:18789/v1",
+    OPERATOR_MODEL_FALLBACK_API_KEY: "fallback-key-not-real",
+  });
+  assert.deepEqual(router.providerIds(), ["responses:gpt-test", "api:openclaw/main"]);
+  assert.throws(() => routerFromEnv({ OPERATOR_MODEL_PROVIDER: "responses" }), /NAME is required/);
 });

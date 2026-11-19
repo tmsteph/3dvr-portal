@@ -84,7 +84,7 @@ jobs:
               page = response.read().decode()
               assert '<title>3DVR Operator</title>' in page
               assert "location.hostname === 'operator.3dvr.tech'" not in page
-          for path in ['/operator/app.js', '/operator/install.js', '/operator/service-worker.js', '/sign-in.html?redirect=%2Foperator%2F', '/gun-init.js', '/auth-identity.js', '/icons/icon-192.png', '/icons/icon-512.png']:
+          for path in ['/operator/app.js', '/pwa-install.js', '/operator/service-worker.js', '/sign-in.html?redirect=%2Foperator%2F', '/gun-init.js', '/auth-identity.js', '/icons/icon-192.png', '/icons/icon-512.png']:
               with urllib.request.urlopen(origin + path, timeout=25) as response:
                   assert response.status == 200, path
                   assert response.url.startswith(origin + '/'), response.url

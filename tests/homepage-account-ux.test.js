@@ -33,17 +33,19 @@ test('homepage account entry follows portal auth state', async () => {
   assert.doesNotMatch(app, /signInLink\.hidden/);
 });
 
-test('homepage keeps the first screen concise and makes spinner navigation deliberate', async () => {
+test('homepage keeps the first screen concise and the spinner stays a toy', async () => {
   const html = await read('index.html');
 
   assert.match(html, /What do you want to do\?/);
-  assert.match(html, /Hold to open quick navigation/);
+  assert.doesNotMatch(html, /Hold to open quick navigation/);
   assert.doesNotMatch(html, /Tap for shortcuts/);
-  assert.match(html, /spinner-nav__item--games" href="\/games\.html">Games<\/a>/);
-  assert.match(html, /spinner-nav__item--leads" href="\/lead-finder\/">Lead Finder<\/a>/);
-  assert.match(html, /const spinnerHoldDelay = 560/);
-  assert.match(html, /spinner\?\.addEventListener\('pointermove'/);
-  assert.match(html, /if \(distance > 10\)/);
+  assert.doesNotMatch(html, /data-spinner-nav-toggle/);
+  assert.doesNotMatch(html, /data-spinner-nav/);
+  assert.doesNotMatch(html, /spinner-nav__item/);
+  assert.doesNotMatch(html, /const spinnerHoldDelay/);
+  // The old spinner menu destinations stay one tap away without it.
+  assert.match(html, /href="\/games\.html">Games<\/a>/);
+  assert.match(html, /app-link" href="\/lead-finder\/"/);
   assert.doesNotMatch(html, /duration <= 340/);
   assert.doesNotMatch(html, /Operator sees this page plus available/);
   assert.doesNotMatch(html, /<p class="eyebrow">3DVR Portal<\/p>/);

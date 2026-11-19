@@ -804,48 +804,26 @@ input[type="checkbox"]:checked::after {
   font-size: 0.92rem;
 }
 
-.install-banner {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  z-index: 12;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: rgba(25, 24, 21, 0.96);
-  box-shadow: 0 22px 50px var(--shadow);
-  padding: 12px;
-}
-
-.install-banner.is-hidden {
-  display: none;
-}
-
-.install-banner p {
-  margin: 0;
-}
-
-.install-banner__title {
-  font-weight: 900;
-}
-
-.install-banner__meta {
-  color: var(--muted);
+/* Quiet install affordance (2026-11-07): installing is a plain link
+   in a small footer at the end of the page. The shared helper shows it
+   only while the browser offers an install prompt for an app that is
+   not installed yet. Nothing floats, overlays, or interrupts. */
+.install-footer {
+  padding: 16px 12px 4px;
+  text-align: center;
   font-size: 0.92rem;
-  line-height: 1.35;
+  color: var(--muted);
 }
 
-.install-banner__action {
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--amber);
-  color: var(--ink);
-  padding: 12px 14px;
-  font-weight: 900;
+[data-install-link] {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+[data-install-link][hidden] {
+  display: none;
 }
 
 @media (min-width: 760px) {

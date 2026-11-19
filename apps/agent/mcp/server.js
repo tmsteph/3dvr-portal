@@ -18,7 +18,7 @@ const {
 } = require('../connectors/google/legacy-imap');
 
 const GATEWAY_NAME = '3dvr-control-gateway';
-const GATEWAY_VERSION = '0.3.0';
+const GATEWAY_VERSION = '0.4.0';
 
 function publicAccount(account) {
   if (!account) return null;
@@ -39,11 +39,10 @@ function toolResult(value) {
 async function audited(tool, meta, action, auditImpl = appendAudit) {
   try {
     const value = await action();
-    auditImpl({ actor: 'chatgpt-mcp', tool, ...meta, result: 'success' });
+    auditImpl({ tool, ...meta, result: 'success' });
     return toolResult(value);
   } catch (error) {
     auditImpl({
-      actor: 'chatgpt-mcp',
       tool,
       ...meta,
       result: 'error',
@@ -77,7 +76,12 @@ function createGatewayMcpServer(options = {}) {
     const module = await import('../../../src/organism/remote.js');
     return module.rememberOnOvh(content, rememberOptions);
   });
-  const auditImpl = options.auditImpl || appendAudit;
+  const baseAuditImpl = options.auditImpl || appendAudit;
+  // The HTTP layer resolves the calling agent from its bearer token and
+  // passes it in as options.actor; every audit entry is stamped with it.
+  // Direct in-process construction keeps the historical label.
+  const actor = options.actor || 'chatgpt-mcp';
+  const auditImpl = (entry) => baseAuditImpl({ ...entry, actor });
   const enablePrivileged = options.enablePrivileged ?? process.env.THREEDVR_MCP_ENABLE_PRIVILEGED === 'true';
   const ownerAuthorized = options.ownerAuthorized === true;
   const enableDrafts = options.enableDrafts ?? process.env.THREEDVR_MCP_ENABLE_DRAFTS === 'true';
@@ -526,9 +530,53 @@ function isLoopbackHost(host) {
   return ['127.0.0.1', 'localhost', '::1'].includes(String(host || '').toLowerCase());
 }
 
+// Per-agent client tokens arrive as a JSON object in
+// THREEDVR_MCP_AGENT_TOKENS, for example {"claude": "...", "operator": "..."}.
+// Parsing is defensive: anything malformed yields an empty map so a bad
+// config value can never crash the gateway or widen access.
+function parseAgentTokens(raw) {
+  if (!raw) return {};
+  let parsed;
+  try {
+    parsed = JSON.parse(String(raw));
+  } catch {
+    return {};
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const tokens = {};
+  for (const [name, value] of Object.entries(parsed)) {
+    const agent = String(name || '').trim().toLowerCase();
+    const token = typeof value === 'string' ? value : '';
+    if (/^[a-z0-9][a-z0-9._-]{0,63}$/.test(agent) && token) tokens[agent] = token;
+  }
+  return tokens;
+}
+
+function agentTokenPairs({ authToken = '', agentTokens = {} } = {}) {
+  const pairs = Object.entries(agentTokens || {})
+    .map(([agent, token]) => ({ agent, token: String(token || '') }))
+    .filter((pair) => pair.token);
+  // The long-standing shared token keeps working; it acts as agent "chatgpt".
+  if (authToken) pairs.push({ agent: 'chatgpt', token: String(authToken) });
+  return pairs;
+}
+
+// Timing-safe resolution: every configured token is compared, with no
+// early exit on a match, and the comparison itself is constant-time for
+// equal-length inputs (see safeTokenEqual).
+function resolveAgent(pairs, candidate) {
+  let matched = null;
+  for (const pair of pairs || []) {
+    if (safeTokenEqual(pair.token, candidate)) matched = pair.agent;
+  }
+  return matched;
+}
+
 function createHttpApp(options = {}) {
   const app = createMcpExpressApp();
   const authToken = options.authToken ?? process.env.THREEDVR_MCP_AUTH_TOKEN ?? '';
+  const agentTokens = options.agentTokens ?? parseAgentTokens(process.env.THREEDVR_MCP_AGENT_TOKENS);
+  const tokenPairs = agentTokenPairs({ authToken, agentTokens });
   const gatewayOptions = options.gatewayOptions || {};
   const ownerToken = options.ownerToken ?? process.env.THREEDVR_MCP_OWNER_TOKEN ?? '';
 
@@ -537,19 +585,22 @@ function createHttpApp(options = {}) {
   });
 
   app.post('/mcp', async (req, res) => {
-    if (authToken) {
+    let actor = 'chatgpt-mcp';
+    if (tokenPairs.length) {
       const header = String(req.headers.authorization || '');
       const candidate = header.startsWith('Bearer ') ? header.slice(7) : '';
-      if (!safeTokenEqual(authToken, candidate)) {
+      const agent = resolveAgent(tokenPairs, candidate);
+      if (!agent) {
         res.status(401).json({ error: 'unauthorized' });
         return;
       }
+      actor = agent;
     }
 
     const ownerHeader = String(req.headers['x-3dvr-owner-authorization'] || '');
     const ownerCandidate = ownerHeader.startsWith('Bearer ') ? ownerHeader.slice(7) : '';
     const ownerAuthorized = Boolean(ownerToken) && safeTokenEqual(ownerToken, ownerCandidate);
-    const server = createGatewayMcpServer({ ...gatewayOptions, ownerAuthorized });
+    const server = createGatewayMcpServer({ ...gatewayOptions, ownerAuthorized, actor });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     try {
       await server.connect(transport);
@@ -586,11 +637,12 @@ async function startHttpServer(options = {}) {
   const host = options.host || process.env.THREEDVR_MCP_HOST || '127.0.0.1';
   const port = Number(options.port ?? process.env.THREEDVR_MCP_PORT ?? 8788);
   const authToken = options.authToken ?? process.env.THREEDVR_MCP_AUTH_TOKEN ?? '';
-  if (!isLoopbackHost(host) && !authToken) {
+  const agentTokens = options.agentTokens ?? parseAgentTokens(process.env.THREEDVR_MCP_AGENT_TOKENS);
+  if (!isLoopbackHost(host) && !authToken && !Object.keys(agentTokens).length) {
     throw new Error('THREEDVR_MCP_AUTH_TOKEN is required when binding outside loopback.');
   }
 
-  const app = createHttpApp({ ...options, authToken, ownerToken: options.ownerToken });
+  const app = createHttpApp({ ...options, authToken, agentTokens, ownerToken: options.ownerToken });
   const httpServer = await new Promise((resolve, reject) => {
     const listener = app.listen(port, host, () => resolve(listener));
     listener.on('error', reject);
@@ -601,10 +653,13 @@ async function startHttpServer(options = {}) {
 module.exports = {
   GATEWAY_NAME,
   GATEWAY_VERSION,
+  agentTokenPairs,
   createGatewayMcpServer,
   createHttpApp,
   isLoopbackHost,
+  parseAgentTokens,
   publicAccount,
+  resolveAgent,
   safeTokenEqual,
   startHttpServer,
 };

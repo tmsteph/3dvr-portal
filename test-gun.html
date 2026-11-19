@@ -13,7 +13,6 @@
     .timestamp { font-size: 0.8rem; color: #666; }
   </style>
 
-  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <h1>GunJS Relay Test</h1>
@@ -28,7 +27,7 @@
   <script>
     const gun = Gun(window.__GUN_PEERS__ || [
       'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
+      'wss://portal.3dvr.tech/gun-relay'
     ]);
     const messages = gun.get('test/messages');
 

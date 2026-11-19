@@ -1,7 +1,7 @@
 const MAX_LENGTH = 12000;
 const CLIPBOARD_ROOT_NODE = 'privateClipboards';
 const ENCRYPTION_CONTEXT = '3dvr-portal-clipboard-v1';
-const PREFERRED_PEERS = ['wss://gun-relay-3dvr.fly.dev/gun'];
+const PREFERRED_PEERS = ['wss://portal.3dvr.tech/gun-relay'];
 const DISABLED_PEERS = new Set(['wss://relay.3dvr.tech/gun']);
 
 const state = {

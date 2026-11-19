@@ -4,7 +4,7 @@ const RANK = { queued: 1, deferred: 2, sending: 2, uncertain: 3, stale: 4, cance
 
 export function validMessage(record) {
   return record && ID.test(record.id || '') && ID.test(record.sessionId || '')
-    && ['openclaw', 'codex', 'codex-backup'].includes(record.engine ?? 'openclaw')
+    && ['openclaw', 'codex', 'codex-backup', 'core'].includes(record.engine ?? 'openclaw')
     && typeof record.text === 'string' && record.text.trim() && record.text.length <= 6000
     && Number.isSafeInteger(record.createdAt) && Number.isSafeInteger(record.expiresAt)
     && record.expiresAt > record.createdAt && record.expiresAt - record.createdAt <= MESSAGE_TTL_MS
@@ -12,7 +12,7 @@ export function validMessage(record) {
     && Object.hasOwn(RANK, record.status);
 }
 
-export function createOutbox({ save, send, isReady, onChange = () => {}, canSend = () => true, now = Date.now }) {
+export function createOutbox({ save, send, poll, isReady, onChange = () => {}, canSend = () => true, now = Date.now }) {
   const records = new Map();
   let draining = false;
   const snapshot = () => [...records.values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
@@ -34,8 +34,12 @@ export function createOutbox({ save, send, isReady, onChange = () => {}, canSend
       records.set(record.id, record);
       changed();
     },
-    async enqueue({ id, sessionId, text, engine = 'openclaw' }) {
-      const createdAt = now();
+    async enqueue({ id, sessionId, text, engine = 'openclaw', createdAt: providedAt }) {
+      // A caller that already stamped the record (the leave-quickly
+      // journal in app.js writes it synchronously at tap time) keeps
+      // its timestamps, so the journaled copy and the outbox record are
+      // the same record, not two near-identical ones.
+      const createdAt = Number.isSafeInteger(providedAt) ? providedAt : now();
       const record = { id, sessionId, text, engine, createdAt, expiresAt: createdAt + MESSAGE_TTL_MS,
         updatedAt: createdAt, status: 'queued' };
       if (!validMessage(record)) throw new Error('Invalid message.');
@@ -58,15 +62,27 @@ export function createOutbox({ save, send, isReady, onChange = () => {}, canSend
       try {
         await this.expire();
         while (isReady()) {
-          const queued = snapshot().find(record => ['queued', 'deferred'].includes(record.status) && canSend(record));
-          if (!queued) break;
-          if (now() >= queued.expiresAt) { await this.expire(); continue; }
-          const active = await commit({ ...queued, status: 'sending', updatedAt: Math.max(now(), queued.updatedAt + 1) });
-          // Save the fixed request id before dispatch. A restored sending record is never replayed.
+          const next = snapshot().find(record => (['queued', 'deferred'].includes(record.status)
+            || (record.status === 'sending' && poll)) && canSend(record));
+          if (!next) break;
+          if (next.status !== 'sending' && now() >= next.expiresAt) { await this.expire(); continue; }
+          // A restored 'sending' record is never dispatched again: its
+          // message already reached the server in an earlier page life.
+          // When a poll function is provided, drain reattaches to that
+          // turn instead: resubmitting the identical signed payload is
+          // answered by the server receipt as a query (its live preview
+          // or its terminal result), never as a second send. Without a
+          // poll function the record is left untouched, exactly as
+          // before, so a restored send can never be replayed blind.
+          const restored = next.status === 'sending';
+          // Save the fixed request id before dispatch.
+          const active = restored ? next
+            : await commit({ ...next, status: 'sending', updatedAt: Math.max(now(), next.updatedAt + 1) });
           try {
-            const result = await send(active);
+            const result = await (restored ? poll : send)(active);
             await commit({ ...active, status: 'completed', updatedAt: now(), reply: result.reply });
           } catch (error) {
+            if (restored && error.retryable) break; // Still unknown; a later drain polls again.
             await commit({ ...active, status: error.stale ? 'stale' : error.retryable ? 'deferred' : 'uncertain', updatedAt: Math.max(now(), active.updatedAt + 1),
               note: error.stale ? 'Expired · kept in history, not sent' : error.retryable ? 'Agent busy · waiting to retry' : `${error.message} Check before resending.` });
             break;

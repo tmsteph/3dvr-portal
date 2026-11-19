@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Second Key - a 3DVR girls adventure</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: #141a1d; color: #eef2e9; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  header { padding: 18px 12px 6px; text-align: center; }
+  header h1 { font-size: 1.3rem; letter-spacing: 0.04em; color: #9fd8c9; }
+  header p { font-size: 0.85rem; opacity: 0.75; margin-top: 4px; }
+  header a { color: #9fd8c9; }
+  .book { width: min(680px, 94vw); margin: 12px auto; background: #1e2622; border: 1px solid #3d5a4c; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,0.55); }
+  .page { display: none; }
+  .page.active { display: block; animation: fade 0.35s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .page img { width: 100%; display: block; }
+  .text { padding: 22px 26px 28px; }
+  .text h2 { font-size: 1.35rem; color: #9fd8c9; margin-bottom: 6px; }
+  .text .sub { font-style: italic; opacity: 0.8; margin-bottom: 10px; }
+  .text p { font-size: 1.06rem; line-height: 1.65; }
+  nav { display: flex; gap: 14px; align-items: center; padding: 6px 0 26px; }
+  button { font-family: inherit; font-size: 1rem; background: #3d5a4c; color: #eef2e9; border: 1px solid #9fd8c9; border-radius: 999px; padding: 10px 22px; cursor: pointer; }
+  button:disabled { opacity: 0.35; cursor: default; }
+  #counter { font-size: 0.95rem; opacity: 0.85; min-width: 64px; text-align: center; }
+  footer a { color: #9fd8c9; }
+</style>
+</head>
+<body>
+<header>
+  <h1>The Second Key</h1>
+  <p>Book Two &middot; a 3DVR girls adventure &middot; <a href="../../">Back to the girls</a></p>
+</header>
+<div class="book">
+<section class="page active"><img src="../../assets/storybook/sk-gate.webp" alt="The Second Key"><div class="text"><h2>The Second Key</h2><p class="sub">Book Two of the 3DVR girls adventures</p><p>The girls found the first door on their own. The second key was waiting somewhere they had never thought to look: in the keeper's drawer.</p></div></section>
+<section class="page"><img src="../../assets/storybook/sk-gate.webp" alt="1. The Keeper of the Gate"><div class="text"><h2>1. The Keeper of the Gate</h2><p>That evening the girls came back over the cliffs with salt on their boots and a story too big for one sketchbook page. The garden muse held out the brass key to Thomas, the keeper of the gate, the one who built the garden walls and keeps the portal humming. Thomas went quiet. Not because he did not believe them. Because he recognized the key. “You found the cove door,” he said at last. “Then you need to see what the telescope is really for.”</p></div></section>
+<section class="page"><img src="../../assets/storybook/sk-telescope.webp" alt="2. What the Telescope Sees"><div class="text"><h2>2. What the Telescope Sees</h2><p>Down in the hidden cove, Thomas swung the old telescope past the harbor, past the cliffs, and up into the first stars, and the girls took turns looking: an island hanging in the sky where no island should be, with a tiny door standing on it, open to nothing. “Every keeper watches that island,” he said. “None of us ever found the way up.” Kayla grinned the grin that starts expeditions. “Then we find it together.”</p></div></section>
+<section class="page"><img src="../../assets/storybook/sk-key.webp" alt="3. The Second Key"><div class="text"><h2>3. The Second Key</h2><p>Back in the workshop, under the sketches of doors Thomas had drawn from dreams and never shown anyone, he opened the drawer he never opens. Inside lay a silver key, cool as moonlight, cut for a lock shaped like a star. “The brass key opens doors in the world,” he said. “This one... I think this one opens the way between them.” The garden muse picked it up, and it warmed in her hand like the first key had. Muse drew it twice, in case it vanished by morning.</p></div></section>
+<section class="page"><img src="../../assets/storybook/sk-map.webp" alt="4. The Map of Seven Doors"><div class="text"><h2>4. The Map of Seven Doors</h2><p>By morning there was a map on the table, older than the cottage, showing seven doors: one in a cliff, one in the sky, and five in places with names like the Undertow Library and the Orchard at the End of the Road. Two keys. Seven doors. The blonde set the keys side by side like the start of a sentence, one in front of each of them. “Well,” said Thomas, pouring the tea, “you had better get building.”</p></div></section>
+<section class="page"><img src="../../assets/storybook/sk-map.webp" alt="The End"><div class="text"><h2>The End</h2><p>The end of Book Two. The island is still up there, and the silver key hangs with the brass one now, both of them in the girls' keeping. Book Three: The Island in the Sky.</p></div></section>
+</div>
+<nav>
+  <button id="prev">Back</button>
+  <span id="counter"></span>
+  <button id="next">Next page</button>
+</nav>
+<footer style="text-align:center;padding:0 16px 30px;font-size:0.95rem;line-height:1.9">
+  <div>More adventures</div>
+  <a style="color:#9fd8c9" href="../">Book One: The Door at the End of the Garden</a> &middot;
+  <a style="color:#9fd8c9" href="../second-key/">Book Two: The Second Key</a> &middot;
+  <a style="color:#9fd8c9" href="../island-in-the-sky/">Book Three: The Island in the Sky</a><br>
+  <a style="color:#9fd8c9" href="../../">Back to the girls</a>
+</footer>
+<script>
+  const pages = document.querySelectorAll('.page');
+  let i = 0;
+  const prev = document.getElementById('prev'), next = document.getElementById('next'), counter = document.getElementById('counter');
+  function show(n) {
+    i = Math.max(0, Math.min(pages.length - 1, n));
+    pages.forEach((p, k) => p.classList.toggle('active', k === i));
+    prev.disabled = i === 0;
+    next.disabled = i === pages.length - 1;
+    next.textContent = i === pages.length - 2 ? 'Last page' : 'Next page';
+    counter.textContent = (i + 1) + ' / ' + pages.length;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  prev.onclick = () => show(i - 1);
+  next.onclick = () => show(i + 1);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') show(i + 1);
+    if (e.key === 'ArrowLeft') show(i - 1);
+  });
+  let tx = null;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    if (tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx;
+    if (dx < -48) show(i + 1);
+    if (dx > 48) show(i - 1);
+    tx = null;
+  });
+  show(0);
+</script>
+</body>
+</html>

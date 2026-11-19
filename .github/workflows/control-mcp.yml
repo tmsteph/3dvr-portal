@@ -79,6 +79,9 @@ jobs:
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
           fi
           git -C "$repo" fetch --prune origin main
+          if git -C "$repo" sparse-checkout list >/dev/null 2>&1; then
+            git -C "$repo" sparse-checkout add src/organism || true
+          fi
           git -C "$repo" checkout main
           git -C "$repo" reset --hard origin/main
           git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
@@ -108,6 +111,8 @@ jobs:
           export THREEDVR_MCP_HOST=127.0.0.1
           export THREEDVR_MCP_PORT=8788
           export THREEDVR_MCP_ENABLE_DRAFTS=false
+          agent_tokens="\$(ssh -T -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh node /opt/3dvr/secrets-broker/mcp-agent-tokens.js 2>/dev/null || true)"
+          if [ -n "\$agent_tokens" ]; then export THREEDVR_MCP_AGENT_TOKENS="\$agent_tokens"; fi
           cd "$repo/apps/agent"
           exec "$node_bin" mcp/server.js
           EOF

@@ -4,9 +4,10 @@ export async function prepareOperatorChat({
   createProof,
   recallMemory,
   prompt,
-  timeoutMs = 4000
+  timeoutMs = 4000,
+  proofTimeoutMs
 }) {
-  const bounded = (operation, fallback) => new Promise(resolve => {
+  const bounded = (operation, fallback, budgetMs = timeoutMs) => new Promise(resolve => {
     let settled = false;
     const finish = value => {
       if (settled) return;
@@ -14,13 +15,16 @@ export async function prepareOperatorChat({
       clearTimeout(timer);
       resolve(value);
     };
-    const timer = setTimeout(() => finish(fallback), timeoutMs);
+    const timer = setTimeout(() => finish(fallback), budgetMs);
     Promise.resolve().then(operation).then(finish, () => finish(fallback));
   });
   return Promise.all([
     bounded(collectContext, {}),
     // Missing proof grants no developer permissions; the server still verifies all actions.
-    bounded(createProof, null),
+    // Signing can involve a cold Gun/SEA session restore plus retries, so a
+    // caller may give the proof its own longer budget: a slow-but-valid proof
+    // must not silently downgrade a signed-in member to guest (#3763).
+    bounded(createProof, null, proofTimeoutMs ?? timeoutMs),
     bounded(() => recallMemory(prompt), null)
   ]);
 }

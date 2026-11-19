@@ -33,13 +33,24 @@ test('Operator installs as a distinct app and references available public assets
   assert.equal(manifest.start_url, '/operator/');
   assert.equal(manifest.scope, '/operator/');
   assert.equal(manifest.display, 'standalone');
+  assert.equal(manifest.name, '3DVR Operator');
+  assert.equal(manifest.short_name, 'Operator');
+  assert.deepEqual(
+    manifest.icons.map((icon) => icon.src),
+    ['/icons/operator-192.png', '/icons/operator-512.png', '/icons/operator-maskable-512.png']
+  );
   for (const icon of manifest.icons) await readFile(new URL(`.${icon.src}`, root));
   const html = await readFile(new URL('operator/index.html', root), 'utf8');
   assert.ok(html.includes('href="/operator/operator.webmanifest"'));
-  assert.ok(html.includes('id="operator-install"'));
-  assert.ok(html.includes('src="/operator/install.js"'));
-  const installer = await readFile(new URL('operator/install.js', root), 'utf8');
-  assert.ok(installer.includes("register('/operator/service-worker.js', { scope: '/operator/' })"));
+  assert.ok(html.includes('>Install Operator</a>'));
+  assert.ok(html.includes('data-install-link'));
+  assert.ok(!html.includes('data-install-banner'));
+  assert.ok(html.includes('src="/pwa-install.js?v=2026-11-07-footer1"'));
+  assert.ok(html.includes('data-sw-url="/operator/service-worker.js"'));
+  assert.ok(html.includes('data-sw-scope="/operator/"'));
+  assert.ok(!html.includes('operator-install-help'));
+  assert.ok(!html.includes('Install Helm'));
+  await assert.rejects(readFile(new URL('operator/install.js', root), 'utf8'));
 });
 
 test('offline navigation returns the reconnect screen', async () => {

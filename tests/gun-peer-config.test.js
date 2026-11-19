@@ -10,18 +10,18 @@ async function read(path) {
 }
 
 describe('Gun peer configuration', () => {
-  it('keeps the known-working Fly relay first in shared peer initializers', async () => {
+  it('keeps the OVH relay first in shared peer initializers', async () => {
     for (const path of ['gun-init.js', 'contacts/gun-init.js', 'calendar/gun-init.js']) {
       const source = await read(path);
-      const flyIndex = source.indexOf('wss://gun-relay-3dvr.fly.dev/gun');
-      const flyHttpsIndex = source.indexOf('https://gun-relay-3dvr.fly.dev/gun');
+      const relayIndex = source.indexOf('wss://portal.3dvr.tech/gun-relay');
+      const relayHttpsIndex = source.indexOf('https://portal.3dvr.tech/gun-relay');
       const disabledIndex = source.indexOf('wss://relay.3dvr.tech/gun');
 
-      assert.notEqual(flyIndex, -1, `${path} should include the Fly relay`);
-      assert.notEqual(flyHttpsIndex, -1, `${path} should include the Fly HTTPS fallback`);
+      assert.notEqual(relayIndex, -1, `${path} should include the OVH relay`);
+      assert.notEqual(relayHttpsIndex, -1, `${path} should include the OVH HTTPS fallback`);
       assert.notEqual(disabledIndex, -1, `${path} should explicitly filter the dead relay`);
-      assert.ok(flyIndex < disabledIndex, `${path} should prefer Fly before mentioning disabled relays`);
-      assert.ok(flyIndex < flyHttpsIndex, `${path} should try WebSocket before HTTPS fallback`);
+      assert.ok(relayIndex < disabledIndex, `${path} should prefer the OVH relay before mentioning disabled relays`);
+      assert.ok(relayIndex < relayHttpsIndex, `${path} should try WebSocket before HTTPS fallback`);
       assert.match(source, /disabledPeers|DISABLED/);
       assert.match(source, /filter\(peer => !disabledPeers\.has\(peer\)\)/);
     }
@@ -36,7 +36,7 @@ describe('Gun peer configuration', () => {
 
     for (const [path, source] of Object.entries(files)) {
       assert.doesNotMatch(source, deadRelayPattern, `${path} should not initialize Gun with the dead relay fallback`);
-      assert.match(source, /wss:\/\/gun-relay-3dvr\.fly\.dev\/gun/, `${path} should include the Fly relay fallback`);
+      assert.match(source, /wss:\/\/portal\.3dvr\.tech\/gun-relay/, `${path} should include the OVH relay fallback`);
     }
   });
 
@@ -49,19 +49,19 @@ describe('Gun peer configuration', () => {
     assert.match(chatE2e, /__DISABLE_GUN_DEFAULT_PEERS__ = true/);
   });
 
-  it('does not let Chat try the dead relay before the working Fly relay', async () => {
+  it('does not let Chat try the dead relay before the working OVH relay', async () => {
     const source = await read('chat/index.html');
 
     assert.doesNotMatch(source, /wss:\/\/relay\.3dvr\.tech\/gun/);
-    assert.match(source, /wss:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
+    assert.match(source, /wss:\/\/portal\.3dvr\.tech\/gun-relay/);
   });
 
   it('quarantines the dead relay from the server-side Chat push watcher', async () => {
     const source = await read('services/newsletter-store/server.mjs');
-    const flyIndex = source.indexOf("process.env.CHAT_PUSH_GUN_PEERS || 'https://gun-relay-3dvr.fly.dev/gun'");
+    const relayIndex = source.indexOf("process.env.CHAT_PUSH_GUN_PEERS || 'https://portal.3dvr.tech/gun-relay'");
     const filterIndex = source.indexOf('.filter(peer => peer && !disabledGunPeers.has(peer))');
 
-    assert.notEqual(flyIndex, -1, 'the push watcher should default to the working Fly relay');
+    assert.notEqual(relayIndex, -1, 'the push watcher should default to the working OVH relay');
     assert.notEqual(filterIndex, -1, 'configured peers should filter the dead relay');
     assert.match(source, /'https:\/\/relay\.3dvr\.tech\/gun'/);
     assert.match(source, /'wss:\/\/relay\.3dvr\.tech\/gun'/);

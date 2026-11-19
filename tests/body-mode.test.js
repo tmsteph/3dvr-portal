@@ -61,7 +61,6 @@ test('Body Mode landing page ships the requested wellness-tech section', async (
   assert.match(html, /id="preferredMode"/);
   assert.match(html, /id="lastUsedApp"/);
   assert.match(html, /href="\/app-manifests\/body-mode\.webmanifest"/);
-  assert.match(html, /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/);
   assert.doesNotMatch(html, /DMT|curing|cures|treating trauma/i);
 
   assert.match(css, /--body-bg: #0d0b09/);
@@ -91,7 +90,6 @@ test('Seated Spine Reset ships a working guided reset route', async () => {
   assert.match(html, /id="routineProgress"/);
   assert.match(html, /body-line__shoulders/);
   assert.match(html, /They are not medical advice or a substitute for\s+professional care/);
-  assert.match(html, /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/);
   assert.doesNotMatch(html, /DMT|curing|cures|treating trauma/i);
 
   assert.match(js, /SEATED_SPINE_STEPS/);

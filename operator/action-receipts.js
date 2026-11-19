@@ -7,7 +7,7 @@ const LOCAL_KEY = '3dvr.operator.actionReceipts.v1';
 const ROOT_KEY = '3dvr-portal';
 const DEFAULT_PEERS = [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
+  'wss://portal.3dvr.tech/gun-relay'
 ];
 
 function clean(value = '', max = 4000) {

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Door at the End of the Garden — Living Edition - a 3DVR girls adventure</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: #1d1710; color: #f5ead6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  header { padding: 18px 12px 6px; text-align: center; }
+  header h1 { font-size: 1.3rem; letter-spacing: 0.04em; color: #e8c87a; }
+  header p { font-size: 0.85rem; opacity: 0.75; margin-top: 4px; }
+  header a { color: #e8c87a; }
+  .book { width: min(680px, 94vw); margin: 12px auto; background: #2a2118; border: 1px solid #57432a; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,0.55); }
+  .page { display: none; }
+  .page.active { display: block; animation: fade 0.35s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .page img, .page video { width: 100%; display: block; }
+  .text { padding: 22px 26px 28px; }
+  .text h2 { font-size: 1.35rem; color: #e8c87a; margin-bottom: 6px; }
+  .text .sub { font-style: italic; opacity: 0.8; margin-bottom: 10px; }
+  .text p { font-size: 1.06rem; line-height: 1.65; }
+  nav { display: flex; gap: 14px; align-items: center; padding: 6px 0 26px; }
+  button { font-family: inherit; font-size: 1rem; background: #57432a; color: #f5ead6; border: 1px solid #e8c87a; border-radius: 999px; padding: 10px 22px; cursor: pointer; }
+  button:disabled { opacity: 0.35; cursor: default; }
+  #counter { font-size: 0.95rem; opacity: 0.85; min-width: 64px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>The Door at the End of the Garden — Living Edition</h1>
+  <p>The same story, with living pictures &middot; <a href="../">Classic edition</a> &middot; <a href="../../">Back to the girls</a></p>
+</header>
+<div class="book">
+<section class="page active"><video autoplay muted loop playsinline preload="metadata" poster="../../assets/storybook/cover-garden-key.webp" aria-label="The Door at the End of the Garden"><source src="../../assets/storybook/living/living-ch1-key.mp4" type="video/mp4"></video><div class="text"><h2>The Door at the End of the Garden</h2><p class="sub">An adventure of the 3DVR girls</p><p>Four friends, one small brass key, and a door that had been waiting a very long time to be found.</p></div></section>
+<section class="page"><video autoplay muted loop playsinline preload="metadata" poster="../../assets/storybook/cover-garden-key.webp" aria-label="1. The Key in the Lavender"><source src="../../assets/storybook/living/living-ch1-key.mp4" type="video/mp4"></video><div class="text"><h2>1. The Key in the Lavender</h2><p>One sunrise, the garden muse was picking lavender when something bright winked up at her from the leaves. A brass key, small and warm, as if it had been waiting for her all along. She held it up to the light, and the others came running through the garden gate. “Keys mean doors,” said Kayla. “And doors,” said Muse, already sketching, “mean stories.”</p></div></section>
+<section class="page"><video autoplay muted loop playsinline preload="metadata" poster="../../assets/storybook/forest-trail.webp" aria-label="2. The Trail of Turquoise Stones"><source src="../../assets/storybook/living/living-ch2-trail.mp4" type="video/mp4"></video><div class="text"><h2>2. The Trail of Turquoise Stones</h2><p>Kayla led the way into the forest, because trails are her language. Past the creek and under the tall trees, they found them: small turquoise stones, one every few steps, too even to be an accident. By the old oak with the carved star, the key on its cord grew warm in the muse's hand. “We are close,” she said. “It knows the way.”</p></div></section>
+<section class="page"><video autoplay muted loop playsinline preload="metadata" poster="../../assets/storybook/cliff-door.webp" aria-label="3. The Door in the Cliff"><source src="../../assets/storybook/living/living-ch3-door.mp4" type="video/mp4"></video><div class="text"><h2>3. The Door in the Cliff</h2><p>The stones ended at the cliffs, where the path gave up and the sea took over. And there it was: a little wooden door set into the rock, no bigger than a cupboard, its brass knob blackened by salt. The blonde stepped forward, took the key, and turned it. The lock clicked like a small, happy secret, and warm light spilled out around the edges.</p></div></section>
+<section class="page"><video autoplay muted loop playsinline preload="metadata" poster="../../assets/storybook/cove-picnic.webp" aria-label="4. The Cove at the End of the World"><source src="../../assets/storybook/living/living-ch4-cove.mp4" type="video/mp4"></video><div class="text"><h2>4. The Cove at the End of the World</h2><p>Behind the door was a stair of smooth stone, and below it a hidden cove: calm turquoise water, a tree hung with lights, a telescope older than all of them, and a flat rock made for picnics. They ate as the sun went down and the first stars came out, and Muse drew the cove into her book so they would never lose it. “Some treasures are places,” the garden muse said. “And some doors only open for friends.”</p></div></section>
+<section class="page"><video autoplay muted loop playsinline preload="metadata" poster="../../assets/storybook/cove-picnic.webp" aria-label="The End"><source src="../../assets/storybook/living/living-ch4-cove.mp4" type="video/mp4"></video><div class="text"><h2>The End</h2><p>The key hangs by the garden gate now, polished bright from use. Because everyone knows the cove was only the first door. The end... until the next key.</p></div></section>
+</div>
+<nav>
+  <button id="prev">Back</button>
+  <span id="counter"></span>
+  <button id="next">Next page</button>
+</nav>
+<script>
+  const pages = document.querySelectorAll('.page');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let i = 0;
+  const prev = document.getElementById('prev'), next = document.getElementById('next'), counter = document.getElementById('counter');
+  if (reduceMotion) {
+    document.querySelectorAll('.page video').forEach(v => { v.removeAttribute('autoplay'); v.pause(); });
+  }
+  function show(n) {
+    i = Math.max(0, Math.min(pages.length - 1, n));
+    pages.forEach((p, k) => {
+      p.classList.toggle('active', k === i);
+      const v = p.querySelector('video');
+      if (v) {
+        if (k === i && !reduceMotion) { const pr = v.play(); if (pr) pr.catch(() => {}); }
+        else { v.pause(); }
+      }
+    });
+    prev.disabled = i === 0;
+    next.disabled = i === pages.length - 1;
+    next.textContent = i === pages.length - 2 ? 'Last page' : 'Next page';
+    counter.textContent = (i + 1) + ' / ' + pages.length;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  prev.onclick = () => show(i - 1);
+  next.onclick = () => show(i + 1);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') show(i + 1);
+    if (e.key === 'ArrowLeft') show(i - 1);
+  });
+  let tx = null;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    if (tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx;
+    if (dx < -48) show(i + 1);
+    if (dx > 48) show(i - 1);
+    tx = null;
+  });
+  show(0);
+</script>
+<footer style="text-align:center;padding:0 16px 30px;font-size:0.95rem;line-height:1.9">
+  <div>More adventures</div>
+  <a style="color:#e8c87a" href="../">Book One: The Door at the End of the Garden</a> &middot;
+  <a style="color:#e8c87a" href="../second-key/">Book Two: The Second Key</a> &middot;
+  <a style="color:#e8c87a" href="../island-in-the-sky/">Book Three: The Island in the Sky</a><br>
+  <a style="color:#e8c87a" href="../../">Back to the girls</a>
+</footer>
+</body>
+</html>

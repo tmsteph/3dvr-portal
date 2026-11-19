@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Woof test — in-browser text to speech</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #101418; color: #e8edf2; }
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+  a { color: #8ecbff; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: #a7b3bf; font-size: 14px; line-height: 1.5; margin: 0 0 16px; }
+  label { display: block; font-size: 13px; color: #a7b3bf; margin: 14px 0 6px; }
+  textarea { width: 100%; min-height: 110px; resize: vertical; padding: 10px; border-radius: 10px; border: 1px solid #2c3641; background: #161c22; color: #e8edf2; font-size: 16px; line-height: 1.45; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  select { padding: 10px; border-radius: 10px; border: 1px solid #2c3641; background: #161c22; color: #e8edf2; font-size: 16px; }
+  button { padding: 11px 22px; border-radius: 10px; border: 0; background: #2f81f7; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { padding: 7px 12px; border-radius: 999px; border: 1px solid #2c3641; background: #161c22; color: #c9d4de; font-size: 13px; font-weight: 400; cursor: pointer; }
+  #status { margin-top: 16px; font-size: 14px; color: #ffd479; min-height: 20px; }
+  #status.ready { color: #7ee2a0; }
+  #status.error { color: #ff9a9a; }
+  .reads { margin-top: 14px; padding: 12px; border: 1px solid #2c3641; border-radius: 10px; background: #131920; display: none; }
+  .reads .k { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #7d8b99; margin-bottom: 6px; }
+  .reads .v { font-size: 15px; line-height: 1.5; }
+  audio { width: 100%; margin-top: 16px; display: none; }
+  #download { display: none; margin-top: 10px; font-size: 14px; }
+  .fine { margin-top: 28px; font-size: 12.5px; color: #7d8b99; line-height: 1.6; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="/">&larr; Portal</a></p>
+  <h1>Woof test</h1>
+  <p class="sub">An experiment. Underdog's Woof is a tiny text-to-speech model that runs
+  entirely in this browser tab: Python and numpy compiled to WebAssembly, model weights
+  loaded once (about 41 MB), then every word is generated on your device. Nothing you
+  type is sent to a server. It is known for reading the hard stuff out loud correctly:
+  phone numbers, dates, prices and codes.</p>
+
+  <label for="text">Text to speak (keep it short, a sentence or two works best)</label>
+  <textarea id="text" maxlength="600">Please call me back at 415-555-0199 before 5:30 p.m. on Friday. Your total is $1,249.99 and the tracking code is QX-4471.</textarea>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="row">
+    <select id="voice" aria-label="Voice">
+      <option value="juno">Juno</option>
+      <option value="mira">Mira</option>
+    </select>
+    <button id="speak" disabled>Loading…</button>
+  </div>
+
+  <div id="status">Starting…</div>
+
+  <div class="reads" id="reads">
+    <div class="k">Woof reads it as</div>
+    <div class="v" id="readsText"></div>
+  </div>
+
+  <audio id="player" controls></audio>
+  <a id="download" download="woof.wav">Download the WAV</a>
+
+  <p class="fine">Voice by Underdog Woof. Test page only: Woof is free for
+  non-commercial use under the Underdog Non-Commercial License 1.0, so this experiment
+  is not a product feature. Model and code: huggingface.co/ConwayResearch/Underdog-Woof.
+  Runtime: Pyodide (CPython + numpy in WebAssembly). First load is roughly 55 MB all-in;
+  after that the model is cached and generation happens on-device, offline included.
+  Generation speed depends on your device: expect a few seconds per sentence.</p>
+</main>
+
+<script type="text/plain" id="worker-src">
+importScripts("https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js");
+
+const HF = "https://huggingface.co/ConwayResearch/Underdog-Woof/resolve/main/";
+const PY_FILES = ["__init__.py", "runtime.py", "normalize.py", "respell.py", "textsplit.py", "respell.tsv"];
+let py = null;
+
+function status(stage, detail) { postMessage({ type: "status", stage, detail }); }
+
+async function fetchCached(url) {
+  const cache = await caches.open("woof-test-v1");
+  const hit = await cache.match(url);
+  if (hit) return new Uint8Array(await hit.arrayBuffer());
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Fetch failed (" + res.status + ") for " + url);
+  cache.put(url, res.clone());
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function fetchWeightsWithProgress(url) {
+  const cache = await caches.open("woof-test-v1");
+  const hit = await cache.match(url);
+  if (hit) { status("weights", "Model found in cache."); return new Uint8Array(await hit.arrayBuffer()); }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Model download failed (" + res.status + ")");
+  const total = Number(res.headers.get("Content-Length") || 40595426);
+  const reader = res.body.getReader();
+  const chunks = [];
+  let got = 0, lastMark = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    got += value.length;
+    if (got - lastMark > 2 * 1024 * 1024) {
+      lastMark = got;
+      status("weights", "Downloading the model: " + (got / 1048576).toFixed(0) + " of " + (total / 1048576).toFixed(0) + " MB…");
+    }
+  }
+  const buf = new Uint8Array(got);
+  let off = 0;
+  for (const c of chunks) { buf.set(c, off); off += c.length; }
+  cache.put(url, new Response(buf, { headers: { "Content-Type": "application/octet-stream" } }));
+  return buf;
+}
+
+async function init() {
+  status("runtime", "Loading the Python runtime…");
+  py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/" });
+  status("runtime", "Loading numpy…");
+  await py.loadPackage("numpy");
+  status("files", "Fetching the Woof code…");
+  py.FS.mkdirTree("/woof/underdog_woof");
+  for (const f of PY_FILES) {
+    const bytes = await fetchCached(HF + "underdog_woof/" + f);
+    py.FS.writeFile("/woof/underdog_woof/" + f, bytes);
+  }
+  status("weights", "Downloading the model (about 41 MB, once)…");
+  const weights = await fetchWeightsWithProgress(HF + "woof_int8.npz");
+  py.FS.writeFile("/woof/woof_int8.npz", weights);
+  status("runtime", "Warming up the model…");
+  await py.runPythonAsync([
+    "import sys",
+    "sys.path.insert(0, '/woof')",
+    "from underdog_woof import Woof",
+    "from underdog_woof.normalize import Normalizer",
+    "from underdog_woof.textsplit import split_text",
+    "from underdog_woof.runtime import RNG, write_wav",
+    "import numpy as np",
+    "_norm = Normalizer(use_nemo=False)",
+    "_tts = None",
+    "_voice = None",
+    "_pieces = []",
+    "_wavs = []",
+    "def py_normalize(t):",
+    "    return _norm(t)",
+    "def py_begin(text, voice):",
+    "    global _tts, _voice, _pieces, _wavs",
+    "    if _tts is None or _voice != voice:",
+    "        _tts = Woof(voice=voice)",
+    "        _voice = voice",
+    "    RNG.seed(1)",
+    "    normed = _norm(text)",
+    "    _pieces = split_text(normed) or [normed]",
+    "    _wavs = []",
+    "    return len(_pieces)",
+    "def py_piece(i):",
+    "    w = _tts._piece(_pieces[i])",
+    "    _wavs.append(w)",
+    "    write_wav('/tmp/piece.wav', w)",
+    "    return open('/tmp/piece.wav', 'rb').read()",
+    "def py_full():",
+    "    full = _wavs[0] if len(_wavs) == 1 else np.concatenate(_wavs)",
+    "    write_wav('/tmp/full.wav', full)",
+    "    return open('/tmp/full.wav', 'rb').read()",
+  ].join("\n"));
+  postMessage({ type: "ready" });
+}
+
+let queue = Promise.resolve();
+function enqueue(fn) { queue = queue.then(fn).catch((e) => postMessage({ type: "error", message: String(e && e.message || e) })); }
+
+onmessage = (e) => {
+  const m = e.data;
+  if (m.type === "normalize") {
+    enqueue(async () => {
+      if (!py) return;
+      const out = await py.runPythonAsync("py_normalize(" + JSON.stringify(m.text) + ")");
+      postMessage({ type: "normalized", id: m.id, text: out });
+    });
+  } else if (m.type === "speak") {
+    enqueue(async () => {
+      const n = await py.runPythonAsync("py_begin(" + JSON.stringify(m.text) + ", " + JSON.stringify(m.voice) + ")");
+      postMessage({ type: "speak-begin", pieces: n });
+      for (let i = 0; i < n; i++) {
+        const bytes = await py.runPythonAsync("py_piece(" + i + ")");
+        const u8 = bytes.toJs ? bytes.toJs() : bytes;
+        const buf = u8.slice().buffer;
+        postMessage({ type: "piece", index: i, bytes: buf }, [buf]);
+      }
+      const full = await py.runPythonAsync("py_full()");
+      const fu8 = full.toJs ? full.toJs() : full;
+      const fbuf = fu8.slice().buffer;
+      postMessage({ type: "speak-done", bytes: fbuf }, [fbuf]);
+    });
+  }
+};
+
+init().catch((e) => postMessage({ type: "error", message: String(e && e.message || e) }));
+</script>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status"), speakBtn = $("speak"), textEl = $("text"),
+      voiceEl = $("voice"), player = $("player"), readsEl = $("reads"),
+      readsText = $("readsText"), downloadEl = $("download");
+
+const PRESETS = [
+  "Please call me back at 415-555-0199 before 5:30 p.m. on Friday.",
+  "Job number 19615, Bayview I and II, call time 7:00 AM. We need 4 speakers and 5 wireless mics.",
+  "Your total is $1,249.99. The tracking code is QX-4471 and it ships on March 3rd, 2027.",
+  "The invoice for $600 is due on 11/20/2026. Call the office at (619) 555-0142 after 9:30 AM."
+];
+const chipsEl = $("chips");
+PRESETS.forEach((p) => {
+  const b = document.createElement("button");
+  b.className = "chip";
+  b.textContent = p.length > 44 ? p.slice(0, 44) + "…" : p;
+  b.title = p;
+  b.addEventListener("click", () => { textEl.value = p; queueNormalize(); });
+  chipsEl.appendChild(b);
+});
+
+const worker = new Worker(URL.createObjectURL(new Blob([$("worker-src").textContent], { type: "text/javascript" })));
+
+let ready = false, busy = false, normSeq = 0;
+let playQueue = [], playing = false, startedAt = 0, timer = null;
+
+function setStatus(msg, cls) {
+  statusEl.textContent = msg;
+  statusEl.className = cls || "";
+}
+function startTimer(label) {
+  startedAt = Date.now();
+  clearInterval(timer);
+  timer = setInterval(() => {
+    const s = Math.round((Date.now() - startedAt) / 1000);
+    setStatus(label + " " + s + "s");
+  }, 500);
+  setStatus(label + " 0s");
+}
+function stopTimer() { clearInterval(timer); timer = null; }
+
+function queueNormalize() {
+  if (!ready) return;
+  const id = ++normSeq;
+  worker.postMessage({ type: "normalize", id, text: textEl.value });
+}
+let debounce = null;
+textEl.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(queueNormalize, 600); });
+
+player.addEventListener("ended", () => { playing = false; playNext(); });
+function playNext() {
+  if (playing) return;
+  const url = playQueue.shift();
+  if (!url) return;
+  playing = true;
+  player.src = url;
+  player.style.display = "block";
+  player.play().catch(() => { playing = false; });
+}
+
+speakBtn.addEventListener("click", () => {
+  const text = textEl.value.trim();
+  if (!text || busy || !ready) return;
+  busy = true;
+  speakBtn.disabled = true;
+  voiceEl.disabled = true;
+  downloadEl.style.display = "none";
+  playQueue = [];
+  queueNormalize();
+  startTimer("Generating…");
+  worker.postMessage({ type: "speak", text, voice: voiceEl.value });
+});
+
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === "status") {
+    if (!busy) setStatus(m.detail);
+  } else if (m.type === "ready") {
+    ready = true;
+    speakBtn.disabled = false;
+    speakBtn.textContent = "Speak";
+    setStatus("Ready. The model is on your device now; generation is local.", "ready");
+    queueNormalize();
+  } else if (m.type === "normalized") {
+    if (m.id !== normSeq) return;
+    readsEl.style.display = "block";
+    readsText.textContent = m.text;
+  } else if (m.type === "speak-begin") {
+    startTimer("Generating " + m.pieces + (m.pieces === 1 ? " sentence…" : " sentences…"));
+  } else if (m.type === "piece") {
+    const url = URL.createObjectURL(new Blob([m.bytes], { type: "audio/wav" }));
+    playQueue.push(url);
+    playNext();
+  } else if (m.type === "speak-done") {
+    stopTimer();
+    busy = false;
+    speakBtn.disabled = false;
+    voiceEl.disabled = false;
+    setStatus("Done. Every sound was generated in this tab.", "ready");
+    const url = URL.createObjectURL(new Blob([m.bytes], { type: "audio/wav" }));
+    downloadEl.href = url;
+    downloadEl.style.display = "inline-block";
+  } else if (m.type === "error") {
+    stopTimer();
+    busy = false;
+    speakBtn.disabled = false;
+    voiceEl.disabled = false;
+    setStatus("Something went wrong: " + m.message, "error");
+  }
+};
+worker.onerror = (e) => {
+  stopTimer();
+  busy = false;
+  setStatus("Worker error: " + (e.message || "unknown"), "error");
+};
+</script>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>

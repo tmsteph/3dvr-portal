@@ -102,20 +102,38 @@ export async function readOperatorStream(response, {
   flushBlocks(true);
 
   if (streamError) throw new Error(streamError);
-  if (!result) throw new Error('Operator finished without a final response.');
+  if (!result) {
+    // The server handler always ends a stream with a result or an error
+    // event, so reaching EOF with neither means the connection was cut
+    // externally (for example a portal restart during a deploy). Tag it so
+    // callers can retry the turn instead of dead-ending the conversation.
+    const incomplete = new Error('Operator finished without a final response.');
+    incomplete.code = 'OPERATOR_STREAM_INCOMPLETE';
+    throw incomplete;
+  }
   return result;
 }
 
 export async function fetchOperatorStream(payload, {
   fetchImpl = globalThis.fetch,
   onReplyDelta,
-  onStatus
+  onStatus,
+  onReplyReset
 } = {}) {
-  const response = await fetchImpl('/api/openai-site?provider=operator', {
+  const send = () => fetchImpl('/api/openai-site?provider=operator', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, stream: true })
   });
 
-  return readOperatorStream(response, { onReplyDelta, onStatus });
+  try {
+    return await readOperatorStream(await send(), { onReplyDelta, onStatus });
+  } catch (error) {
+    if (error?.code !== 'OPERATOR_STREAM_INCOMPLETE') throw error;
+    // The first attempt was cut off mid-stream; the server-side run is gone
+    // with the connection, so one clean retry cannot duplicate a result.
+    onStatus?.('Connection interrupted. Retrying…');
+    onReplyReset?.();
+    return readOperatorStream(await send(), { onReplyDelta, onStatus });
+  }
 }

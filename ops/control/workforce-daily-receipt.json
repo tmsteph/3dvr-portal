@@ -1,8 +1,8 @@
 {
-  "localDate": "2026-11-03",
+  "localDate": "2026-11-06",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-11-03T16:24:26.253Z",
+    "checkedAt": "2026-11-06T16:51:26.151Z",
     "source": "authenticated OVH general CDP 9222 Lighthouse week API",
     "weeksChecked": [
       "2026-11-02",
@@ -14,28 +14,42 @@
     ]
   },
   "iatse": {
-    "checkedAt": "2026-11-03T16:26:25.011Z",
+    "checkedAt": "2026-11-06T16:53:00Z",
     "outcome": "noop",
     "changedDates": [],
     "deferredDates": [],
     "renderedWindow": {
-      "start": "2026-11-02",
-      "end": "2026-12-04"
+      "start": "2026-11-05",
+      "end": "2026-12-07"
     },
     "mismatches": [],
     "persistedAfterReload": true,
-    "desiredDatesChecked": 15,
-    "unmodifiedUnspecifiedDates": [],
-    "note": "Nov 6-7 initially normalized from Not Available to Booked; original Not Available restored and verified; final net no-op."
+    "desiredDatesChecked": 20,
+    "unmodifiedUnspecifiedDates": [
+      "2026-11-26",
+      "2026-11-27",
+      "2026-11-28",
+      "2026-11-29",
+      "2026-11-30",
+      "2026-12-01",
+      "2026-12-02",
+      "2026-12-03",
+      "2026-12-04",
+      "2026-12-05",
+      "2026-12-06",
+      "2026-12-07"
+    ],
+    "note": "Protected existing work/rest conflict markers Nov 6–22 and preserved All Day Nov 23–25. Booked markers treated as conflict markers, not proof of union dispatch. No writes required."
   },
   "verification": {
     "sourceWeeksHttp200": true,
     "iatseReloadVerified": true,
-    "writerLeaseReleaseAttempted": true,
-    "writerLeaseReleaseIndependentlyVerified": true
+    "writerLeaseReleaseAttempted": false,
+    "writerLeaseReleaseIndependentlyVerified": false,
+    "note": "Read-only no-op; writer lease not acquired."
   },
   "execution": {
-    "path": "OVH canonical general browser lane CDP 9222; Desktop Commander control path",
-    "authenticationRecovery": "Managed general lane restarted using existing persistent profile after CDP timeout"
+    "path": "OVH canonical general browser lane CDP 9222",
+    "authenticationRecovery": "Not needed; existing persistent sessions authenticated"
   }
 }

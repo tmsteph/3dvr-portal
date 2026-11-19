@@ -110,6 +110,9 @@ test('operator completes core user journeys on mobile', async () => {
   assert.equal(appShell.logScrollable, true);
 
   await page.reload();
+  await page.waitForFunction(() => !document.querySelector('#operator-boot-loading') && document.querySelectorAll('#operator-log .message').length === 0);
+  await page.getByRole('button', { name: 'Past conversations' }).click();
+  await page.getByRole('button', { name: /family camping trip/i }).click();
   await page.getByText('Added Acme Electric to Lead Finder.').waitFor();
   await page.getByRole('button', { name: 'New conversation' }).click();
   assert.equal(await page.locator('.message').count(), 0);
@@ -218,6 +221,9 @@ test('operator saves and reopens past conversations on mobile', async () => {
   await page.getByRole('button', { name: /Plan the family camping trip/ }).click();
   await page.getByText('I can help with that.').waitFor();
   await page.reload();
+  await page.waitForFunction(() => !document.querySelector('#operator-boot-loading') && document.querySelectorAll('#operator-log .message').length === 0);
+  await page.getByRole('button', { name: 'Past conversations' }).click();
+  await page.getByRole('button', { name: /Plan the family camping trip/ }).click();
   await page.locator('#operator-log').getByText('Plan the family camping trip').waitFor();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('3dvr.operator.conversations.v2') || 'null'));
   assert.equal(saved.conversations.filter(item => item.messages.length).length, 1);
@@ -244,6 +250,8 @@ test('operator moves an existing device conversation into the signed-in account 
     }));
   });
   await page.goto(`${PORTAL_ORIGIN}/operator/`);
+  await page.getByRole('button', { name: 'Past conversations' }).click();
+  await page.getByRole('button', { name: /Move this chat into my account/ }).click();
   await page.locator('#operator-log').getByText('Move this chat into my account').waitFor();
   await page.getByRole('button', { name: 'New conversation' }).click();
   const cache = await page.evaluate(() => ({
@@ -252,5 +260,34 @@ test('operator moves an existing device conversation into the signed-in account 
   }));
   assert.equal(cache.old, null);
   assert.match(cache.scoped, /Move this chat into my account/);
+  await browser.close();
+});
+
+test('operator opens on a new chat by default and keeps past conversations one tap away', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.addInitScript(() => {
+    localStorage.setItem('3dvr.operator.conversations.v2', JSON.stringify({
+      activeId: 'earlier-chat',
+      conversations: [{
+        id: 'earlier-chat',
+        createdAt: '2026-08-01T01:00:00.000Z',
+        updatedAt: '2026-08-01T01:05:00.000Z',
+        messages: [
+          { role: 'user', content: 'An earlier conversation that should not auto-open' },
+          { role: 'assistant', content: 'Noted. It stays in your history.' }
+        ]
+      }]
+    }));
+  });
+  await page.goto(`${PORTAL_ORIGIN}/operator/`);
+  await page.waitForFunction(() => !document.querySelector('#operator-boot-loading') && document.querySelectorAll('#operator-log .message').length === 0);
+  await page.getByRole('button', { name: 'Past conversations' }).click();
+  const earlierButton = page.getByRole('button', { name: /An earlier conversation that should not auto-open/ });
+  await earlierButton.waitFor();
+  const earlierIsCurrent = await earlierButton.evaluate(el => el.getAttribute('aria-current') === 'page' || !!el.querySelector('[aria-current="page"]'));
+  assert.equal(earlierIsCurrent, false);
+  await earlierButton.click();
+  await page.locator('#operator-log').getByText('Noted. It stays in your history.').waitFor();
   await browser.close();
 });

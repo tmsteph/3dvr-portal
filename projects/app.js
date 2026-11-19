@@ -136,7 +136,7 @@ function getGunRoot() {
     return null;
   }
 
-  const gun = window.gun || window.Gun(window.__GUN_PEERS__ || ['https://gun-relay-3dvr.fly.dev/gun']);
+  const gun = window.gun || window.Gun(window.__GUN_PEERS__ || ['https://portal.3dvr.tech/gun-relay']);
   window.gun = gun;
   els.status.textContent = 'Connected to the 3DVR project graph.';
 

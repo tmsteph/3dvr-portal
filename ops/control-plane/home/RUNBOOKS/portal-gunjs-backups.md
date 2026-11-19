@@ -9,7 +9,7 @@ Gun backups still need two layers:
 
 ## What To Back Up
 
-- Relay peer: `wss://gun-relay-3dvr.fly.dev/gun`
+- Relay peer: `wss://portal.3dvr.tech/gun-relay`
 - Default Gun RAD directory when not overridden: `radata`
 - Portal root manifest: `ops/gun/portal-gun-roots.json`
 - Independent snapshot output: `/var/backups/3dvr/gun-snapshots`
@@ -60,7 +60,7 @@ Manual equivalent:
 
 ```sh
 GUN_BACKUP_OUT_DIR=/var/backups/3dvr/gun-snapshots \
-GUN_BACKUP_PEERS='wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun' \
+GUN_BACKUP_PEERS='wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay' \
 GUN_BACKUP_MAX_NODES=500 \
 GUN_BACKUP_MAX_MEMORY_MB=256 \
 npm run gun:backup

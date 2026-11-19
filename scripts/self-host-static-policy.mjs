@@ -4,7 +4,8 @@ const PUBLIC_SHARED_MODULES = new Set([
   '/src/operator-runtime/work-item.js',
   '/src/operator-runtime/task-queue-adapter.js',
   '/src/operator-runtime/runtime-sidecar.js',
-  '/src/kernel/positiveSum.js'
+  '/src/kernel/positiveSum.js',
+  '/src/analytics/freePage.js'
 ]);
 
 const PRIVATE_PREFIXES = [

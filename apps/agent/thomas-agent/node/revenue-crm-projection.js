@@ -17,7 +17,7 @@ function projectionPeer(options = {}) {
     }
     return parsed.href;
   }
-  return options.relayUrl || process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun';
+  return options.relayUrl || process.env.THREEDVR_GUN_RELAY || 'wss://portal.3dvr.tech/gun-relay';
 }
 
 function remoteProjectionRoots(options = {}) {

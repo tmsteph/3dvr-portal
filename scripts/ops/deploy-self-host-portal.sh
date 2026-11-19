@@ -74,6 +74,12 @@ if [ ! -d "$release" ]; then
   mkdir -p "$tmp"
   git_repo archive "$sha" | tar -x -C "$tmp"
   npm --prefix "$tmp" ci --omit=dev
+  # operator-core ships TypeScript and the Gate 1 planner loads its compiled
+  # dist at runtime. Build it into the release so a deployment never ships an
+  # unbuilt planner; set -e aborts the deployment if the build fails.
+  npm --prefix "$tmp/operator-core/operator-core" ci --no-audit --no-fund
+  npm --prefix "$tmp/operator-core/operator-core" run build
+  test -f "$tmp/operator-core/operator-core/dist/core.js"
   mv "$tmp" "$release"
 fi
 

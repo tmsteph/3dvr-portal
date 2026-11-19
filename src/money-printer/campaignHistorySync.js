@@ -184,7 +184,7 @@ export async function createBrowserCampaignHistorySync({
   onRemoteMerge = null
 } = {}) {
   if (typeof GunImpl !== 'function' || !storage) return { available: false, reason: 'gun-unavailable' };
-  const gun = GunImpl(Array.isArray(peers) && peers.length ? peers : ['wss://gun-relay-3dvr.fly.dev/gun']);
+  const gun = GunImpl(Array.isArray(peers) && peers.length ? peers : ['wss://portal.3dvr.tech/gun-relay']);
   const user = gun.user();
   let authenticated = await waitForLeadVaultAuth(user, authTimeoutMs);
   if (!authenticated) {

@@ -1,23 +1,68 @@
 import { createSignedPortalProof, openHelmMessageStore } from '/operator/forge.js';
-import { createOutbox } from './outbox.js';
+import { paintOperatorMarkdown } from '/operator/markdown.js';
+import { createOutbox, MESSAGE_TTL_MS, validMessage } from './outbox.js';
 import { readHelmResponse } from './stream.js';
 
 const $ = id => document.getElementById(id);
 let sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
 let sessionId = globalThis.sessionStorage?.getItem(sessionKey) || crypto.randomUUID();
 globalThis.sessionStorage?.setItem(sessionKey, sessionId);
-const savedEngine = globalThis.sessionStorage?.getItem(`${sessionKey}.engine`);
-let engine = ['openclaw', 'codex', 'codex-backup'].includes(savedEngine) ? savedEngine : 'codex';
-const engineNames = { openclaw: 'OpenClaw', codex: 'Codex', 'codex-backup': 'Codex backup' };
+// OpenClaw is the default engine: a fresh visit always starts on it, no
+// matter which engine an earlier chat used. The picker still switches the
+// engine for the current chat, and History resume restores that chat's own.
+let engine = 'openclaw';
+globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
+const engineNames = { openclaw: 'OpenClaw', codex: 'Codex', 'codex-backup': 'Codex backup', core: '3DVR Core' };
 let busy = false;
 let saving = false;
 let connected = false;
+let agentAccess = 'unknown';
 let verifiedAccount = false;
 let storePromise;
 let store;
 let epoch = 0;
 let liveReply = null;
 let outbox = makeOutbox();
+
+// Leave-quickly journal: tapping Queue must make the message durable
+// in that same instant, before the encrypted store (Gun context, SEA
+// encrypt, IndexedDB open and cache replay) has finished, which can
+// take seconds on a cold page. The submit handler writes the record
+// here with a synchronous localStorage setItem before its first await,
+// so leaving the page at any later point cannot lose it. On load,
+// entries the store never saved are merged back into the outbox and
+// sent; the first successful store save for a record retires its
+// journal entry, so the journal only ever bridges the tap-to-save gap
+// and can never replay a message the store already holds. Entries are
+// keyed per account, like the session key above.
+const journalKey = () => `3dvr.helm.outbox-journal.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
+function journalRead() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(journalKey()) || '[]');
+    return Array.isArray(parsed) ? parsed.filter(validMessage) : [];
+  } catch { return []; }
+}
+function journalWrite(record) {
+  try {
+    const entries = journalRead().filter(entry => entry.id !== record.id);
+    entries.push(record);
+    localStorage.setItem(journalKey(), JSON.stringify(entries));
+  } catch {}
+}
+function journalRemove(id) {
+  try {
+    const entries = journalRead().filter(entry => entry.id !== id);
+    if (entries.length) localStorage.setItem(journalKey(), JSON.stringify(entries));
+    else localStorage.removeItem(journalKey());
+  } catch {}
+}
+function restoreJournal() {
+  for (const record of journalRead()) outbox.merge(record);
+}
+// The first restore runs at the bottom of this module, not here:
+// merging renders the message list, which reads state declared
+// further down, and journaled records must be in the outbox before
+// the first connection check drains it.
 
 function signedIn() { return localStorage.getItem('signedIn') === 'true'; }
 
@@ -42,30 +87,84 @@ function ensureMessages() {
 
 function makeOutbox() {
   const currentEpoch = epoch;
-  return createOutbox({
-    async save(record) {
-      if (currentEpoch !== epoch) throw new Error('Account changed.');
-      const target = await ensureMessages();
-      if (currentEpoch !== epoch) throw new Error('Account changed.');
-      await target.save(record);
-    },
-    async send(record) {
+  const saveRecord = async record => {
+    if (currentEpoch !== epoch) throw new Error('Account changed.');
+    const target = await ensureMessages();
+    if (currentEpoch !== epoch) throw new Error('Account changed.');
+    await target.save(record);
+    // The store now holds this record durably, so its leave-quickly
+    // journal entry has done its job; retiring it here keeps the
+    // journal from ever resurrecting a copy the store already has.
+    journalRemove(record.id);
+  };
+  // One turn driver serves both dispatch and reattach: the outbox
+  // calls it as send for fresh messages and as poll for records an
+  // earlier page life already dispatched (restored in 'sending'
+  // state). Both paths resubmit the same signed payload; the server
+  // receipt decides what is still true, so a poll can never become a
+  // second send, and the live preview below is rebuilt from the
+  // receipt rather than from this page's memory.
+  const sendTurn = async record => {
       busy = true;
       updateControls();
       const started = Date.now();
-      liveReply = { id: record.id, text: '' };
+      let queuePosition = null;
+      liveReply = { id: record.id, text: '', activity: null, startedAt: null, position: null };
       const showWaiting = () => {
         if (currentEpoch !== epoch) return;
-        const label = liveReply?.text ? 'Receiving agent reply' : 'Waiting for agent reply';
+        const label = liveReply?.activity ? liveReply.activity
+          : liveReply?.text ? 'Receiving agent reply'
+          : queuePosition !== null ? (queuePosition > 0 ? `Queued · ${queuePosition} ahead` : 'Queued · next up')
+          : 'Waiting for agent reply';
         $('connection').textContent = label;
         $('activity').textContent = `${label} · ${Math.floor((Date.now() - started) / 1000)}s elapsed`;
       };
       showWaiting();
+      // Paint the working bubble now, in its truthful starting state,
+      // instead of waiting for the first stream fragment or poll to
+      // trigger a render.
+      if (currentEpoch === epoch) renderMessages();
       const progress = setInterval(showWaiting, 1000);
       try {
         const result = await request('chat', record, text => {
           if (currentEpoch !== epoch) return;
           liveReply.text += text;
+          showWaiting();
+          renderMessages();
+        }, (position, status) => {
+          if (currentEpoch !== epoch) return;
+          // The receipt's status is the truth about where the turn
+          // sits: 'running' means the dispatcher has picked it up, so
+          // its queue position is spent; anything else means it still
+          // waits in the server queue at the reported position.
+          if (status === 'running') {
+            queuePosition = null;
+            liveReply.position = null;
+          } else {
+            queuePosition = typeof position === 'number' ? position : null;
+            liveReply.position = queuePosition;
+          }
+          showWaiting();
+        }, preview => {
+          if (currentEpoch !== epoch) return;
+          // A poll answer carries the receipt's rolling preview: its
+          // accumulated text replaces (never appends to) any locally
+          // streamed fragments, and its activity line names what the
+          // agent is doing right now. This is what keeps the working
+          // bubble alive across queued waits and page reloads.
+          if (preview) {
+            // A preview exists only once the turn is running, so any
+            // queue position from an earlier poll no longer applies.
+            liveReply.position = null;
+            if (typeof preview.text === 'string') liveReply.text = preview.text;
+            liveReply.activity = preview.activity ?? null;
+            if (preview.startedAt) liveReply.startedAt = preview.startedAt;
+          }
+          showWaiting();
+          renderMessages();
+        }, activity => {
+          if (currentEpoch !== epoch) return;
+          liveReply.activity = activity;
           showWaiting();
           renderMessages();
         });
@@ -78,8 +177,11 @@ function makeOutbox() {
         if (currentEpoch === epoch) {
           connected = false;
           $('dot').classList.remove('connected');
-          $('connection').textContent = error.retryable ? 'Agent busy' : error.stale ? 'Message expired' : 'Reply not confirmed';
-          $('activity').textContent = error.retryable
+          if (error.noAgent) agentAccess = 'no-agent';
+          $('connection').textContent = error.noAgent ? 'No agent assigned to this account' : error.retryable ? 'Agent busy' : error.stale ? 'Message expired' : 'Reply not confirmed';
+          $('activity').textContent = error.noAgent
+            ? 'This account has no agent assigned yet, so this message was not sent. It stays saved in History.'
+            : error.retryable
             ? 'Agent busy. Your saved message will retry until it expires.'
             : `${error.message} Check History before sending again.`;
         }
@@ -88,7 +190,11 @@ function makeOutbox() {
         clearInterval(progress);
         if (currentEpoch === epoch) { liveReply = null; busy = false; updateControls(); }
       }
-    },
+  };
+  return createOutbox({
+    save: saveRecord,
+    send: sendTurn,
+    poll: sendTurn,
     canSend: record => (record.engine ?? 'openclaw') === engine,
     isReady: () => currentEpoch === epoch && connected && !busy && signedIn(),
     onChange: () => { if (currentEpoch === epoch) renderMessages(); }
@@ -118,23 +224,50 @@ function showAccount(identity) {
     account.title = signedIn ? 'Signed in · checking agent access automatically' : 'Sign in to use Helm';
   } catch { account.textContent = 'Sign in'; }
 }
-async function request(action, record, onDelta) {
+async function request(action, record, onDelta, onQueue, onPreview, onActivity) {
   const requestEpoch = epoch;
   const payload = record
     ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt, engine: record.engine ?? 'openclaw' }
     : { requestId: crypto.randomUUID(), sessionId, engine };
-  const proof = await createSignedPortalProof('openclaw-helm', action, payload);
-  if (requestEpoch !== epoch) throw new Error('Account changed.');
-  if (!proof) throw new Error('Sign in with your owner account, then retry.');
-  const response = await fetch('/api/openclaw', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', ...(onDelta ? { Accept: 'text/event-stream' } : {}) },
-    body: JSON.stringify({ ...payload, action, ...proof }),
-    signal: AbortSignal.timeout(110000)
-  });
-  const result = await readHelmResponse(response, text => {
-    if (requestEpoch === epoch) onDelta?.(text);
-  });
-  if (requestEpoch !== epoch) throw new Error('Account changed.');
+  // Server-side queue: a chat submit can answer 202 with a queue
+  // position instead of a result. Poll by resubmitting the identical
+  // signed payload (the receipt fingerprint makes each poll a safe
+  // replay of the same message, never a second send) with a fresh proof,
+  // because proofs age out after 120 s while a queue wait can run
+  // longer. A server without the queue never sends 202, so this loop is
+  // inert until the queue is enabled there.
+  let response;
+  let result;
+  for (;;) {
+    const proof = await createSignedPortalProof('openclaw-helm', action, payload);
+    if (requestEpoch !== epoch) throw new Error('Account changed.');
+    if (!proof) { const proofError = new Error('Sign in with your owner account, then retry.'); proofError.noAgent = true; throw proofError; }
+    response = await fetch('/api/openclaw', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(onDelta ? { Accept: 'text/event-stream' } : {}) },
+      body: JSON.stringify({ ...payload, action, ...proof }),
+      // A chat submit must survive the page going away mid-send: with
+      // keepalive the browser finishes delivering it after unload, so
+      // the server records its durable receipt even when the user
+      // leaves at the worst moment. The polls below resubmit the same
+      // signed payload, and the receipt fingerprint makes any replay
+      // answer the same one turn, never a second send.
+      ...(record ? { keepalive: true } : {}),
+      signal: AbortSignal.timeout(110000)
+    });
+    result = await readHelmResponse(response, text => {
+      if (requestEpoch === epoch) onDelta?.(text);
+    }, text => {
+      if (requestEpoch === epoch) onActivity?.(text);
+    });
+    if (requestEpoch !== epoch) throw new Error('Account changed.');
+    if (response.status !== 202 || !result?.queued) break;
+    onQueue?.(result.position, result.status);
+    onPreview?.(result.preview ?? null);
+    if (record && Date.now() > record.expiresAt + 30000) {
+      throw new Error('The wait outlasted the message lifetime. Check History before sending again.');
+    }
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
   if (result.identity?.verified) showAccount(result.identity);
   if (response.status === 401) {
     verifiedAccount = false;
@@ -144,6 +277,8 @@ async function request(action, record, onDelta) {
   }
   if (!response.ok || !result.ok) {
     const error = new Error(result.error || 'The selected engine is unavailable.');
+    error.status = response.status;
+    error.noAgent = response.status === 401 || response.status === 403;
     error.stale = result.stale === true;
     // This endpoint rejects 429 before creating a receipt or invoking the agent.
     error.retryable = response.status === 429;
@@ -168,17 +303,51 @@ function messageCard(record, history = false) {
   article.className = 'message user';
   const label = document.createElement('span');
   label.className = 'label';
-  const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Delivery pending · will not resend',
+  const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Sending · waiting for the agent',
     completed: 'Sent', stale: 'History · expired without sending', uncertain: 'History · check delivery before resending', cancelled: 'History · cancelled' };
   label.textContent = `${engineNames[record.engine ?? 'openclaw']} · ${names[record.status]}`;
   article.append(label, document.createTextNode(record.text));
-  const partial = liveReply?.id === record.id && record.status === 'sending' ? liveReply.text : '';
+  // The working bubble: while this record's turn is in flight, its
+  // reply area shows whatever progress is known (fragments streamed on
+  // a held connection, or the receipt's rolling preview when polling)
+  // above a quiet working line naming the current activity and the
+  // elapsed time. When the final reply lands it replaces the bubble
+  // in the same position.
+  const live = liveReply?.id === record.id && record.status === 'sending' && !record.reply ? liveReply : null;
+  const partial = live ? live.text : '';
   if (record.reply || partial) {
-    const reply = document.createElement('p');
-    reply.className = 'saved-reply';
-    reply.textContent = record.reply || partial;
-    if (partial) reply.setAttribute('aria-label', 'Reply arriving; completion not yet confirmed');
+    const reply = document.createElement('div');
+    reply.className = live ? 'saved-reply live' : 'saved-reply';
+    if (record.reply) {
+      // Settled replies render as markdown through the renderer shared
+      // with Operator. It builds DOM nodes only (never innerHTML), so
+      // model output stays inert text plus safe elements and links.
+      paintOperatorMarkdown(reply, record.reply);
+    } else {
+      // The in-flight preview stays plain text: fragments land
+      // mid-token, and the settled reply repaints as markdown in the
+      // same position when it arrives.
+      reply.textContent = partial;
+    }
+    if (live) reply.setAttribute('aria-label', 'Reply arriving; completion not yet confirmed');
     article.append(reply);
+  }
+  if (live) {
+    const working = document.createElement('small');
+    working.className = 'working-note';
+    const elapsed = Math.max(0, Math.floor((Date.now() - (live.startedAt ?? record.createdAt)) / 1000));
+    // The note names the turn's actual state, never a generic
+    // "working": the activity line while the agent does something,
+    // the growing reply while it streams, the queue position while
+    // the turn still waits for dispatch, and otherwise the honest
+    // state in between: dispatched, but the agent has not started
+    // producing anything yet. That gap can run long, because the
+    // gateway works one agent run at a time across all sessions.
+    const state = live.activity || (partial ? 'Receiving reply'
+      : live.position != null ? (live.position > 0 ? `Queued · ${live.position} ahead` : 'Queued · next up')
+      : 'Waiting for the agent to start');
+    working.textContent = `${state} · ${elapsed}s`;
+    article.append(working);
   }
   if (record.note) {
     const note = document.createElement('small');
@@ -200,23 +369,193 @@ function messageCard(record, history = false) {
   return article;
 }
 
+function resumeChat(resumeSessionId, resumeEngine) {
+  // Same state updates as an engine switch, except the session id is the
+  // resumed chat's own: its gateway session is keyed by that id, so the
+  // conversation's context follows it.
+  engine = resumeEngine;
+  globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
+  sessionId = resumeSessionId;
+  globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+  connected = false;
+  $('dot').classList.remove('connected');
+  showEngine();
+  renderMessages(); updateControls();
+  $('history').hidden = true;
+  $('show-history').setAttribute('aria-expanded', 'false');
+  $('queue').hidden = true;
+  $('show-queue').setAttribute('aria-expanded', 'false');
+  $('activity').textContent = 'Conversation resumed. Its earlier messages are shown above.';
+  $('message').focus();
+  void checkConnection({ automatic: true });
+}
+
+const expandedHistory = new Set();
+
+function previewText(text) {
+  const clean = String(text).replace(/\s+/g, ' ').trim();
+  return clean.length > 64 ? `${clean.slice(0, 61)}…` : clean;
+}
+
+function relativeTime(timestamp) {
+  const elapsed = Date.now() - timestamp;
+  if (elapsed < 45 * 1000) return 'just now';
+  const minutes = Math.round(elapsed / 60000);
+  if (minutes < 60) return `${Math.max(1, minutes)}m ago`;
+  const hours = Math.round(elapsed / 3600000);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(elapsed / 86400000);
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function historyRow(group) {
+  const isActive = group.groupSessionId === sessionId && group.groupEngine === engine;
+  const row = document.createElement('section');
+  row.className = isActive ? 'history-chat current' : 'history-chat';
+  const preview = document.createElement('p');
+  preview.className = 'history-preview';
+  preview.textContent = previewText(group.records[0].text);
+  const meta = document.createElement('small');
+  meta.className = 'history-meta';
+  meta.textContent = `${relativeTime(group.lastActivity)} · ${engineNames[group.groupEngine]}${isActive ? ' · Current conversation' : ''}`;
+  row.append(preview, meta);
+  const actions = document.createElement('div');
+  actions.className = 'history-actions';
+  const expanded = expandedHistory.has(group.key);
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.textContent = expanded ? 'Hide messages' : `Show messages (${group.records.length})`;
+  toggle.setAttribute('aria-expanded', String(expanded));
+  toggle.addEventListener('click', () => {
+    if (expandedHistory.has(group.key)) expandedHistory.delete(group.key);
+    else expandedHistory.add(group.key);
+    renderMessages();
+  });
+  actions.append(toggle);
+  if (!isActive) {
+    const resume = document.createElement('button');
+    resume.type = 'button';
+    resume.textContent = 'Resume this chat';
+    const { groupSessionId, groupEngine } = group;
+    resume.addEventListener('click', () => resumeChat(groupSessionId, groupEngine));
+    actions.append(resume);
+  }
+  row.append(actions);
+  if (expanded) {
+    const detail = document.createElement('div');
+    detail.className = 'history-detail';
+    detail.append(...group.records.map(record => messageCard(record, true)));
+    row.append(detail);
+  }
+  return row;
+}
+
+// One row of the cross-chat queue view: a turn that has not finished
+// yet, whichever conversation it belongs to. Status words match the
+// labels on the message cards themselves; position counts only the
+// turns still waiting to send, in send order.
+function queueRow(record, firstOfChat, ahead) {
+  const recordEngine = record.engine ?? 'openclaw';
+  const isActive = record.sessionId === sessionId && recordEngine === engine;
+  const row = document.createElement('section');
+  row.className = isActive ? 'history-chat current' : 'history-chat';
+  const preview = document.createElement('p');
+  preview.className = 'history-preview';
+  preview.textContent = previewText(record.text);
+  const names = { queued: 'Queued', deferred: 'Queued · agent busy', sending: 'Sending · waiting for the agent' };
+  const parts = [names[record.status]];
+  if (ahead !== null) parts.push(ahead === 0 ? 'Next up' : `${ahead} ahead of it`);
+  parts.push(relativeTime(record.createdAt), engineNames[recordEngine]);
+  if (firstOfChat && firstOfChat.id !== record.id) parts.push(`Chat starts “${previewText(firstOfChat.text)}”`);
+  if (isActive) parts.push('Current conversation');
+  const meta = document.createElement('small');
+  meta.className = 'history-meta';
+  meta.textContent = parts.join(' · ');
+  row.append(preview, meta);
+  const actions = document.createElement('div');
+  actions.className = 'history-actions';
+  if (['queued', 'deferred'].includes(record.status)) {
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => { void outbox.cancel(record.id).catch(showStorageError); });
+    actions.append(cancel);
+  }
+  if (!isActive) {
+    const open = document.createElement('button');
+    open.type = 'button'; open.textContent = 'Open chat';
+    open.addEventListener('click', () => resumeChat(record.sessionId, recordEngine));
+    actions.append(open);
+  }
+  if (actions.children.length) row.append(actions);
+  return row;
+}
+
 function renderMessages() {
   const records = outbox.snapshot();
   const active = records.filter(record => record.sessionId === sessionId && (record.engine ?? 'openclaw') === engine && !['stale', 'uncertain', 'cancelled'].includes(record.status));
   $('messages').replaceChildren(...active.map(record => messageCard(record)));
   $('welcome').hidden = active.length > 0;
-  $('history-list').replaceChildren(...records.map(record => messageCard(record, true)));
-  $('show-history').textContent = records.length ? `History (${records.length})` : 'History';
+  // History is a picker of conversations, not a second message log: one row
+  // per conversation (session + engine), newest activity at the top, each
+  // row labelled by its first message. Expanding a row shows its records
+  // with their actions; Resume restores its session id, and the gateway
+  // keys context by session id, so the conversation continues where it left.
+  const groups = new Map();
+  for (const record of records) {
+    const groupEngine = record.engine ?? 'openclaw';
+    const key = `${record.sessionId}::${groupEngine}`;
+    if (!groups.has(key)) groups.set(key, { key, groupSessionId: record.sessionId, groupEngine, records: [] });
+    groups.get(key).records.push(record);
+  }
+  const ordered = [...groups.values()]
+    .map(group => ({ ...group, lastActivity: Math.max(...group.records.map(record => record.updatedAt ?? record.createdAt)) }))
+    .sort((a, b) => b.lastActivity - a.lastActivity || a.key.localeCompare(b.key));
+  if (ordered.length) {
+    $('history-list').replaceChildren(...ordered.map(group => historyRow(group)));
+  } else {
+    const empty = document.createElement('p');
+    empty.className = 'history-meta';
+    empty.textContent = 'No conversations yet.';
+    $('history-list').replaceChildren(empty);
+  }
+  $('show-history').textContent = ordered.length ? `History (${ordered.length})` : 'History';
+  // The queue view answers a different question than History: what is
+  // still waiting, across every conversation, in send order. It reads
+  // the same outbox records, so a cancel here lands on the same record
+  // the originating chat shows, and finished turns simply drop out.
+  const firstOfChat = new Map([...groups.values()].map(group => [group.key, group.records[0]]));
+  const waiting = records.filter(record => ['queued', 'deferred', 'sending'].includes(record.status));
+  let ahead = 0;
+  const queueRows = waiting.map(record => {
+    const count = record.status === 'sending' ? null : ahead;
+    if (count !== null) ahead += 1;
+    return queueRow(record, firstOfChat.get(`${record.sessionId}::${record.engine ?? 'openclaw'}`), count);
+  });
+  if (!queueRows.length) {
+    const empty = document.createElement('p');
+    empty.className = 'history-meta';
+    empty.textContent = 'Nothing is waiting right now.';
+    queueRows.push(empty);
+  }
+  $('queue-list').replaceChildren(...queueRows);
+  $('show-queue').textContent = waiting.length ? `Queued (${waiting.length})` : 'Queued';
   const pending = records.filter(record => ['queued', 'deferred'].includes(record.status)).length;
-  $('queue-summary').textContent = pending ? `${pending} queued · sends when ready · expires after 10 minutes` : '';
+  $('queue-summary').textContent = pending ? (agentAccess === 'no-agent' ? `${pending} queued · no agent assigned to this account · expires after 10 minutes` : `${pending} queued · sends when ready · expires after 10 minutes`) : '';
 }
 
-function showStorageError(error) { $('activity').textContent = `Could not save the message: ${error.message} Your text stays in the composer.`; }
+function plainStorageError(error) {
+  // Raw IndexedDB wording helps nobody: translate the known failure
+  // (the local store connection closing mid-write) into plain language.
+  if (/IDBDatabase|IndexedDB|transaction/i.test(error?.message || '')) return 'the local message store closed unexpectedly. Reload Helm to reconnect it.';
+  return error?.message || 'unknown error';
+}
+function showStorageError(error) { $('activity').textContent = `Could not save the message: ${plainStorageError(error)} Your text stays in the composer.`; }
 
 async function drain() {
   const drainEpoch = epoch;
   try { await outbox.drain(); }
-  catch (error) { if (drainEpoch === epoch) $('activity').textContent = `Queue paused: ${error.message}`; }
+  catch (error) { if (drainEpoch === epoch) $('activity').textContent = `Queue paused: ${plainStorageError(error)}`; }
 }
 
 async function checkConnection({ automatic = false } = {}) {
@@ -235,15 +574,24 @@ async function checkConnection({ automatic = false } = {}) {
     if (connectionEpoch !== epoch) return;
     const result = await request('status');
     connected = result.gateway === 'reachable' && result.chatEnabled;
-    $('connection').textContent = connected ? `${engineNames[engine]} ready` : 'Agent reachable · chat setup needed';
+    agentAccess = connected ? 'ready' : 'no-agent';
+    $('connection').textContent = connected ? `${engineNames[engine]} ready` : 'No agent assigned to this account';
     $('dot').classList.toggle('connected', connected);
-    $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'You can queue a message while the agent starts.';
+    $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'Helm agents run on a server owned by the member. This account has no agent assigned yet. You can save messages here, but they will not send until an agent is assigned to this account.';
   } catch (error) {
     if (connectionEpoch !== epoch) return;
     connected = false;
-    $('connection').textContent = error.message;
+    // The status endpoint refuses accounts with no agent binding: the
+    // proof step names the owner account, and the handler answers
+    // 401/403 for any other identity (security audit, 2026-11-07).
+    // That is a permanent state for this account, not a startup
+    // delay, so say so plainly instead of promising a ready agent.
+    const noAgent = error.noAgent === true || /owner account/i.test(error.message || '') || /private to/i.test(error.message || '');
+    agentAccess = noAgent ? 'no-agent' : 'unreachable';
+    $('connection').textContent = noAgent ? 'No agent assigned to this account' : error.message;
+    if (noAgent) $('account').title = 'Signed in · no agent assigned to this account';
     $('dot').classList.remove('connected');
-    $('activity').textContent = 'You can save a message now. It stays queued until the agent is ready.';
+    $('activity').textContent = noAgent ? 'Helm agents run on a server owned by the member. This account has no agent assigned yet. You can save messages here, but they will not send until an agent is assigned to this account.' : 'You can save a message now. It stays queued until the agent is ready.';
   } finally {
     if (connectionEpoch === epoch) { busy = false; updateControls(); }
   }
@@ -252,16 +600,18 @@ async function checkConnection({ automatic = false } = {}) {
 
 function showEngine() {
   $('engine').value = engine;
-  $('engine-home').textContent = engine === 'codex-backup' ? 'DigitalOcean' : 'Hetzner';
+  $('engine-home').textContent = engine === 'codex-backup' ? 'DigitalOcean' : engine === 'core' ? 'OVH' : 'Hetzner';
   $('engine-note').textContent = engine === 'codex-backup'
     ? 'Backup chat on DigitalOcean · starts a separate conversation, without OpenClaw tools. Pending messages are never moved or replayed.'
+    : engine === 'core'
+    ? '3DVR Core · our own agent on DeepSeek (DeepInfra), running on 3DVR servers. Chat only for now; history stays on the server, per account.'
     : engine === 'codex'
     ? 'Native Codex pilot · chat and code advice. OpenClaw integrations are available through OpenClaw.'
     : 'OpenClaw · your existing tools and integrations.';
 }
 showEngine();
 $('engine').addEventListener('change', () => {
-  if (busy || saving || !['openclaw', 'codex', 'codex-backup'].includes($('engine').value)) { $('engine').value = engine; return; }
+  if (busy || saving || !['openclaw', 'codex', 'codex-backup', 'core'].includes($('engine').value)) { $('engine').value = engine; return; }
   engine = $('engine').value;
   globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
   // A new conversation prevents an engine switch from implying shared server history.
@@ -278,14 +628,23 @@ $('chat-form').addEventListener('submit', async event => {
   event.preventDefault();
   const text = $('message').value.trim();
   if (!text || saving || !signedIn()) return;
+  // The journal write is synchronous and comes before every await in
+  // this handler: from this line on, the tapped message survives the
+  // page being closed, however quickly that happens. The outbox record
+  // below is stamped with the same id and timestamps, so the journal
+  // copy and the store copy are one record.
+  const createdAt = Date.now();
+  const journaled = { id: crypto.randomUUID(), sessionId, text, engine, createdAt,
+    expiresAt: createdAt + MESSAGE_TTL_MS, updatedAt: createdAt, status: 'queued' };
+  journalWrite(journaled);
   saving = true;
   updateControls();
   $('activity').textContent = 'Saving your message…';
   try {
-    await outbox.enqueue({ id: crypto.randomUUID(), sessionId, text, engine });
+    await outbox.enqueue({ id: journaled.id, sessionId, text, engine, createdAt });
     if ($('message').value.trim() === text) $('message').value = '';
     $('queue-storage').textContent = 'Saved encrypted here · syncing with your GunJS account';
-    $('activity').textContent = connected ? 'Saved. Sending when the agent is free.' : 'Saved. It will send when the agent is ready.';
+    $('activity').textContent = connected ? 'Saved. Sending when the agent is free.' : agentAccess === 'no-agent' ? 'Saved, but not sent: this account has no agent assigned yet. If it expires it stays in History.' : 'Saved. It will send when the agent is ready.';
   } catch (error) { showStorageError(error); }
   finally { saving = false; updateControls(); }
   await drain();
@@ -293,12 +652,41 @@ $('chat-form').addEventListener('submit', async event => {
 $('new-chat').addEventListener('click', () => {
   sessionId = crypto.randomUUID();
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+  // A new chat also returns to the default engine.
+  const engineChanged = engine !== 'openclaw';
+  engine = 'openclaw';
+  globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
+  if (engineChanged) {
+    connected = false;
+    $('dot').classList.remove('connected');
+    showEngine();
+  }
+  $('history').hidden = true;
+  $('show-history').setAttribute('aria-expanded', 'false');
+  $('queue').hidden = true;
+  $('show-queue').setAttribute('aria-expanded', 'false');
+  $('message').value = '';
   renderMessages();
   $('activity').textContent = 'New conversation. Saved messages remain in history.';
+  $('message').focus();
+  if (engineChanged) void checkConnection({ automatic: true });
 });
 $('show-history').addEventListener('click', () => {
   $('history').hidden = !$('history').hidden;
   $('show-history').setAttribute('aria-expanded', String(!$('history').hidden));
+  if (!$('history').hidden) {
+    $('queue').hidden = true;
+    $('show-queue').setAttribute('aria-expanded', 'false');
+  }
+});
+$('show-queue').addEventListener('click', () => {
+  $('queue').hidden = !$('queue').hidden;
+  $('show-queue').setAttribute('aria-expanded', String(!$('queue').hidden));
+  if (!$('queue').hidden) {
+    $('history').hidden = true;
+    $('show-history').setAttribute('aria-expanded', 'false');
+    renderMessages();
+  }
 });
 for (const button of document.querySelectorAll('[data-prompt]')) {
   button.addEventListener('click', () => { $('message').value = button.dataset.prompt; $('message').focus(); });
@@ -308,13 +696,14 @@ window.addEventListener('storage', event => {
   epoch += 1;
   sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
   sessionId = crypto.randomUUID();
-  engine = 'codex';
+  engine = 'openclaw';
   globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
   showEngine();
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
   store?.close(); store = null; storePromise = null;
   busy = false; liveReply = null;
-  connected = false; verifiedAccount = false; outbox = makeOutbox();
+  connected = false; agentAccess = 'unknown'; verifiedAccount = false; outbox = makeOutbox();
+  restoreJournal();
   showAccount(); renderMessages(); updateControls();
   void checkConnection({ automatic: true });
 });
@@ -332,11 +721,21 @@ window.addEventListener('offline', () => {
 // Only queued work causes periodic status retries; no inference or chat replay occurs here.
 setInterval(() => {
   if (!signedIn()) return;
-  void outbox.expire().catch(showStorageError);
+  const waitingBefore = outbox.snapshot().filter(record => ['queued', 'deferred'].includes(record.status)).map(record => record.id);
+  void outbox.expire().then(() => {
+    // Keep the open queue view's elapsed times and counts honest.
+    if (!$('queue').hidden) renderMessages();
+    // Expiry must never be silent: a message that waited out its
+    // 10 minutes without sending is announced here, and the record
+    // itself stays in History marked expired.
+    const expired = outbox.snapshot().filter(record => record.status === 'stale' && waitingBefore.includes(record.id)).length;
+    if (expired) $('activity').textContent = `${expired} queued message${expired === 1 ? '' : 's'} expired without sending. ${expired === 1 ? 'It is' : 'They are'} kept in History.`;
+  }).catch(showStorageError);
   if (outbox.snapshot().some(record => ['queued', 'deferred'].includes(record.status))) {
     if (!connected) void checkConnection({ automatic: true });
     else void drain();
   }
 }, 15000);
+restoreJournal();
 showAccount(); updateControls();
 void checkConnection({ automatic: true });

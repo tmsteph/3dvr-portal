@@ -19,7 +19,7 @@ function readNode(node, timeoutMs = 2500) {
 }
 
 export function createCrmCheckHandler({ config = process.env } = {}) {
-  const peer = config.THREEDVR_GUN_RELAY || 'https://gun-relay-3dvr.fly.dev/gun';
+  const peer = config.THREEDVR_GUN_RELAY || 'https://portal.3dvr.tech/gun-relay';
 
   return async function crmCheckHandler(req, res) {
     const ids = String(req.query?.ids || '')

@@ -2,8 +2,8 @@
   'use strict';
 
   const PEERS = [
-    'wss://gun-relay-3dvr.fly.dev/gun',
-    'https://gun-relay-3dvr.fly.dev/gun'
+    'wss://portal.3dvr.tech/gun-relay',
+    'https://portal.3dvr.tech/gun-relay'
   ];
   const FS_KEY = 'daedalos.fs.v1';
   const LOCAL_UPDATED_KEY = 'daedalos.fs.local-updated.v1';

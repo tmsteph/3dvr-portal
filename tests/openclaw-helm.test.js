@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createOpenClawHandler, openClawSshCommand, runOpenClaw } from '../src/openclaw/handler.js';
+import { createOpenClawHandler, helmCodexToolsEnabled, openClawSshCommand, runOpenClaw } from '../src/openclaw/handler.js';
 import { verifySignedSeaPayload } from '../src/auth/sea.js';
 const { default: SEA } = await import('gun/sea.js');
 
@@ -43,7 +43,7 @@ test('owner proofs bind action, message, session, origin and request id', async 
   assert.equal(runs, 1);
 });
 
-test('Helm accepts owner proofs from either production origin and preserves explicit restrictions', async t => {
+test('Helm accepts owner proofs from any production origin and preserves explicit restrictions', async t => {
   const { config, pair } = await setup(t);
   let runs = 0;
   const run = async () => { runs++; return { ok: true, gateway: 'reachable' }; };
@@ -52,12 +52,12 @@ test('Helm accepts owner proofs from either production origin and preserves expl
     return { ...body, authPub: pair.pub, authProof: await SEA.sign({ ...body, scope: 'openclaw-helm', pub: pair.pub, iat: Date.now(), origin }, pair) };
   };
   const handler = createOpenClawHandler({ config, run });
-  for (const origin of ['https://portal.3dvr.tech', 'https://operator.3dvr.tech']) {
+  for (const origin of ['https://portal.3dvr.tech', 'https://operator.3dvr.tech', 'https://helm.3dvr.tech', 'https://ladies.3dvr.tech']) {
     assert.equal((await call(handler, await proof(origin), origin)).statusCode, 200);
   }
   assert.equal((await call(handler, await proof('https://operator.3dvr.tech'), 'https://portal.3dvr.tech')).statusCode, 401);
   assert.equal((await call(handler, await proof('https://operator.3dvr.tech.evil.example'), 'https://operator.3dvr.tech.evil.example')).statusCode, 403);
-  assert.equal(runs, 2);
+  assert.equal(runs, 4);
   const restricted = createOpenClawHandler({ config: { ...config, THREEDVR_HELM_ALLOWED_ORIGINS: ' https://portal.3dvr.tech, ' }, run });
   assert.equal((await call(restricted, await proof('https://operator.3dvr.tech'), 'https://operator.3dvr.tech')).statusCode, 403);
   assert.equal((await call(restricted, await proof('https://portal.3dvr.tech'))).statusCode, 200);
@@ -238,6 +238,23 @@ test('SSH JSONL decoder handles fragmented UTF-8 and requires an authoritative f
   await assert.rejects(failed, /transport/);
 });
 
+test('SSH JSONL decoder forwards bridge activity lines to onActivity', async () => {
+  const child = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(),
+    kill() { this.emit('close', 1); }
+  });
+  const activities = [];
+  const deltas = [];
+  const task = runOpenClaw({ action: 'chat', message: 'Hello' }, { uid: 1000, spawn: () => child,
+    onDelta: text => deltas.push(text), onActivity: text => activities.push(text) });
+  await new Promise(resolve => child.stdin.once('data', resolve));
+  child.stdout.write('{"type":"activity","text":"Running a command"}\n{"type":"delta","text":"Hi"}\n{"ok":true,"reply":"Hi"}\n');
+  child.emit('close', 0);
+  assert.equal((await task).reply, 'Hi');
+  assert.deepEqual(deltas, ['Hi']);
+  assert.deepEqual(activities, ['Running a command']);
+});
+
 test('engine selection is signed; legacy proofs stay OpenClaw and receipts cannot cross engines', async t => {
   const { config, sign } = await setup(t);
   const requests = [];
@@ -304,6 +321,67 @@ test('backup chat uses the independent DO host with bounded resources and no tra
   };
   await assert.rejects(runOpenClaw({ action: 'chat', engine: 'codex-backup' }, { spawn: mockSpawn, uid: 1000 }));
   assert.equal(calls, 1);
+});
+
+async function capturedBridge(request, config) {
+  let args;
+  const child = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill() {}
+  });
+  const task = runOpenClaw(request, { uid: 1000, config, spawn: (_command, values) => { args = values; return child; } });
+  await new Promise(resolve => child.stdin.once('data', resolve));
+  child.stdout.write('{"ok":true,"reply":"Done"}\n');
+  child.emit('close', 0);
+  await task;
+  return args;
+}
+const bridgeHost = args => args[args.indexOf('ConnectTimeout=8') + 1];
+
+test('native SSH host override routes only the native bridge', async () => {
+  const config = { THREEDVR_OPENCLAW_SSH_HOST: 'gateway-host', THREEDVR_NATIVE_SSH_HOST: 'native-host' };
+  // The Codex engine follows the native host, not the gateway host.
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex', message: 'Hi' }, config)), 'native-host');
+  // The backup engine runs the same native bridge, bounded as before.
+  const backupArgs = await capturedBridge({ action: 'chat', engine: 'codex-backup' }, config);
+  assert.equal(bridgeHost(backupArgs), 'native-host');
+  assert.ok(backupArgs.includes('systemd-run'));
+  // The OpenClaw engine never follows the native host.
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' }, config)), 'gateway-host');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' },
+    { THREEDVR_NATIVE_SSH_HOST: 'native-host' })), '3dvr-hetzner');
+});
+
+test('unset native SSH host keeps the legacy per-engine routing', async () => {
+  const gateway = { THREEDVR_OPENCLAW_SSH_HOST: 'gateway-host' };
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex', message: 'Hi' }, gateway)), 'gateway-host');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex-backup' }, gateway)), '3dvr-do');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' }, gateway)), 'gateway-host');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex', message: 'Hi' }, {})), '3dvr-hetzner');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', engine: 'codex-backup' }, {})), '3dvr-do');
+  assert.equal(bridgeHost(await capturedBridge({ action: 'chat', message: 'Hi' }, {})), '3dvr-hetzner');
+});
+
+test('HELM_CODEX_TOOLS defaults on and honors explicit off values', () => {
+  assert.equal(helmCodexToolsEnabled({}), true);
+  assert.equal(helmCodexToolsEnabled({ HELM_CODEX_TOOLS: '1' }), true);
+  assert.equal(helmCodexToolsEnabled({ HELM_CODEX_TOOLS: 'yes' }), true);
+  for (const off of ['0', 'false', 'off', 'no', ' OFF ']) {
+    assert.equal(helmCodexToolsEnabled({ HELM_CODEX_TOOLS: off }), false);
+  }
+});
+
+test('codex requests carry the tools posture; other engines never do', async t => {
+  const { config, sign } = await setup(t);
+  const requests = [];
+  const run = async request => { requests.push(request); return { ok: true, reply: 'Done' }; };
+  const on = createOpenClawHandler({ config, run });
+  assert.equal((await call(on, await sign({ engine: 'codex', requestId: 'tools-on-1234567' }))).statusCode, 200);
+  assert.equal(requests.at(-1).toolsEnabled, true);
+  assert.equal((await call(on, await sign({ requestId: 'plain-req-1234567' }))).statusCode, 200);
+  assert.equal(requests.at(-1).toolsEnabled, undefined);
+  const off = createOpenClawHandler({ config: { ...config, HELM_CODEX_TOOLS: '0' }, run });
+  assert.equal((await call(off, await sign({ engine: 'codex', requestId: 'tools-off-123456' }))).statusCode, 200);
+  assert.equal(requests.at(-1).toolsEnabled, false);
 });
 
 test('backup engine is owner-signed and durable receipts never change its host lane', async t => {

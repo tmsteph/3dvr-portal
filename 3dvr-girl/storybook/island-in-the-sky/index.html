@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Island in the Sky - a 3DVR girls adventure</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: #191423; color: #f2edf7; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  header { padding: 18px 12px 6px; text-align: center; }
+  header h1 { font-size: 1.3rem; letter-spacing: 0.04em; color: #c9a8e8; }
+  header p { font-size: 0.85rem; opacity: 0.75; margin-top: 4px; }
+  header a { color: #c9a8e8; }
+  .book { width: min(680px, 94vw); margin: 12px auto; background: #241b33; border: 1px solid #4c3a63; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,0.55); }
+  .page { display: none; }
+  .page.active { display: block; animation: fade 0.35s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .page img { width: 100%; display: block; }
+  .text { padding: 22px 26px 28px; }
+  .text h2 { font-size: 1.35rem; color: #c9a8e8; margin-bottom: 6px; }
+  .text .sub { font-style: italic; opacity: 0.8; margin-bottom: 10px; }
+  .text p { font-size: 1.06rem; line-height: 1.65; }
+  nav { display: flex; gap: 14px; align-items: center; padding: 6px 0 26px; }
+  button { font-family: inherit; font-size: 1rem; background: #4c3a63; color: #f2edf7; border: 1px solid #c9a8e8; border-radius: 999px; padding: 10px 22px; cursor: pointer; }
+  button:disabled { opacity: 0.35; cursor: default; }
+  #counter { font-size: 0.95rem; opacity: 0.85; min-width: 64px; text-align: center; }
+  footer a { color: #c9a8e8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>The Island in the Sky</h1>
+  <p>Book Three &middot; a 3DVR girls adventure &middot; <a href="../../">Back to the girls</a></p>
+</header>
+<div class="book">
+<section class="page active"><img src="../../assets/storybook/island-stairs.webp" alt="The Island in the Sky"><div class="text"><h2>The Island in the Sky</h2><p class="sub">Book Three of the 3DVR girls adventures</p><p>The brass key opened a door in the world. The silver key was never for a door at all. It was for the way up.</p></div></section>
+<section class="page"><img src="../../assets/storybook/island-stairs.webp" alt="1. The Stair at Dawn"><div class="text"><h2>1. The Stair at Dawn</h2><p>They went back to the cliff door before sunrise, when the sky island drifts lowest over the sea. The garden muse put the silver key in the lock and turned it the other way, the way nobody had ever tried. The little door did not open out. It opened up. Stone by stone, a stairway of turquoise light unfolded into the sky, all the way to the island. Kayla put one boot on the first step and pressed. Solid as the cliff itself. “It holds,” she said. “Climb.”</p></div></section>
+<section class="page"><img src="../../assets/storybook/island-climb.webp" alt="2. The Climb"><div class="text"><h2>2. The Climb</h2><p>Kayla led, because heights are just trails that went vertical. The blonde came next, humming to keep everyone's courage up, and the garden muse behind her with both keys on their cord. Muse climbed one-handed, sketching the coast as it shrank, because some views only happen once. Thomas brought up the rear the way keepers do, carrying the picnic basket and watching every step the way he watches over the garden. Halfway up, the whole crew stopped, hung in the bright air between the sea and the sky, and laughed just for the wonder of it.</p></div></section>
+<section class="page"><img src="../../assets/storybook/island-door.webp" alt="3. The Door That Stands Alone"><div class="text"><h2>3. The Door That Stands Alone</h2><p>The island was a meadow that had forgotten to fall: wildflowers, one kind old tree, and in the middle of it a wooden door standing upright with no wall, no house, nothing behind it but more sky. On its knob hung a copper key. The garden muse took it down gently, the way you take an egg from a nest. The blonde walked all the way around the door and came back shaking her head, delighted. “There is no other side,” she said. “Both sides are the front.” Muse drew it from the left and from the right, and the drawings matched, which is impossible, and she kept them both.</p></div></section>
+<section class="page"><img src="../../assets/storybook/island-picnic.webp" alt="4. Tea Above the World"><div class="text"><h2>4. Tea Above the World</h2><p>So they did the only sensible thing: they had the picnic above the world, with the whole coastline shining below them and the clouds for a second sea. Thomas poured tea and kept the map dry, keeper's work. Three keys lay on the blanket corner now: brass, silver, copper. Before they climbed down, the garden muse tried the copper key in the empty air at the island's edge, just to see. It turned. And far below, for one bright second, they all saw it: a staircase of green light going down, down, down under the waves. “The Undertow Library,” Kayla read off the map, going soft at the edges. “Next time,” said the muse, and pocketed the key.</p></div></section>
+<section class="page"><img src="../../assets/storybook/island-picnic.webp" alt="The End"><div class="text"><h2>The End</h2><p>The end of Book Three. Three keys hang by the garden gate now, and all three belong to the girls. The keeper keeps the tea warm and the gate oiled. Book Four: The Undertow Library, when the tide is right.</p></div></section>
+</div>
+<nav>
+  <button id="prev">Back</button>
+  <span id="counter"></span>
+  <button id="next">Next page</button>
+</nav>
+<footer style="text-align:center;padding:0 16px 30px;font-size:0.95rem;line-height:1.9">
+  <div>More adventures</div>
+  <a style="color:#c9a8e8" href="../">Book One: The Door at the End of the Garden</a> &middot;
+  <a style="color:#c9a8e8" href="../second-key/">Book Two: The Second Key</a> &middot;
+  <a style="color:#c9a8e8" href="../island-in-the-sky/">Book Three: The Island in the Sky</a><br>
+  <a style="color:#c9a8e8" href="../../">Back to the girls</a>
+</footer>
+<script>
+  const pages = document.querySelectorAll('.page');
+  let i = 0;
+  const prev = document.getElementById('prev'), next = document.getElementById('next'), counter = document.getElementById('counter');
+  function show(n) {
+    i = Math.max(0, Math.min(pages.length - 1, n));
+    pages.forEach((p, k) => p.classList.toggle('active', k === i));
+    prev.disabled = i === 0;
+    next.disabled = i === pages.length - 1;
+    next.textContent = i === pages.length - 2 ? 'Last page' : 'Next page';
+    counter.textContent = (i + 1) + ' / ' + pages.length;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  prev.onclick = () => show(i - 1);
+  next.onclick = () => show(i + 1);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') show(i + 1);
+    if (e.key === 'ArrowLeft') show(i - 1);
+  });
+  let tx = null;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    if (tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx;
+    if (dx < -48) show(i + 1);
+    if (dx > 48) show(i - 1);
+    tx = null;
+  });
+  show(0);
+</script>
+</body>
+</html>

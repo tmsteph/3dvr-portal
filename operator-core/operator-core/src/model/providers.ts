@@ -78,6 +78,62 @@ export class OpenAiCompatibleProvider implements ModelProvider {
   }
 }
 
+/**
+ * OpenAI Responses API (POST /responses). Some OpenAI keys are scoped to
+ * this endpoint only and reject /chat/completions outright (verified
+ * 2026-11-05: the production key returns 401 "Missing scopes:
+ * model.request" on chat completions but 200 on responses), so the planner
+ * needs this shape as a first-class provider. Request and text extraction
+ * mirror the proven portal code in src/operator/api.js: { model,
+ * store: false, instructions, input } in, output_text out. Non-streaming:
+ * providers return the full raw text and the router parses it.
+ */
+export class OpenAiResponsesProvider implements ModelProvider {
+  readonly id: string;
+  private fetchFn: FetchLike;
+  constructor(
+    private opts: {
+      baseUrl: string;
+      model: string;
+      apiKey?: string;
+      id?: string;
+      fetchFn?: FetchLike;
+    }
+  ) {
+    this.id = opts.id ?? `responses:${opts.model}`;
+    this.fetchFn = opts.fetchFn ?? defaultFetch;
+  }
+  async complete(_context: PlanContext, prompt: string): Promise<string> {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (this.opts.apiKey) headers["authorization"] = `Bearer ${this.opts.apiKey}`;
+    const res = await this.fetchFn(`${this.opts.baseUrl}/responses`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: this.opts.model,
+        store: false,
+        instructions:
+          "You are the planner for a personal AI operator. You can only " +
+          "propose actions; you cannot execute anything yourself.",
+        input: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`model API request failed with status ${res.status}`);
+    }
+    const data = (await res.json()) as {
+      output?: Array<{ content?: Array<{ type?: string; text?: unknown }> }>;
+    };
+    const text = (data.output ?? [])
+      .flatMap((item) => item?.content ?? [])
+      .find((item) => item?.type === "output_text")?.text;
+    if (typeof text !== "string" || text === "") {
+      throw new Error("model API response had no text content");
+    }
+    return text;
+  }
+}
+
 /** Local model served by Ollama. No API key; intended for the owner's LAN/host. */
 export class OllamaProvider implements ModelProvider {
   readonly id: string;

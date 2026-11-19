@@ -5,7 +5,8 @@ import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
 import calendarProviderHandler from '../api/calendar/[provider].js';
-import reminderEmailHandler from '../api/calendar/reminder-email.js';
+import { createUnifiedEmailHandler } from '../api/calendar/reminder-email.js';
+import { createPublicRequestProtection, requestSource } from '../src/security/public-request-protection.js';
 import githubPublishHandler from '../api/github-publish.js';
 import growthHomepageHeroCronHandler from '../api/growth/homepage-hero-cron.js';
 import moneyLoopHandler from '../api/money/loop.js';
@@ -29,11 +30,26 @@ const openClawHandler = createOpenClawHandler();
 import { createFunnelHandler } from '../src/automation-funnel/handler.js';
 const funnelHandler = createFunnelHandler();
 
+import { createLeadLeakAuditHandler } from '../src/lead-leak-audit/handler.js';
+const leadLeakAuditHandler = createLeadLeakAuditHandler();
+
 const PORT = Number(process.env.PORT || 4320);
 const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
 const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
+const publicRequestProtection = createPublicRequestProtection({
+  path: process.env.PORTAL_RATE_LIMIT_DB
+    || (RELEASE_SHA ? '/opt/3dvr-portal-production/state/public-request-protection/limits.sqlite' : ':memory:')
+});
+const sourceFor = req => requestSource(req, { behindCaddy: true });
+const reminderEmailHandler = createUnifiedEmailHandler({
+  freeSite: {
+    protection: publicRequestProtection,
+    sourceFor,
+    audit: (decision, fingerprint) => console.info(JSON.stringify({ event: 'free-site-intake', decision, ...fingerprint }))
+  }
+});
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
 const COMPANION_APK_PATH = resolve(process.env.COMPANION_APK_PATH || '/home/debian/.3dvr/downloads/3dvr-companion-0.4.100.apk');
 const STANDBY_MODE = /^(1|true|yes|on)$/i.test(String(process.env.PORTAL_STANDBY || '').trim());
@@ -209,6 +225,20 @@ async function runRawApiHandler(handler, req, res, url, {
 }
 
 async function runOpenAiSite(req, res, url) {
+  if (req.method === 'POST') {
+    try {
+      const retryAfter = publicRequestProtection.consume([
+        { key: `openai-site:ip:${sourceFor(req)}`, limit: 60, windowMs: 600_000 },
+        { key: 'openai-site:global', limit: 180, windowMs: 3_600_000 }
+      ]);
+      if (retryAfter) {
+        res.setHeader('Retry-After', String(retryAfter));
+        return json(res, 429, { error: 'Too many AI requests. Please try again later.' });
+      }
+    } catch {
+      return json(res, 503, { error: 'AI requests are temporarily unavailable.' });
+    }
+  }
   try {
     if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
     else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
@@ -434,6 +464,11 @@ const server = createServer(async (req, res) => {
     return runJsonApiHandler(funnelHandler, req, res, url, { errorMessage: 'Funnel request failed' });
   }
 
+  if (url.pathname === '/api/lead-leak-audit') {
+    if (STANDBY_MODE) return json(res, 503, { error: 'Primary audit intake is unavailable.' });
+    return runJsonApiHandler(leadLeakAuditHandler, req, res, url, { errorMessage: 'Audit request failed' });
+  }
+
   if (url.pathname === '/api/openai-site') {
     return runOpenAiSite(req, res, url);
   }
@@ -540,6 +575,42 @@ const server = createServer(async (req, res) => {
     json(res, 500, { error: error?.message || 'Failed to read file' });
   }
 });
+
+// Track sockets so the deadline also covers connections that HTTP close cannot drain.
+const connections = new Set();
+server.on('connection', socket => {
+  connections.add(socket);
+  socket.once('close', () => connections.delete(socket));
+});
+
+let shuttingDown = false;
+let activeResponses = 0;
+server.on('request', (req, res) => {
+  activeResponses++;
+  res.once('close', () => {
+    activeResponses--;
+    if (shuttingDown && activeResponses === 0) process.exit(0);
+  });
+});
+
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // Stop accepting connections, but let active responses (including SSE) finish.
+  const deadline = setTimeout(() => {
+    for (const socket of connections) socket.destroy();
+    process.exit(0);
+  }, 20000);
+  server.close(() => {
+    clearTimeout(deadline);
+    process.exit(0);
+  });
+  server.closeIdleConnections();
+  if (activeResponses === 0) process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log(`3DVR self-host ${RELEASE_SHA || 'unknown'} listening on http://${HOST}:${PORT}`);

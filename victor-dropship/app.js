@@ -1,5 +1,5 @@
 const ORDER_NODE = 'victor-dropship-orders';
-const GUN_PEERS = window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'];
+const GUN_PEERS = window.__GUN_PEERS__ || ['wss://portal.3dvr.tech/gun-relay'];
 
 const PRODUCTS = Object.freeze({
   'compact-desk-dock': Object.freeze({

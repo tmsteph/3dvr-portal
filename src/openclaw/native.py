@@ -22,6 +22,15 @@ MAX_LINE = 1024 * 1024
 MAX_WIRE = 32 * 1024 * 1024
 MAX_REPLY = 120000
 
+# Human-scale activity lines for tool items, forwarded to the client as
+# live progress while a turn runs (the handler stores the latest one on
+# the turn's receipt as its preview activity). Only item kinds that mean
+# "the agent is doing something" get a label; message and reasoning
+# items stay silent, and the labels never include tool arguments or
+# output, so nothing sensitive rides the progress channel.
+ACTIVITY_LABELS = {'commandExecution': 'Running a command', 'fileChange': 'Editing files',
+                   'webSearch': 'Searching the web', 'dynamicToolCall': 'Using a tool'}
+
 
 def find_binary():
     # Reuse the installed executable, without depending on a generation-specific path.
@@ -44,11 +53,36 @@ def find_binary():
     raise RuntimeError('Codex is not installed')
 
 
-def command(binary, task_mode=False):
-    # The chat pilot does not inherit unrelated MCP integrations or shell tools.
-    args = [binary, 'app-server', '--disable', 'shell_tool', '-c', 'web_search="live"' if task_mode else 'web_search="disabled"']
+def tools_enabled(request):
+    # Agent posture is the owner engine's default, gated by the Portal's
+    # HELM_CODEX_TOOLS flag. The bridge fails closed: tools require the
+    # handler's explicit toolsEnabled, and Operator task mode and the backup
+    # engine always stay in the original chat posture.
+    if request.get('taskMode') is True or request.get('engine') == 'codex-backup':
+        return False
+    return request.get('toolsEnabled') is True
+
+
+AGENT_INSTRUCTIONS = ('You are Helm\'s agent, working for its owner tmsteph in his private workspace. '
+    'You have shell and file tools inside a dedicated git worktree of the 3dvr-portal repository, and that worktree is your whole world. '
+    'Inspect and edit code there and run the relevant tests. For a code change, create a branch, commit with a clear message, push the branch, and open a pull request. '
+    'You may merge a pull request yourself only when it is small, self-contained, and its checks pass; otherwise leave it open and say why. '
+    'Never commit directly to main, never force-push, and never touch anything outside the worktree. '
+    'Report what you actually did, with branch names, commit hashes, and pull request links; if you did not do something, say so plainly. '
+    'Out of scope: sending messages or email, purchases or payments, account or credential changes, and anything on other machines.')
+
+
+def command(binary, task_mode=False, tools=False):
+    if tools:
+        # Agent posture: the shell tool stays enabled and web search is live.
+        args = [binary, 'app-server', '-c', 'web_search="live"']
+    else:
+        # The chat pilot does not inherit unrelated MCP integrations or shell tools.
+        args = [binary, 'app-server', '--disable', 'shell_tool', '-c', 'web_search="live"' if task_mode else 'web_search="disabled"']
     config = HOME / 'config.toml'
     data = tomllib.loads(config.read_text()) if config.exists() else {}
+    # MCP servers stay force-disabled in every posture: a Helm session never
+    # inherits the config.toml MCP integrations.
     for name in data.get('mcp_servers', {}):
         if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
             raise ValueError('Unsupported MCP configuration name')
@@ -135,10 +169,15 @@ def expired(request):
     return request.get('expiresAt') is not None and time.time() * 1000 >= request['expiresAt']
 
 
-def run_turn(client, thread_id, request, on_delta, model=MODEL):
+def run_turn(client, thread_id, request, on_delta, on_activity=None, model=MODEL):
+    tools = tools_enabled(request)
+    # Approvals stay 'never' in both postures: in agent posture the sandbox is
+    # the wall, so workspace-internal commands run without a round-trip and
+    # anything the sandbox would escalate fails instead of asking.
+    policy = {'type': 'workspaceWrite', 'networkAccess': True} if tools else {'type': 'readOnly'}
     request_id = client.send('turn/start', {'threadId': thread_id,
         'input': [{'type': 'text', 'text': request['message']}], 'model': model,
-        'effort': 'medium', 'approvalPolicy': 'never', 'sandboxPolicy': {'type': 'readOnly'}})
+        'effort': 'medium', 'approvalPolicy': 'never', 'sandboxPolicy': policy})
     turn_id = None
     final = {}
     size = 0
@@ -164,8 +203,15 @@ def run_turn(client, thread_id, request, on_delta, model=MODEL):
             if text:
                 on_delta(text)
         elif method == 'item/started':
-            if params.get('item', {}).get('type') in ['commandExecution', 'mcpToolCall', 'dynamicToolCall', 'fileChange']:
+            kind = params.get('item', {}).get('type')
+            # Tool items are expected in agent posture. MCP calls stay refused
+            # in every posture, and in chat posture any tool item fails closed.
+            if kind == 'mcpToolCall':
+                raise RuntimeError('MCP tools are disabled in Helm')
+            if not tools and kind in ['commandExecution', 'dynamicToolCall', 'fileChange']:
                 raise RuntimeError('Tools unavailable in chat pilot')
+            if on_activity and kind in ACTIVITY_LABELS:
+                on_activity(ACTIVITY_LABELS[kind])
         elif method == 'item/completed':
             item = params.get('item', {})
             if item.get('type') == 'agentMessage' and item.get('phase') in [None, 'final_answer']:
@@ -199,7 +245,8 @@ def main(request):
         return {'ok': False, 'error': 'Native Codex needs its existing server-side ChatGPT sign-in.'}
     if request['action'] == 'status':
         return {'ok': True, 'gateway': 'reachable', 'chatEnabled': True, 'engine': 'Codex',
-                'host': 'DigitalOcean' if backup else 'Hetzner', 'profile': 'native-chat', 'model': model}
+                'host': 'DigitalOcean' if backup else 'Hetzner',
+                'profile': 'native-agent' if tools_enabled(request) else 'native-chat', 'model': model}
     STATE.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (STATE / 'chat.lock').open('a') as lock:
         try:
@@ -216,12 +263,25 @@ def main(request):
         workspace = STATE / 'workspace'
         workspace.mkdir(mode=0o700, exist_ok=True)
         task_mode = request.get('taskMode') is True
-        client = Client(command(binary, task_mode), str(workspace), time.monotonic() + 85)
+        tools = tools_enabled(request)
+        if tools:
+            # The agent's whole world is a dedicated clean clone of the portal
+            # repo (see helm/README.md for the deployment step). Its own .git
+            # lives inside it, so sandbox writes never reach the server's
+            # working checkout or the production release.
+            worktree = STATE / 'portal-worktree'
+            if not (worktree / '.git').exists():
+                return {'ok': False, 'error': 'Helm agent worktree is not set up on this server. See the deployment step in helm/README.md.'}
+            workspace = worktree
+        client = Client(command(binary, task_mode, tools), str(workspace), time.monotonic() + (280 if tools else 85))
         try:
             client.rpc('initialize', {'clientInfo': {'name': '3dvr_helm', 'version': '0.1.0'}})
             client.send('initialized', {}, False)
-            params = {'model': model, 'cwd': str(workspace), 'approvalPolicy': 'never', 'sandbox': 'read-only'}
-            if state.get('threadId'):
+            params = {'model': model, 'cwd': str(workspace), 'approvalPolicy': 'never',
+                      'sandbox': 'workspace-write' if tools else 'read-only'}
+            # A thread keeps the posture it was created in. Flipping the tools
+            # flag starts a fresh conversation instead of resuming across postures.
+            if state.get('threadId') and state.get('tools', False) == tools:
                 params['threadId'] = state['threadId']
                 params['excludeTurns'] = True
                 result = client.rpc('thread/resume', params)
@@ -233,17 +293,22 @@ def main(request):
                         'Use web search when current evidence is needed and return sources. '
                         'Shell, MCP, file changes, messaging, purchases and deployment are unavailable. '
                         'Return the completed result; state any unavailable capability honestly.')
+                if tools:
+                    params['developerInstructions'] = AGENT_INSTRUCTIONS
                 result = client.rpc('thread/start', params)
             thread_id = result['thread']['id']
             if expired(request):
                 return {'ok': False, 'stale': True, 'error': 'Message expired before dispatch.'}
             # A lost SSH session cannot allow the next request to unknowingly continue a pending turn.
-            write_state(state_file, {'threadId': thread_id, 'pending': True})
+            write_state(state_file, {'threadId': thread_id, 'pending': True, 'tools': tools})
             def on_delta(text):
                 if request.get('stream'):
                     print(json.dumps({'type': 'delta', 'text': text}), flush=True)
-            reply = run_turn(client, thread_id, request, on_delta, model)
-            write_state(state_file, {'threadId': thread_id, 'pending': False})
+            def on_activity(text):
+                if request.get('stream'):
+                    print(json.dumps({'type': 'activity', 'text': text}), flush=True)
+            reply = run_turn(client, thread_id, request, on_delta, on_activity, model)
+            write_state(state_file, {'threadId': thread_id, 'pending': False, 'tools': tools})
             return {'ok': True, 'reply': reply, 'engine': 'Codex', 'session': request['session']}
         finally:
             client.close()

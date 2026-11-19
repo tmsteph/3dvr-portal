@@ -90,26 +90,48 @@
 
   registerServiceWorker();
 
-  const installBanner = document.querySelector('[data-install-banner]');
-  const installButton = installBanner?.querySelector('[data-install-button]');
+  const installLink = document.querySelector('[data-install-link]');
   let deferredPrompt = null;
 
-  if (!installBanner || !installButton) return;
+  if (!installLink) return;
+
+  // Install state has to survive the visit where it happened: the browser
+  // offers a fresh beforeinstallprompt on later tab visits (and other
+  // browsers on the same device never saw the install at all), so a link
+  // keyed only on the live prompt would offer an install to people who
+  // already installed. Remember the install on this origin, and ask the
+  // platform what it knows when it can answer.
+  const installedFlagKey = `3dvr-pwa-installed:${scopePath}`;
+
+  const hasInstalledFlag = () => {
+    try {
+      return localStorage.getItem(installedFlagKey) === 'true';
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const markInstalled = () => {
+    try {
+      localStorage.setItem(installedFlagKey, 'true');
+    } catch (error) {
+      console.warn('Unable to remember install state', error);
+    }
+  };
 
   const isInstalled = () => {
     return window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone
-      || document.referrer.startsWith('android-app://');
+      || document.referrer.startsWith('android-app://')
+      || hasInstalledFlag();
   };
 
-  const hideBanner = () => {
-    installBanner.classList.add('is-hidden');
-    installBanner.setAttribute('hidden', '');
+  const hideInstallLink = () => {
+    installLink.setAttribute('hidden', '');
   };
 
-  const showBanner = () => {
-    installBanner.classList.remove('is-hidden');
-    installBanner.removeAttribute('hidden');
+  const showInstallLink = () => {
+    installLink.removeAttribute('hidden');
   };
 
   window.addEventListener('beforeinstallprompt', (event) => {
@@ -117,23 +139,56 @@
     deferredPrompt = event;
 
     if (!isInstalled()) {
-      showBanner();
+      showInstallLink();
     }
   });
 
-  window.addEventListener('appinstalled', hideBanner);
-
-  installButton.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-
-    installButton.disabled = true;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    installButton.disabled = false;
-
-    if (outcome === 'accepted') hideBanner();
+  window.addEventListener('appinstalled', () => {
+    markInstalled();
+    hideInstallLink();
   });
 
-  if (isInstalled()) hideBanner();
+  installLink.addEventListener('click', async (event) => {
+    event.preventDefault();
+    if (!deferredPrompt) return;
+
+    // The deferred prompt is single-use and is the whole interaction: there
+    // is no instructions fallback. Once it has been fired, accepted or
+    // dismissed, the link goes away until the browser offers a fresh one.
+    const prompt = deferredPrompt;
+    deferredPrompt = null;
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      if (choice?.outcome === 'accepted') markInstalled();
+    } catch (error) {
+      console.warn('Install prompt unavailable', error);
+    } finally {
+      hideInstallLink();
+    }
+  });
+
+  if (isInstalled()) hideInstallLink();
+
+  // Running inside the installed app proves the install; remember it so a
+  // later tab visit on this origin stays quiet too.
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+    markInstalled();
+  }
+
+  // Where the platform can name installed related apps (the manifest
+  // declares this app as its own related webapp), trust that answer even
+  // when this browser never saw the install happen.
+  if (typeof navigator.getInstalledRelatedApps === 'function') {
+    navigator.getInstalledRelatedApps()
+      .then((relatedApps) => {
+        if (Array.isArray(relatedApps) && relatedApps.length > 0) {
+          markInstalled();
+          hideInstallLink();
+        }
+      })
+      .catch((error) => {
+        console.warn('Installed apps check skipped', error);
+      });
+  }
 })();

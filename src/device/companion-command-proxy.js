@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { verifySignedSeaPayload, resolveSeaAuthMaxAgeMs } from '../auth/sea.js';
 
-const RELAY_BASE_URL = 'https://gun-relay-3dvr.fly.dev';
+const RELAY_BASE_URL = 'https://portal.3dvr.tech';
 export const REMOTE_COMPANION_CAPABILITIES = new Set([
   'health',
   'device.status',

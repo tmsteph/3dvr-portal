@@ -1,0 +1,1846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7b267">
+<title>Preserve · 3DVR</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,sans-serif;background:#2e2a4a;color:#fff}
+  canvas#game{display:block;width:100%;height:100%;touch-action:none;cursor:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'32'%20height%3D'32'%20viewBox%3D'0%200%2032%2032'%3E%3Cpath%20d%3D'M6%204c11%201%2019%207%2020.5%2018%201%205-1%207.5-6.5%206C10%2026.5%204.5%2016.5%206%204Z'%20fill%3D'%235da24a'%20stroke%3D'%231c2733'%20stroke-width%3D'1.6'%2F%3E%3Cpath%20d%3D'M9.5%208.5C14%2014%2019%2019.5%2024%2024.5'%20fill%3D'none'%20stroke%3D'%232f5d27'%20stroke-width%3D'1.8'%20stroke-linecap%3D'round'%2F%3E%3C%2Fsvg%3E") 6 4, auto}
+  canvas#game.cursor-idle{cursor:none}
+  .hud{position:fixed;inset:0;pointer-events:none;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:3}
+  .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill,.back{pointer-events:auto;background:#17223bd9;border:1px solid #ffffff38;border-radius:999px;padding:8px 11px;color:#fff;text-decoration:none;font-weight:800;font-size:.78rem;backdrop-filter:blur(10px)}
+  button.pill{cursor:pointer;font-family:inherit}
+  .stats{margin-left:auto;display:flex;gap:7px;align-items:center}
+  .title{font-weight:950;letter-spacing:.03em;text-shadow:0 2px 12px #0008}
+  .hint{margin-top:auto;align-self:center;background:#17223bd9;border:1px solid #ffffff38;border-radius:999px;padding:9px 13px;font-size:.75rem;backdrop-filter:blur(10px);text-align:center}
+  .toast{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:#17223be8;border:1px solid #ffffff55;border-radius:999px;padding:10px 16px;font-weight:900;opacity:0;transition:.18s;pointer-events:none;z-index:5;white-space:nowrap}
+  .toast.show{opacity:1}
+  /* touch controls */
+  #touch{position:fixed;inset:auto 0 0 0;display:none;justify-content:space-between;padding:0 14px 86px;z-index:4;pointer-events:none}
+  body.touch #touch{display:flex}
+  #touch .cluster{display:flex;gap:12px}
+  #touch button{pointer-events:auto;width:62px;height:62px;border-radius:50%;border:1px solid #ffffff44;background:#17223b99;color:#fff;font-size:1.35rem;backdrop-filter:blur(8px);touch-action:none;-webkit-user-select:none;user-select:none}
+  #touch button.on{background:#f7b267cc;color:#17223b}
+  #touch button.small{width:52px;height:52px;font-size:1.05rem}
+  #touch .downBtn{display:none}
+  body.flymode #touch .downBtn{display:block}
+  /* round 2: mode picker on the select screen */
+  #modePick{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+  #modePick button{flex:1;min-width:104px;background:#ffffff10;border:2px solid #ffffff22;border-radius:14px;color:#fff;padding:9px 10px;cursor:pointer;font-family:inherit;text-align:left}
+  #modePick button.sel{border-color:#f7b267;background:#f7b26722}
+  #modePick button b{display:block;font-size:.92rem;margin-bottom:2px}
+  #modePick button span{font-size:.7rem;opacity:.75;line-height:1.35;display:block}
+  /* music deck */
+  #deck{position:fixed;right:12px;bottom:12px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  #deckToggle{width:46px;height:46px;border-radius:50%;border:1px solid #ffffff44;background:#17223bd9;color:#fff;font-size:1.15rem;cursor:pointer;backdrop-filter:blur(10px)}
+  #deckPanel{background:#17223bf2;border:1px solid #ffffff38;border-radius:16px;padding:10px;width:min(320px,calc(100vw - 24px));backdrop-filter:blur(12px);max-height:min(74vh,620px);overflow-y:auto}
+  #deckPanel .row{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+  #deckPanel .row:last-child{margin-bottom:0}
+  #deckPanel button{background:#ffffff1f;border:1px solid #ffffff30;color:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;font-family:inherit;font-weight:700}
+  #deckPanel button.on{background:#f7b267;color:#17223b;border-color:#f7b267}
+  #deckPanel select,#deckPanel input[type=text]{flex:1;min-width:0;background:#0d1526;color:#fff;border:1px solid #ffffff30;border-radius:10px;padding:7px 9px;font-family:inherit;font-size:.8rem}
+  #deckPanel input[type=range]{flex:1;accent-color:#f7b267}
+  .deck-note{font-size:.68rem;opacity:.75;line-height:1.45}
+  .lbl{font-size:.64rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;opacity:.7;white-space:nowrap}
+  .q-list{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+  .q-item{display:flex;gap:4px;align-items:center;background:#ffffff10;border:1px solid #ffffff1e;border-radius:10px;padding:3px 4px}
+  .q-item.now{border-color:#f7b267;background:#f7b2671f}
+  .q-item .t{flex:1;min-width:0;background:none;border:none;text-align:left;padding:4px 6px;font-weight:600;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q-item .mini{padding:3px 7px;font-size:.68rem;border-radius:8px}
+  #ytWrap{margin-top:8px}
+  #ytPlayer{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;display:block;background:#000}
+  /* character select */
+  #selectScreen{position:fixed;inset:0;z-index:10;background:#10182ee6;backdrop-filter:blur(10px);overflow-y:auto;padding:22px 16px 40px}
+  #selectScreen[hidden]{display:none}
+  .sheet{max-width:760px;margin:0 auto}
+  .sheet h2{margin:4px 0 2px;font-size:1.5rem;letter-spacing:.02em}
+  .sheet p.sub{margin:0 0 16px;opacity:.8;font-size:.88rem;line-height:1.5}
+  #roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-bottom:26px}
+  .card{position:relative;background:#ffffff10;border:2px solid #ffffff22;border-radius:16px;padding:10px 6px 8px;text-align:center;cursor:pointer;color:#fff;font-family:inherit}
+  .card:hover{border-color:#ffffff55}
+  .card.sel{border-color:#f7b267;background:#f7b26722}
+  .card canvas{display:block;margin:0 auto 4px}
+  .card .nm{font-weight:800;font-size:.82rem;display:block}
+  .card .del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;border:1px solid #ffffff33;background:#00000055;color:#fff;cursor:pointer;line-height:1;font-size:.8rem}
+  .creator{background:#ffffff0d;border:1px solid #ffffff22;border-radius:16px;padding:14px}
+  .creator h3{margin:0 0 10px;font-size:1rem}
+  .creator .grid{display:flex;gap:16px;flex-wrap:wrap}
+  .creator .previewBox{text-align:center}
+  .creator .fields{flex:1;min-width:230px;display:flex;flex-direction:column;gap:10px}
+  .creator label{font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.75;display:block;margin-bottom:4px}
+  .creator input[type=text],.creator select{width:100%;background:#0d1526;color:#fff;border:1px solid #ffffff30;border-radius:10px;padding:8px 10px;font-family:inherit}
+  .swatches{display:flex;gap:6px;flex-wrap:wrap}
+  .sw{width:26px;height:26px;border-radius:50%;border:2px solid #ffffff2e;cursor:pointer;padding:0}
+  .sw.sel{border-color:#fff;transform:scale(1.12)}
+  #saveCustom{align-self:flex-start;background:#f7b267;color:#17223b;border:0;border-radius:999px;padding:9px 16px;font-weight:900;cursor:pointer;font-family:inherit}
+  @media(max-width:640px){.hint{display:none}}
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Preserve, a side-scrolling wander through the Human Preserves"></canvas>
+
+<div class="hud">
+  <div class="top">
+    <a class="back" href="/games.html">← Games</a>
+    <div class="title">Preserve</div>
+    <div class="stats">
+      <span class="pill">🍑 <b id="fruitCount">0/0</b></span>
+      <span class="pill" id="modePill">▶ You</span>
+      <span class="pill" id="racePill" hidden>⏱ 0.0</span>
+      <span class="pill" id="ringPill" hidden>🌀 0/0</span>
+      <button class="pill" id="raceBtn" type="button" hidden>⟳ Race</button>
+      <button class="pill" id="crewBtn" type="button">🧍 Crew</button>
+    </div>
+  </div>
+  <div class="hint">← → wander · ↑ jump · F bow · J spear (Explore) · R restart (Race) · mouse: hold left-click = run · right-click = jump · wheel = zoom · click a critter to bonk it · touch: tap = jump, hold = steer · stop for 8 seconds and your wanderer explores on their own</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div id="touch" aria-hidden="true">
+  <div class="cluster">
+    <button type="button" data-k="left">◀</button>
+    <button type="button" data-k="right">▶</button>
+    <button type="button" class="downBtn" data-k="down">▼</button>
+  </div>
+  <div class="cluster">
+    <button type="button" class="small" data-k="bow" title="Bow">🏹</button>
+    <button type="button" class="small" data-k="spear" title="Spear">🗡</button>
+    <button type="button" data-k="jump">⤒</button>
+  </div>
+</div>
+
+<div id="deck">
+  <div id="deckPanel" hidden>
+    <div class="row">
+      <button id="playBtn" type="button" title="Play or pause">▶</button>
+      <button id="muteBtn" type="button" title="Mute">🔊</button>
+      <span class="lbl">Master</span>
+      <input id="vol" type="range" min="0" max="1" step="0.05" aria-label="Master volume">
+    </div>
+    <div class="row">
+      <button id="tabRadio" type="button" class="on">📻 Radio</button>
+      <button id="tabYt" type="button">▶️ YouTube</button>
+      <button id="tabSearch" type="button">🔎 Search</button>
+    </div>
+    <div id="radioDeck">
+      <div class="row">
+        <select id="stationSel" aria-label="Station"></select>
+      </div>
+      <div class="row">
+        <span class="lbl">Deck vol</span>
+        <input id="radioVol" type="range" min="0" max="1" step="0.05" aria-label="Radio deck volume">
+      </div>
+    </div>
+    <div id="ytDeck" hidden>
+      <div class="row">
+        <input id="ytInput" type="text" placeholder="Paste a YouTube link" aria-label="YouTube link">
+        <button id="ytBtn" type="button" title="Add to the queue">＋ Add</button>
+      </div>
+      <div id="ytQueue" class="q-list"></div>
+      <div class="row">
+        <button id="shuffleBtn" type="button" title="Shuffle the queue">🔀 Shuffle</button>
+        <span class="lbl">Deck vol</span>
+        <input id="ytVol" type="range" min="0" max="1" step="0.05" aria-label="YouTube deck volume">
+      </div>
+      <div id="ytWrap" hidden><div id="ytPlayer"></div></div>
+    </div>
+    <div id="searchDeck" hidden>
+      <div id="searchOff" class="deck-note">Search needs a free YouTube API key — a two-minute setup he can approve; paste-link queueing works fully without it.</div>
+      <div id="searchOn" hidden>
+        <div class="row">
+          <input id="searchInput" type="text" placeholder="Search songs and mixes" aria-label="Search YouTube">
+          <button id="searchBtn" type="button">Search</button>
+        </div>
+        <div id="searchResults" class="q-list"></div>
+        <div class="lbl" style="margin:2px 0 4px">More like what's playing</div>
+        <div id="recResults" class="q-list"></div>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">Mix 📻</span>
+      <input id="blend" type="range" min="0" max="1" step="0.01" aria-label="Blend between the radio and YouTube decks">
+      <span class="lbl">▶️</span>
+    </div>
+    <div class="deck-note">Two decks, one mix. SomaFM radio is ad-free forever; the YouTube queue is yours. Switching decks crossfades; slide Mix to blend both. Queue, mix, and mute are remembered on this device.</div>
+  </div>
+  <button id="deckToggle" type="button" title="Music deck">🎵</button>
+</div>
+<audio id="radio" preload="none"></audio>
+
+<div id="selectScreen" hidden>
+  <div class="sheet">
+    <h2>Choose your wanderer</h2>
+    <p class="sub">The crew of the Preserve, drawn as sprites. Pick a way to play, then pick your wanderer, or build your own below. In Explore, your wanderer keeps exploring on their own whenever you stop.</p>
+    <div id="modePick" role="group" aria-label="Game mode">
+      <button type="button" data-mode="explore" class="sel"><b>🍃 Explore</b><span>Wander, gather fruit, bow and spear the lazy critters. No game over, ever.</span></button>
+      <button type="button" data-mode="race"><b>🏁 Race</b><span>Coast to the Wild Side gate against the clock. Springboards and speed strips are the fast line.</span></button>
+      <button type="button" data-mode="fly"><b>🪽 Fly</b><span>The same map from the air. Hold jump to rise, let go to sink, thread the rings.</span></button>
+    </div>
+    <div id="roster"></div>
+    <div class="creator">
+      <h3>Make your own</h3>
+      <div class="grid">
+        <div class="previewBox">
+          <canvas id="creatorPreview" width="72" height="96"></canvas>
+          <div style="font-size:.7rem;opacity:.7">preview</div>
+        </div>
+        <div class="fields">
+          <div>
+            <label for="cName">Name</label>
+            <input id="cName" type="text" maxlength="18" placeholder="Wanderer">
+          </div>
+          <div>
+            <label>Hair style</label>
+            <select id="cHairStyle">
+              <option value="short">Short</option>
+              <option value="long">Long</option>
+              <option value="bun">Bun</option>
+              <option value="mohawk">Mohawk</option>
+              <option value="bald">Bald</option>
+            </select>
+          </div>
+          <div><label>Skin tone</label><div class="swatches" id="cSkin"></div></div>
+          <div><label>Hair color</label><div class="swatches" id="cHair"></div></div>
+          <div><label>Shirt color</label><div class="swatches" id="cShirt"></div></div>
+          <div><label>Pants color</label><div class="swatches" id="cPants"></div></div>
+          <button id="saveCustom" type="button">Save wanderer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= Characters: one parametric sprite renderer =================
+   A character is a plain definition object:
+   { name, skin, hairStyle, hairColor, shirt, pants, streak, beard, cap }
+   Presets and customs share the exact same shape; the game and the select
+   screen both draw through drawCharacter(). */
+const SKIN_TONES = ['#ffe0bd', '#f2c79b', '#e8b08a', '#c98d5f', '#a06838', '#6f4423'];
+const HAIR_COLORS = ['#17130f', '#3a2a1a', '#7a5a38', '#b5854a', '#f0cf6e', '#d96f32', '#b03a2e', '#39b7ff', '#7e57c2', '#e8e8e8'];
+const SHIRT_COLORS = ['#17a398', '#d33f2e', '#3f9e4d', '#ef7d1a', '#232329', '#2f6fd0', '#7e57c2', '#e56b9f', '#f0b429', '#e8e8e8'];
+const PANTS_COLORS = ['#274156', '#3a4a5a', '#2e4053', '#1d1d22', '#31517d', '#6b5136', '#7a7a52', '#5b2d8e'];
+
+const PRESETS = [
+  { name: 'Thomas',    skin: '#e8b08a', hairStyle: 'short',  hairColor: '#7a5a38', shirt: '#17a398', pants: '#3a4a5a', streak: null,      beard: true,  cap: null },
+  { name: '3DVR Girl', skin: '#f2c79b', hairStyle: 'long',   hairColor: '#f0cf6e', shirt: '#17a398', pants: '#274156', streak: '#39b7ff', beard: false, cap: null },
+  { name: 'Mark',      skin: '#d99e73', hairStyle: 'short',  hairColor: '#2c2320', shirt: '#d33f2e', pants: '#2f3b52', streak: null,      beard: false, cap: '#28418c' },
+  { name: 'Esai',      skin: '#b57a4e', hairStyle: 'short',  hairColor: '#17130f', shirt: '#232329', pants: '#333a45', streak: null,      beard: false, cap: null },
+  { name: 'David',     skin: '#c98d5f', hairStyle: 'short',  hairColor: '#191512', shirt: '#3f9e4d', pants: '#2e4053', streak: null,      beard: false, cap: null },
+  { name: 'Brandon',   skin: '#8a5a34', hairStyle: 'curly',  hairColor: '#241a12', shirt: '#ef7d1a', pants: '#374151', streak: null,      beard: false, cap: null }
+];
+
+/* Draw a character standing on (cx, feetY). h is total sprite height.
+   pose: { dir: -1|1, run: 0..1 phase when running, air: bool, sit: bool } */
+function drawCharacter(g, def, cx, feetY, h, pose) {
+  const dir = pose.dir || 1;
+  const run = pose.run || 0;
+  const air = !!pose.air;
+  const u = h / 44;                       // sprite is authored 44 units tall
+  const legSwing = air ? 3.5 * u : Math.sin(run * Math.PI * 2) * 4.4 * u * (run > 0 ? 1 : 0);
+  const armSwing = air ? -3 * u : -legSwing * 0.8;
+  const bob = (!air && run > 0) ? Math.abs(Math.sin(run * Math.PI * 2)) * 1.4 * u : 0;
+  const hipY = feetY - 13 * u - bob;
+  const shoulderY = hipY - 14 * u;
+  const headR = 7.6 * u;
+  const headY = shoulderY - headR - 1 * u;
+
+  g.save();
+  g.translate(cx, 0);
+  g.scale(dir, 1);
+  // legs (pants) + shoes
+  g.fillStyle = def.pants;
+  const legW = 5 * u, legH = 13 * u;
+  g.fillRect(-5.4 * u + legSwing * 0.4, hipY, legW, legH - Math.max(0, legSwing) * 0.4);
+  g.fillRect(0.6 * u - legSwing * 0.4, hipY, legW, legH - Math.max(0, -legSwing) * 0.4);
+  g.fillStyle = '#241f1c';
+  g.fillRect(-5.8 * u + legSwing * 0.55, feetY - 2.6 * u - bob - Math.max(0, legSwing) * 0.4, 6.4 * u, 2.6 * u);
+  g.fillRect(0.2 * u - legSwing * 0.55, feetY - 2.6 * u - bob - Math.max(0, -legSwing) * 0.4, 6.4 * u, 2.6 * u);
+  // back arm
+  g.fillStyle = def.shirt;
+  g.fillRect(-8.6 * u + armSwing * 0.4, shoulderY + 1 * u, 3.6 * u, 11 * u);
+  g.fillStyle = def.skin;
+  g.fillRect(-8.6 * u + armSwing * 0.4, shoulderY + 11 * u, 3.6 * u, 2.6 * u);
+  // long hair behind the torso
+  if (def.hairStyle === 'long') {
+    g.fillStyle = def.hairColor;
+    g.fillRect(-headR - 1 * u, headY - 2 * u, headR * 2 + 2 * u, 26 * u);
+  }
+  // torso (shirt)
+  g.fillStyle = def.shirt;
+  roundRect(g, -7.4 * u, shoulderY, 14.8 * u, 15 * u, 4 * u);
+  g.fill();
+  // front arm
+  g.fillRect(5 * u - armSwing * 0.4, shoulderY + 1 * u, 3.6 * u, 11 * u);
+  g.fillStyle = def.skin;
+  g.fillRect(5 * u - armSwing * 0.4, shoulderY + 11 * u, 3.6 * u, 2.6 * u);
+  // head
+  g.fillStyle = def.skin;
+  g.beginPath(); g.arc(0, headY, headR, 0, Math.PI * 2); g.fill();
+  // beard
+  if (def.beard) {
+    g.fillStyle = def.hairColor;
+    g.beginPath(); g.arc(0, headY + 2.2 * u, headR * 0.92, 0.15 * Math.PI, 0.95 * Math.PI); g.fill();
+    g.fillStyle = def.skin;
+    g.beginPath(); g.arc(1.6 * u, headY + 2.4 * u, headR * 0.42, 0, Math.PI * 2); g.fill();
+  }
+  // eyes
+  g.fillStyle = '#221d1a';
+  g.beginPath(); g.arc(2.6 * u, headY - 0.6 * u, 0.95 * u, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(6 * u, headY - 0.6 * u, 0.8 * u, 0, Math.PI * 2); g.fill();
+  // hair styles
+  g.fillStyle = def.hairColor;
+  if (def.hairStyle === 'short') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+  } else if (def.hairStyle === 'long') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.04, Math.PI * 0.98, Math.PI * 2.02); g.fill();
+    if (def.streak) {
+      g.fillStyle = def.streak;
+      g.fillRect(2.2 * u, headY - headR - 1 * u, 1.9 * u, 24 * u);
+      g.fillRect(5.4 * u, headY - headR, 1.5 * u, 20 * u);
+    }
+  } else if (def.hairStyle === 'bun') {
+    g.beginPath(); g.arc(0, headY - 0.8 * u, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+    g.beginPath(); g.arc(-0.6 * u, headY - headR - 2.4 * u, 3.4 * u, 0, Math.PI * 2); g.fill();
+  } else if (def.hairStyle === 'mohawk') {
+    roundRect(g, -1.9 * u, headY - headR - 4.6 * u, 3.8 * u, 9 * u, 1.8 * u);
+    g.fill();
+  } else if (def.hairStyle === 'curly') {
+    for (let i = -2; i <= 2; i++) {
+      g.beginPath(); g.arc(i * 3.1 * u, headY - headR + 1.4 * u - Math.abs(i) * -0.4 * u, 3 * u, 0, Math.PI * 2); g.fill();
+    }
+  }
+  // cap (Mark) worn over the hair
+  if (def.cap) {
+    g.fillStyle = def.cap;
+    g.beginPath(); g.arc(0, headY - 1.2 * u, headR * 1.05, Math.PI, Math.PI * 2); g.fill();
+    g.fillRect(0, headY - 1.6 * u, headR + 4.6 * u, 1.9 * u);
+  }
+  g.restore();
+}
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/* ================= Character state: selection + customs ================= */
+const LS_SEL = 'preserve.selectedDef';
+const LS_CUSTOMS = 'preserve.customs';
+function loadJSON(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+function saveJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode */ }
+}
+let customs = loadJSON(LS_CUSTOMS, []);
+let currentDef = loadJSON(LS_SEL, null);
+if (!currentDef || !currentDef.name) currentDef = PRESETS[0];
+function defKey(d) {
+  return [d.name, d.skin, d.hairStyle, d.hairColor, d.shirt, d.pants].join('|');
+}
+
+/* ---------- 3DVR World: one shared character across every mode ----------
+   Shared record under 'world.character.v1', owned by the 3DVR World
+   shell and mirrored here on every local change:
+   { v:1, selectedId, selectedDef, customs:[...] }. Preserve's own keys
+   stay as a fallback so older saved characters survive. */
+const WORLD_CHAR_KEY = 'world.character.v1';
+const PRESET_IDS = { 'Thomas': 'thomas', '3DVR Girl': 'girl', 'Mark': 'mark', 'Esai': 'esai', 'David': 'david', 'Brandon': 'brandon' };
+function worldCharRead() {
+  try { const v = localStorage.getItem(WORLD_CHAR_KEY); const o = v ? JSON.parse(v) : null; return (o && typeof o === 'object') ? o : null; }
+  catch (e) { return null; }
+}
+function canonDef(d) {
+  if (!d || !d.name) return null;
+  const capCol = d.cap || d.capColor || (d.hat === 'cap' ? d.hatColor : null) || null;
+  const out = {
+    id: d.id || PRESET_IDS[d.name] || null, name: String(d.name), role: d.role || null,
+    skin: d.skin || '#e8b08a', hairStyle: d.hairStyle || 'short', hairColor: d.hairColor || '#7a5a38',
+    shirt: d.shirt || '#17a398', pants: d.pants || '#3a4a5a',
+    streak: d.streak || null, beard: !!d.beard, print: !!d.print,
+    cap: capCol, capColor: d.capColor || capCol, hat: d.hat || (capCol ? 'cap' : null), hatColor: d.hatColor || capCol, suit: d.suit || null, shirtC: d.shirtC || null, tie: d.tie || null
+  };
+  if (out.hairStyle === 'cap') { out.hairStyle = 'short'; out.cap = capCol || '#28418c'; out.capColor = out.cap; out.hat = 'cap'; out.hatColor = out.cap; }
+  return out;
+}
+function syncWorldChar() {
+  const sel = canonDef(currentDef);
+  if (!sel) return;
+  saveJSON(WORLD_CHAR_KEY, { v: 1, selectedId: sel.id || null, selectedDef: sel, customs: customs.map(canonDef).filter(Boolean) });
+}
+function adoptWorldCharacter() {
+  const rec = worldCharRead();
+  if (!rec) return;
+  if (Array.isArray(rec.customs)) {
+    let changed = false;
+    for (const c of rec.customs) {
+      const cc = canonDef(c);
+      if (cc && !customs.some((v) => defKey(v) === defKey(cc))) { customs.push(cc); changed = true; }
+    }
+    if (changed) saveJSON(LS_CUSTOMS, customs);
+  }
+  if (rec.selectedDef && rec.selectedDef.name) {
+    const local = PRESETS.find((p) => p.name === rec.selectedDef.name);
+    const next = local || canonDef(rec.selectedDef);
+    if (next && defKey(next) !== defKey(currentDef)) { currentDef = next; saveJSON(LS_SEL, currentDef); }
+  }
+}
+adoptWorldCharacter();
+addEventListener('storage', (e) => {
+  if (e.key !== WORLD_CHAR_KEY) return;
+  adoptWorldCharacter();
+  if (selectOpen) buildRoster();
+});
+
+const rosterEl = document.getElementById('roster');
+const selectScreen = document.getElementById('selectScreen');
+function previewCanvas(def, w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  drawCharacter(g, def, w / 2, h - 8, h - 18, { dir: 1, run: 0 });
+  return c;
+}
+function buildRoster() {
+  rosterEl.innerHTML = '';
+  const addCard = (def, customIdx) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card' + (defKey(def) === defKey(currentDef) ? ' sel' : '');
+    card.append(previewCanvas(def, 54, 72));
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = def.name;
+    card.append(nm);
+    card.addEventListener('click', () => {
+      currentDef = def;
+      saveJSON(LS_SEL, def);
+      syncWorldChar();
+      buildRoster();
+      closeSelect();
+      startChosenMode();
+      pokeInput();
+      say(def.name + ' is wandering');
+    });
+    if (customIdx !== null) {
+      const del = document.createElement('span');
+      del.className = 'del';
+      del.textContent = '×';
+      del.title = 'Delete ' + def.name;
+      del.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const removed = customs.splice(customIdx, 1)[0];
+        saveJSON(LS_CUSTOMS, customs);
+        if (removed && defKey(removed) === defKey(currentDef)) {
+          currentDef = PRESETS[0];
+          saveJSON(LS_SEL, currentDef);
+        }
+        syncWorldChar();
+        buildRoster();
+      });
+      card.append(del);
+    }
+    rosterEl.append(card);
+  };
+  PRESETS.forEach((d) => addCard(d, null));
+  customs.forEach((d, i) => addCard(d, i));
+}
+
+/* creator */
+const draft = { name: '', skin: SKIN_TONES[2], hairStyle: 'short', hairColor: HAIR_COLORS[2], shirt: SHIRT_COLORS[0], pants: PANTS_COLORS[0], streak: null, beard: false, cap: null };
+function swatchRow(elId, colors, get, set) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  colors.forEach((col) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw' + (get() === col ? ' sel' : '');
+    b.style.background = col;
+    b.title = col;
+    b.addEventListener('click', () => { set(col); refreshCreator(); });
+    el.append(b);
+  });
+}
+function refreshCreator() {
+  swatchRow('cSkin', SKIN_TONES, () => draft.skin, (v) => draft.skin = v);
+  swatchRow('cHair', HAIR_COLORS, () => draft.hairColor, (v) => draft.hairColor = v);
+  swatchRow('cShirt', SHIRT_COLORS, () => draft.shirt, (v) => draft.shirt = v);
+  swatchRow('cPants', PANTS_COLORS, () => draft.pants, (v) => draft.pants = v);
+  const c = document.getElementById('creatorPreview');
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  drawCharacter(g, draft, c.width / 2, c.height - 10, c.height - 22, { dir: 1, run: 0 });
+}
+document.getElementById('cName').addEventListener('input', (e) => { draft.name = e.target.value; });
+document.getElementById('cHairStyle').addEventListener('change', (e) => { draft.hairStyle = e.target.value; refreshCreator(); });
+document.getElementById('saveCustom').addEventListener('click', () => {
+  const def = { ...draft, name: (draft.name || '').trim() || 'Wanderer' };
+  customs.push(def);
+  saveJSON(LS_CUSTOMS, customs);
+  currentDef = def;
+  saveJSON(LS_SEL, def);
+  syncWorldChar();
+  buildRoster();
+  closeSelect();
+  startChosenMode();
+  pokeInput();
+  say(def.name + ' joins the Preserve');
+});
+
+/* Round 2: the way to play is chosen on this screen; the game script
+   provides the starter hook (window.__startPreserveMode). */
+let startModeChoice = 'explore';
+document.querySelectorAll('#modePick button').forEach((b) => {
+  b.addEventListener('click', () => {
+    startModeChoice = b.dataset.mode;
+    document.querySelectorAll('#modePick button').forEach((o) => o.classList.toggle('sel', o === b));
+  });
+});
+function startChosenMode() {
+  if (window.__startPreserveMode) window.__startPreserveMode(startModeChoice);
+}
+
+let selectOpen = false;
+function openSelect() { selectOpen = true; selectScreen.hidden = false; buildRoster(); refreshCreator(); }
+function closeSelect() { selectOpen = false; selectScreen.hidden = true; }
+document.getElementById('crewBtn').addEventListener('click', openSelect);
+</script>
+<script>
+'use strict';
+/* ================= World: a playable sketch of the Human Preserves =================
+   Coast -> Orchard -> Camp Ring -> Edge of the Wild Side. No game over:
+   falling just returns you to the last fire circle you passed. */
+const WORLD_W = 5600;
+const GY = 400;                       // ground top line, world units
+const ZONES = [
+  { to: 1400, name: 'The Coast' },
+  { to: 2800, name: 'The Orchard' },
+  { to: 4200, name: 'The Camp Ring' },
+  { to: 5600, name: 'Edge of the Wild Side' }
+];
+const SKY = [
+  ['#6f9fd8', '#f7b267', '#ffd98a'],
+  ['#7fb2e0', '#f9c784', '#ffe3a3'],
+  ['#5d5a9e', '#c86b98', '#f7b267'],
+  ['#2e2a4a', '#57537a', '#8a7f9e']
+];
+const GROUND_TOP = ['#eed9a0', '#69a84f', '#7a9a52', '#55704e'];
+
+const PLATFORMS = [];
+function ground(x, w) { PLATFORMS.push({ x, y: GY, w, h: 170, kind: 'ground' }); }
+function slab(x, y, w) { PLATFORMS.push({ x, y, w, h: 16, kind: 'float' }); }
+ground(0, 1080); ground(1180, 320);                    // coast (pit 1080-1180)
+ground(1500, 850); ground(2430, 470);                  // orchard (pit 2350-2430)
+ground(2900, 450); ground(3420, 880);                  // camp (stream 3350-3420)
+ground(4300, 400); ground(4790, 360); ground(5260, 340); // wild side
+/* Floating slabs, laid out as forgiving stair-steps. A held jump rises
+   ~124 world units and carries ~190 at full run, so every step up here is
+   at most ~98 and every elevated hop spans at most ~140 edge to edge:
+   each drawn slab is landable from the previous surface. The four high
+   slabs (y <= 140) are springboard routes, verified with the rest. */
+[[300, 318, 110], [505, 258, 105], [860, 306, 110], [1010, 140, 240],
+ [1660, 312, 110], [1835, 288, 90], [1990, 262, 110], [2540, 318, 120], [2310, 130, 240],
+ [3060, 312, 110], [3300, 330, 95], [3520, 296, 100], [3660, 272, 120], [3980, 318, 100], [3960, 140, 240],
+ [4460, 302, 100], [4700, 284, 100], [4890, 258, 110], [5330, 306, 110], [5110, 120, 240]].forEach((p) => slab(p[0], p[1], p[2]));
+
+/* Springboards: bounce pads that launch you far above a normal jump. */
+const PADS = [{ x: 950 }, { x: 2250 }, { x: 3900 }, { x: 5050 }].map((p) => ({ x: p.x, y: GY, t: 0 }));
+/* Speed strips: ground runs that visibly boost your pace while crossed. */
+const STRIPS = [{ x: 150, to: 430 }, { x: 1560, to: 1900 }, { x: 3480, to: 3860 }, { x: 5280, to: 5560 }];
+/* Flight rings (Fly mode): pass through the middle to collect. */
+const RINGS = [[500, 210], [950, 120], [1350, 240], [1750, 150], [2150, 230], [2550, 130],
+ [2950, 220], [3400, 140], [3850, 240], [4300, 150], [4750, 230], [5250, 140]
+].map((r) => ({ x: r[0], y: r[1], r: 30, got: false }));
+/* Race gates: checkpoint gates in order, then the Wild Side finish. */
+const GATES = [1400, 2800, 4200, 5500];
+
+const FIRES = [{ x: 140 }, { x: 1560 }, { x: 2960 }, { x: 4330 }];
+const PALMS = [420, 980, 1330];
+const TREES = [1750, 2150, 2750];
+const TENTS = [3180, 3760, 4150];
+const CONIFERS = [4380, 4620, 4990, 5200, 5450];
+
+const FRUIT_COLORS = { orange: '#ff9f2e', fig: '#9b59b6', berry: '#e74c3c' };
+const FRUITS = [];
+function fruit(x, y, kind) { FRUITS.push({ x, y, kind, taken: false }); }
+[[150, 362, 'orange'], [330, 288, 'fig'], [585, 228, 'orange'], [700, 362, 'berry'], [905, 276, 'fig'],
+ [1600, 362, 'berry'], [1700, 282, 'orange'], [1750, 222, 'fig'], [2035, 232, 'orange'], [2150, 214, 'berry'],
+ [2300, 362, 'orange'], [2580, 288, 'fig'], [2750, 228, 'orange'],
+ [2980, 340, 'berry'], [3100, 282, 'orange'], [3710, 242, 'fig'], [3850, 362, 'orange'], [4020, 288, 'berry'],
+ [4500, 272, 'fig'], [4600, 362, 'orange'], [4940, 228, 'berry'], [5050, 362, 'fig'], [5370, 276, 'orange'], [5480, 362, 'berry'],
+ [1105, 108, 'orange'], [1180, 108, 'fig'], [2405, 98, 'berry'], [2480, 98, 'orange'],
+ [4055, 108, 'fig'], [4130, 108, 'orange'], [5205, 88, 'berry'], [5280, 88, 'fig']
+].forEach((f) => fruit(f[0], f[1], f[2]));
+
+const ENEMIES = [
+  { x: 700, min: 620, max: 820 }, { x: 1300, min: 1220, max: 1460 },
+  { x: 2050, min: 1900, max: 2280 }, { x: 2620, min: 2480, max: 2850 },
+  { x: 3700, min: 3500, max: 4100 }, { x: 4950, min: 4830, max: 5120 }
+].map((e) => ({ ...e, dir: 1, speed: 34, squash: 0, y: GY }));
+
+/* ================= Player + input ================= */
+const P = { x: 120, y: GY - 44, w: 26, h: 44, vx: 0, vy: 0, face: 1, ground: false, coyote: 0, buffer: 0, invuln: 0, runPhase: 0, padT: 0 };
+let checkpoint = { x: 140 };
+let camX = 0;
+let lastInput = performance.now();
+let curZone = 0;
+let gateSeen = false;
+let fruitGot = 0;
+const floaters = [];
+
+/* ================= Round 2: modes, weapons, dropped fruit ================= */
+let gameMode = 'explore';           // 'explore' | 'race' | 'fly'
+const arrows = [];
+const DROPS = [];
+let bowCd = 0, spearT = 0, dropsGot = 0;
+let prevBowHeld = false, prevSpearHeld = false, prevRHeld = false;
+const race = { running: false, startT: 0, elapsed: 0, nextGate: 0, finished: false, lastTime: null };
+const LS_RACE_BEST = 'preserve.raceBest';
+let raceBest = loadJSON(LS_RACE_BEST, null);
+let ringsGot = 0;
+function onStrip() {
+  if (!P.ground) return false;
+  return STRIPS.some((s) => P.x >= s.x && P.x <= s.to);
+}
+function bonkCritter(e, why) {
+  if (e.squash > 0) return;
+  e.squash = 3.2;
+  e.respawnX = e.min + Math.random() * (e.max - e.min);
+  DROPS.push({ x: e.x, y: e.y - 30, vy: -120, rest: false, kind: 'orange' });
+  floaters.push({ x: e.x, y: e.y - 40, t: why || 'bonk!', life: 0.9 });
+}
+
+const keys = {};
+const touchState = { left: false, right: false, jump: false, down: false, bow: false, spear: false };
+let prevJumpHeld = false;
+
+function pokeInput() { lastInput = performance.now(); }
+addEventListener('keydown', (e) => {
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
+  if (selectOpen && e.code === 'Escape') { closeSelect(); return; }
+  keys[e.code] = true;
+  pokeInput();
+});
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.getElementById('game').addEventListener('pointerdown', pokeInput);
+document.getElementById('game').addEventListener('contextmenu', (e) => e.preventDefault());
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
+document.querySelectorAll('#touch button').forEach((btn) => {
+  const k = btn.dataset.k;
+  const on = (e) => { e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (_err) {} touchState[k] = true; btn.classList.add('on'); pokeInput(); };
+  const off = (e) => { e.preventDefault(); touchState[k] = false; btn.classList.remove('on'); };
+  btn.addEventListener('pointerdown', on);
+  btn.addEventListener('pointerup', off);
+  btn.addEventListener('pointercancel', off);
+  btn.addEventListener('pointerleave', off);
+});
+
+/* ================= Mouse play =================
+   Desktop mouse splits the buttons (Thomas, 2026-11-09): hold LEFT
+   = run toward the pointer, no jump; RIGHT press = jump, even
+   mid-run while the left button is still held. Touch keeps the tap
+   scheme he asked for first: every tap jumps, and holding after the
+   tap steers on landing. Either way the wanderer's own gap-and-step
+   sense drives further jumps while held, so a held button can cross
+   the whole world, springboards and speed strips included (they are
+   automatic on contact). In Fly there is no hop; holding rises and
+   releasing sinks, just like holding jump. The wheel zooms the
+   camera (zoomF, clamped). Click a critter with the left button:
+   spear when close, an aimed bow shot when in range. */
+const mouse = { down: false, attack: false, cx: 0, cy: 0 };
+let zoomF = 1;
+function mouseWorld() {
+  const s = VH / (Math.max(1, innerHeight) * zoomF);
+  return { x: camX + mouse.cx * s, y: VH - (innerHeight - mouse.cy) * s };
+}
+document.getElementById('game').addEventListener('pointerdown', (e) => {
+  if (selectOpen) return;
+  pokeInput();
+  // Capture the pointer, for every button: a hold keeps tracking even
+  // when it drifts off the canvas (or out of the World shell's frame)
+  // instead of dying at the edge. The browser releases the capture
+  // itself on pointerup / pointercancel.
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_err) {}
+  mouse.cx = e.clientX; mouse.cy = e.clientY;
+  const touchPress = e.pointerType === 'touch' || e.pointerType === 'pen';
+  // RIGHT mouse button: jump only. Works while left is still held.
+  if (!touchPress && e.button === 2) { if (gameMode !== 'fly') P.buffer = 0.12; return; }
+  if (e.button !== undefined && e.button !== 0) return;
+  mouse.attack = false;
+  // Touch: every tap jumps, attack taps included; the hold then
+  // steers once he lands. A mouse left press never jumps.
+  if (touchPress && gameMode !== 'fly') P.buffer = 0.12;
+  const w = mouseWorld();
+  if (gameMode === 'explore') {
+    for (const en of ENEMIES) {
+      if (en.squash > 0) continue;
+      if (Math.abs(w.x - en.x) < 28 && Math.abs(w.y - (en.y - 11)) < 28) {
+        mouse.attack = true;
+        P.face = en.x >= P.x ? 1 : -1;
+        const d = Math.abs(en.x - P.x);
+        if (d <= 100) { spearT = 0.16; bonkCritter(en, 'thock!'); }
+        else if (d <= 760 && bowCd <= 0) {
+          const sx = P.x + P.face * 18, sy = P.y + 18;
+          const ang = Math.atan2((en.y - 11) - sy, en.x - sx);
+          arrows.push({ x: sx, y: sy, vx: Math.cos(ang) * 680, vy: Math.sin(ang) * 680 - 70, life: 1.7 });
+          bowCd = 0.35;
+        }
+        return;
+      }
+    }
+  }
+  mouse.down = true;
+});
+addEventListener('pointermove', (e) => { if (mouse.down) { mouse.cx = e.clientX; mouse.cy = e.clientY; } });
+// Only the left button (or a touch release) ends the hold: letting go
+// of the right button mid-run must not stop the run.
+addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; mouse.down = false; });
+addEventListener('pointercancel', () => { mouse.down = false; });
+addEventListener('blur', () => { mouse.down = false; });
+// Wheel zoom: bounded, and preventDefault so the page behind the
+// canvas (or the World shell around the frame) never scrolls.
+document.getElementById('game').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  zoomF = Math.max(0.6, Math.min(2.4, zoomF * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+  applyView();
+}, { passive: false });
+
+/* Cursor idle fade: after ~2 s without pointer movement over the
+   canvas the cursor hides; the next move or press brings it back
+   instantly. Cosmetic only; nothing in the game reads it. */
+const gameCanvas = document.getElementById('game');
+let cursorIdleTimer = 0;
+function wakeCursor() {
+  gameCanvas.classList.remove('cursor-idle');
+  clearTimeout(cursorIdleTimer);
+  cursorIdleTimer = setTimeout(() => gameCanvas.classList.add('cursor-idle'), 2000);
+}
+gameCanvas.addEventListener('pointermove', wakeCursor);
+gameCanvas.addEventListener('pointerdown', wakeCursor);
+gameCanvas.addEventListener('pointerleave', () => { gameCanvas.classList.remove('cursor-idle'); clearTimeout(cursorIdleTimer); });
+
+const toast = document.getElementById('toast');
+let toastTimer = 0;
+function say(t) {
+  toast.textContent = t;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1500);
+}
+
+/* ================= Ambient wanderer (the living background mode) ================= */
+let aiGoal = WORLD_W - 220;
+function groundAt(x, feetY, slack) {
+  return PLATFORMS.some((p) => x >= p.x && x <= p.x + p.w && p.y >= feetY - 2 && p.y <= feetY + slack);
+}
+function aiInput() {
+  let target = null, best = Infinity;
+  for (const f of FRUITS) {
+    if (f.taken) continue;
+    const d = Math.abs(f.x - P.x);
+    if (d < best) { best = d; target = f; }
+  }
+  let tx;
+  if (target) tx = target.x;
+  else {
+    if (Math.abs(P.x - aiGoal) < 70) aiGoal = aiGoal > WORLD_W / 2 ? 200 : WORLD_W - 220;
+    tx = aiGoal;
+  }
+  let dir = 0;
+  if (tx - P.x > 14) dir = 1; else if (P.x - tx > 14) dir = -1;
+  let wantJump = false;
+  if (dir !== 0 && P.ground) {
+    if (!groundAt(P.x + dir * 34, P.y + P.h, 30)) wantJump = true;                    // a gap ahead
+    if (target && target.y < P.y - 8 && Math.abs(target.x - P.x) < 48) wantJump = true; // fruit on a slab above
+    for (const e of ENEMIES) {
+      if (e.squash <= 0 && Math.sign(e.x - P.x) === dir && Math.abs(e.x - P.x) < 54) wantJump = true; // bop a critter
+    }
+  }
+  return { dir, wantJump };
+}
+
+/* ================= Update ================= */
+const modePill = document.getElementById('modePill');
+const fruitEl = document.getElementById('fruitCount');
+fruitEl.textContent = '0/' + FRUITS.length;
+const racePill = document.getElementById('racePill');
+const ringPill = document.getElementById('ringPill');
+const raceBtn = document.getElementById('raceBtn');
+raceBtn.addEventListener('click', () => { if (gameMode === 'race') startGame('race'); });
+let modeAmbient = false;
+function moveToward(v, target, delta) {
+  return v < target ? Math.min(target, v + delta) : Math.max(target, v - delta);
+}
+function zoneIndex(x) {
+  for (let i = 0; i < ZONES.length; i++) if (x < ZONES[i].to) return i;
+  return ZONES.length - 1;
+}
+function respawn() {
+  P.x = checkpoint.x;
+  P.y = GY - P.h;
+  P.vx = 0; P.vy = 0;
+  say('Back to the fire 🔥');
+}
+function startGame(mode) {
+  gameMode = mode;
+  document.body.classList.toggle('flymode', mode === 'fly');
+  race.running = false; race.finished = false; race.nextGate = 0; race.elapsed = 0; race.lastTime = null;
+  arrows.length = 0; DROPS.length = 0; spearT = 0; bowCd = 0;
+  racePill.hidden = mode !== 'race';
+  ringPill.hidden = mode !== 'fly';
+  raceBtn.hidden = mode !== 'race';
+  if (mode === 'race' || mode === 'fly') {
+    P.x = 120; P.y = GY - P.h; P.vx = 0; P.vy = 0; P.face = 1;
+    checkpoint = { x: 140 };
+    camX = 0;
+    if (mode === 'fly') {
+      RINGS.forEach((r) => { r.got = false; });
+      ringsGot = 0;
+      ringPill.textContent = '🌀 0/' + RINGS.length;
+    }
+    if (mode === 'race') racePill.textContent = '⏱ 0.0' + (raceBest !== null ? ' · best ' + raceBest.toFixed(1) : '');
+  }
+  pokeInput();
+  say(mode === 'race' ? '🏁 Race: coast to the Wild Side gate!' : mode === 'fly' ? '🪽 Fly: hold jump to rise, thread the rings' : '🍃 Explore the Preserve');
+}
+window.__startPreserveMode = startGame;
+function update(dt) {
+  const now = performance.now();
+  if (mouse.down) lastInput = now;
+  modeAmbient = gameMode === 'explore' && !selectOpen && (now - lastInput > 8000);
+  const pill = gameMode === 'race' ? '🏁 Race' : gameMode === 'fly' ? '🪽 Fly' : (modeAmbient ? '🍃 Ambient' : '▶ You');
+  if (modePill.textContent !== pill) modePill.textContent = pill;
+
+  let dir = 0;
+  let jumpHeld = false;
+  if (modeAmbient) {
+    const ai = aiInput();
+    dir = ai.dir;
+    if (ai.wantJump && P.ground) P.buffer = 0.12;
+  } else {
+    if (keys.ArrowLeft || keys.KeyA || touchState.left) dir -= 1;
+    if (keys.ArrowRight || keys.KeyD || touchState.right) dir += 1;
+    jumpHeld = !!(keys.ArrowUp || keys.KeyW || keys.Space || touchState.jump);
+    if (mouse.down && !mouse.attack) {
+      const mw = mouseWorld();
+      const mdx = mw.x - P.x;
+      if (Math.abs(mdx) > 12) dir = Math.sign(mdx);
+      if (gameMode === 'fly') jumpHeld = true;
+      else if (dir !== 0 && P.ground && !groundAt(P.x + dir * 34, P.y + P.h, 30)) P.buffer = 0.12;
+    }
+    if (jumpHeld && !prevJumpHeld) P.buffer = 0.12;
+    if (gameMode === 'explore') {
+      const bowHeld = !!(keys.KeyF || touchState.bow);
+      const spearHeld = !!(keys.KeyJ || touchState.spear);
+      if (bowHeld && !prevBowHeld && bowCd <= 0) {
+        arrows.push({ x: P.x + P.face * 18, y: P.y + 18, vx: P.face * 640, vy: -46, life: 1.7 });
+        bowCd = 0.35;
+      }
+      if (spearHeld && !prevSpearHeld) {
+        spearT = 0.16;
+        const hx = P.face > 0 ? P.x + 8 : P.x - 44;
+        for (const e of ENEMIES) {
+          if (e.squash <= 0 && e.x > hx - 14 && e.x < hx + 50 && Math.abs((e.y - 11) - (P.y + 20)) < 34) bonkCritter(e, 'thock!');
+        }
+      }
+      prevBowHeld = bowHeld;
+      prevSpearHeld = spearHeld;
+    }
+    const rHeld = !!keys.KeyR;
+    if (gameMode === 'race' && rHeld && !prevRHeld) startGame('race');
+    prevRHeld = rHeld;
+  }
+  prevJumpHeld = jumpHeld;
+
+  const strip = onStrip();
+  const maxS = strip ? 430 : 235;
+  if (dir !== 0) {
+    P.vx = moveToward(P.vx, dir * maxS, (P.ground ? (strip ? 2600 : 2000) : 1300) * dt);
+    P.face = dir;
+  } else {
+    P.vx = moveToward(P.vx, 0, (P.ground ? 1900 : 260) * dt);
+  }
+  if (gameMode === 'fly') {
+    // Flight: hold jump to rise, let go to sink gently, Down/S to dive.
+    const sinkHeld = !!(keys.ArrowDown || keys.KeyS || touchState.down);
+    const targetVy = jumpHeld ? -255 : (sinkHeld ? 265 : 130);
+    P.vy = moveToward(P.vy, targetVy, 1500 * dt);
+    P.buffer = 0;
+    P.coyote = 0;
+  } else {
+    const rising = P.vy < 0;
+    P.vy += 1500 * (rising && !jumpHeld && !modeAmbient && !(P.padT > 0) ? 2.1 : 1) * dt;
+    if (P.vy > 920) P.vy = 920;
+    P.coyote = P.ground ? 0.09 : Math.max(0, P.coyote - dt);
+    P.buffer = Math.max(0, P.buffer - dt);
+    if (P.buffer > 0 && (P.ground || P.coyote > 0)) {
+      P.vy = -610;
+      P.buffer = 0;
+      P.coyote = 0;
+      P.ground = false;
+    }
+  }
+  const prevBottom = P.y + P.h;
+  P.x += P.vx * dt;
+  if (P.x < 16) P.x = 16;
+  if (P.x > WORLD_W - 16) P.x = WORLD_W - 16;
+  P.y += P.vy * dt;
+  P.ground = false;
+  if (P.vy >= 0) {
+    for (const p of PLATFORMS) {
+      if (P.x + P.w * 0.7 > p.x && P.x - P.w * 0.7 < p.x + p.w && prevBottom <= p.y + 1 && P.y + P.h >= p.y) {
+        P.y = p.y - P.h;
+        P.vy = 0;
+        P.ground = true;
+      }
+    }
+  }
+  if (P.ground && Math.abs(P.vx) > 20) P.runPhase += Math.abs(P.vx) * dt / 36;
+  P.invuln = Math.max(0, P.invuln - dt);
+  P.padT = Math.max(0, P.padT - dt);
+  // Springboards: standing on a pad launches you far above a normal jump.
+  // The bounce eats most of your run speed, so the pop is near-vertical
+  // and the high slab overhead catches you on the way down.
+  if (gameMode !== 'fly' && P.ground && P.vy === 0) {
+    for (const pad of PADS) {
+      if (Math.abs(P.x - pad.x) < 24 && Math.abs((P.y + P.h) - pad.y) < 4) {
+        P.vy = -980;
+        P.vx *= 0.3;
+        P.ground = false;
+        P.padT = 0.75; // full-strength arc: the tap-jump gravity cut does not apply to a bounce
+        pad.t = 0.28;
+        floaters.push({ x: pad.x, y: pad.y - 46, t: 'boing!', life: 0.7 });
+        break;
+      }
+    }
+  }
+  for (const pad of PADS) pad.t = Math.max(0, pad.t - dt);
+  if (gameMode === 'fly') {
+    // No fail state in the air: a soft ceiling, and a gentle hover floor
+    // over the pits instead of the respawn drop.
+    if (P.y < 8) { P.y = 8; P.vy = Math.max(0, P.vy); }
+    if (P.y + P.h > GY && !groundAt(P.x, GY, 2)) { P.y = GY - P.h; P.vy = Math.min(0, P.vy); }
+  } else if (P.y > 640) respawn();
+
+  for (const e of ENEMIES) {
+    if (e.squash > 0) {
+      e.squash -= dt;
+      if (e.squash <= 0 && e.respawnX !== undefined) { e.x = e.respawnX; e.respawnX = undefined; }
+      continue;
+    }
+    e.x += e.dir * e.speed * dt;
+    if (e.x < e.min) { e.x = e.min; e.dir = 1; }
+    if (e.x > e.max) { e.x = e.max; e.dir = -1; }
+    const overlap = Math.abs(P.x - e.x) < P.w / 2 + 15 && (P.y + P.h) > e.y - 20 && P.y < e.y;
+    if (overlap) {
+      if (P.vy > 80 && (P.y + P.h) - (e.y - 20) < 15) {
+        e.squash = 5;
+        P.vy = -390;
+        floaters.push({ x: e.x, y: e.y - 34, t: 'bop!', life: 0.8 });
+      } else if (P.invuln <= 0) {
+        P.vx = (P.x < e.x ? -1 : 1) * 260;
+        P.vy = -210;
+        P.invuln = 1.1;
+        say('Ouch — lazy critter');
+      }
+    }
+  }
+  // Arrows (Explore): they fly, arc, and bonk.
+  bowCd = Math.max(0, bowCd - dt);
+  spearT = Math.max(0, spearT - dt);
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    const a = arrows[i];
+    a.vy += 950 * dt;
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+    a.life -= dt;
+    let dead = a.life <= 0 || a.x < 0 || a.x > WORLD_W;
+    if (!dead) {
+      for (const e of ENEMIES) {
+        if (e.squash <= 0 && Math.abs(a.x - e.x) < 20 && Math.abs(a.y - (e.y - 11)) < 17) { bonkCritter(e, 'thwip!'); dead = true; break; }
+      }
+    }
+    if (!dead && a.y > GY + 30) dead = true;
+    if (dead) arrows.splice(i, 1);
+  }
+  // Dropped fruit: pops out of a bonked critter, falls, rests, collectible.
+  for (let i = DROPS.length - 1; i >= 0; i--) {
+    const d = DROPS[i];
+    if (!d.rest) {
+      const prevDy = d.y;
+      d.vy = Math.min(700, d.vy + 1500 * dt);
+      d.y += d.vy * dt;
+      for (const p of PLATFORMS) {
+        if (d.x > p.x && d.x < p.x + p.w && prevDy <= p.y && d.y >= p.y) { d.y = p.y - 8; d.rest = true; break; }
+      }
+      if (d.y > 620) { d.y = 612; d.rest = true; }
+    }
+    const dx = d.x - P.x, dy = d.y - (P.y + P.h / 2);
+    if (dx * dx + dy * dy < 34 * 34) {
+      DROPS.splice(i, 1);
+      dropsGot++;
+      floaters.push({ x: d.x, y: d.y - 14, t: '+1 drop', life: 0.8 });
+    }
+  }
+  for (const f of FRUITS) {
+    if (f.taken) continue;
+    const dx = f.x - P.x, dy = f.y - (P.y + P.h / 2);
+    if (dx * dx + dy * dy < 32 * 32) {
+      f.taken = true;
+      fruitGot++;
+      fruitEl.textContent = fruitGot + '/' + FRUITS.length;
+      floaters.push({ x: f.x, y: f.y - 12, t: '+1', life: 0.8 });
+      if (fruitGot === FRUITS.length) say('Every fruit in the Preserve! 🍑');
+    }
+  }
+  for (const f of FIRES) {
+    if (Math.abs(P.x - f.x) < 46 && checkpoint.x !== f.x) {
+      checkpoint = { x: f.x };
+      say('🔥 The fire remembers you');
+    }
+  }
+  if (gameMode === 'race') {
+    if (!race.running && !race.finished && (dir !== 0 || Math.abs(P.vx) > 30)) {
+      race.running = true;
+      race.startT = now;
+    }
+    if (race.running) {
+      race.elapsed = (now - race.startT) / 1000;
+      if (race.nextGate < GATES.length && P.x >= GATES[race.nextGate]) {
+        checkpoint = { x: GATES[race.nextGate] };
+        race.nextGate++;
+        if (race.nextGate >= GATES.length) {
+          race.running = false;
+          race.finished = true;
+          race.lastTime = race.elapsed;
+          const isBest = raceBest === null || race.elapsed < raceBest;
+          if (isBest) { raceBest = race.elapsed; saveJSON(LS_RACE_BEST, raceBest); }
+          say('🏁 ' + race.elapsed.toFixed(1) + 's' + (isBest ? ' — new best!' : ' · best ' + raceBest.toFixed(1) + 's') + ' · R to race again');
+        } else {
+          say('Gate ' + race.nextGate + '/' + GATES.length + ' · ' + race.elapsed.toFixed(1) + 's');
+        }
+      }
+      racePill.textContent = '⏱ ' + race.elapsed.toFixed(1) + (raceBest !== null ? ' · best ' + raceBest.toFixed(1) : '');
+    }
+  }
+  if (gameMode === 'fly') {
+    const cy = P.y + P.h / 2;
+    for (const r of RINGS) {
+      if (r.got) continue;
+      const prevCx = P.x - P.vx * dt;
+      if (P.vx !== 0 && (prevCx - r.x) * (P.x - r.x) <= 0 && Math.abs(cy - r.y) < r.r) {
+        r.got = true;
+        ringsGot++;
+        ringPill.textContent = '🌀 ' + ringsGot + '/' + RINGS.length;
+        floaters.push({ x: r.x, y: r.y - 40, t: 'ring!', life: 0.8 });
+        if (ringsGot === RINGS.length) say('🌀 Every ring in the Preserve!');
+      }
+    }
+  }
+  const z = zoneIndex(P.x);
+  if (z !== curZone) { curZone = z; say(ZONES[z].name); }
+  if (P.x > 5460 && !gateSeen) { gateSeen = true; say('🌲 The Wild Side is still growing'); }
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    floaters[i].y -= 26 * dt;
+    floaters[i].life -= dt;
+    if (floaters[i].life <= 0) floaters.splice(i, 1);
+  }
+  const target = P.x - viewW * 0.42;
+  camX += (target - camX) * (1 - Math.exp(-6 * dt));
+  camX = Math.max(0, Math.min(WORLD_W - viewW, camX));
+}
+
+/* ================= Render ================= */
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let VW = 0, SCALE = 1, viewW = 0;
+const VH = 480;
+function applyView() { viewW = innerWidth / (innerHeight / VH) / zoomF; }
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  VW = innerWidth;
+  cv.width = Math.round(innerWidth * dpr);
+  cv.height = Math.round(innerHeight * dpr);
+  SCALE = (innerHeight / VH) * dpr;
+  applyView();
+}
+addEventListener('resize', resize);
+function hexRgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+function mixHex(a, b, t) {
+  const A = hexRgb(a), B = hexRgb(b);
+  return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`;
+}
+function skyAt(x) {
+  const t = Math.max(0, Math.min(1, x / WORLD_W)) * (SKY.length - 1);
+  const i = Math.min(SKY.length - 2, Math.floor(t));
+  const f = t - i;
+  return [0, 1, 2].map((k) => mixHex(SKY[i][k], SKY[i + 1][k], f));
+}
+function drawFire(f, time) {
+  const x = f.x - camX, y = GY;
+  const active = checkpoint.x === f.x;
+  const flick = Math.sin(time * 12 + f.x) * 2.4;
+  const glow = ctx.createRadialGradient(x, y - 12, 4, x, y - 12, active ? 74 : 46);
+  glow.addColorStop(0, 'rgba(255,166,43,0.5)');
+  glow.addColorStop(1, 'rgba(255,166,43,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - 80, y - 90, 160, 100);
+  ctx.fillStyle = '#6b6f75';
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI - 0.4;
+    ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * 13, y - 2, 4.6, 3, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = '#5d4028';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(x - 10, y - 2); ctx.lineTo(x + 10, y - 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 10, y - 8); ctx.lineTo(x + 10, y - 2); ctx.stroke();
+  const fh = (active ? 24 : 17) + flick;
+  ctx.fillStyle = '#ff7b2e';
+  ctx.beginPath(); ctx.moveTo(x - 7, y - 4); ctx.quadraticCurveTo(x, y - fh - 8, x + 7, y - 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffa62b';
+  ctx.beginPath(); ctx.moveTo(x - 4.4, y - 4); ctx.quadraticCurveTo(x + 1, y - fh * 0.72 - 5, x + 4.4, y - 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffe29a';
+  ctx.beginPath(); ctx.moveTo(x - 2.2, y - 4); ctx.quadraticCurveTo(x, y - fh * 0.4 - 3, x + 2.2, y - 4); ctx.closePath(); ctx.fill();
+}
+function drawTree(x, time, wild) {
+  const sx = x - camX;
+  if (wild) {
+    ctx.fillStyle = '#2c3440';
+    for (let i = 0; i < 3; i++) {
+      const w = 46 - i * 11, y0 = GY - i * 26;
+      ctx.beginPath();
+      ctx.moveTo(sx - w / 2, y0); ctx.lineTo(sx, y0 - 44); ctx.lineTo(sx + w / 2, y0);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#4a3826';
+    ctx.fillRect(sx - 3, GY - 8, 6, 10);
+    return;
+  }
+  ctx.fillStyle = '#6e4f30';
+  ctx.fillRect(sx - 4, GY - 44, 8, 44);
+  ctx.fillStyle = '#3e7d3a';
+  ctx.beginPath(); ctx.arc(sx, GY - 66, 30, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx - 24, GY - 50, 21, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 24, GY - 50, 21, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff9f2e';
+  [[-14, -70], [10, -58], [20, -78], [-24, -44], [2, -84]].forEach((d) => {
+    ctx.beginPath(); ctx.arc(sx + d[0], GY + d[1], 3.4, 0, Math.PI * 2); ctx.fill();
+  });
+}
+function drawPalm(x, time) {
+  const sx = x - camX;
+  ctx.strokeStyle = '#8a6a44';
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(sx, GY); ctx.quadraticCurveTo(sx + 8, GY - 40, sx + 18, GY - 62); ctx.stroke();
+  ctx.strokeStyle = '#4d8f4a';
+  ctx.lineWidth = 4;
+  for (let i = 0; i < 5; i++) {
+    const a = -0.4 - i * 0.42;
+    ctx.beginPath();
+    ctx.moveTo(sx + 18, GY - 62);
+    ctx.quadraticCurveTo(sx + 18 + Math.cos(a) * 22, GY - 62 + Math.sin(a) * 16 - 6, sx + 18 + Math.cos(a) * 36, GY - 62 + Math.sin(a) * 26 + 8);
+    ctx.stroke();
+  }
+}
+function render(time) {
+  // Zoom scales about the ground line: the view stays anchored to
+  // the bottom of the world at any zoomF.
+  ctx.setTransform(SCALE * zoomF, 0, 0, SCALE * zoomF, 0, cv.height - VH * SCALE * zoomF);
+  // sky
+  const sky = skyAt(camX + viewW / 2);
+  const grad = ctx.createLinearGradient(0, 0, 0, VH);
+  grad.addColorStop(0, sky[0]);
+  grad.addColorStop(0.62, sky[1]);
+  grad.addColorStop(1, sky[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, -VH, viewW, VH * 2);
+  // sun with parallax
+  const sunX = (620 - camX * 0.12);
+  const sunGlow = ctx.createRadialGradient(sunX, 108, 6, sunX, 108, 90);
+  sunGlow.addColorStop(0, 'rgba(255,215,106,0.85)');
+  sunGlow.addColorStop(1, 'rgba(255,215,106,0)');
+  ctx.fillStyle = sunGlow;
+  ctx.fillRect(sunX - 95, 10, 190, 200);
+  ctx.fillStyle = '#ffd76a';
+  ctx.beginPath(); ctx.arc(sunX, 108, 27, 0, Math.PI * 2); ctx.fill();
+  // hill silhouettes
+  const hill = (factor, base, amp, seed, color) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, VH);
+    for (let sx = 0; sx <= viewW + 20; sx += 14) {
+      const wx = sx + camX * factor;
+      ctx.lineTo(sx, base - (Math.sin(wx * 0.006 + seed) * amp + Math.sin(wx * 0.0016 + seed * 2.7) * amp * 1.6));
+    }
+    ctx.lineTo(viewW, VH);
+    ctx.closePath();
+    ctx.fill();
+  };
+  hill(0.3, 336, 15, 1.7, 'rgba(61,64,107,0.35)');
+  hill(0.55, 378, 11, 4.2, 'rgba(43,45,74,0.45)');
+  // pit water on the coast
+  ctx.fillStyle = '#2f6f9f';
+  ctx.fillRect(1080 - camX, GY + 36, 100, VH - GY - 36);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 4; i++) {
+    const wx = 1092 + ((time * 22 + i * 27) % 84);
+    ctx.fillRect(wx - camX, GY + 42 + (i % 2) * 7, 9, 1.8);
+  }
+  // platforms
+  for (const p of PLATFORMS) {
+    const sx = p.x - camX;
+    if (sx + p.w < -40 || sx > viewW + 40) continue;
+    const zc = GROUND_TOP[zoneIndex(p.x + p.w / 2)];
+    if (p.kind === 'ground') {
+      ctx.fillStyle = '#8a6a48';
+      ctx.fillRect(sx, p.y, p.w, VH - p.y + 4);
+      ctx.fillStyle = zc;
+      ctx.fillRect(sx, p.y, p.w, 11);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(sx, p.y + 11, p.w, 4);
+    } else {
+      ctx.fillStyle = '#9a6a44';
+      roundRect(ctx, sx, p.y, p.w, p.h, 6);
+      ctx.fill();
+      ctx.fillStyle = '#69a84f';
+      ctx.fillRect(sx + 2, p.y, p.w - 4, 5);
+    }
+  }
+  // speed strips: a glowing run with chevrons streaming along it
+  for (const s of STRIPS) {
+    if (s.to - camX < -20 || s.x - camX > viewW + 20) continue;
+    ctx.fillStyle = 'rgba(255,209,102,0.8)';
+    ctx.fillRect(s.x - camX, GY, s.to - s.x, 4);
+    ctx.fillStyle = '#fff3c4';
+    const off = (time * 170) % 34;
+    for (let cx = s.x + off - 34; cx < s.to - 8; cx += 34) {
+      if (cx < s.x) continue;
+      const px = cx - camX;
+      ctx.beginPath();
+      ctx.moveTo(px, GY + 12); ctx.lineTo(px + 9, GY + 17); ctx.lineTo(px, GY + 22); ctx.lineTo(px + 3.4, GY + 17);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  // springboards
+  for (const pad of PADS) {
+    const sx = pad.x - camX;
+    if (sx < -40 || sx > viewW + 40) continue;
+    const squash = pad.t > 0 ? 5 : 0;
+    ctx.fillStyle = '#5d6672';
+    roundRect(ctx, sx - 15, GY - 6 + squash * 0.4, 30, 6, 3); ctx.fill();
+    ctx.fillStyle = '#39424e';
+    ctx.fillRect(sx - 3, GY - 12 + squash, 6, 7);
+    ctx.fillStyle = '#e2483d';
+    ctx.beginPath(); ctx.ellipse(sx, GY - 13 + squash, 16, 5.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff8a7a';
+    ctx.beginPath(); ctx.ellipse(sx, GY - 14.6 + squash, 9, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // flight rings
+  if (gameMode === 'fly') {
+    for (const r of RINGS) {
+      const sx = r.x - camX;
+      if (sx < -50 || sx > viewW + 50) continue;
+      ctx.strokeStyle = r.got ? 'rgba(255,209,102,0.35)' : '#ffd166';
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(sx, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+      if (!r.got) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(sx, r.y, r.r - 4.4, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+  }
+  // race checkpoint gates (the finish gate is drawn as scenery below)
+  if (gameMode === 'race') {
+    GATES.forEach((gx, i) => {
+      if (i === GATES.length - 1) return;
+      const sx = gx - camX;
+      if (sx < -60 || sx > viewW + 60) return;
+      ctx.fillStyle = i < race.nextGate ? '#3f9e4d' : '#ffd166';
+      ctx.fillRect(sx - 3, GY - 96, 6, 96);
+      ctx.beginPath(); ctx.moveTo(sx + 3, GY - 96); ctx.lineTo(sx + 30, GY - 86); ctx.lineTo(sx + 3, GY - 76); ctx.closePath(); ctx.fill();
+    });
+  }
+  // props
+  for (const x of PALMS) if (x - camX > -90 && x - camX < viewW + 90) drawPalm(x, time);
+  for (const x of TREES) if (x - camX > -90 && x - camX < viewW + 90) drawTree(x, time, false);
+  for (const x of CONIFERS) if (x - camX > -90 && x - camX < viewW + 90) drawTree(x, time, true);
+  for (const x of TENTS) {
+    const sx = x - camX;
+    if (sx < -90 || sx > viewW + 90) continue;
+    ctx.fillStyle = '#c96f4a';
+    ctx.beginPath(); ctx.moveTo(sx - 34, GY); ctx.lineTo(sx, GY - 44); ctx.lineTo(sx + 34, GY); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5d3423';
+    ctx.beginPath(); ctx.moveTo(sx - 10, GY); ctx.lineTo(sx, GY - 24); ctx.lineTo(sx + 10, GY); ctx.closePath(); ctx.fill();
+  }
+  // end gate
+  const gx = 5500 - camX;
+  if (gx > -90 && gx < viewW + 90) {
+    ctx.fillStyle = '#6e4f30';
+    ctx.fillRect(gx - 30, GY - 74, 7, 74);
+    ctx.fillRect(gx + 23, GY - 74, 7, 74);
+    ctx.fillRect(gx - 34, GY - 78, 75, 7);
+    ctx.fillStyle = '#a97c50';
+    roundRect(ctx, gx - 20, GY - 66, 44, 20, 4);
+    ctx.fill();
+    ctx.fillStyle = '#2e2119';
+    ctx.font = '900 9px Inter,system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('WILD SIDE', gx + 2, GY - 52);
+  }
+  for (const f of FIRES) if (f.x - camX > -110 && f.x - camX < viewW + 110) drawFire(f, time);
+  // fruit
+  for (const f of FRUITS) {
+    if (f.taken) continue;
+    const sx = f.x - camX;
+    if (sx < -30 || sx > viewW + 30) continue;
+    const bobY = Math.sin(time * 2.1 + f.x * 0.7) * 3;
+    ctx.fillStyle = FRUIT_COLORS[f.kind];
+    ctx.beginPath(); ctx.arc(sx, f.y + bobY, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4d8f4a';
+    ctx.beginPath(); ctx.ellipse(sx + 3, f.y + bobY - 8, 4.4, 2.2, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath(); ctx.arc(sx - 2.6, f.y + bobY - 2.6, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  // enemies: lazy critters
+  for (const e of ENEMIES) {
+    const sx = e.x - camX;
+    if (sx < -50 || sx > viewW + 50) continue;
+    if (e.squash > 0) {
+      ctx.fillStyle = '#a26769';
+      roundRect(ctx, sx - 16, e.y - 7, 32, 7, 3);
+      ctx.fill();
+      continue;
+    }
+    const wob = Math.sin(time * 6 + e.x) * 1.4;
+    ctx.fillStyle = '#a26769';
+    ctx.beginPath(); ctx.ellipse(sx, e.y - 11 + wob * 0.3, 16, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c98d8d';
+    ctx.beginPath(); ctx.ellipse(sx, e.y - 8 + wob * 0.3, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#221d1a';
+    const look = P.x < e.x ? -3 : 3;
+    ctx.beginPath(); ctx.arc(sx - 5 + look, e.y - 14 + wob * 0.3, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 5 + look, e.y - 14 + wob * 0.3, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7c4a4d';
+    ctx.fillRect(sx - 11, e.y - 2, 6, 2.6);
+    ctx.fillRect(sx + 5, e.y - 2, 6, 2.6);
+  }
+  // flight wings, behind the wanderer
+  if (gameMode === 'fly') {
+    const flap = Math.sin(time * 14) * 6;
+    const px = P.x - camX, py = P.y + 16;
+    ctx.fillStyle = 'rgba(240,248,255,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(px - 2, py);
+    ctx.quadraticCurveTo(px - 20, py - 12 - flap, px - 27, py + 2 - flap);
+    ctx.quadraticCurveTo(px - 15, py + 4, px - 2, py + 7);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(px + 2, py);
+    ctx.quadraticCurveTo(px + 20, py - 12 - flap, px + 27, py + 2 - flap);
+    ctx.quadraticCurveTo(px + 15, py + 4, px + 2, py + 7);
+    ctx.closePath(); ctx.fill();
+  }
+  // player
+  if (!(P.invuln > 0 && Math.floor(time * 12) % 2 === 0)) {
+    drawCharacter(ctx, currentDef, P.x - camX, P.y + P.h, 46, {
+      dir: P.face,
+      run: P.ground && Math.abs(P.vx) > 20 ? (P.runPhase % 1) : 0,
+      air: !P.ground
+    });
+  }
+  // dropped fruit
+  for (const d of DROPS) {
+    const sx = d.x - camX;
+    if (sx < -30 || sx > viewW + 30) continue;
+    ctx.fillStyle = FRUIT_COLORS[d.kind];
+    ctx.beginPath(); ctx.arc(sx, d.y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4d8f4a';
+    ctx.beginPath(); ctx.ellipse(sx + 3, d.y - 8, 4.4, 2.2, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath(); ctx.arc(sx - 2.6, d.y - 2.6, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  // arrows in flight
+  for (const a of arrows) {
+    const sx = a.x - camX;
+    if (sx < -40 || sx > viewW + 40) continue;
+    const ang = Math.atan2(a.vy, a.vx);
+    const bx = Math.cos(ang) * 11, by = Math.sin(ang) * 11;
+    ctx.strokeStyle = '#e8dcc4';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(sx - bx, a.y - by); ctx.lineTo(sx + bx, a.y + by); ctx.stroke();
+    ctx.fillStyle = '#cfd6dd';
+    ctx.beginPath();
+    ctx.moveTo(sx + bx * 1.5, a.y + by * 1.5);
+    ctx.lineTo(sx + bx * 0.6 - by * 0.32, a.y + by * 0.6 + bx * 0.32);
+    ctx.lineTo(sx + bx * 0.6 + by * 0.32, a.y + by * 0.6 - bx * 0.32);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e2483d';
+    ctx.beginPath(); ctx.arc(sx - bx * 1.15, a.y - by * 1.15, 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+  // spear jab
+  if (spearT > 0) {
+    const ext = Math.sin((spearT / 0.16) * Math.PI) * 30;
+    const hx = (P.x - camX) + P.face * (10 + ext);
+    const hy = P.y + 20;
+    ctx.strokeStyle = '#c9a06a';
+    ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo((P.x - camX) + P.face * 4, hy); ctx.lineTo(hx, hy); ctx.stroke();
+    ctx.fillStyle = '#dfe6ec';
+    ctx.beginPath();
+    ctx.moveTo(hx + P.face * 9, hy);
+    ctx.lineTo(hx - P.face * 2, hy - 3.6);
+    ctx.lineTo(hx - P.face * 2, hy + 3.6);
+    ctx.closePath(); ctx.fill();
+  }
+  // floaters
+  ctx.font = '900 13px Inter,system-ui,sans-serif';
+  ctx.textAlign = 'center';
+  for (const fl of floaters) {
+    ctx.fillStyle = `rgba(255,240,200,${Math.max(0, Math.min(1, fl.life))})`;
+    ctx.fillText(fl.t, fl.x - camX, fl.y);
+  }
+}
+
+/* ================= Music deck (shared module) =================
+   Two decks, one mix: SomaFM radio + a YouTube queue, with per-deck
+   volume, a blend slider, automatic crossfade on deck switches, and a
+   persisted master mute. Self-contained: it depends only on the #deck
+   markup above, the music-deck CSS block, and the loadJSON / saveJSON
+   / say helpers from the game shell, so Valley and Companion can lift
+   this whole section unchanged.
+   Search + recommendations light up when YT_API_KEY below holds a
+   YouTube Data API v3 key; with no key the search tab says so plainly
+   and the paste-link queue still works fully. */
+const STATIONS = [
+  { name: 'Groove Salad · SomaFM', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
+  { name: 'Drone Zone · SomaFM', url: 'https://ice1.somafm.com/dronezone-128-mp3' },
+  { name: 'Lush · SomaFM', url: 'https://ice1.somafm.com/lush-128-mp3' }
+];
+const YT_API_KEY = '';
+const radio = document.getElementById('radio');
+const playBtn = document.getElementById('playBtn');
+const muteBtn = document.getElementById('muteBtn');
+const volEl = document.getElementById('vol');
+const stationSel = document.getElementById('stationSel');
+const tabRadio = document.getElementById('tabRadio');
+const tabYt = document.getElementById('tabYt');
+const tabSearch = document.getElementById('tabSearch');
+const radioDeck = document.getElementById('radioDeck');
+const ytDeck = document.getElementById('ytDeck');
+const searchDeck = document.getElementById('searchDeck');
+const radioVolEl = document.getElementById('radioVol');
+const ytVolEl = document.getElementById('ytVol');
+const blendEl = document.getElementById('blend');
+const ytInput = document.getElementById('ytInput');
+const ytQueueEl = document.getElementById('ytQueue');
+const shuffleBtn = document.getElementById('shuffleBtn');
+const ytWrap = document.getElementById('ytWrap');
+STATIONS.forEach((s, i) => {
+  const o = document.createElement('option');
+  o.value = String(i);
+  o.textContent = s.name;
+  stationSel.append(o);
+});
+const LS_MUSIC = 'preserve.music';
+const LS_QUEUE = 'preserve.ytqueue';
+const storedMusic = loadJSON(LS_MUSIC, {});
+let music = Object.assign({ muted: false, volume: 0.8, station: 0, source: 'radio', radioVol: 1, ytVol: 1, blend: null }, storedMusic);
+if (typeof music.blend !== 'number') music.blend = music.source === 'youtube' ? 1 : 0;
+let queue = Object.assign({ items: [], index: -1, shuffle: false }, loadJSON(LS_QUEUE, {}));
+function persistMusic() { saveJSON(LS_MUSIC, music); }
+function persistQueue() { saveJSON(LS_QUEUE, queue); }
+function parseYtId(s) {
+  const m = String(s).match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([\w-]{11})/);
+  if (m) return m[1];
+  const t = String(s).trim();
+  return /^[\w-]{11}$/.test(t) ? t : null;
+}
+
+/* ---- levels + mixing ---- */
+function applyLevels() {
+  const b = music.blend;
+  radio.volume = Math.max(0, Math.min(1, music.volume * music.radioVol * (1 - b)));
+  radio.muted = music.muted;
+  if (ytPlayer && ytReady) {
+    try {
+      if (music.muted) ytPlayer.mute(); else ytPlayer.unMute();
+      ytPlayer.setVolume(Math.round(100 * music.volume * music.ytVol * b));
+    } catch { /* player mid-teardown; next apply catches up */ }
+  }
+  volEl.value = String(music.volume);
+  radioVolEl.value = String(music.radioVol);
+  ytVolEl.value = String(music.ytVol);
+  blendEl.value = String(music.blend);
+  muteBtn.textContent = music.muted ? '🔇' : '🔊';
+}
+let fadeRaf = null;
+function onBlendSettled() {
+  // a deck faded fully out stops, to save data; Play restarts it
+  if (music.blend <= 0 && ytPlayer && ytReady && ytPlaying) { try { ytPlayer.pauseVideo(); } catch {} }
+  if (music.blend >= 1 && !radio.paused) radio.pause();
+}
+function crossfadeTo(target) {
+  if (fadeRaf) cancelAnimationFrame(fadeRaf);
+  const from = music.blend;
+  const start = performance.now();
+  const dur = 1100;
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / dur);
+    music.blend = from + (target - from) * t;
+    applyLevels();
+    if (t < 1) fadeRaf = requestAnimationFrame(step);
+    else { fadeRaf = null; onBlendSettled(); persistMusic(); }
+  };
+  fadeRaf = requestAnimationFrame(step);
+}
+function syncPlayBtn() {
+  const playing = music.source === 'youtube' ? ytPlaying : !radio.paused;
+  playBtn.textContent = playing ? '⏸' : '▶';
+}
+function applyMusic() {
+  stationSel.value = String(music.station);
+  tabRadio.classList.toggle('on', music.source === 'radio');
+  tabYt.classList.toggle('on', music.source === 'youtube');
+  radioDeck.hidden = music.source !== 'radio';
+  ytDeck.hidden = music.source !== 'youtube';
+  applyLevels();
+  syncPlayBtn();
+}
+function startRadio() {
+  const url = STATIONS[music.station].url;
+  if (!radio.src || !radio.src.includes(url.split('/').pop())) radio.src = url;
+  radio.play().catch(() => { /* stream blocked; button state stays honest */ });
+}
+function activateDeck(which) {
+  music.source = which;
+  tabRadio.classList.toggle('on', which === 'radio');
+  tabYt.classList.toggle('on', which === 'youtube');
+  radioDeck.hidden = which !== 'radio';
+  ytDeck.hidden = which !== 'youtube';
+  if (which === 'radio') {
+    startRadio();
+    crossfadeTo(0);
+  } else if (queue.items.length) {
+    if (!ytPlaying) playQueueAt(queue.index < 0 ? 0 : queue.index);
+    crossfadeTo(1);
+  } else {
+    say('Paste a YouTube link to start the queue');
+  }
+  syncPlayBtn();
+  persistMusic();
+}
+
+/* ---- YouTube player (IFrame API) ---- */
+let ytPlayer = null, ytReady = false, ytPlaying = false, ytFailed = false, ytApiRequested = false, pendingYtId = null;
+function ensureYtPlayer() {
+  if (ytPlayer || ytApiRequested) return;
+  ytApiRequested = true;
+  window.onYouTubeIframeAPIReady = () => {
+    ytPlayer = new YT.Player('ytPlayer', {
+      host: 'https://www.youtube-nocookie.com',
+      width: '100%',
+      height: '100%',
+      playerVars: { rel: 0, playsinline: 1 },
+      events: { onReady: onYtReady, onStateChange: onYtState, onError: onYtError }
+    });
+  };
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.onerror = () => { ytFailed = true; };
+  document.head.appendChild(tag);
+  setTimeout(() => { if (!ytReady) ytFailed = true; }, 8000);
+}
+function onYtReady() {
+  ytReady = true;
+  ytFailed = false;
+  applyLevels();
+  if (pendingYtId) {
+    const id = pendingYtId;
+    pendingYtId = null;
+    try { ytPlayer.loadVideoById(id); } catch {}
+  }
+}
+function onYtState(e) {
+  if (e.data === YT.PlayerState.PLAYING) { ytPlaying = true; backfillTitle(); refreshRecs(); }
+  if (e.data === YT.PlayerState.PAUSED) ytPlaying = false;
+  if (e.data === YT.PlayerState.ENDED) { ytPlaying = false; advanceQueue(); }
+  if (music.source === 'youtube') syncPlayBtn();
+}
+function onYtError() {
+  // e.g. a video whose owner turned embedding off: say so and move on
+  // instead of leaving the deck silently stalled on it
+  ytPlaying = false;
+  say('YouTube refused that video; skipping');
+  const next = queue.index + 1;
+  if (next < queue.items.length) playQueueAt(next);
+  else syncPlayBtn();
+}
+function backfillTitle() {
+  if (!ytPlayer || !ytPlayer.getVideoData) return;
+  let d = null;
+  try { d = ytPlayer.getVideoData(); } catch { return; }
+  if (d && d.video_id && d.title) {
+    const item = queue.items.find((it) => it.id === d.video_id);
+    if (item && item.title !== d.title) { item.title = d.title; persistQueue(); renderQueue(); }
+  }
+}
+
+/* ---- queue ---- */
+function playQueueAt(i) {
+  if (i < 0 || i >= queue.items.length) return;
+  if (ytFailed) { say('The YouTube player could not load'); return; }
+  queue.index = i;
+  music.source = 'youtube';
+  ytWrap.hidden = false;
+  ensureYtPlayer();
+  if (ytReady) { try { ytPlayer.loadVideoById(queue.items[i].id); } catch {} }
+  else pendingYtId = queue.items[i].id;
+  renderQueue();
+  syncPlayBtn();
+  persistQueue();
+  persistMusic();
+}
+function advanceQueue() {
+  if (!queue.items.length) return;
+  let next;
+  if (queue.shuffle && queue.items.length > 1) {
+    do { next = Math.floor(Math.random() * queue.items.length); } while (next === queue.index);
+  } else next = queue.index + 1;
+  if (next >= queue.items.length) { syncPlayBtn(); return; }
+  playQueueAt(next);
+  if (music.blend < 1) crossfadeTo(1);
+}
+function addToQueue(id, title, startIfIdle) {
+  const wasIdle = queue.index === -1 && !ytPlaying && radio.paused;
+  queue.items.push({ id, title: title || ('Video ' + id) });
+  const i = queue.items.length - 1;
+  persistQueue();
+  renderQueue();
+  say('Queued: ' + (title || id));
+  if (startIfIdle && wasIdle) {
+    tabRadio.classList.remove('on');
+    tabYt.classList.add('on');
+    radioDeck.hidden = true;
+    ytDeck.hidden = false;
+    playQueueAt(i);
+    crossfadeTo(1);
+  }
+}
+function moveItem(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= queue.items.length) return;
+  const it = queue.items.splice(i, 1)[0];
+  queue.items.splice(j, 0, it);
+  if (queue.index === i) queue.index = j;
+  else if (queue.index === j) queue.index = i;
+  persistQueue();
+  renderQueue();
+}
+function removeItem(i) {
+  const wasCurrent = i === queue.index;
+  queue.items.splice(i, 1);
+  if (queue.index > i) queue.index--;
+  if (wasCurrent) {
+    if (ytReady && ytPlayer) { try { ytPlayer.stopVideo(); } catch {} }
+    ytPlaying = false;
+    if (queue.index >= queue.items.length) queue.index = queue.items.length - 1;
+    ytWrap.hidden = true;
+  }
+  persistQueue();
+  renderQueue();
+  syncPlayBtn();
+}
+function mkMini(label, title, fn) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'mini';
+  b.textContent = label;
+  b.title = title;
+  b.addEventListener('click', fn);
+  return b;
+}
+function renderQueue() {
+  ytQueueEl.innerHTML = '';
+  if (!queue.items.length) {
+    const d = document.createElement('div');
+    d.className = 'deck-note';
+    d.textContent = 'Queue is empty. Paste a link above to add a video.';
+    ytQueueEl.append(d);
+  }
+  queue.items.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'q-item' + (i === queue.index ? ' now' : '');
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 't';
+    t.textContent = (i === queue.index ? '▶ ' : '') + item.title;
+    t.title = item.title;
+    t.addEventListener('click', () => {
+      tabRadio.classList.remove('on');
+      tabYt.classList.add('on');
+      radioDeck.hidden = true;
+      ytDeck.hidden = false;
+      playQueueAt(i);
+      if (music.blend < 1) crossfadeTo(1);
+    });
+    row.append(t,
+      mkMini('▲', 'Move up', () => moveItem(i, -1)),
+      mkMini('▼', 'Move down', () => moveItem(i, 1)),
+      mkMini('✕', 'Remove', () => removeItem(i)));
+    ytQueueEl.append(row);
+  });
+  shuffleBtn.classList.toggle('on', queue.shuffle);
+}
+
+/* ---- search + recommendations (need YT_API_KEY) ---- */
+async function ytApiSearch(q, max) {
+  const u = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=' + (max || 8) + '&q=' + encodeURIComponent(q) + '&key=' + YT_API_KEY;
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('search failed ' + r.status);
+  const j = await r.json();
+  return (j.items || []).map((it) => ({ id: it.id.videoId, title: it.snippet.title }));
+}
+function renderPickList(el, videos) {
+  el.innerHTML = '';
+  videos.forEach((v) => {
+    const row = document.createElement('div');
+    row.className = 'q-item';
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 't';
+    t.textContent = v.title;
+    t.title = v.title;
+    t.addEventListener('click', () => addToQueue(v.id, v.title, true));
+    row.append(t, mkMini('＋', 'Add to queue', () => addToQueue(v.id, v.title, true)));
+    el.append(row);
+  });
+}
+async function refreshRecs() {
+  if (!YT_API_KEY || queue.index < 0 || !queue.items.length) return;
+  const cur = queue.items[queue.index];
+  const terms = cur.title.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean).slice(0, 4).join(' ');
+  if (!terms) return;
+  try {
+    const found = await ytApiSearch(terms + ' music', 6);
+    renderPickList(document.getElementById('recResults'), found.filter((v) => v.id !== cur.id && !queue.items.some((it) => it.id === v.id)));
+  } catch { /* recommendations are a bonus; no faked rows on failure */ }
+}
+if (YT_API_KEY) {
+  document.getElementById('searchOff').hidden = true;
+  document.getElementById('searchOn').hidden = false;
+  document.getElementById('searchBtn').addEventListener('click', async () => {
+    const q = document.getElementById('searchInput').value.trim();
+    if (!q) return;
+    try {
+      renderPickList(document.getElementById('searchResults'), await ytApiSearch(q, 8));
+    } catch { say('Search failed; the key may be out of quota'); }
+  });
+}
+
+/* ---- deck wiring ---- */
+playBtn.addEventListener('click', () => {
+  if (music.source === 'youtube') {
+    if (!queue.items.length) { say('Paste a YouTube link to start the queue'); return; }
+    ensureYtPlayer();
+    if (ytReady) {
+      let st = -1;
+      try { st = ytPlayer.getPlayerState(); } catch {}
+      if (st === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+      else if (st === YT.PlayerState.PAUSED || st === YT.PlayerState.CUED) ytPlayer.playVideo();
+      else playQueueAt(queue.index < 0 ? 0 : queue.index);
+    } else playQueueAt(queue.index < 0 ? 0 : queue.index);
+    return;
+  }
+  if (radio.paused) { startRadio(); playBtn.textContent = '⏸'; }
+  else { radio.pause(); playBtn.textContent = '▶'; }
+});
+radio.addEventListener('play', () => { if (music.source === 'radio') syncPlayBtn(); });
+radio.addEventListener('pause', () => { if (music.source === 'radio') syncPlayBtn(); });
+stationSel.addEventListener('change', () => {
+  music.station = Number(stationSel.value);
+  if (music.source === 'radio' || !radio.paused) startRadio();
+  persistMusic();
+});
+tabRadio.addEventListener('click', () => activateDeck('radio'));
+tabYt.addEventListener('click', () => activateDeck('youtube'));
+tabSearch.addEventListener('click', () => { searchDeck.hidden = !searchDeck.hidden; });
+muteBtn.addEventListener('click', () => {
+  music.muted = !music.muted;
+  applyLevels();
+  persistMusic();
+});
+volEl.addEventListener('input', () => { music.volume = Number(volEl.value); applyLevels(); persistMusic(); });
+radioVolEl.addEventListener('input', () => { music.radioVol = Number(radioVolEl.value); applyLevels(); persistMusic(); });
+ytVolEl.addEventListener('input', () => { music.ytVol = Number(ytVolEl.value); applyLevels(); persistMusic(); });
+blendEl.addEventListener('input', () => {
+  if (fadeRaf) { cancelAnimationFrame(fadeRaf); fadeRaf = null; }
+  music.blend = Number(blendEl.value);
+  applyLevels();
+});
+blendEl.addEventListener('change', () => { onBlendSettled(); persistMusic(); });
+shuffleBtn.addEventListener('click', () => {
+  queue.shuffle = !queue.shuffle;
+  persistQueue();
+  renderQueue();
+  say(queue.shuffle ? 'Shuffle on' : 'Shuffle off');
+});
+document.getElementById('ytBtn').addEventListener('click', () => {
+  const id = parseYtId(ytInput.value);
+  if (!id) { say('That YouTube link did not parse'); return; }
+  ytInput.value = '';
+  addToQueue(id, null, true);
+});
+document.getElementById('deckToggle').addEventListener('click', () => {
+  const panel = document.getElementById('deckPanel');
+  panel.hidden = !panel.hidden;
+});
+renderQueue();
+applyMusic();
+
+/* Test hooks: lets the headless verifier drive and measure the real game. */
+window.__preserve = {
+  P, PLATFORMS, PADS, STRIPS, RINGS, GATES, FRUITS, ENEMIES, DROPS, arrows, race, mouse,
+  get mode() { return gameMode; },
+  get zoomF() { return zoomF; },
+  get character() { return currentDef && currentDef.name; },
+  get ringsGot() { return ringsGot; },
+  get dropsGot() { return dropsGot; },
+  start: startGame,
+  version: 2
+};
+
+/* ================= Boot + main loop ================= */
+resize();
+buildRoster();
+refreshCreator();
+if (new URLSearchParams(location.search).has('world')) {
+  document.querySelectorAll('a[href="/games.html"]').forEach((a) => { a.style.display = 'none'; });
+  startChosenMode();
+} else {
+  openSelect();
+}
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  if (!selectOpen) update(dt);
+  render(now / 1000);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

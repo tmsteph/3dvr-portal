@@ -72,18 +72,23 @@ describe('sign-in page', () => {
     );
   });
 
-  it('keeps recovery email optional while offering verification', async () => {
+  it('keeps the recovery email panel out of the sign-in form', async () => {
     const html = await readFile(signInUrl, 'utf8');
-    assert.match(html, /<label for="recovery-email">Recovery email \(optional\)<\/label>/);
-    assert.doesNotMatch(html, /id="recovery-email"[\s\S]*required/);
-    assert.match(html, /id="send-recovery-code"/);
-    assert.match(html, /id="recovery-code"/);
-    assert.match(html, /id="verify-recovery-code"/);
-    assert.match(html, /mode:\s*'recovery-verification'/);
-    assert.match(html, /mode:\s*'confirm-recovery-email'/);
-    assert.match(html, /const verifiedRecoveryEmail = recoveryEmail && isRecoveryEmailVerified\(recoveryEmail\)/);
-    assert.match(html, /Continuing without account recovery/);
+    assert.doesNotMatch(html, /id="recovery-email"/);
+    assert.doesNotMatch(html, /id="recovery-code"/);
+    assert.doesNotMatch(html, /id="send-recovery-code"/);
+    assert.doesNotMatch(html, /id="verify-recovery-code"/);
+    assert.doesNotMatch(html, /recovery-verification/);
+    assert.doesNotMatch(html, /confirm-recovery-email/);
+    assert.doesNotMatch(html, /Continuing without account recovery/);
     assert.match(html, /recoveryEmailVerifiedAt/);
+    assert.match(html, /href="\/password-reset\.html"/);
+  });
+
+  it('refuses to fake a sign-in when the Gun service is unavailable', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.doesNotMatch(html, /Signed in locally/);
+    assert.match(html, /Could not reach the sign-in service/);
   });
 
   it('explains guest account upgrades and keeps guest progress', async () => {
@@ -110,5 +115,16 @@ describe('sign-in page', () => {
     assert.match(html, /pocketWorkstation'\)\.get\('users'\)/);
     assert.match(html, /guestAccountMigrations/);
     assert.match(html, /guestIdentityLinks/);
+  });
+
+  it('honors returnTo and allowlisted app origins after sign-in', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /params\.get\('redirect'\) \|\| params\.get\('next'\) \|\| params\.get\('returnTo'\)/);
+    assert.match(html, /ALLOWED_POST_SIGN_IN_ORIGINS/);
+    assert.match(html, /'https:\/\/portal\.3dvr\.tech'/);
+    assert.match(html, /'https:\/\/helm\.3dvr\.tech'/);
+    assert.match(html, /'https:\/\/operator\.3dvr\.tech'/);
+    assert.match(html, /'https:\/\/girl\.3dvr\.tech'/);
+    assert.match(html, /ALLOWED_POST_SIGN_IN_ORIGINS\.has\(resolved\.origin\)/);
   });
 });

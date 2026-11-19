@@ -134,6 +134,122 @@ class NativeTests(unittest.TestCase):
                  patch.object(native.Path, 'glob', autospec=True, side_effect=installed):
                 self.assertEqual(native.find_binary(), str(executable))
 
+    def test_tools_enabled_matrix(self):
+        self.assertTrue(native.tools_enabled({'engine': 'codex', 'toolsEnabled': True}))
+        self.assertFalse(native.tools_enabled({'engine': 'codex'}))
+        self.assertFalse(native.tools_enabled({'engine': 'codex', 'toolsEnabled': False}))
+        self.assertFalse(native.tools_enabled({'engine': 'codex-backup', 'toolsEnabled': True}))
+        self.assertFalse(native.tools_enabled({'engine': 'codex', 'toolsEnabled': True, 'taskMode': True}))
+
+    def test_agent_posture_enables_shell_and_search_but_never_mcp(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / 'config.toml').write_text('[mcp_servers.local_tools]\ncommand = "existing-tool"\n')
+            with patch.object(native, 'HOME', home):
+                args = native.command('/existing/codex', tools=True)
+                self.assertNotIn('--disable', args)
+                self.assertNotIn('shell_tool', args)
+                self.assertIn('web_search="live"', args)
+                self.assertIn('mcp_servers.local_tools.enabled=false', args)
+                # Chat and Operator task postures keep the shell tool disabled.
+                self.assertIn('shell_tool', native.command('/existing/codex'))
+                self.assertIn('shell_tool', native.command('/existing/codex', True))
+
+    def test_agent_turn_allows_tool_items_and_uses_workspace_write_policy(self):
+        class Recording(Events):
+            def __init__(self, events):
+                super().__init__(events)
+                self.sent = []
+            def send(self, method, params):
+                self.sent.append((method, params))
+                return 1
+        request = {'message': 'Do the thing', 'toolsEnabled': True}
+        client = Recording([{'id': 1, 'result': {'turn': {'id': 'turn-one'}}},
+                  event('item/started', item={'type': 'commandExecution'}),
+                  event('item/started', item={'type': 'fileChange'}),
+                  event('item/started', item={'type': 'dynamicToolCall'}),
+                  event('item/completed', item={'type': 'agentMessage', 'id': 'm1', 'text': 'Done', 'phase': 'final_answer'}),
+                  event('turn/completed', turn={'id': 'turn-one', 'status': 'completed'})])
+        reply = native.run_turn(client, 'thread-one', request, lambda _: None)
+        self.assertEqual(reply, 'Done')
+        method, params = client.sent[0]
+        self.assertEqual(method, 'turn/start')
+        self.assertEqual(params['sandboxPolicy'], {'type': 'workspaceWrite', 'networkAccess': True})
+        self.assertEqual(params['approvalPolicy'], 'never')
+        # MCP stays refused even in agent posture.
+        with self.assertRaises(RuntimeError):
+            native.run_turn(Events([event('item/started', item={'type': 'mcpToolCall'})]),
+                            'thread-one', request, lambda _: None)
+        # Without the handler's explicit flag the same tool item fails closed.
+        with self.assertRaises(RuntimeError):
+            native.run_turn(Events([event('item/started', item={'type': 'commandExecution'})]),
+                            'thread-one', {'message': 'Hi'}, lambda _: None)
+
+    def test_agent_posture_uses_worktree_and_posture_change_starts_fresh_thread(self):
+        calls = []
+        class Client:
+            def __init__(self, args, cwd, _deadline):
+                self.args = args
+                calls.append(('init', args, cwd))
+            def rpc(self, method, params):
+                calls.append((method, params))
+                return {'thread': {'id': params.get('threadId', 'thread-' + str(len(calls)))}}
+            def send(self, *_args):
+                pass
+            def close(self):
+                pass
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / 'auth.json').write_text(json.dumps({'auth_mode': 'chatgpt'}))
+            state = home / 'helm'
+            worktree = state / 'portal-worktree'
+            (worktree / '.git').mkdir(parents=True)
+            with patch.object(native, 'HOME', home), patch.object(native, 'STATE', state), \
+                 patch.object(native, 'find_binary', return_value='/existing/codex'), patch.object(native, 'Client', Client), \
+                 patch.object(native, 'run_turn', return_value='Done'):
+                chat = {'action': 'chat', 'session': 'owner-agent-A', 'message': 'Hello'}
+                agent = {**chat, 'toolsEnabled': True}
+                self.assertTrue(native.main(chat)['ok'])
+                self.assertTrue(native.main(agent)['ok'])
+                self.assertTrue(native.main(agent)['ok'])
+                self.assertTrue(native.main(chat)['ok'])
+                starts = [entry[1] for entry in calls if entry[0] == 'thread/start']
+                resumes = [entry[1] for entry in calls if entry[0] == 'thread/resume']
+                # Chat start, agent start (posture flip), agent resume, chat start (flip back).
+                self.assertEqual(len(starts), 3)
+                self.assertEqual(len(resumes), 1)
+                self.assertEqual(starts[0]['sandbox'], 'read-only')
+                self.assertNotEqual(starts[0]['cwd'], str(worktree))
+                self.assertEqual(starts[1]['sandbox'], 'workspace-write')
+                self.assertEqual(starts[1]['cwd'], str(worktree))
+                self.assertIn('worktree', starts[1]['developerInstructions'])
+                inits = [entry for entry in calls if entry[0] == 'init']
+                self.assertIn('shell_tool', inits[0][1])
+                self.assertNotIn('shell_tool', inits[1][1])
+                self.assertEqual(inits[1][2], str(worktree))
+
+    def test_agent_posture_without_worktree_fails_closed(self):
+        class Client:
+            def __init__(self, *_args):
+                raise AssertionError('Client must not start')
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / 'auth.json').write_text(json.dumps({'auth_mode': 'chatgpt'}))
+            with patch.object(native, 'HOME', home), patch.object(native, 'STATE', home / 'helm'), \
+                 patch.object(native, 'find_binary', return_value='/existing/codex'), patch.object(native, 'Client', Client):
+                result = native.main({'action': 'chat', 'session': 'owner-agent-B', 'message': 'Hi', 'toolsEnabled': True})
+                self.assertFalse(result['ok'])
+                self.assertIn('worktree', result['error'])
+
+    def test_status_reports_agent_profile_only_for_flagged_owner_engine(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / 'auth.json').write_text(json.dumps({'auth_mode': 'chatgpt'}))
+            with patch.object(native, 'HOME', home), patch.object(native, 'STATE', home / 'helm'), \
+                 patch.object(native, 'find_binary', return_value='/existing/codex'):
+                self.assertEqual(native.main({'action': 'status', 'engine': 'codex', 'toolsEnabled': True})['profile'], 'native-agent')
+                self.assertEqual(native.main({'action': 'status', 'engine': 'codex'})['profile'], 'native-chat')
+
     def test_status_never_starts_inference_and_expiry_prevents_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)

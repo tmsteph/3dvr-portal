@@ -7,13 +7,13 @@ const test = require('node:test');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
 const { appendAudit } = require('../connectors/audit/log');
-const { startHttpServer } = require('../mcp/server');
+const { parseAgentTokens, startHttpServer } = require('../mcp/server');
 
 function parseToolResult(result) {
   return JSON.parse(result.content.find((item) => item.type === 'text').text);
 }
 
-async function openTestGateway(t, { enableDrafts = false, legacy = false, enablePrivileged = false, ownerAuthorized = false } = {}) {
+async function openTestGateway(t, { enableDrafts = false, legacy = false, enablePrivileged = false, ownerAuthorized = false, clientToken = 'test-token', agentTokens } = {}) {
   const audits = [];
   const account = {
     id: 'acct_google_test', provider: 'google', alias: 'personal',
@@ -90,13 +90,13 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false, enable
     }),
   };
   const started = await startHttpServer({
-    port: 0, authToken: 'test-token', ownerToken: 'test-owner-token', gatewayOptions,
+    port: 0, authToken: 'test-token', ownerToken: 'test-owner-token', gatewayOptions, agentTokens,
   });
   const client = new Client({ name: '3dvr-test-client', version: '1.0.0' });
   const transport = new StreamableHTTPClientTransport(
     new URL(`http://127.0.0.1:${started.port}/mcp`),
     { requestInit: { headers: {
-      Authorization: 'Bearer test-token',
+      Authorization: `Bearer ${clientToken}`,
       ...(ownerAuthorized ? { 'x-3dvr-owner-authorization': 'Bearer test-owner-token' } : {}),
     } } },
   );
@@ -296,4 +296,60 @@ test('public binding fails closed without an auth token', async () => {
     () => startHttpServer({ host: '0.0.0.0', port: 0, authToken: '' }),
     /AUTH_TOKEN is required/,
   );
+});
+
+test('agent token map parsing is defensive', () => {
+  assert.deepEqual(parseAgentTokens('{"claude":"tok-a","Operator":"tok-b"}'), {
+    claude: 'tok-a', operator: 'tok-b',
+  });
+  assert.deepEqual(parseAgentTokens(''), {});
+  assert.deepEqual(parseAgentTokens('not json'), {});
+  assert.deepEqual(parseAgentTokens('["claude"]'), {});
+  assert.deepEqual(parseAgentTokens('{"bad name!":"x","ok":""}'), {});
+  assert.deepEqual(parseAgentTokens(null), {});
+});
+
+test('per-agent tokens authenticate and stamp the audit actor', async (t) => {
+  const legacy = await openTestGateway(t);
+  await legacy.client.callTool({ name: 'control_status', arguments: {} });
+  assert.ok(legacy.audits.length > 0);
+  assert.ok(legacy.audits.every((event) => event.actor === 'chatgpt'));
+
+  const claudeGateway = await openTestGateway(t, {
+    clientToken: 'claude-token',
+    agentTokens: { claude: 'claude-token', operator: 'operator-token' },
+  });
+  await claudeGateway.client.callTool({ name: 'control_status', arguments: {} });
+  assert.ok(claudeGateway.audits.length > 0);
+  assert.ok(claudeGateway.audits.every((event) => event.actor === 'claude'));
+});
+
+test('requests with an unknown or missing bearer token are rejected', async (t) => {
+  const started = await startHttpServer({
+    port: 0,
+    authToken: 'test-token',
+    agentTokens: { claude: 'claude-token' },
+    gatewayOptions: {},
+  });
+  t.after(() => new Promise((resolve) => started.httpServer.close(resolve)));
+  const url = `http://127.0.0.1:${started.port}/mcp`;
+  const initBody = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2025-03-26',
+      capabilities: {},
+      clientInfo: { name: 'bad-token-test', version: '1.0.0' },
+    },
+  });
+  const headers = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' };
+  const bad = await fetch(url, {
+    method: 'POST',
+    headers: { ...headers, authorization: 'Bearer not-a-real-token' },
+    body: initBody,
+  });
+  assert.equal(bad.status, 401);
+  const missing = await fetch(url, { method: 'POST', headers, body: initBody });
+  assert.equal(missing.status, 401);
 });

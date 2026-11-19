@@ -117,6 +117,48 @@ function topicFromRequest(subject, body) {
   return '';
 }
 
+// Junk requests seen in the wild (2026-11-08 and 2026-11-10) share two
+// signals at once: the name/business is one long random-looking token, and
+// the description field carries no content beyond the requester's own
+// email. Require both, so a real business with an unusual name or a terse
+// description is never filtered on one signal alone.
+function looksRandomToken(value) {
+  const token = String(value || '').trim();
+  if (!/^[A-Za-z]{16,}$/.test(token)) return false;
+  const upper = (token.match(/[A-Z]/g) || []).length;
+  const lower = (token.match(/[a-z]/g) || []).length;
+  return upper >= 4 && lower >= 4;
+}
+
+function descriptionRemainder(request) {
+  const from = normalizeEmail(request.from);
+  let text = String(request.body || '');
+  if (from) text = text.split(from).join(' ');
+  text = text
+    .replace(/i want a free live one-page website on a 3dvr-hosted address\.?/gi, ' ')
+    .replace(/please build the smallest useful version and email me the live url\.?/gi, ' ')
+    .replace(/name\/business:/gi, ' ')
+    .replace(/best email for the live link:/gi, ' ')
+    .replace(/what the website should explain:/gi, ' ')
+    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, ' ');
+  const topic = topicFromRequest(request.subject, request.body);
+  if (topic) text = text.split(topic).join(' ');
+  return text.replace(/[^A-Za-z0-9]+/g, ' ').trim();
+}
+
+function junkReason(request) {
+  const topic = topicFromRequest(request.subject, request.body);
+  if (!looksRandomToken(topic)) return '';
+  if (descriptionRemainder(request).length >= 3) return '';
+  return 'random-name-and-empty-description';
+}
+
+function requestFingerprint(request) {
+  const topic = topicFromRequest(request.subject, request.body).toLowerCase();
+  const body = String(request.body || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return `${normalizeEmail(request.from)}|${topic}|${shortHash(body)}`;
+}
+
 function ensureState() {
   fs.mkdirSync(STATE_DIR, { recursive: true });
   if (!fs.existsSync(STATE_FILE)) {
@@ -417,6 +459,16 @@ async function processRequest({ request, state, mailAuth }) {
   const key = request.messageId || `uid-${request.uid}`;
   const existingState = state.messages[key];
   if (existingState?.status === 'processed') return { skipped: true };
+  const junk = junkReason(request);
+  if (junk) {
+    // No site, no reply, no upgrade pitch: record the reason so a human can
+    // audit the filter, and clear the message so it is not retried.
+    await markSeen(mailAuth, request.uid);
+    state.messages[key] = { status: 'junk', reason: junk, handledAt: new Date().toISOString() };
+    saveState(state);
+    console.log(`[free-site-worker] junk skipped (${junk}): ${request.from}`);
+    return { junk: true };
+  }
   if (existingState?.status === 'existing' && existingState.siteUrl) {
     return completeExisting({ state, key, mailAuth, request, siteUrl: existingState.siteUrl });
   }
@@ -514,9 +566,21 @@ async function runOnce() {
   const requests = await loadRecentRequests(mailAuth);
   let acted = 0;
   let failed = 0;
+  const seenFingerprints = new Set();
   for (const request of requests) {
     const key = request.messageId || `uid-${request.uid}`;
     if (state.messages[key]?.status === 'processed') continue;
+    // The same request submitted repeatedly in one window (the 2026-11-10
+    // junk arrived three times in ten seconds, each with a fresh message
+    // id) is fulfilled once; later copies are recorded as duplicates.
+    const fingerprint = requestFingerprint(request);
+    if (fingerprint && seenFingerprints.has(fingerprint)) {
+      await markSeen(mailAuth, request.uid);
+      state.messages[key] = { status: 'duplicate', handledAt: new Date().toISOString() };
+      saveState(state);
+      continue;
+    }
+    if (fingerprint) seenFingerprints.add(fingerprint);
     try {
       const result = await processRequest({ request, state, mailAuth });
       if (result?.processed || result?.pending || result?.existing) acted += 1;
@@ -541,7 +605,10 @@ async function runOnce() {
 module.exports = {
   buildFallbackHtml,
   cleanBody,
+  junkReason,
   looksLikeRequest,
+  looksRandomToken,
+  requestFingerprint,
   resolveRequestEmail,
   runOnce,
   slugify,

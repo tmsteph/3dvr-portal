@@ -7,7 +7,7 @@ import { evaluateFreelanceSourceHealth } from '../src/freelance-source-health.js
 
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun',
+  'wss://portal.3dvr.tech/gun-relay',
 ]);
 const ownerKey = resolveOwnerKey();
 const sourceRecords = gun.get('3dvr-freelance-sources').get(ownerKey);

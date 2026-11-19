@@ -199,7 +199,7 @@ export async function createBrowserLeadVaultSync({
   const gun = GunImpl(
     Array.isArray(peers) && peers.length
       ? peers
-      : ['wss://gun-relay-3dvr.fly.dev/gun']
+      : ['wss://portal.3dvr.tech/gun-relay']
   );
   const user = gun.user();
   let authenticated = await waitForLeadVaultAuth(user, authTimeoutMs);

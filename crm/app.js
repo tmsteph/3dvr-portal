@@ -33,7 +33,7 @@ import {
 } from '../src/oauth/shared.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
-  'wss://gun-relay-3dvr.fly.dev/gun',
+  'wss://portal.3dvr.tech/gun-relay',
 ]);
 const user = gun.user();
 const portalRoot = gun.get('3dvr-portal');
