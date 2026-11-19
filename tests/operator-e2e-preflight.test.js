@@ -23,6 +23,12 @@ test('initial sign-in failure logs only pathname and coarse page state', () => {
   assert.match(initial, /E2E_INITIAL_SIGN_IN_FORM_VISIBLE/);
   assert.match(initial, /E2E_INITIAL_SIGN_IN_RELOAD_VISIBLE/);
   assert.doesNotMatch(initial, /log\('E2E_INITIAL_SIGN_IN_(?:QUERY|PASSWORD|BODY|HTML)'/);
+  // The outer failure handler must not save pages before verifying the signed-in identity.
+  assert.match(harness, /if \(signInVerified\) await saveArtifacts\('failure'\)/);
+  assert.match(harness, /signInVerified = true;/);
+  const fresh = harness.split('async function signInFreshPage')[1]?.split('async function runCrossDeviceSyncAcceptance')[0];
+  assert.ok(fresh);
+  assert.doesNotMatch(fresh, /\.screenshot\(/);
 });
 
 test('live E2E refuses missing and public credentials before browser launch', () => {
@@ -53,6 +59,8 @@ test('live E2E refuses missing and public credentials before browser launch', ()
       ['blank', ' ', ' '],
       ['missing-password', 'test-ci@3dvr', undefined],
       ['public-pair', publicAlias, publicPassword],
+      ['public-alias-private-password', publicAlias, 'isolated-stub-only'],
+      ['private-alias-public-password', 'private-ci@3dvr', publicPassword],
     ]) {
       const result = run(alias, password);
       assert.equal(result.status, 1, name);
