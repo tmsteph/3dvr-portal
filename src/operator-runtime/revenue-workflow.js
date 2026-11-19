@@ -139,6 +139,17 @@ export function advanceRevenueLead(item, event, options = {}) {
   }
   if (options.evidence) evidence.push(options.evidence);
 
+  // A reply, consumed due reminder, or sent follow-up supersedes the prior
+  // reminder. Closed and paid leads must never retain a stale sales nudge,
+  // even when a caller passes a new date with the terminal event.
+  const nextFollowUpAt = ['won', 'lost'].includes(nextStage)
+    ? null
+    : Object.hasOwn(options, 'nextFollowUpAt')
+      ? options.nextFollowUpAt
+      : ['reply_received', 'follow_up_due', 'follow_up_sent'].includes(event)
+        ? null
+        : item.metadata?.nextFollowUpAt ?? null;
+
   return transitionWorkItem(item, nextState, {
     now: options.now,
     evidence,
@@ -147,7 +158,7 @@ export function advanceRevenueLead(item, event, options = {}) {
     metadata: {
       stage: nextStage,
       lastEvent: event,
-      nextFollowUpAt: options.nextFollowUpAt ?? item.metadata?.nextFollowUpAt ?? null,
+      nextFollowUpAt,
       lastTransitionAt: options.now || new Date().toISOString()
     }
   });
