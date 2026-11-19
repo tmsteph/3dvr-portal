@@ -354,7 +354,8 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
 test('signed Operator task is actually claimed and completed by the private SQLite worker (executor stub only)', async () => {
   // Unlike the mocked dispatch tests, this calls the unchanged REMOTE_QUEUE_SCRIPT
   // through a local Bash/Node process and reads its temporary SQLite DB directly.
-  // It does NOT claim a worker completed work or that Gun CRM was persisted.
+  // This exercises a real private worker claim with a stubbed model executor;
+  // it does NOT prove hosted Codex execution or any independent CRM persistence.
   const dir = await mkdtemp(join(tmpdir(), 'operator-signed-sqlite-'));
   const dbPath = join(dir, 'isolated-queue.sqlite');
   const db = new DatabaseSync(dbPath);
