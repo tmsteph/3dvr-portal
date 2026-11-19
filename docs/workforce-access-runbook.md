@@ -406,3 +406,10 @@ The main repository components behind this workflow are:
 | `docs/infrastructure-topology.md` | Host roles and browser profile locations |
 
 When behavior and this document disagree, verify the live system and update both the implementation and documentation in the same pull request. Do not let recovery knowledge live only in chat history.
+
+
+### 2026-10-25: SSO redirect is not proof of a human checkpoint
+
+The installed Lighthouse helper classified every host outside lighthouse2.psav.com as human_required/external-sso before inspecting the destination. This is an automation gap, not evidence of MFA. Known Microsoft/Encore SSO origins must report sso_required/microsoft-sso-continuation-required unless provider verification text is actually present. Unknown origins report unsupported-sso-origin and must not receive credentials.
+
+A read through the existing broker confirmed the current password-manager mirror has 21 items, including UKG, but no Microsoft/Encore/Lighthouse login entry matching provider name or URI. The current policy has no dedicated Microsoft identity alias. This does not establish that the original vault or other historical secure sources lack the credential; reconcile the existing secure sources before asking the owner to re-enter it. Do not reuse the UKG password on Microsoft. The remaining work is bounded Microsoft SSO continuation, exact identity/provider credential mapping, and authenticated My Schedule verification. No successful reconciliation is implied by this classifier fix.
