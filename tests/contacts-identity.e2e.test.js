@@ -113,29 +113,32 @@ const GUN_STUB_SOURCE = `
     return node;
   }
 
-  function createUser() {
+  function createUser(root) {
     const userNode = makeNode(['~user']);
     const user = {
       ...userNode,
       is: null,
-      _: { sea: null },
+      _: { sea: null, opt: {} },
+      back() { return root; },
       recall() {
         const signedIn = window.localStorage.getItem('signedIn') === 'true';
         const storedAlias = String(window.localStorage.getItem('alias') || '').trim();
         const storedPub = String(window.localStorage.getItem('userPubKey') || '').trim();
         if (signedIn && storedPub) {
           user.is = { pub: storedPub, alias: storedAlias };
-          user._ = { sea: { pub: storedPub } };
+          user._.sea = { pub: storedPub, epub: 'fixture-epub', priv: 'fixture-priv', epriv: 'fixture-epriv' };
         }
       },
       auth(alias, _password, callback) {
         const normalizedAlias = String(alias || '').trim();
         const pub = 'pub_' + normalizedAlias.replace(/[^a-z0-9]+/gi, '_');
         user.is = { pub, alias: normalizedAlias };
-        user._ = { sea: { pub } };
+        user._.sea = { pub, epub: 'fixture-epub', priv: 'fixture-priv', epriv: 'fixture-epriv' };
         window.setTimeout(() => {
           authListeners.forEach((listener) => listener());
           callback && callback({ ok: true, pub });
+          // Match SEA's post-callback persistence ordering for this fixture.
+          if (user._.opt.remember) window.sessionStorage.setItem('fixtureRememberedPub', pub);
         }, 0);
       },
       create(alias, _password, callback) {
@@ -145,14 +148,14 @@ const GUN_STUB_SOURCE = `
         const normalizedAlias = String(alias || '').trim();
         const pub = 'pub_' + normalizedAlias.replace(/[^a-z0-9]+/gi, '_');
         user.is = { pub, alias: normalizedAlias };
-        user._ = { sea: { pub } };
+        user._.sea = { pub, epub: 'fixture-epub', priv: 'fixture-priv', epriv: 'fixture-epriv' };
         window.setTimeout(() => {
           callback && callback({ ok: true, pub });
         }, 0);
       },
       leave() {
         user.is = null;
-        user._ = { sea: null };
+        user._.sea = null;
       },
       on(eventName, callback) {
         if (eventName === 'auth' && typeof callback === 'function') {
@@ -164,8 +167,9 @@ const GUN_STUB_SOURCE = `
   }
 
   window.Gun = function Gun() {
-    const user = createUser();
-    return {
+    const root = {};
+    const user = createUser(root);
+    return Object.assign(root, {
       on(eventName, callback) {
         // Model a connected local fixture relay; readiness must not bypass auth.
         if (eventName === 'hi') window.setTimeout(() => callback({ url: 'fixture' }), 0);
@@ -176,7 +180,7 @@ const GUN_STUB_SOURCE = `
       get(key) {
         return makeNode([String(key)]);
       }
-    };
+    });
   };
 
   window.Gun.SEA = {
@@ -230,7 +234,7 @@ describe('contacts identity flows', () => {
   }
 
   async function installExternalRoutes(context) {
-    await context.route('https://cdn.jsdelivr.net/npm/gun/gun.js', async route => {
+    await context.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/gun(?:@0\.2020\.1241)?\/gun\.js$/, async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/javascript; charset=utf-8',
@@ -238,7 +242,7 @@ describe('contacts identity flows', () => {
       });
     });
 
-    await context.route('https://cdn.jsdelivr.net/npm/gun/sea.js', async route => {
+    await context.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/gun(?:@0\.2020\.1241)?\/sea\.js$/, async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/javascript; charset=utf-8',
@@ -475,6 +479,7 @@ describe('contacts identity flows', () => {
       assert.equal(identity.signedIn, 'true');
       assert.equal(identity.alias, `${username}@3dvr`);
       assert.equal(identity.pub, `pub_${username}_3dvr`);
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('fixtureRememberedPub')), identity.pub);
 
       await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#userDisplay');
@@ -494,4 +499,5 @@ describe('contacts identity flows', () => {
     }
   }, { timeout: 90000 });
 });
+
 

@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3DVR Portal – Sign In or Sign Up</title>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1241/gun.js"></script>
   <script src="gun-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1241/sea.js"></script>
   <script src="auth-identity.js"></script>
   <script src="oauth.js"></script>
   <script src="account-recovery.js"></script>
@@ -685,8 +685,10 @@
     );
     const gun = gunContext.gun;
     const user = gunContext.user;
-    // Remember the verified signing session for the page we return to.
-    user.recall?.({ sessionStorage: true });
+    // This credential form uses its own Gun root. Do not recall or enable
+    // persistence here: Gun persists AFTER its auth callback, including a late
+    // callback that the UI ignores. Preserve any previously saved session.
+    // Successful attempts opt in below, against the pinned SEA implementation.
     const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
     const gunIsStub = !!gunContext.isStub;
     const DEFAULT_POST_SIGN_IN_DESTINATION = 'index.html';
@@ -1180,12 +1182,30 @@
               : 'Account verification did not complete. Check your username and password.');
             return;
           }
+          // Gun 0.2020.1241 checks this exact options object after invoking
+          // this callback. Per-call remember options are masked by that object;
+          // recall() is not safe here because it can replay a previous account.
+          const options = user._ && user._.opt;
+          const pair = user._ && user._.sea;
+          const remember = options && Object.getOwnPropertyDescriptor(options, 'remember');
+          const canRemember = options && Object.getPrototypeOf(options) === Object.prototype
+            && (remember ? remember.writable === true && remember.value !== true : Object.isExtensible(options))
+            && pair && pair.pub === user.is.pub
+            && ['pub', 'epub', 'priv', 'epriv'].every(key => typeof pair[key] === 'string' && pair[key].length > 0)
+            && typeof user.back === 'function' && user.back(-1) === gun;
+          if (!canRemember) {
+            requireAuthReload('The signing session runtime could not be verified.');
+            return;
+          }
           authAttemptState = 'complete';
           clearTimeout(authAttemptTimer);
           setAuthBusy(true, 'Opening…');
           setAuthStatus('Signed in. Opening the portal…', 'success');
           try {
             finishLogin(username, alias, password, '', { isNewAccount: creating });
+            // Only a current, verified callback that saved the application
+            // identity may permit Gun's normal post-callback session write.
+            if (authAttemptState === 'complete') options.remember = true;
           } catch {
             requireAuthReload('Your account was verified, but this browser could not save the session.');
           }
