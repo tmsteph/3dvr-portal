@@ -203,7 +203,7 @@ test('legacy campaign feedback never credits unlinked or mismatched inbound emai
       entries: [acknowledged], leadsFile: leads, logOptions: { filePath: log },
     });
     assert.equal(linked.recorded, true);
-    assert.match(await readFile(leads, 'utf8'), /lead@example\\.com,replied/);
+    assert.match(await readFile(leads, 'utf8'), /,replied,2026-07-15/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
