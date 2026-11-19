@@ -53,8 +53,16 @@ function paymentReceiptFor(event = {}) {
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
   const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
   const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
+  // A status string and monetary amount are not a provider payment reference.
+  // Keep this a schema guard, not a claim of authenticating the provider.
+  const paymentReference = [
+    payment.payment_intent_id, payment.paymentIntentId,
+    payment.charge_id, payment.chargeId,
+    payment.transaction_id, payment.transactionId,
+    payment.provider_event_id, payment.providerEventId,
+  ].find(value => typeof value === 'string' && value.trim());
   if (String(payment.status || '').trim().toLowerCase() !== 'succeeded'
-    || !hasAmount || !/^[A-Z]{3}$/.test(currency)) return null;
+    || !hasAmount || !/^[A-Z]{3}$/.test(currency) || !paymentReference) return null;
   return {
     amountCents: hasAmount ? amountCents : null,
     amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
