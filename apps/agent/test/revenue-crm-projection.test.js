@@ -212,3 +212,25 @@ test('projectPendingCrm passes isolated relay options to the real writer before 
     );
   }
 });
+
+test('isolated CRM projection rejects caller-supplied Gun roots before any database or network operation', async () => {
+  // The real writer may only obtain roots through the loopback relay validator.
+  // A custom root can otherwise bypass projectionPeer and point at production.
+  const neverReadDb = { prepare() { throw new Error('database reached before isolation check'); } };
+  const suppliedRoots = {
+    crmRoot: { get() { throw new Error('injected CRM root used'); } },
+    touchRoot: { get() { throw new Error('injected touch root used'); } },
+  };
+  for (const relayUrl of [
+    'ws://127.0.0.1:8765/gun',
+    'wss://gun-relay-3dvr.fly.dev/gun',
+    undefined,
+  ]) {
+    await assert.rejects(
+      projectPendingCrm(neverReadDb, {
+        isolated: true, relayUrl, writeOptions: suppliedRoots,
+      }),
+      /Isolated CRM projection cannot override Gun roots/,
+    );
+  }
+});
