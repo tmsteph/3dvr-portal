@@ -1726,6 +1726,20 @@ function actionIdForMessage(kind, message) {
 }
 
 async function sendCoordinatedReply(kind, message, sendImpl) {
+  // A coordination lease and an inbox-thread match are not human authorization.
+  // Do not reserve an email, call a sender, or write "sent" state until this
+  // boundary verifies an independently issued, unexpired, single-use receipt
+  // bound to the exact sender, recipient, subject, body and reply headers.
+  // No trusted receipt verifier exists yet; fail closed for ALL reply kinds.
+  const verifiedMessageApproval = false;
+  if (!verifiedMessageApproval) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'message-specific human approval receipt required; review draft without sending',
+    };
+  }
+
   const actionId = actionIdForMessage(kind, message);
   let handled;
   try {
