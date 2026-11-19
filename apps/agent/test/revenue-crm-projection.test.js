@@ -57,6 +57,16 @@ test('CRM refuses false paid-customer projections from quotes, pending or invali
   const quote = projected('proposal_quoted', payment);
   assert.equal(quote.status, 'Warm - Discovery');
   assert.equal(quote.lastPaymentAmountCents, undefined);
+  assert.equal(projected('payment_succeeded', {
+    status: 'succeeded', amount_cents: 25000, currency: 'usd'
+  }).status, 'Warm - Discovery', 'status and amount without a provider payment reference are not proof of payment');
+  assert.equal(projected('payment_succeeded', {
+    ...payment, payment_intent_id: '   '
+  }).status, 'Warm - Discovery', 'a blank payment reference cannot mark a customer as paid');
+  const withTransactionReference = projected('payment_succeeded', {
+    ...payment, payment_intent_id: undefined, transaction_id: 'txn_synthetic'
+  });
+  assert.equal(withTransactionReference.status, 'Paid Customer', 'non-Stripe provider transaction references remain supported');
   assert.equal(projected('payment_succeeded', { ...payment, status: 'pending' }).status, 'Warm - Discovery');
   assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 0 }).status, 'Warm - Discovery');
   assert.equal(projected('payment_succeeded', { ...payment, amount_cents: -1 }).status, 'Warm - Discovery');
