@@ -36,6 +36,16 @@ function prepareCandidate(db, candidate) {
   if (['sent', 'bounced', 'replied', 'suppressed'].includes(prospect.state)) {
     return { prospect, eligible: false, reason: `terminal state: ${prospect.state}` };
   }
+  // A timeout or lost acknowledgement might mean the external message was
+  // actually delivered. A new candidate/attempt ID must not silently retry it.
+  // Require human reconciliation of any prior attempt before further outreach.
+  const priorAttempt = db.prepare(
+    'SELECT status FROM delivery_attempts WHERE prospect_id = ? LIMIT 1'
+  ).get(prospect.id);
+  if (priorAttempt) {
+    return { prospect, eligible: false, requiresReview: true,
+      reason: `prior delivery attempt (${priorAttempt.status}) requires manual reconciliation` };
+  }
   if (['prospect', 'failed'].includes(prospect.state)) {
     prospect = transitionProspect(db, {
       prospectId: prospect.id,
@@ -83,7 +93,8 @@ async function deliverCandidate(db, options = {}) {
   }
   const prepared = prepareCandidate(db, candidate);
   if (!prepared.eligible) {
-    return { attempted: 0, sends: 0, reason: prepared.reason || 'candidate not eligible', prospectId: prepared.prospect.id };
+    return { attempted: 0, sends: 0, reason: prepared.reason || 'candidate not eligible',
+      prospectId: prepared.prospect.id, error: prepared.requiresReview ? prepared.reason : '' };
   }
   const result = await deliverProspect(
     db,
