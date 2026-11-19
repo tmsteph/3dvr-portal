@@ -855,6 +855,20 @@ export function createLeadOutreachEmailHandler(options = {}) {
       return res.status(401).json({ error: 'Unauthorized lead outreach trigger.' });
     }
 
+    // An Operator API bearer token authenticates a caller, not the human's approval
+    // of this exact recipient, channel and message. No trusted, single-use receipt
+    // verifier is wired to this HTTP transport yet; even a forged approved flag,
+    // thread headers, or an arbitrary receipt supplied by the caller cannot send.
+    // Keep the legacy delivery path unreachable until a reviewed receipt adapter
+    // verifies a durable, expiry-bound, content-bound approval before sending.
+    const approvalReceiptVerified = false;
+    if (!approvalReceiptVerified) {
+      return res.status(403).json({
+        code: 'human_approval_receipt_required',
+        error: 'This outreach transport requires verified, message-specific human approval before sending.'
+      });
+    }
+
     const to = normalizeRecipientList(req.body?.to);
     const subject = normalizeText(req.body?.subject);
     const text = normalizeText(req.body?.text);
