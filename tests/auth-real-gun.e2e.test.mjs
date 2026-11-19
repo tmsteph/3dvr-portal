@@ -10,6 +10,7 @@ import {resolve,join,extname,sep} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createRequire} from 'node:module';
 import {chromium} from 'playwright';
+import {verifySignedSeaPayload} from '../src/auth/sea.js';
 const require=createRequire(import.meta.url),Gun=require('gun');require('gun/sea');
 assert.equal(require('gun/package.json').version, '0.2020.1241', 'Test must exercise the pinned sign-in runtime');
 const repo=process.cwd();
@@ -43,8 +44,12 @@ test('real existing-account sign-in carries verified identity into Helm and rest
    try{
     assert.equal(req.method,'POST');
     let raw='';for await(const chunk of req){raw+=chunk;assert.ok(raw.length<20000)}
-    const body=JSON.parse(raw),proof=await Gun.SEA.verify(body.authProof,body.authPub);
-    assert.equal(body.authPub,expectedPub);assert.ok(proof);
+    const body=JSON.parse(raw);
+    // Use the same browser-to-Node SEA normalization as the Portal handler.
+    const checked=await verifySignedSeaPayload(body,{scope:'openclaw-helm',expectedOrigin:base,maxAgeMs:120000});
+    assert.ok(checked.ok,checked.reason);
+    const proof=checked.verified;
+    assert.equal(body.authPub,expectedPub);
     assert.equal(proof.pub,expectedPub);assert.equal(proof.scope,'openclaw-helm');
     assert.equal(proof.origin,base);assert.equal(proof.action,body.action);
     assert.ok(['status','chat'].includes(body.action));
@@ -92,7 +97,10 @@ test('real existing-account sign-in carries verified identity into Helm and rest
 
   // Real Helm modules and encrypted store; only the local agent transport is fake.
   await page.goto(base+'/helm/');
-  await page.waitForFunction(()=>document.querySelector('#connection')?.textContent==='OpenClaw ready');
+  try{await page.waitForFunction(()=>document.querySelector('#connection')?.textContent==='OpenClaw ready')}catch(error){
+   const connection=await page.locator('#connection').textContent().catch(()=>null);
+   assert.fail(`Isolated Helm did not become ready: ${connection||error.message}; fixture: ${transportErrors.join('; ')||'no transport errors'}`);
+  }
   await page.locator('#message').fill(prompt);
   await page.locator('#send').click();
   await page.waitForFunction(reply=>document.querySelector('#messages')?.textContent.includes(reply)&&document.querySelector('#messages')?.textContent.includes('Sent'),reply);
