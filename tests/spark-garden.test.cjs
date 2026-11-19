@@ -32,9 +32,10 @@ test('DOM interaction, restart focus and completion preserve usable controls', (
 });
 test('startup opens game, Terminal stays one click and focuses its input', () => {
   const html=fs.readFileSync('3dvr-os/index.html','utf8');
-  assert.match(html,/\}\);openApp\('sparks'\);/);
+  assert.match(html,/openApp\('terminal',\{focusInput:false\}\);openApp\('sparks'\);/);
   assert.match(html,/data-open="terminal">Open Terminal/);
-  assert.match(html,/if\(name==='terminal'\)setTimeout\(\(\)=>\$\('#terminal-input'\)\.focus\(\),0\)/);
+  assert.match(html,/if\(name==='terminal'&&focusInput\)setTimeout\(\(\)=>\$\('#terminal-input'\)\.focus\(\),0\)/);
   assert.ok(!html.includes("});openApp('terminal');"));
   for(const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]);
 });
+

@@ -34,3 +34,27 @@ test('mobile keeps full-window mode without misleading arrange controls',()=>{
  assert.match(s,/if \(root.innerWidth <= 680 \|\| !event.metaKey/);
  assert.match(h,/@media\(max-width:680px\)\{\.window-arrange\{display:none\}/);
 });
+
+
+test('startup and resize fit whole windows while explicit drag may remain partial',()=>{
+ const {fit,startupLayout}=require('../3dvr-os/window-manager.js');
+ for(const area of [{width:1440,height:720},{width:800,height:450},{width:390,height:320},{width:320,height:110}]) {
+   for(const box of Object.values(startupLayout(area))) {
+     assert.ok(box.left>=0 && box.top>=0);
+     assert.ok(box.left+box.width<=area.width && box.top+box.height<=area.height);
+   }
+   const r=fit({left:-500,top:900,width:700,height:600},area);
+   assert.ok(r.left>=0&&r.top>=0&&r.left+r.width<=area.width&&r.top+r.height<=area.height);
+ }
+ const both=startupLayout({width:1200,height:650});
+ assert.ok(both.sparks.left+both.sparks.width<both.terminal.left);
+ assert.ok(recover({left:-300,top:0,width:500,height:400},{width:1200,height:650}).left<0);
+});
+test('initial already-open apps, reopen and resize use full fitting',()=>{
+ const s=fs.readFileSync('3dvr-os/window-manager.js','utf8');
+ assert.match(s,/const initial = startupLayout\(area\(\)\)/);
+ assert.match(s,/if \(isOpen && !wasOpen\).*fit\(rect\(win\), area\(\)\)/);
+ const h=fs.readFileSync('3dvr-os/index.html','utf8');
+ assert.match(h,/openApp\('terminal',\{focusInput:false\}\);openApp\('sparks'\)/);
+ assert.match(h,/\.desktop\{height:100dvh;min-height:0\}/);
+});
