@@ -16,7 +16,7 @@ function inboxState(message = {}) {
 // This screens structured inbox state, not unauthenticated mailboxes/files.
 function referencedMessageIds(message = {}) {
   return [message.inReplyTo, message.references]
-    .flatMap(value => String(value || '').match(/<[^<>\\s]+>|[^\\s,]+/g) || [])
+    .flatMap(value => String(value || '').match(/<[^<>\s]+>|[^\s,]+/g) || [])
     .map(value => value.replace(/^<|>$/g, '').toLowerCase())
     .filter(Boolean);
 }
