@@ -83,6 +83,31 @@ test('isolated revenue run uses scratch ledger, not host inbox or live ledger', 
   }
 });
 
+test('isolated scratch ledger rejects hard links to host data', async () => {
+  const hostDir = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-host-hardlink-'));
+  const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-scratch-hardlink-'));
+  const hostLedger = path.join(hostDir, 'revenue-ledger.sqlite');
+  const linkedScratch = path.join(scratchDir, 'scratch-ledger.sqlite');
+  const previous = process.env.THREEDVR_REVENUE_LEDGER_FILE;
+  try {
+    fs.writeFileSync(hostLedger, 'host-ledger-sentinel');
+    fs.linkSync(hostLedger, linkedScratch);
+    process.env.THREEDVR_REVENUE_LEDGER_FILE = hostLedger;
+    await assert.rejects(
+      run('isolated-hardlink-rejected', { isolated: true, ledgerFile: linkedScratch }),
+      /hard.link/i,
+      'an alternate filename for the live ledger must not enter SQLite'
+    );
+    assert.equal(fs.readFileSync(hostLedger, 'utf8'), 'host-ledger-sentinel');
+    assert.equal(fs.readFileSync(linkedScratch, 'utf8'), 'host-ledger-sentinel');
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_REVENUE_LEDGER_FILE;
+    else process.env.THREEDVR_REVENUE_LEDGER_FILE = previous;
+    fs.rmSync(hostDir, { recursive: true, force: true });
+    fs.rmSync(scratchDir, { recursive: true, force: true });
+  }
+});
+
 test('isolated revenue acceptance refuses delivery even if host delivery is enabled', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-isolated-'));
   const candidateFile = path.join(tmp, 'candidate.json');
