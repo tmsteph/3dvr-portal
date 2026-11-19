@@ -30,19 +30,39 @@ window.fixtureIdentityReady=new Promise((resolve,reject)=>{
 });
 </script>`;
 
-test('real existing-account sign-in carries verified identity across reload',{timeout:60000},async()=>{
+test('real existing-account sign-in carries verified identity into Helm and restores an encrypted reply',{timeout:90000},async()=>{
  const dir=await mkdtemp(join(tmpdir(),'portal-auth-real-'));
+ let expectedPub,base;
+ const transportErrors=[],chats=[];
+ const prompt='Synthetic local fixture: what is six times seven?',reply='Isolated reply: 42';
  const server=createServer(async(req,res)=>{try{
   const p=new URL(req.url,'http://localhost').pathname;
   if(p==='/fixture'||p==='/identity'){res.setHeader('content-type','text/html');return res.end(p==='/fixture'?fixture:identity)}
   if(p==='/fixture-gun.js'||p==='/fixture-sea.js'){res.setHeader('content-type','application/javascript');return res.end(await readFile(p.includes('-gun')?gunPath:seaPath))}
+  if(p==='/api/openclaw'){
+   try{
+    assert.equal(req.method,'POST');
+    let raw='';for await(const chunk of req){raw+=chunk;assert.ok(raw.length<20000)}
+    const body=JSON.parse(raw),proof=await Gun.SEA.verify(body.authProof,body.authPub);
+    assert.equal(body.authPub,expectedPub);assert.ok(proof);
+    assert.equal(proof.pub,expectedPub);assert.equal(proof.scope,'openclaw-helm');
+    assert.equal(proof.origin,base);assert.equal(proof.action,body.action);
+    assert.ok(['status','chat'].includes(body.action));
+    assert.ok(Number.isSafeInteger(proof.iat)&&Math.abs(Date.now()-proof.iat)<120000);
+    for(const key of ['requestId','sessionId','engine',...(body.action==='chat'?['message','createdAt','expiresAt']:[])])assert.deepEqual(proof[key],body[key]);
+    assert.equal(body.engine,'openclaw');assert.ok(body.requestId&&body.sessionId);
+    if(body.action==='chat'){assert.equal(body.message,prompt);chats.push({id:body.requestId,sessionId:body.sessionId})}
+    res.setHeader('content-type','application/json');
+    return res.end(JSON.stringify(body.action==='status'?{ok:true,gateway:'reachable',chatEnabled:true}:{ok:true,reply}));
+   }catch(error){transportErrors.push(error.message);res.writeHead(400,{'content-type':'application/json'});return res.end('{"error":"Invalid isolated fixture proof"}')}
+  }
   if(p.startsWith('/api/')){res.writeHead(404,{'content-type':'application/json'});return res.end('{"configured":false}')}
-  const path=resolve(repo,'.'+p);if(!path.startsWith(repo+sep)||!['.html','.js','.css','.svg'].includes(extname(path))){res.writeHead(404);return res.end()}
+  const path=resolve(repo,'.'+(p.endsWith('/')?p+'index.html':p));if(!path.startsWith(repo+sep)||!['.html','.js','.css','.svg'].includes(extname(path))){res.writeHead(404);return res.end()}
   res.setHeader('content-type',extname(path)==='.html'?'text/html':extname(path)==='.js'?'application/javascript':extname(path)==='.css'?'text/css':'image/svg+xml');res.end(await readFile(path));
  }catch{res.writeHead(404);res.end()}});
  const relay=Gun({web:server,file:join(dir,'relay'),axe:false,multicast:false,stats:false});
  await new Promise((r,j)=>server.once('error',j).listen(0,'127.0.0.1',r));
- const base='http://127.0.0.1:'+server.address().port;
+ base='http://127.0.0.1:'+server.address().port;
  let browser;
  try{
   browser=await chromium.launch({headless:true,...(process.env.PORTAL_E2E_EXECUTABLE_PATH?{executablePath:process.env.PORTAL_E2E_EXECUTABLE_PATH}:{})});
@@ -59,7 +79,7 @@ test('real existing-account sign-in carries verified identity across reload',{ti
   }
   const alias='isolated-'+Date.now()+'@3dvr',password='SyntheticLocalAccountOnly-123!';
   const seedContext=await context(),seed=await seedContext.newPage();await seed.goto(base+'/fixture');
-  const expectedPub=await seed.evaluate(async({base,alias,password})=>{const user=Gun({peers:[base+'/gun'],localStorage:false,axe:false}).user();return await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('isolated seed timeout')),15000);user.create(alias,password,a=>{clearTimeout(t);if(a.err)reject(Error('isolated seed failed'));else resolve(a.pub)})});},{base,alias,password});
+  expectedPub=await seed.evaluate(async({base,alias,password})=>{const user=Gun({peers:[base+'/gun'],localStorage:false,axe:false}).user();return await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('isolated seed timeout')),15000);user.create(alias,password,a=>{clearTimeout(t);if(a.err)reject(Error('isolated seed failed'));else resolve(a.pub)})});},{base,alias,password});
   assert.ok(expectedPub); // Public key only; never expose private signing material.
   const c=await context(),page=await c.newPage();
   await page.goto(base+'/sign-in.html?redirect=%2Fidentity');
@@ -70,6 +90,33 @@ test('real existing-account sign-in carries verified identity across reload',{ti
   assert.equal(await page.evaluate(()=>localStorage.getItem('userPubKey')),expectedPub);
   await page.reload();assert.equal(await page.evaluate(()=>window.fixtureIdentityReady),true);
 
+  // Real Helm modules and encrypted store; only the local agent transport is fake.
+  await page.goto(base+'/helm/');
+  await page.waitForFunction(()=>document.querySelector('#connection')?.textContent==='OpenClaw ready');
+  await page.locator('#message').fill(prompt);
+  await page.locator('#send').click();
+  await page.waitForFunction(reply=>document.querySelector('#messages')?.textContent.includes(reply)&&document.querySelector('#messages')?.textContent.includes('Sent'),reply);
+  assert.equal(chats.length,1);assert.deepEqual(transportErrors,[]);
+  const id=chats[0].id;
+  const encryptedCompleted=await page.evaluate(async({id,pub,prompt,reply})=>{
+   const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('3dvr-helm-cache',1);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)});
+   try{
+    const key=`3dvr.helm.encrypted-messages.${pub}:${id}:completed`;
+    const value=await new Promise((resolve,reject)=>{const r=db.transaction('messages','readonly').objectStore('messages').get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+    if(!value?.ciphertext||Object.keys(value).sort().join(',')!=='ciphertext,updatedAt')return false;
+    const serialized=JSON.stringify(value);if(serialized.includes(prompt)||serialized.includes(reply))return false;
+    const pair=JSON.parse(sessionStorage.getItem('pair'));
+    const decoded=await Gun.SEA.decrypt(value.ciphertext,pair);
+    const record=typeof decoded==='string'?JSON.parse(decoded):decoded;
+    return record?.id===id&&record.status==='completed'&&record.text===prompt&&record.reply===reply;
+   }finally{db.close()}
+  },{id,pub:expectedPub,prompt,reply});
+  assert.equal(encryptedCompleted,true,'Real store must persist decryptable completed ciphertext');
+  await page.reload();
+  await page.waitForFunction(reply=>document.querySelector('#messages')?.textContent.includes(reply)&&document.querySelector('#messages')?.textContent.includes('Sent'),reply);
+  await page.waitForFunction(()=>document.querySelector('#connection')?.textContent==='OpenClaw ready');
+  assert.equal(chats.length,1,'Restoring a completed message must not dispatch it again');
+  assert.deepEqual(transportErrors,[]);
   for(const context of contexts)await context.close();
  }finally{
   if(browser)await browser.close();
