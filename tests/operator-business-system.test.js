@@ -124,7 +124,7 @@ test('revenue workflow records delivery receipts and an attributed provider paym
   assert.equal(revenueStage(item), 'won');
   assert.equal(item.state, 'done');
   assert.equal(item.result.amountCents, 120000);
-  assert.equal(item.evidence.length, 3);
+  assert.equal(item.evidence.length, 4, 'outbound, inbound reply, proposal and payment each have receipts');
 });
 
 
