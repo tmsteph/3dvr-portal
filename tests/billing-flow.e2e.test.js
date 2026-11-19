@@ -142,7 +142,7 @@ async function createContext(browser) {
 }
 
 async function installGunRoutes(context) {
-  await context.route('https://cdn.jsdelivr.net/npm/gun/gun.js', async route => {
+  await context.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/gun(?:@0\.2020\.1241)?\/gun\.js$/, async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/javascript; charset=utf-8',
@@ -150,7 +150,7 @@ async function installGunRoutes(context) {
     })
   })
 
-  await context.route('https://cdn.jsdelivr.net/npm/gun/sea.js', async route => {
+  await context.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/gun(?:@0\.2020\.1241)?\/sea\.js$/, async route => {
     await route.fulfill({
       status: 200,
       contentType: 'application/javascript; charset=utf-8',
@@ -571,3 +571,4 @@ describe('billing center subscriber flows', () => {
     }
   }, { timeout: 45000 })
 })
+

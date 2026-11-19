@@ -58,7 +58,9 @@ async function saveArtifacts(name) {
   await writeFile(`${artifactDir}/${name}.txt`, body, 'utf8').catch(() => {});
 }
 
-async function signInOrCreate() {
+// Production acceptance uses a provisioned account. Never opt into account creation
+// or interpret an authentication error as authorization to create one.
+async function signInExistingAccount() {
   const signInUrl = `${baseUrl}/sign-in.html?redirect=${encodeURIComponent('/operator/')}`;
   await page.goto(signInUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.locator('#username').fill(alias);
@@ -380,7 +382,7 @@ try {
   if (mode.startsWith('edit') && usingPublicCredentials) {
     throw new Error('Edit mode requires private PORTAL_E2E_ALIAS and PORTAL_E2E_PASSWORD credentials.');
   }
-  await signInOrCreate();
+  await signInExistingAccount();
   await saveArtifacts('signed-in-operator');
   await runCrossDeviceSyncAcceptance();
   await runScreenshotAcceptance();
@@ -395,3 +397,4 @@ try {
 } finally {
   await browser.close();
 }
+

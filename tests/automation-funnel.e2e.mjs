@@ -73,7 +73,7 @@ try {
     await page.locator('#status.success').waitFor();
     assert.match(await page.locator('#status').innerText(), /inquiry is saved/);
     const admin = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await admin.route('https://cdn.jsdelivr.net/npm/gun/**', async route => {
+    await admin.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/gun(?:@0\.2020\.1241)?\/(?:gun|sea)\.js$/, async route => {
       const sea = route.request().url().endsWith('sea.js');
       const path = '/opt/3dvr-portal-production/current/node_modules/gun/' + (sea ? 'sea.js' : 'gun.js');
       await route.fulfill({ path, contentType: 'text/javascript' });
@@ -95,7 +95,7 @@ try {
     // A fresh tab has no recalled pair: recover the real Portal alias/password
     // from the shared Gun account graph, then prove identity to the server.
     const context = await browser.newContext();
-    await context.route('https://cdn.jsdelivr.net/npm/gun/**', async route => {
+    await context.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/gun(?:@0\.2020\.1241)?\/(?:gun|sea)\.js$/, async route => {
       const path = '/opt/3dvr-portal-production/current/node_modules/gun/' + (route.request().url().endsWith('sea.js') ? 'sea.js' : 'gun.js');
       await route.fulfill({ path, contentType: 'text/javascript' });
     });
@@ -159,7 +159,7 @@ Gun.User.prototype.auth = function(...args) {
     await context.close();
 
     const unavailable = await browser.newPage();
-    await unavailable.route('https://cdn.jsdelivr.net/npm/gun/**', async route => {
+    await unavailable.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/gun(?:@0\.2020\.1241)?\/(?:gun|sea)\.js$/, async route => {
       const path = '/opt/3dvr-portal-production/current/node_modules/gun/' + (route.request().url().endsWith('sea.js') ? 'sea.js' : 'gun.js');
       await route.fulfill({ path, contentType: 'text/javascript' });
     });
@@ -186,3 +186,4 @@ Gun.User.prototype.auth = function(...args) {
 } finally {
   child.kill('SIGTERM');
 }
+

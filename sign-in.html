@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3DVR Portal – Sign In or Sign Up</title>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1241/gun.js"></script>
   <script src="gun-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1241/sea.js"></script>
   <script src="auth-identity.js"></script>
   <script src="oauth.js"></script>
   <script src="account-recovery.js"></script>
@@ -487,7 +487,7 @@
       <section class="auth-card" aria-labelledby="auth-title">
         <div class="auth-header">
           <span class="auth-eyebrow">3DVR Portal</span>
-          <h1 id="auth-title">Sign in or sign up</h1>
+          <h1 id="auth-title">Sign in</h1>
           <p id="auth-description">Use one portal account for your plan, billing, saved work, and support so every next step stays attached to the same identity.</p>
           <div id="redirect-context" class="redirect-context" hidden>
             <span id="redirect-context-eyebrow" class="redirect-context__eyebrow">Return after sign-in</span>
@@ -504,9 +504,15 @@
             <label for="password">Password</label>
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
           </div>
-          <div class="actions">
-            <button id="auth-submit" type="submit" class="primary-button">Sign in or sign up</button>
+          <label><input type="checkbox" id="create-account"> Create a new account instead of signing in</label>
+          <div id="confirm-password-field" hidden>
+            <label for="confirm-password">Confirm new password</label>
+            <input type="password" id="confirm-password" autocomplete="new-password">
           </div>
+          <div class="actions">
+            <button id="auth-submit" type="submit" class="primary-button">Sign in</button>
+          </div>
+          <button id="auth-reload" type="button" class="secondary-button" hidden onclick="window.location.reload()">Reload sign-in page</button>
           <p id="auth-status" class="auth-status" role="status" aria-live="polite">Ready.</p>
           <!-- OAuth remains wired for later, but is intentionally hidden until
                the provider flows are ready for reliable sign-in. -->
@@ -679,8 +685,10 @@
     );
     const gun = gunContext.gun;
     const user = gunContext.user;
-    // Remember the verified signing session for the page we return to.
-    user.recall?.({ sessionStorage: true });
+    // This credential form uses its own Gun root. Do not recall or enable
+    // persistence here: Gun persists AFTER its auth callback, including a late
+    // callback that the UI ignores. Preserve any previously saved session.
+    // Successful attempts opt in below, against the pinned SEA implementation.
     const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
     const gunIsStub = !!gunContext.isStub;
     const DEFAULT_POST_SIGN_IN_DESTINATION = 'index.html';
@@ -756,11 +764,8 @@
 
     const postSignInDestination = resolvePostSignInDestination();
     const redirectContext = describeRedirectTarget(postSignInDestination);
-    let gunRelayConnected = gunIsStub;
-    let resolveGunRelayReady;
-    const gunRelayReady = new Promise(resolve => {
-      resolveGunRelayReady = resolve;
-    });
+    let gunRelayConnected = false;
+    const gunRelayWaiters = new Set();
 
     function resolveGunPeers() {
       const configured = Array.isArray(window.__GUN_PEERS__) ? window.__GUN_PEERS__ : [];
@@ -770,42 +775,31 @@
     }
 
     function watchGunRelay() {
-      if (gunIsStub || !gun || typeof gun.on !== 'function') {
-        resolveGunRelayReady(true);
-        return;
-      }
-
-      let settled = false;
-      const markReady = () => {
-        gunRelayConnected = true;
-        if (!settled) {
-          settled = true;
-          resolveGunRelayReady(true);
-        }
-      };
-
+      if (gunIsStub || !gun || typeof gun.on !== 'function') return;
       try {
-        gun.on('hi', markReady);
-        gun.on('bye', () => {
-          gunRelayConnected = false;
+        gun.on('hi', () => {
+          gunRelayConnected = true;
+          for (const resolve of [...gunRelayWaiters]) resolve(true);
         });
+        gun.on('bye', () => { gunRelayConnected = false; });
       } catch (err) {
         console.warn('Unable to watch Gun relay state during sign-in', err);
       }
-
-      setTimeout(() => {
-        if (!settled) {
-          settled = true;
-          resolveGunRelayReady(false);
-        }
-      }, 9000);
     }
 
     function waitForGunRelay() {
-      if (gunRelayConnected) {
-        return Promise.resolve(true);
-      }
-      return gunRelayReady;
+      if (gunIsStub) return Promise.resolve(false);
+      if (gunRelayConnected) return Promise.resolve(true);
+      // An old fulfilled promise must not treat a disconnected relay as ready.
+      return new Promise(resolve => {
+        const finish = ready => {
+          clearTimeout(timer);
+          gunRelayWaiters.delete(finish);
+          resolve(ready);
+        };
+        const timer = setTimeout(() => finish(false), 9000);
+        gunRelayWaiters.add(finish);
+      });
     }
 
     watchGunRelay();
@@ -844,7 +838,7 @@
           ? `You are almost back to ${redirectContext.planLabel}.`
           : 'You are almost back to the billing center.';
         if (authTitle) {
-          authTitle.textContent = 'Create your portal account to continue';
+          authTitle.textContent = 'Sign in to continue';
         }
         if (authDescription) {
           authDescription.textContent = 'Sign in once so your chosen plan, upgrades, invoices, and onboarding stay attached to one portal identity. Then we will send you straight back.';
@@ -869,7 +863,7 @@
           authTitle.textContent = 'Save your guest progress';
         }
         if (authDescription) {
-          authDescription.textContent = 'Create a portal account and we will move this guest session into it after sign-in.';
+          authDescription.textContent = 'Sign in to keep your guest progress, or explicitly choose Create a new account below.';
         }
         redirectEyebrow.textContent = 'Guest session';
         redirectTitle.textContent = guestName
@@ -877,7 +871,7 @@
           : 'Keep your guest points and progress.';
         redirectBody.textContent = 'Use a username and password below. Your current guest score moves into the account, then this browser returns to where you were.';
         if (authSubmit) {
-          authSubmit.textContent = 'Create account and keep progress';
+          authSubmit.textContent = 'Sign in and keep progress';
         }
         if (guestNote) {
           guestNote.innerHTML = 'Need more time? <button id="guest-button" type="button" onclick="continueAsGuest()">Stay in guest mode</button>';
@@ -887,7 +881,7 @@
 
       redirectEyebrow.textContent = 'Return after sign-in';
       redirectTitle.textContent = 'We will send you back after you sign in.';
-      redirectBody.textContent = 'Create one account so your plan, billing history, saved work, and support stay linked to the same portal identity.';
+      redirectBody.textContent = 'Use your existing account, or explicitly choose Create a new account below.';
       if (authSubmit) {
         authSubmit.textContent = 'Sign in and continue';
       }
@@ -917,7 +911,7 @@
       button.textContent = busy
         ? (label || 'Working…')
         : (redirectContext.destination === DEFAULT_POST_SIGN_IN_DESTINATION
-          ? 'Sign in or sign up'
+          ? 'Sign in'
           : 'Sign in and continue');
     }
 
@@ -1101,6 +1095,7 @@
     }
 
     function startOauth(provider) {
+      if (authAttemptState !== 'idle') return;
       if (!(window.PortalOAuth && typeof window.PortalOAuth.begin === 'function')) {
         setOauthStatus('OAuth runtime is unavailable in this browser.', 'error');
         return;
@@ -1113,86 +1108,129 @@
       });
     }
 
-    async function signIn() {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const verifiedRecoveryEmail = '';
+    // Gun auth has no verified cancellation contract. Never reuse an attempt
+    // after failure/timeout: require a fresh document, not an in-place retry.
+    let authAttemptState = 'idle';
+    let authAttemptTimer;
+    let authWasCreation = false;
+    const createAccountControl = document.getElementById('create-account');
+    createAccountControl.checked = false; // Restored form state is not new signup intent.
+    createAccountControl.addEventListener('change', () => {
+      if (authAttemptState !== 'idle') return;
+      document.getElementById('confirm-password-field').hidden = !createAccountControl.checked;
+      document.getElementById('password').autocomplete = createAccountControl.checked ? 'new-password' : 'current-password';
+      document.getElementById('auth-submit').textContent = createAccountControl.checked ? 'Create new account' : 'Sign in';
+    });
+    function requireAuthReload(message) {
+      if (authAttemptState === 'terminal') return;
+      authAttemptState = 'terminal';
+      clearTimeout(authAttemptTimer);
+      setAuthBusy(true, 'Reload required');
+      setAuthStatus(message + ' Reload this page before trying again.' + (authWasCreation ? ' Creation may have completed; try signing in after reloading, rather than creating again.' : ' No account was created.'), 'error');
+      document.getElementById('auth-reload').hidden = false;
+    }
+    window.addEventListener('pagehide', () => {
+      authAttemptState = 'terminal';
+      clearTimeout(authAttemptTimer);
+    });
+    window.addEventListener('pageshow', event => {
+      if (!event.persisted) return;
+      authAttemptState = 'terminal';
+      clearTimeout(authAttemptTimer);
+      // A restored document may still contain an unresolved Gun attempt.
+      // Offer a fresh document, never silently re-arm credentials on Back.
+      setAuthBusy(true, 'Reload required');
+      setAuthStatus('This sign-in page was restored. Reload before signing in again.', 'error');
+      document.getElementById('auth-reload').hidden = false;
+    });
 
+    async function signIn() {
+      if (authAttemptState !== 'idle') return;
+      const username = document.getElementById('username').value.trim().replace(/@3dvr$/i, '');
+      // Preserve the normalization used when legacy accounts were created.
+      const password = document.getElementById('password').value.trim();
       if (!username || !password) {
-        alert("Please enter both username and password.");
+        setAuthStatus('Please enter both username and password.', 'error');
         return;
       }
-      const alias = username + "@3dvr";
+      const creating = createAccountControl.checked;
+      if (creating && password !== document.getElementById('confirm-password').value.trim()) {
+        setAuthStatus('The new passwords do not match.', 'error');
+        return;
+      }
+      const alias = username + '@3dvr';
+      authWasCreation = creating;
+      createAccountControl.disabled = true;
+      authAttemptState = 'relay'; // Before await; Enter cannot submit twice.
       setAuthBusy(true, 'Connecting…');
       setAuthStatus('Connecting to secure account storage…');
-      console.log("🛠️ Attempting to authorize user:", alias);
-
-      if (gunIsStub) {
-        setAuthBusy(false);
-        setAuthStatus('Could not reach the sign-in service. Check your connection, or in Brave turn Shields off for portal.3dvr.tech, then try again.', 'error');
-        console.warn('Gun.js unavailable; refusing to sign in without the real account service.');
-        alert('Could not reach the sign-in service. Check your connection, or in Brave turn Shields off for portal.3dvr.tech, then try again.');
-        return;
-      }
-
-      const relayReady = await waitForGunRelay();
-      if (!relayReady) {
-        setAuthBusy(false);
-        setAuthStatus('The secure sync relay is not connected yet. Please try again.', 'error');
-        alert('The sync relay is not connected yet. In Brave, turn Shields off for portal.3dvr.tech, then try signing in again.');
-        return;
-      }
-
-      // Attempt to sign in
-      user.auth(alias, password, loginAck => {
-        if (loginAck.err) {
-          console.warn("❌ Login failed:", loginAck.err);
-          console.log("Login failed. Trying to create a new account...");
-          setAuthBusy(true, 'Checking account…');
-          setAuthStatus('No matching login yet. Checking whether this is a new username…');
-          // Attempt to create user
-          user.create(alias, password, createAck => {
-            if (createAck.err) {
-              setAuthBusy(false);
-              if (createAck.err.includes("User already created")) {
-                setAuthStatus('That username exists, but the password did not match.', 'error');
-                alert("⚠️ That username is taken. Please check your password or try logging in.");
-                console.warn("⚠️ User exists, password is likely incorrect.");
-              } else {
-                setAuthStatus('Account creation failed. Please try again.', 'error');
-                console.error("❌ Error creating account:", createAck.err);
-                alert("❌ Account creation failed: " + createAck.err);
-              }
-              return;
-            }
-            console.log("✅ User created:", alias);
-            setAuthBusy(true, 'Signing in…');
-            setAuthStatus('Account created. Signing you in…');
-            // Retry auth after creation
-            setTimeout(() => {
-              user.auth(alias, password, authAck => {
-                if (authAck.err) {
-                  setAuthBusy(false);
-                  setAuthStatus('The account was created, but sign-in did not finish. Try again.', 'error');
-                  console.error("❌ Auth after creation failed:", authAck.err);
-                  alert("⚠️ Auth failed after creating account. Please try again.");
-                } else {
-                  console.log("✅ Authenticated after account creation.");
-                  setAuthBusy(true, 'Opening…');
-                  setAuthStatus('Signed in. Opening the portal…', 'success');
-                  finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: true });
-                }
-              });
-            }, 500);
-          });
-
-        } else {
-          console.log("✅ Logged in existing user.");
+      authAttemptTimer = setTimeout(() => requireAuthReload('Account verification timed out.'), 25000);
+      try {
+        if (gunIsStub || !await waitForGunRelay()) {
+          requireAuthReload('The secure sync relay is unavailable.');
+          return;
+        }
+        if (authAttemptState !== 'relay') return;
+        authAttemptState = 'auth';
+        setAuthBusy(true, 'Verifying…');
+        setAuthStatus('Connected. Verifying your account…');
+        const authenticate = () => user.auth(alias, password, ack => {
+          if (authAttemptState !== 'auth') return;
+          if (!ack || ack.err || ack.wait || !user.is || !user.is.pub) {
+            requireAuthReload(ack && ack.wait
+              ? 'An account verification is already pending.'
+              : 'Account verification did not complete. Check your username and password.');
+            return;
+          }
+          // Gun 0.2020.1241 checks this exact options object after invoking
+          // this callback. Per-call remember options are masked by that object;
+          // recall() is not safe here because it can replay a previous account.
+          const options = user._ && user._.opt;
+          const pair = user._ && user._.sea;
+          const remember = options && Object.getOwnPropertyDescriptor(options, 'remember');
+          const canRemember = options && Object.getPrototypeOf(options) === Object.prototype
+            && (remember ? remember.writable === true && remember.value !== true : Object.isExtensible(options))
+            && pair && pair.pub === user.is.pub
+            && ['pub', 'epub', 'priv', 'epriv'].every(key => typeof pair[key] === 'string' && pair[key].length > 0)
+            && typeof user.back === 'function' && user.back(-1) === gun;
+          if (!canRemember) {
+            requireAuthReload('The signing session runtime could not be verified.');
+            return;
+          }
+          authAttemptState = 'complete';
+          clearTimeout(authAttemptTimer);
           setAuthBusy(true, 'Opening…');
           setAuthStatus('Signed in. Opening the portal…', 'success');
-          finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: false });
+          try {
+            finishLogin(username, alias, password, '', { isNewAccount: creating });
+            // Only a current, verified callback that saved the application
+            // identity may permit Gun's normal post-callback session write.
+            if (authAttemptState === 'complete') options.remember = true;
+          } catch {
+            requireAuthReload('Your account was verified, but this browser could not save the session.');
+          }
+        });
+        if (creating) {
+          authAttemptState = 'create';
+          setAuthBusy(true, 'Creating…');
+          setAuthStatus('Creating the new account you requested…');
+          user.create(alias, password, ack => {
+            if (authAttemptState !== 'create') return;
+            if (!ack || ack.err || ack.wait) {
+              requireAuthReload('New account creation was not confirmed.');
+              return;
+            }
+            authAttemptState = 'auth';
+            setAuthBusy(true, 'Verifying…');
+            setAuthStatus('Account created. Verifying your signing session…');
+            try { authenticate(); } catch { requireAuthReload('Account verification could not complete.'); }
+          });
+        } else {
+          authenticate();
         }
-      });
+      } catch {
+        requireAuthReload('Account verification could not complete.');
+      }
     }
 
     function finishLogin(username, alias, password, recoveryEmail = '', { isNewAccount = false } = {}) {
@@ -1220,20 +1258,24 @@
         user.get('username').put(username);
       }
       localStorage.removeItem('guest');
-      migrateGuestProgress({ isNewAccount, alias, userPubKey: userPub })
-        .catch(err => {
-          console.error('Guest migration failed', err);
-        })
-        .then(() => ensureUserTotalsConsistency())
-        .catch(err => {
-          console.error('Failed to sync user totals', err);
-        })
-        .then(() => recordUserProfile(username, alias, recoveryEmail))
-        .catch(err => {
-          console.error('Failed to record user profile metadata', err);
-        })
+      const canContinue = () => authAttemptState === 'complete';
+      const openPortal = () => {
+        if (!canContinue()) return;
+        authAttemptState = 'navigating';
+        window.location.href = postSignInDestination;
+      };
+      // Sync is useful, but cannot hold an authenticated person on this screen forever.
+      // Do not clear guest data when its source read has not completed.
+      const syncDeadline = setTimeout(openPortal, 6000);
+      migrateGuestProgress({ isNewAccount, alias, userPubKey: userPub, canContinue })
+        .catch(() => {})
+        .then(() => canContinue() ? ensureUserTotalsConsistency() : undefined)
+        .catch(() => {})
+        .then(() => canContinue() ? recordUserProfile(username, alias, recoveryEmail, canContinue) : undefined)
+        .catch(() => {})
         .then(() => {
-          window.location.href = postSignInDestination;
+          clearTimeout(syncDeadline);
+          openPortal();
         });
     }
 
@@ -1425,17 +1467,18 @@
       return Promise.all(tasks);
     }
 
-    function migrateGuestProgress({ isNewAccount = false, alias = '' } = {}) {
+    function migrateGuestProgress({ isNewAccount = false, alias = '', canContinue = () => true } = {}) {
       return new Promise(resolve => {
         const guestId = localStorage.getItem('guestId');
         if (!guestId) {
-          clearGuestSession();
+          if (canContinue()) clearGuestSession();
           resolve();
           return;
         }
 
         const guestProfile = gun.get('3dvr-guests').get(guestId);
         guestProfile.once(async snapshot => {
+          if (!canContinue()) { resolve(); return; }
           const guestName = snapshot && typeof snapshot.username === 'string'
             ? snapshot.username.trim()
             : '';
@@ -1460,25 +1503,26 @@
           } catch (err) {
             console.warn('Unable to migrate guest notes', err);
           }
-          if (isNewAccount) {
+          if (canContinue() && isNewAccount) {
             try {
               await migrateNewGuestAccountData(guestProfile, { guestId, alias });
             } catch (err) {
               console.warn('Unable to run new-account guest migration', err);
             }
           }
-          clearGuestSession();
+          if (canContinue()) clearGuestSession();
           resolve();
         });
       });
     }
 
-    function recordUserProfile(username, alias, recoveryEmail = '') {
+    function recordUserProfile(username, alias, recoveryEmail = '', canContinue = () => true) {
       if (!alias) return Promise.resolve();
 
       const node = portalRoot.get('userIndex').get(alias);
       return new Promise(resolve => {
         node.once(async data => {
+          if (!canContinue()) { resolve(); return; }
           const createdAt = data && data.createdAt ? data.createdAt : Date.now();
           const fallbackEmail = window.AccountRecovery
             && typeof window.AccountRecovery.normalizeEmail === 'function'
@@ -1525,6 +1569,7 @@
     }
 
     function continueAsGuest() {
+      if (authAttemptState !== 'idle') return;
       if (window.PortalOAuth && typeof window.PortalOAuth.clearAuthSessionMarkers === 'function') {
         window.PortalOAuth.clearAuthSessionMarkers();
       }
@@ -1570,3 +1615,4 @@
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
+
