@@ -133,6 +133,12 @@ function touchFor(prospect, event, now) {
 
 async function projectPendingCrm(db, options = {}) {
   const write = options.write || writeCrmSync;
+  // The isolated acceptance fence must not be bypassed by caller-supplied
+  // production Gun roots. Only an explicitly injected offline test writer may
+  // receive custom roots; the real writer must construct verified loopback roots.
+  if (options.isolated === true && !options.write && options.writeOptions) {
+    throw new Error('Isolated CRM projection cannot override Gun roots');
+  }
   const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots(options));
   const rows = pendingProjections(db, options.limit || 100);
   const result = { attempted: rows.length, succeeded: 0, failed: 0, errors: [] };
