@@ -252,3 +252,26 @@ test('revenue follow-ups cannot become due early or without a prior reminder', (
   assert.equal(due.metadata.stage, 'follow_up');
   assert.equal(due.metadata.nextFollowUpAt, null, 'a real due transition consumes its reminder');
 });
+
+
+test('outbound revenue stages reject non-send evidence before claiming external delivery', () => {
+  for (const [stage, event] of [
+    ['outreach', 'outreach_sent'],
+    ['follow_up', 'follow_up_sent'],
+    ['proposal', 'proposal_sent']
+  ]) {
+    const item = createRevenueLeadWorkItem({
+      id: `synthetic-${stage}-receipt`, stage, state: 'ready', leadName: 'Synthetic test only'
+    });
+    for (const type of ['provider_reply', 'provider_payment', 'research', undefined]) {
+      assert.throws(() => advanceRevenueLead(item, event, {
+        evidence: { id: `fake-${stage}-${type}`, type }
+      }), /requires a provider send receipt/);
+    }
+    assert.equal(item.metadata.stage, stage, 'invalid receipt leaves the original lead unchanged');
+    const next = advanceRevenueLead(item, event, {
+      evidence: { id: `sent-${stage}`, type: 'provider_send' }
+    });
+    assert.equal(next.evidence.length, 1, 'a correctly typed synthetic send receipt still advances');
+  }
+});
