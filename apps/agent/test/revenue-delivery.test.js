@@ -74,6 +74,51 @@ test('delivery attempt key cannot be reused for a different prospect', async () 
   } finally { value.close(); }
 });
 
+test('direct delivery refuses suppressed or unqualified leads before reserving or invoking a sender', async () => {
+  const value = fixture();
+  try {
+    const neverVerified = createProspect(value.db, { name: 'Unverified', contact: 'not-ready@example.test' }).prospect;
+    transitionProspect(value.db, {
+      prospectId: value.prospect.id, toState: 'suppressed', idempotencyKey: 'suppressed:do-not-send'
+    });
+    let calls = 0;
+    for (const [prospectId, attemptId] of [
+      [neverVerified.id, 'unverified-send'],
+      [value.prospect.id, 'suppressed-send'],
+      ['missing-prospect', 'missing-send'],
+    ]) {
+      await assert.rejects(
+        deliverProspect(value.db, { prospectId, attemptId }, async () => { calls++; }),
+        /must be eligible/,
+      );
+    }
+    assert.equal(calls, 0, 'no sender may run for an ineligible prospect');
+    assert.equal(value.db.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0,
+      'rejected requests must not reserve misleading attempts');
+  } finally { value.close(); }
+});
+
+test('direct delivery requires reconciliation after another attempt but permits exact-key replay', async () => {
+  const value = fixture();
+  try {
+    reserveDeliveryAttempt(value.db, { prospectId: value.prospect.id, attemptId: 'original-attempt' });
+    let calls = 0;
+    await assert.rejects(
+      deliverProspect(value.db, { prospectId: value.prospect.id, attemptId: 'new-attempt' },
+        async () => { calls++; }),
+      /Prior delivery attempt requires manual reconciliation/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(value.db.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 1);
+    const replay = await deliverProspect(value.db, {
+      prospectId: value.prospect.id, attemptId: 'original-attempt'
+    }, async () => { calls++; });
+    assert.equal(replay.replayed, true);
+    assert.match(replay.error, /ambiguous/);
+    assert.equal(calls, 0, 'exact-key replay must not resend');
+  } finally { value.close(); }
+});
+
 test('delivery receipts without an attributable provider message do not mark a prospect sent', async () => {
   const invalidReceipts = [
     { label: 'boolean-only acknowledgement', receipt: { acknowledged: true } },
