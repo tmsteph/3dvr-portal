@@ -23,6 +23,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Test CRM freshness metrics (no relay access)
+        run: node --test tests/recent-import-summary.test.mjs
       - name: Verify recent CRM imports
         env:
           EXPECTED_IMPORT_COUNT: '15'
