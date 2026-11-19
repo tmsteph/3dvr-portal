@@ -123,11 +123,15 @@ test('records a reply once and attributes it to the outbound experiment variant'
     messageId: 'reply-1',
     fromEmail: 'lead@example.com',
     replyToEmail: 'lead@example.com',
+    inReplyTo: '<outbound-acme@3dvr.tech>',
     subject: 'Re: A free one-page website for Acme',
   };
   const lead = { name: 'Acme', link: 'https://acme.example', contact: 'mailto:lead@example.com', variant: 'route=email' };
   const entries = [{
-    experiment: 'campaign', variant: 'b', status: 'sent', name: 'Acme', contact: 'mailto:lead@example.com',
+    experiment: 'campaign', variant: 'b', kind: 'email',
+    status: 'sent', deliveryStatus: 'acknowledged',
+    name: 'Acme', contact: 'mailto:lead@example.com',
+    messageId: '<outbound-acme@3dvr.tech>',
   }];
 
   try {
@@ -150,6 +154,56 @@ test('records a reply once and attributes it to the outbound experiment variant'
     assert.equal(second.recorded, false);
     assert.match(leadText, /mailto:lead@example\.com,replied/);
     assert.equal(logLines.length, 1);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('legacy campaign feedback never credits unlinked or mismatched inbound email', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-reply-unlinked-'));
+  const leads = path.join(tmp, 'leads.csv');
+  const log = path.join(tmp, 'outreach.ndjson');
+  const initialLeads = 'name,link,contact,status,date,variant\\nAcme,https://acme.example,mailto:lead@example.com,contacted,2026-07-15,route=email\\n';
+  await writeFile(leads, initialLeads.replace(/\\n/g, '\n'));
+  const lead = { name: 'Acme', contact: 'mailto:lead@example.com', variant: 'route=email' };
+  const acknowledged = {
+    kind: 'email', status: 'sent', deliveryStatus: 'acknowledged',
+    contact: 'mailto:lead@example.com', messageId: '<outbound-acme@3dvr.tech>',
+  };
+  const cases = [
+    { fromEmail: 'lead@example.com', subject: 'Re: unrelated message' },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-other@3dvr.tech>' },
+    { fromEmail: 'lead@example.com', references: '<outbound-acme@3dvr.tech.evil>' },
+    { fromEmail: 'attacker@example.com', replyToEmail: 'lead@example.com',
+      inReplyTo: '<outbound-acme@3dvr.tech>' },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-acme@3dvr.tech>',
+      entries: [{ ...acknowledged, status: 'submitted' }] },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-acme@3dvr.tech>',
+      entries: [{ ...acknowledged, contact: 'mailto:other@example.com' }] },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-acme@3dvr.tech>',
+      entries: [{ ...acknowledged, messageId: '' }] },
+  ];
+  try {
+    for (const [i, sample] of cases.entries()) {
+      const { entries, ...message } = sample;
+      const state = { messages: {} };
+      const result = recordLeadReplyFeedback({ messageId: 'unlinked-' + i, ...message }, lead, state, {
+        entries: entries || [acknowledged], leadsFile: leads, logOptions: { filePath: log },
+      });
+      assert.equal(result.recorded, false, 'case ' + i + ' must require manual review');
+      assert.equal(state.messages['unlinked-' + i], undefined);
+      assert.equal(await readFile(leads, 'utf8'), initialLeads.replace(/\\n/g, '\n'));
+      assert.equal(await readFile(log, 'utf8').catch(() => ''), '');
+    }
+    const state = { messages: {} };
+    const linked = recordLeadReplyFeedback({
+      messageId: 'linked', fromEmail: 'lead@example.com',
+      references: '<prior@3dvr.tech> <outbound-acme@3dvr.tech>',
+    }, lead, state, {
+      entries: [acknowledged], leadsFile: leads, logOptions: { filePath: log },
+    });
+    assert.equal(linked.recorded, true);
+    assert.match(await readFile(leads, 'utf8'), /lead@example\\.com,replied/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
