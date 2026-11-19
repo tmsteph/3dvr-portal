@@ -5,10 +5,18 @@ const baseUrl = process.env.PORTAL_E2E_URL || 'https://portal.3dvr.tech';
 const publicAlias = 'operator-e2e-20260823@3dvr';
 const publicPassword = 'PublicE2E-20260823-Disposable-Account!';
 const alias = process.env.PORTAL_E2E_ALIAS || publicAlias;
+// The legacy sign-in form appends @3dvr; supply the username part only.
+const signInUsername = alias.replace(/@3dvr$/i, '');
 const password = process.env.PORTAL_E2E_PASSWORD || publicPassword;
 const modeRaw = await readFile('.github/e2e/operator-e2e-mode.txt', 'utf8').catch(() => 'bootstrap');
 const mode = String(process.env.PORTAL_E2E_MODE || modeRaw || '').trim().toLowerCase();
 const usingPublicCredentials = alias === publicAlias && password === publicPassword;
+// Source-disclosed fallback credentials are never suitable for live acceptance.
+// Refuse before launching a browser, and keep all private credentials in CI secrets.
+if (new URL(baseUrl).hostname === 'portal.3dvr.tech' &&
+    (!process.env.PORTAL_E2E_ALIAS?.trim() || !process.env.PORTAL_E2E_PASSWORD?.trim() || usingPublicCredentials)) {
+  throw new Error('Operator production E2E requires explicit non-public credentials; refusing public fallback.');
+}
 const artifactDir = 'e2e-artifacts';
 await mkdir(artifactDir, { recursive: true });
 
@@ -63,14 +71,23 @@ async function saveArtifacts(name) {
 async function signInExistingAccount() {
   const signInUrl = `${baseUrl}/sign-in.html?redirect=${encodeURIComponent('/operator/')}`;
   await page.goto(signInUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.locator('#username').fill(alias);
+  await page.locator('#username').fill(signInUsername);
   await page.locator('#password').fill(password);
   await page.locator('#auth-submit').click();
 
-  await page.waitForURL(url => {
-    const path = new URL(url).pathname.replace(/index\.html$/, '');
-    return path === '/operator/' || path === '/operator';
-  }, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+  try {
+    await page.waitForURL(url => {
+      const path = new URL(url).pathname.replace(/index\.html$/, '');
+      return path === '/operator/' || path === '/operator';
+    }, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+  } catch (error) {
+    // Only boolean UI state and pathname: never echo query strings, credentials, or page text.
+    log('E2E_INITIAL_SIGN_IN_PATH', new URL(page.url()).pathname);
+    log('E2E_INITIAL_SIGN_IN_READY_STATE', await page.evaluate(() => document.readyState).catch(() => 'unavailable'));
+    log('E2E_INITIAL_SIGN_IN_FORM_VISIBLE', await page.locator('#auth-submit').isVisible().catch(() => false));
+    log('E2E_INITIAL_SIGN_IN_RELOAD_VISIBLE', await page.locator('#auth-reload').isVisible().catch(() => false));
+    throw error;
+  }
   await page.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
   await page.locator('#operator-form button[type="submit"]').waitFor({ state: 'visible', timeout: 30_000 });
 
@@ -94,7 +111,7 @@ async function signInExistingAccount() {
 async function signInFreshPage(targetPage) {
   const signInUrl = `${baseUrl}/sign-in.html?redirect=${encodeURIComponent('/operator/')}`;
   await targetPage.goto(signInUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await targetPage.locator('#username').fill(alias);
+  await targetPage.locator('#username').fill(signInUsername);
   await targetPage.locator('#password').fill(password);
   await targetPage.locator('#auth-submit').click();
   try {
