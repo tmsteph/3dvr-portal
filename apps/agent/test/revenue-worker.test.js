@@ -124,3 +124,45 @@ test('worker enforces the default one-send daily quota', async () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('worker quarantines timeout when candidate uses a new attempt ID', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-quarantine-'));
+  const names = ['THREEDVR_REVENUE_LEDGER_FILE', 'THREEDVR_REVENUE_CANDIDATE_FILE', 'THREEDVR_REVENUE_DELIVERY_ENABLED'];
+  const original = names.map(name => process.env[name]);
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const candidateFile = path.join(tmp, 'candidate.json');
+  candidate(candidateFile);
+  process.env.THREEDVR_REVENUE_LEDGER_FILE = ledger;
+  process.env.THREEDVR_REVENUE_CANDIDATE_FILE = candidateFile;
+  process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
+  let sends = 0;
+  try {
+    const first = await run('quarantine-1', { send: async () => {
+      sends += 1;
+      throw new Error('timeout after uncertain transport acceptance');
+    } });
+    assert.equal(first.status, 'failed');
+    const data = JSON.parse(fs.readFileSync(candidateFile, 'utf8'));
+    fs.writeFileSync(candidateFile, JSON.stringify({ ...data, attemptId: 'new-attempt-id' }));
+    const second = await run('quarantine-2', { send: async () => {
+      sends += 1;
+      return { acknowledged: true, messageId: 'must-not-send', transport: 'test' };
+    } });
+    const summary = JSON.parse(second.summary_json);
+    assert.equal(second.status, 'failed', 'quarantine must be surfaced as a blocker');
+    assert.equal(sends, 1, 'new attempt ID must not re-contact an uncertain delivery');
+    assert.equal(summary.delivery.attempted, 0);
+    assert.match(summary.delivery.reason, /prior delivery attempt.*manual reconciliation/);
+    const db = openLedger({ filePath: ledger });
+    try {
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 1);
+      assert.equal(db.prepare('SELECT state FROM prospects').get().state, 'failed');
+    } finally { db.close(); }
+  } finally {
+    names.forEach((name, i) => {
+      if (original[i] === undefined) delete process.env[name]; else process.env[name] = original[i];
+    });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
