@@ -27,6 +27,8 @@ test('real signed requests enqueue only bounded Codex tasks and isolate status b
   assert.equal(inputs[0].record.backend,'codex');
   assert.equal(inputs[0].record.requiredCapabilities,'codex');
   assert.equal(inputs[0].record.unsafe,false);
+  assert.match(inputs[0].record.operatorRequestDigest, /^[a-f0-9]{64}$/,
+    'signed task must carry a stable exact-request digest');
   assert.equal(inputs[0].record.approvalStatus,'not_required');
   assert.equal(inputs[0].record.maxRuntimeMs,120000);
   assert.equal((await request(handler,{action:'status',requestId:enqueue.requestId})).statusCode,200);
@@ -86,6 +88,16 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.notEqual(titleConflict.status,0);
     assert.match(titleConflict.stderr,/Task identity conflict/);
     assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,2);
+    // A distinct signed request can normalize to the same task/title. It must
+    // not inherit the first request ID or its work/result just because of trim.
+    const digestRecord = {...record,id:'operator-http-test-digest-456',operatorRequestDigest:'a'.repeat(64)};
+    const digestInput = {...input,id:digestRecord.id,record:digestRecord};
+    assert.equal(invoke(digestInput).status,0);
+    assert.equal(invoke(digestInput).status,0,'identical signed command retries are idempotent');
+    const digestConflict = invoke({...digestInput,record:{...digestRecord,operatorRequestDigest:'b'.repeat(64)}});
+    assert.notEqual(digestConflict.status,0,'same task and title but different signed command must be rejected');
+    assert.match(digestConflict.stderr,/Task identity conflict/);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks WHERE id=?').get(digestRecord.id).n,1);
     const fullText = 'complete output '.repeat(500);
     db.prepare('UPDATE tasks SET status=?,record_json=? WHERE id=?').run('completed', JSON.stringify({
       ...record, resultSummary: fullText.slice(0,2000), resultText: fullText,
@@ -192,6 +204,14 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
     assert.equal(retry.statusCode, 202);
     assert.equal(retry.data.record.id, accepted.data.record.id);
     assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n, 1);
+    assert.equal(seen[0].record.operatorRequestDigest, seen[1].record.operatorRequestDigest,
+      'same signed requestId/text/title yields identical digest across HTTP retries');
+    const whitespaceChanged = await request(handler,{...item,text:item.text+'   '});
+    assert.equal(whitespaceChanged.statusCode,503,'changed signed text with same normalized task must fail closed');
+    assert.equal(seen[2].record.task,seen[0].record.task,'normalization makes actual task text identical');
+    assert.notEqual(seen[2].record.operatorRequestDigest,seen[0].record.operatorRequestDigest,
+      'exact signed content, not normalized task text, decides replay identity');
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,1,'conflicting retry adds no row');
 
     // A second SQLite connection independently verifies durable identity and
     // provenance. No worker runs, no CRM write occurs, no outbound is enabled.
