@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { run } = require('../thomas-agent/node/revenue-worker');
+const { run, deliverCandidate } = require('../thomas-agent/node/revenue-worker');
 const { openLedger } = require('../thomas-agent/node/revenue-ledger');
 
 function candidate(filePath) {
@@ -34,6 +34,44 @@ test('worker records one no-send run per trigger', async () => {
     else process.env.THREEDVR_REVENUE_LEDGER_FILE = previous;
     if (delivery === undefined) delete process.env.THREEDVR_REVENUE_DELIVERY_ENABLED;
     else process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = delivery;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('isolated revenue acceptance refuses delivery even if host delivery is enabled', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-isolated-'));
+  const candidateFile = path.join(tmp, 'candidate.json');
+  candidate(candidateFile);
+  const previous = {
+    candidate: process.env.THREEDVR_REVENUE_CANDIDATE_FILE,
+    delivery: process.env.THREEDVR_REVENUE_DELIVERY_ENABLED,
+  };
+  process.env.THREEDVR_REVENUE_CANDIDATE_FILE = candidateFile;
+  process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
+  let calls = 0;
+  const neverReadDb = { prepare() { throw new Error('DB touched before isolated no-send guard'); } };
+  try {
+    for (const flags of [{ isolated: true }, { crm: { isolated: true } }]) {
+      const result = await deliverCandidate(neverReadDb, {
+        ...flags,
+        send: async () => {
+          calls += 1;
+          throw new Error('sender invoked in isolated mode');
+        },
+      });
+      assert.equal(result.attempted, 0);
+      assert.equal(result.sends, 0);
+      assert.equal(result.disabled, true);
+      assert.match(result.reason, /isolated acceptance forbids outbound/);
+    }
+    assert.equal(calls, 0, 'isolated acceptance must never call a real sender');
+  } finally {
+    for (const [name, value] of [
+      ['THREEDVR_REVENUE_CANDIDATE_FILE', previous.candidate],
+      ['THREEDVR_REVENUE_DELIVERY_ENABLED', previous.delivery],
+    ]) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
