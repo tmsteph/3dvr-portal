@@ -20,6 +20,42 @@ test('CRM projection retries a timeout and completes idempotently', async () => 
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test('CRM outbox refuses cross-prospect event linkage before writing any mismatched record', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-cross-lead-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const first = createProspect(db, { name: 'Synthetic North', contact: 'north@example.test' }).prospect;
+    const second = createProspect(db, { name: 'Synthetic South', contact: 'south@example.test' }).prospect;
+    const firstEvent = transitionProspect(db, {
+      prospectId: first.id, toState: 'verified', idempotencyKey: 'cross-lead-north'
+    }).event;
+    transitionProspect(db, {
+      prospectId: second.id, toState: 'verified', idempotencyKey: 'cross-lead-south'
+    });
+    // Both foreign keys still reference valid rows. Only their relationship is
+    // corrupt, so schema FK enforcement alone cannot catch this attribution bug.
+    db.prepare('UPDATE projection_outbox SET prospect_id=? WHERE event_id=?').run(second.id, firstEvent.id);
+    const writes = [];
+    const result = await projectPendingCrm(db, { write: async payload => {
+      writes.push(payload);
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    assert.equal(result.attempted, 2);
+    assert.equal(result.succeeded, 1);
+    assert.equal(result.failed, 1);
+    assert.match(result.errors.join(' '), /identity mismatch/);
+    assert.equal(writes.length, 1, 'mismatched event must never reach CRM writer');
+    assert.equal(writes[0].records[0].email, 'south@example.test');
+    assert.equal(writes[0].touches[0].contactName, 'Synthetic South');
+    const corrupted = db.prepare('SELECT status,attempts FROM projection_outbox WHERE event_id=?').get(firstEvent.id);
+    assert.equal(corrupted.status, 'failed', 'quarantine is retryable, never silently accepted');
+    assert.equal(corrupted.attempts, 1);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('CRM projection preserves the legacy stable record identity while waiting quietly after contact', () => {
   const record = recordFor({ id: 'uuid', name: 'Acme', contact: 'mailto:info@acme.test', source_url: 'https://acme.test', state: 'sent', campaign_id: '', created_at: '2026-01-01T00:00:00Z' }, { id: 'event' }, '2026-01-02T00:00:00Z');
   assert.equal(record.id, 'agent-lead-info-acme-test');
