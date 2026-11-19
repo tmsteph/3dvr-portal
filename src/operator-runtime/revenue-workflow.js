@@ -170,6 +170,11 @@ export function advanceRevenueLead(item, event, options = {}) {
         && options.result?.amountCents === receipt.amountCents
         && options.result?.currency === receipt.currency;
       if (!valid) throw new TypeError('payment_received requires a matching provider receipt, lead and amount');
+      // Shape checks are not payment authentication. No trusted payment webhook
+      // adapter currently supplies a non-forgeable completion receipt here.
+      // Do not mark a lead won from caller-authored fields until such an
+      // adapter is implemented and separately verified.
+      throw new TypeError('payment_received requires an authenticated payment provider adapter');
     }
   }
   if (options.evidence) evidence.push(options.evidence);
