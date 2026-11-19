@@ -139,6 +139,9 @@ const GUN_STUB_SOURCE = `
         }, 0);
       },
       create(alias, _password, callback) {
+        window.sessionStorage.setItem('fixtureAccountCreations', String(
+          Number(window.sessionStorage.getItem('fixtureAccountCreations') || 0) + 1
+        ));
         const normalizedAlias = String(alias || '').trim();
         const pub = 'pub_' + normalizedAlias.replace(/[^a-z0-9]+/gi, '_');
         user.is = { pub, alias: normalizedAlias };
@@ -163,6 +166,10 @@ const GUN_STUB_SOURCE = `
   window.Gun = function Gun() {
     const user = createUser();
     return {
+      on(eventName, callback) {
+        // Model a connected local fixture relay; readiness must not bypass auth.
+        if (eventName === 'hi') window.setTimeout(() => callback({ url: 'fixture' }), 0);
+      },
       user() {
         return user;
       },
@@ -450,11 +457,24 @@ describe('contacts identity flows', () => {
       await page.waitForSelector('#username');
       await page.fill('#username', username);
       await page.fill('#password', password);
+      assert.equal(await page.isChecked('#create-account'), false);
+      await page.check('#create-account');
+      await page.fill('#confirm-password', password);
 
       await Promise.all([
         page.waitForURL('**/index.html', { timeout: 30000 }),
-        page.click('button.primary-button'),
+        page.click('#auth-submit'),
       ]);
+
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('fixtureAccountCreations')), '1');
+      const identity = await page.evaluate(() => ({
+        signedIn: localStorage.getItem('signedIn'),
+        alias: localStorage.getItem('alias'),
+        pub: localStorage.getItem('userPubKey'),
+      }));
+      assert.equal(identity.signedIn, 'true');
+      assert.equal(identity.alias, `${username}@3dvr`);
+      assert.equal(identity.pub, `pub_${username}_3dvr`);
 
       await page.goto(`${baseUrl}/contacts/index.html`, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#userDisplay');
@@ -474,3 +494,4 @@ describe('contacts identity flows', () => {
     }
   }, { timeout: 90000 });
 });
+
