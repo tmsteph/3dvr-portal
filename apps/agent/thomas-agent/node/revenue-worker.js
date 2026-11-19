@@ -1,7 +1,9 @@
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
-const { acknowledgedDeliveryCount, createProspect, getProspect, openLedger, startRun, finishRun, transitionProspect } = require('./revenue-ledger');
+const { acknowledgedDeliveryCount, createProspect, getProspect, openLedger, resolveLedgerPath, startRun, finishRun, transitionProspect } = require('./revenue-ledger');
 const { deliverProspect } = require('./revenue-delivery');
 const { consumeInboxState } = require('./revenue-inbox-consumer');
 const { projectPendingCrm } = require('./revenue-crm-projection');
@@ -116,8 +118,36 @@ async function deliverCandidate(db, options = {}) {
   };
 }
 
+// An isolated acceptance must not create or modify the host revenue ledger.
+function resolveIsolatedLedgerFile(options = {}) {
+  const requested = options.ledgerFile;
+  if (typeof requested !== 'string' || !path.isAbsolute(requested)) {
+    throw new Error('Isolated revenue run requires an explicit absolute scratch ledgerFile');
+  }
+  const tmpRoot = fs.realpathSync(os.tmpdir());
+  let directory;
+  try { directory = fs.realpathSync(path.dirname(requested)); }
+  catch { throw new Error('Isolated revenue scratch directory must already exist'); }
+  if (directory === tmpRoot || !directory.startsWith(tmpRoot + path.sep)) {
+    throw new Error('Isolated revenue ledger must be inside a dedicated temporary subdirectory');
+  }
+  const resolved = path.join(directory, path.basename(requested));
+  const configured = resolveLedgerPath();
+  let active = path.resolve(configured);
+  try { active = fs.realpathSync(configured); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  let existing;
+  try { existing = fs.lstatSync(requested); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (resolved === active || existing?.isSymbolicLink()) {
+    throw new Error('Isolated revenue ledger cannot use the active ledger or a symlink');
+  }
+  return resolved;
+}
+
 async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date.now()}`, options = {}) {
-  const db = openLedger();
+  const isolated = options.isolated === true || options.crm?.isolated === true;
+  const db = openLedger(isolated ? { filePath: resolveIsolatedLedgerFile(options) } : {});
   try {
     const started = startRun(db, { triggerId, releaseSha: releaseSha() });
     if (started.replayed) return { ...started.run, replayed: true };
@@ -125,10 +155,12 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
     let delivery;
     let crm;
     try {
-      inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
+      inbox = isolated
+        ? { scanned: 0, matched: 0, unmatched: 0, errors: [], skipped: true }
+        : consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
       delivery = await deliverCandidate(db, options);
       crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
-        ? await projectPendingCrm(db, options.crm || {})
+        ? await projectPendingCrm(db, isolated ? { ...(options.crm || {}), isolated: true } : (options.crm || {}))
         : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
       const failed = inbox.errors.length || crm.failed || delivery.error;
       const finished = finishRun(db, {
@@ -168,4 +200,4 @@ if (require.main === module) {
     .catch(error => { console.error(error); process.exit(1); });
 }
 
-module.exports = { deliverCandidate, loadCandidate, prepareCandidate, run, sendCandidate };
+module.exports = { deliverCandidate, loadCandidate, prepareCandidate, resolveIsolatedLedgerFile, run, sendCandidate };
