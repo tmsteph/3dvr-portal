@@ -206,8 +206,12 @@ function transitionProspect(db, input = {}) {
     // A retry must refer to the *same* prospect, destination state and event
     // type. Otherwise a shared idempotency key could silently suppress a
     // different lead's CRM outbox event.
+    // A matching key must also identify the same immutable evidence payload.
+    // Otherwise a retry with a different source or message could masquerade
+    // as a successful recorded transition while silently losing its details.
     if (replay.prospect_id !== id || replay.to_state !== toState
-      || replay.type !== eventType) {
+      || replay.type !== eventType
+      || replay.payload_json !== JSON.stringify(input.payload || {})) {
       throw new Error('Idempotency key conflicts with an existing revenue event');
     }
     return { event: replay, replayed: true, prospect: getProspect(db, id) };
@@ -276,8 +280,10 @@ function importProspectState(db, input = {}) {
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
   const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
   if (replay) {
+    // Imported history must also be immutable under its replay key.
     if (replay.prospect_id !== id || replay.to_state !== toState
-      || replay.type !== 'legacy_import') {
+      || replay.type !== 'legacy_import'
+      || replay.payload_json !== JSON.stringify(input.payload || {})) {
       throw new Error('Idempotency key conflicts with an existing revenue event');
     }
     return { event: replay, replayed: true, prospect: getProspect(db, id) };
