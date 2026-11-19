@@ -216,7 +216,7 @@ test('replies, completed follow-ups and terminal outcomes clear stale sales foll
     nextFollowUpAt: '2026-11-23T18:00:00.000Z'
   });
   assert.equal(paid.metadata.nextFollowUpAt, '2026-11-23T18:00:00.000Z');
-  paid = advanceRevenueLead(paid, 'payment_received', {
+  assert.throws(() => advanceRevenueLead(paid, 'payment_received', {
     evidence: {
       type: 'provider_payment', id: 'synthetic-payment-1', provider: 'test',
       invoiceId: 'synthetic-invoice', leadId: paid.id, amountCents: 100,
@@ -224,9 +224,10 @@ test('replies, completed follow-ups and terminal outcomes clear stale sales foll
     },
     result: { amountCents: 100, currency: 'USD' },
     nextFollowUpAt: '2026-12-01T18:00:00.000Z'
-  });
-  assert.equal(revenueStage(paid), 'won');
-  assert.equal(paid.metadata.nextFollowUpAt, null, 'paid leads never keep a sales follow-up');
+  }), /authenticated payment provider adapter/);
+  assert.equal(revenueStage(paid), 'payment', 'unverified payment cannot close a lead');
+  assert.equal(paid.metadata.nextFollowUpAt, '2026-11-23T18:00:00.000Z',
+    'rejected payment cannot edit existing scheduling or turn off review');
 });
 
  
