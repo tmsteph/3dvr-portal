@@ -114,16 +114,30 @@ export function advanceRevenueLead(item, event, options = {}) {
   const [nextStage, nextState] = transition;
   const evidence = [...(item.evidence || [])];
   // External actions are records of things that happened, not requested actions.
-  // Require a distinct receipt before marking a message sent or a lead won.
+  // Require a distinct receipt before marking a message sent, a reply received,
+  // or a lead won. Adapters must authenticate external provider evidence.
   // Receipt structure does not verify signatures: provider/webhook adapters must
   // authenticate their inputs before calling this state transition.
-  if (['outreach_sent', 'follow_up_sent', 'proposal_sent', 'payment_received'].includes(event)) {
+  if (['outreach_sent', 'follow_up_sent', 'proposal_sent', 'reply_received', 'payment_received'].includes(event)) {
     const receipt = options.evidence;
     if (!receipt || typeof receipt !== 'object' || typeof receipt.id !== 'string' || !receipt.id.trim()) {
       throw new TypeError(`${event} requires an external receipt with a stable id`);
     }
     if (evidence.some(prior => prior?.id === receipt.id)) {
       throw new TypeError('external receipt id has already been recorded for this lead');
+    }
+    if (event === 'reply_received') {
+      // A proposed reply must refer to a message already recorded as sent for
+      // this lead. Never turn an unverified narrative into a CRM reply event.
+      // The provider adapter, not this pure state machine, authenticates it.
+      const validReply = receipt.type === 'provider_reply'
+        && typeof receipt.provider === 'string' && Boolean(receipt.provider.trim())
+        && typeof receipt.inReplyToId === 'string' && Boolean(receipt.inReplyToId.trim())
+        && evidence.some(prior => prior?.id === receipt.inReplyToId
+          && ['email', 'provider_send'].includes(prior?.type));
+      if (!validReply) {
+        throw new TypeError('reply_received requires a provider reply receipt linked to an earlier send');
+      }
     }
     if (event === 'payment_received') {
       const valid = receipt.type === 'provider_payment'
