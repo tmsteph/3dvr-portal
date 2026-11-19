@@ -25,7 +25,11 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Test CRM freshness metrics (no relay access)
         run: node --test tests/recent-import-summary.test.mjs
-      - name: Verify recent CRM imports
+      # A PR or push is not an import event. Never read a shared CRM relay or
+      # require 15 recent customer imports just to test a code change.
+      # The live, read-only freshness assertion is an explicit manual check.
+      - name: Verify recent CRM imports (manual live check only)
+        if: github.event_name == 'workflow_dispatch'
         env:
           EXPECTED_IMPORT_COUNT: '15'
           RECENT_WINDOW_MS: '7200000'
