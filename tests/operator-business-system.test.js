@@ -184,14 +184,17 @@ test('replies, completed follow-ups and terminal outcomes clear stale sales foll
     id: 'followup-due', leadName: 'Synthetic reminder', stage: 'waiting_reply',
     state: 'waiting_external', nextFollowUpAt: oldReminder
   });
-  due = advanceRevenueLead(due, 'follow_up_due');
+  due = advanceRevenueLead(due, 'follow_up_due', { now: '2026-11-21T18:00:00.000Z' });
   assert.equal(due.metadata.nextFollowUpAt, null, 'due reminder is not left to fire again');
   due = advanceRevenueLead(due, 'follow_up_sent', { evidence: { type: 'email', id: 'synthetic-msg-1' } });
   assert.equal(due.metadata.nextFollowUpAt, null, 'sent follow-up does not inherit the expired reminder');
-  due = advanceRevenueLead(due, 'follow_up_due', {
+  const rescheduled = advanceRevenueLead(createRevenueLeadWorkItem({
+    id: 'followup-rescheduled', stage: 'follow_up', state: 'ready'
+  }), 'follow_up_sent', {
+    evidence: { type: 'email', id: 'synthetic-msg-rescheduled' },
     nextFollowUpAt: '2026-11-25T18:00:00.000Z'
   });
-  assert.equal(due.metadata.nextFollowUpAt, '2026-11-25T18:00:00.000Z', 'explicit new scheduling is preserved on an open lead');
+  assert.equal(rescheduled.metadata.nextFollowUpAt, '2026-11-25T18:00:00.000Z', 'explicit new scheduling is preserved on an open lead');
 
   let lost = createRevenueLeadWorkItem({
     id: 'followup-lost', stage: 'outreach', nextFollowUpAt: oldReminder
@@ -218,4 +221,34 @@ test('replies, completed follow-ups and terminal outcomes clear stale sales foll
   });
   assert.equal(revenueStage(paid), 'won');
   assert.equal(paid.metadata.nextFollowUpAt, null, 'paid leads never keep a sales follow-up');
+});
+
+ 
+test('revenue follow-ups cannot become due early or without a prior reminder', () => {
+  const now = '2026-11-20T18:00:00.000Z';
+  const noSchedule = createRevenueLeadWorkItem({
+    id: 'followup-unscheduled', stage: 'waiting_reply', state: 'waiting_external'
+  });
+  assert.throws(() => advanceRevenueLead(noSchedule, 'follow_up_due', { now }), /previously scheduled reminder/);
+  assert.throws(() => advanceRevenueLead(noSchedule, 'follow_up_due', {
+    now, nextFollowUpAt: '2026-11-19T18:00:00.000Z'
+  }), /previously scheduled reminder/, 'a new date cannot retroactively create a due reminder');
+
+  const invalidSchedule = createRevenueLeadWorkItem({
+    id: 'followup-invalid', stage: 'waiting_reply', state: 'waiting_external',
+    nextFollowUpAt: 'not-a-date'
+  });
+  assert.throws(() => advanceRevenueLead(invalidSchedule, 'follow_up_due', { now }), /previously scheduled reminder/);
+
+  const scheduled = createRevenueLeadWorkItem({
+    id: 'followup-early', stage: 'waiting_reply', state: 'waiting_external',
+    nextFollowUpAt: now
+  });
+  assert.throws(() => advanceRevenueLead(scheduled, 'follow_up_due', {
+    now: '2026-11-20T17:59:59.999Z'
+  }), /previously scheduled reminder/);
+  assert.equal(scheduled.metadata.stage, 'waiting_reply', 'rejected transitions leave the source untouched');
+  const due = advanceRevenueLead(scheduled, 'follow_up_due', { now });
+  assert.equal(due.metadata.stage, 'follow_up');
+  assert.equal(due.metadata.nextFollowUpAt, null, 'a real due transition consumes its reminder');
 });
