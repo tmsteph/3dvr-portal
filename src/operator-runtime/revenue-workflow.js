@@ -111,6 +111,20 @@ export function advanceRevenueLead(item, event, options = {}) {
   const transition = TRANSITIONS[stage]?.[event];
   if (!transition) throw new TypeError(`event ${event} is not valid from revenue stage ${stage}`);
 
+  // A follow-up cannot become due merely because an agent says it is due,
+  // or because it supplies a new due date in the transition call. Require an
+  // already scheduled reminder that has actually reached its due time.
+  // Callers that supply a test clock must be trusted by their event adapter.
+  if (event === 'follow_up_due') {
+    const scheduledAt = item.metadata?.nextFollowUpAt;
+    const observedAt = options.now ?? new Date().toISOString();
+    if (typeof scheduledAt !== 'string' || !Number.isFinite(Date.parse(scheduledAt))
+      || typeof observedAt !== 'string' || !Number.isFinite(Date.parse(observedAt))
+      || Date.parse(scheduledAt) > Date.parse(observedAt)) {
+      throw new TypeError('follow_up_due requires a previously scheduled reminder at or before now');
+    }
+  }
+
   const [nextStage, nextState] = transition;
   const evidence = [...(item.evidence || [])];
   // External actions are records of things that happened, not requested actions.
