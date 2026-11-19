@@ -204,3 +204,58 @@ test('worker quarantines timeout when candidate uses a new attempt ID', async ()
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('worker persists preflight failures instead of stranding running triggers', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-preflight-'));
+  const names = [
+    'THREEDVR_REVENUE_LEDGER_FILE', 'THREEDVR_REVENUE_CANDIDATE_FILE',
+    'THREEDVR_REVENUE_DELIVERY_ENABLED', 'THREEDVR_CRM_PROJECTION_ENABLED',
+  ];
+  const original = names.map(name => process.env[name]);
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const candidateFile = path.join(tmp, 'candidate.json');
+  process.env.THREEDVR_REVENUE_LEDGER_FILE = ledger;
+  process.env.THREEDVR_REVENUE_CANDIDATE_FILE = candidateFile;
+  process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
+  delete process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  fs.writeFileSync(candidateFile, '{not-valid-json');
+  let sends = 0;
+  try {
+    const first = await run('invalid-candidate', { send: async () => {
+      sends += 1;
+      throw new Error('unexpected send');
+    } });
+    const summary = JSON.parse(first.summary_json);
+    assert.equal(first.status, 'failed');
+    assert.match(summary.error, /JSON|position|property|token/i);
+    assert.equal(summary.sends, undefined, 'unknown send totals must not be fabricated');
+    assert.equal(sends, 0);
+    const replay = await run('invalid-candidate');
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.status, 'failed');
+    assert.equal(replay.finished_at !== '', true);
+
+    // Invalid isolated CRM configuration must also yield a durable failed
+    // no-send result; validation happens before any Gun connection.
+    delete process.env.THREEDVR_REVENUE_DELIVERY_ENABLED;
+    process.env.THREEDVR_CRM_PROJECTION_ENABLED = 'true';
+    const isolated = await run('invalid-isolated-relay', { crm: { isolated: true } });
+    assert.equal(isolated.status, 'failed');
+    const isolatedSummary = JSON.parse(isolated.summary_json);
+    assert.match(isolatedSummary.error, /isolated CRM relay/i);
+    assert.equal(isolatedSummary.sends, 0);
+    assert.equal(isolatedSummary.delivery.disabled, true);
+
+    const db = openLedger({ filePath: ledger });
+    try {
+      assert.equal(db.prepare("SELECT COUNT(*) AS count FROM revenue_runs WHERE status = 'running'").get().count, 0);
+      assert.equal(db.prepare("SELECT COUNT(*) AS count FROM revenue_runs WHERE status = 'failed'").get().count, 2);
+    } finally { db.close(); }
+  } finally {
+    names.forEach((name, i) => {
+      if (original[i] === undefined) delete process.env[name]; else process.env[name] = original[i];
+    });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
