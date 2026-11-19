@@ -38,6 +38,51 @@ test('worker records one no-send run per trigger', async () => {
   }
 });
 
+test('isolated revenue run uses scratch ledger, not host inbox or live ledger', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-active-'));
+  const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-scratch-'));
+  const active = path.join(tmp, 'active-ledger.sqlite');
+  const scratch = path.join(scratchDir, 'isolated-ledger.sqlite');
+  const inboxFile = path.join(tmp, 'inbox.json');
+  fs.writeFileSync(inboxFile, '{invalid-inbox-json');
+  const names = [
+    'THREEDVR_REVENUE_LEDGER_FILE', 'THREEDVR_INBOX_STATE_FILE',
+    'THREEDVR_REVENUE_DELIVERY_ENABLED', 'THREEDVR_CRM_PROJECTION_ENABLED',
+  ];
+  const original = names.map(name => process.env[name]);
+  process.env.THREEDVR_REVENUE_LEDGER_FILE = active;
+  process.env.THREEDVR_INBOX_STATE_FILE = inboxFile;
+  process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
+  delete process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  try {
+    await assert.rejects(run('missing-scratch', { isolated: true }), /scratch ledgerFile/);
+    await assert.rejects(run('same-ledger', { crm: { isolated: true }, ledgerFile: active }), /active ledger/);
+    await assert.rejects(run('outside-scratch', { isolated: true, ledgerFile: path.join(process.cwd(), 'ledger.sqlite') }), /temporary subdirectory/);
+    const symlink = path.join(scratchDir, 'alias.sqlite');
+    fs.symlinkSync(active, symlink);
+    await assert.rejects(run('symlink', { isolated: true, ledgerFile: symlink }), /symlink/);
+    assert.equal(fs.existsSync(active), false, 'rejected isolated runs must not create the live ledger');
+    const first = await run('scratch-canary', { crm: { isolated: true }, ledgerFile: scratch });
+    assert.equal(first.status, 'succeeded');
+    const summary = JSON.parse(first.summary_json);
+    assert.equal(summary.inbox.skipped, true, 'isolated acceptance must not parse the host inbox');
+    assert.equal(summary.delivery.disabled, true);
+    assert.equal(summary.delivery.sends, 0);
+    assert.equal(fs.existsSync(active), false, 'isolated canary must not create the host ledger');
+    assert.equal(fs.existsSync(scratch), true, 'test state must be stored separately');
+    const replay = await run('scratch-canary', { crm: { isolated: true }, ledgerFile: scratch });
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.status, 'succeeded');
+  } finally {
+    names.forEach((name, index) => {
+      if (original[index] === undefined) delete process.env[name];
+      else process.env[name] = original[index];
+    });
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(scratchDir, { recursive: true, force: true });
+  }
+});
+
 test('isolated revenue acceptance refuses delivery even if host delivery is enabled', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-isolated-'));
   const candidateFile = path.join(tmp, 'candidate.json');
@@ -240,17 +285,21 @@ test('worker persists preflight failures instead of stranding running triggers',
     // no-send result; validation happens before any Gun connection.
     delete process.env.THREEDVR_REVENUE_DELIVERY_ENABLED;
     process.env.THREEDVR_CRM_PROJECTION_ENABLED = 'true';
-    const isolated = await run('invalid-isolated-relay', { crm: { isolated: true } });
+    const isolatedLedger = path.join(tmp, 'isolated-ledger.sqlite');
+    const isolated = await run('invalid-isolated-relay', { crm: { isolated: true }, ledgerFile: isolatedLedger });
     assert.equal(isolated.status, 'failed');
     const isolatedSummary = JSON.parse(isolated.summary_json);
     assert.match(isolatedSummary.error, /isolated CRM relay/i);
     assert.equal(isolatedSummary.sends, 0);
     assert.equal(isolatedSummary.delivery.disabled, true);
+    const isolatedDb = openLedger({ filePath: isolatedLedger });
+    try { assert.equal(isolatedDb.prepare("SELECT COUNT(*) AS n FROM revenue_runs WHERE status = 'failed'").get().n, 1); }
+    finally { isolatedDb.close(); }
 
     const db = openLedger({ filePath: ledger });
     try {
       assert.equal(db.prepare("SELECT COUNT(*) AS count FROM revenue_runs WHERE status = 'running'").get().count, 0);
-      assert.equal(db.prepare("SELECT COUNT(*) AS count FROM revenue_runs WHERE status = 'failed'").get().count, 2);
+      assert.equal(db.prepare("SELECT COUNT(*) AS count FROM revenue_runs WHERE status = 'failed'").get().count, 1);
     } finally { db.close(); }
   } finally {
     names.forEach((name, i) => {
