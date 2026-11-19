@@ -100,7 +100,7 @@ test('fresh email requires human approval even in business hours; policy defers 
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'sms', localHour: 10 }).decision, 'approval');
 });
 
-test('revenue workflow records delivery receipts and an attributed provider payment claim', () => {
+test('revenue workflow records sent/reply receipts but cannot claim paid without a provider adapter', () => {
   let item = createRevenueLeadWorkItem({
     id: 'lead-1',
     leadName: 'ACME',
@@ -120,11 +120,17 @@ test('revenue workflow records delivery receipts and an attributed provider paym
   assert.equal(revenueStage(item), 'proposal');
   item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'msg-2' } });
   assert.equal(revenueStage(item), 'payment');
-  item = advanceRevenueLead(item, 'payment_received', { now: '2026-09-12T18:06:00.000Z', result: { amountCents: 120000, currency: 'USD' }, evidence: { type: 'provider_payment', id: 'evt-1', provider: 'stripe', invoiceId: 'inv-1', leadId: item.id, amountCents: 120000, currency: 'USD' } });
-  assert.equal(revenueStage(item), 'won');
-  assert.equal(item.state, 'done');
-  assert.equal(item.result.amountCents, 120000);
-  assert.equal(item.evidence.length, 4, 'outbound, inbound reply, proposal and payment each have receipts');
+  assert.throws(() => advanceRevenueLead(item, 'payment_received', {
+    now: '2026-09-12T18:06:00.000Z',
+    result: { amountCents: 120000, currency: 'USD' },
+    // Even plausible provider fields can be invented by a caller. A verified
+    // webhook adapter must be implemented before this may become "won".
+    evidence: { type: 'provider_payment', id: 'evt-1', provider: 'stripe',
+      invoiceId: 'inv-1', leadId: item.id, amountCents: 120000, currency: 'USD' }
+  }), /authenticated payment provider adapter/);
+  assert.equal(revenueStage(item), 'payment');
+  assert.notEqual(item.state, 'done');
+  assert.equal(item.evidence.length, 3, 'no unverified payment receipt is recorded');
 });
 
 
