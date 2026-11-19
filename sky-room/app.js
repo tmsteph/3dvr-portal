@@ -1,3 +1,6 @@
+const todayEmbed = new URLSearchParams(window.location.search).get('embed') === 'today';
+if (todayEmbed) document.body.classList.add('sky-today-embed');
+
 const canvas = document.querySelector('#skyCanvas');
 const ctx = canvas.getContext('2d');
 const slider = document.querySelector('#timeSlider');
@@ -111,7 +114,10 @@ function showFullscreenControls() {
   if (document.fullscreenElement !== sceneCard) return;
   sceneCard.classList.remove('fullscreen-idle');
   clearFullscreenIdleTimer();
-  fullscreenIdleTimer = setTimeout(() => sceneCard.classList.add('fullscreen-idle'), FULLSCREEN_IDLE_MS);
+  fullscreenIdleTimer = setTimeout(() => {
+    fullscreenIdleTimer = undefined;
+    if (document.fullscreenElement === sceneCard) sceneCard.classList.add('fullscreen-idle');
+  }, FULLSCREEN_IDLE_MS);
 }
 function handleFullscreenInteraction() { showFullscreenControls(); }
 function setControlsExpanded(expanded) {
@@ -266,6 +272,11 @@ function tick() { const now = new Date(); document.querySelector('#timeLabel').t
 slider.addEventListener('input', e => { live = false; update(Number(e.target.value)); }); document.querySelector('#liveButton').addEventListener('click', () => { live = true; document.querySelector('#liveButton').textContent = 'Following live time'; }); document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => { live = false; update(Number(b.dataset.time)); })); locationButton.addEventListener('click', useLocalWeather);
 biomeSelect.addEventListener('change', event => { biomeMode = event.target.value; biome = biomeMode === 'auto' ? biomeFor(latitude, weather) : biomeMode; updateBiomeLabel(); update(customMinutes); });
 controlsToggle.addEventListener('click', () => setControlsExpanded(!controlsExpanded));
-fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); if (active) showFullscreenControls(); else { clearFullscreenIdleTimer(); sceneCard.classList.remove('fullscreen-idle'); } setTimeout(() => { resize(); update(customMinutes); }, 50); }); sceneCard.addEventListener('pointermove', handleFullscreenInteraction); sceneCard.addEventListener('pointerdown', handleFullscreenInteraction); sceneCard.addEventListener('keydown', handleFullscreenInteraction); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });
+fullscreenButton.addEventListener('click', async () => { if (document.fullscreenElement) { await document.exitFullscreen(); return; } if (sceneCard.requestFullscreen) await sceneCard.requestFullscreen(); }); document.addEventListener('fullscreenchange', () => { const active = document.fullscreenElement === sceneCard; fullscreenButton.textContent = active ? 'Exit full screen' : '⛶ Full screen'; fullscreenButton.setAttribute('aria-pressed', String(active)); if (active) showFullscreenControls(); else { clearFullscreenIdleTimer(); sceneCard.classList.remove('fullscreen-idle'); } setTimeout(() => { resize(); update(customMinutes); }, 50); }); sceneCard.addEventListener('pointermove', handleFullscreenInteraction); sceneCard.addEventListener('pointerdown', handleFullscreenInteraction); document.addEventListener('keydown', handleFullscreenInteraction); document.querySelector('#ambientButton').addEventListener('click', () => { mode = (mode + 1) % ambientModes.length; document.querySelector('#ambientLabel').textContent = ambientModes[mode][0]; document.querySelector('#ambientCopy').textContent = ambientModes[mode][1]; document.body.dataset.ambient = mode; }); document.querySelector('#resetButton').addEventListener('click', () => { clearInterval(resetTimer); let left = 20; document.querySelector('#resetStatus').textContent = `Look at the horizon. ${left}s`; resetTimer = setInterval(() => { left -= 1; document.querySelector('#resetStatus').textContent = left ? `Look at the horizon. ${left}s` : 'Reset complete — welcome back.'; if (!left) clearInterval(resetTimer); }, 1000); }); window.addEventListener('resize', () => { resize(); update(customMinutes); });
 if (window.matchMedia?.('(max-width: 700px) and (orientation: portrait)').matches) setControlsExpanded(false);
 resize(); tick();
+if (!todayEmbed) {
+  const issueLauncher = document.createElement('script');
+  issueLauncher.src = '/issue-launcher.js';
+  document.body.append(issueLauncher);
+}

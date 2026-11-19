@@ -40,3 +40,26 @@
 /* The disclosure is only needed where the portrait sheet can crowd the scene. */
 .controls-toggle{display:none}
 @media(max-width:700px) and (orientation:portrait){.controls-toggle{display:block}}
+
+/* Reuse Sky Room's control timeout so the pointer and the chrome wake together. */
+.scene-card:fullscreen.fullscreen-idle,
+.scene-card:fullscreen.fullscreen-idle * { cursor: none; }
+
+/* Today owns the surrounding navigation and keeps this frame scenery-only. */
+.sky-today-embed .skip-link,
+.sky-today-embed .sky-nav,
+.sky-today-embed .sky-hero__copy,
+.sky-today-embed .scene-controls,
+.sky-today-embed .sky-tools,
+.sky-today-embed .reset-status,
+.sky-today-embed .privacy-note,
+.sky-today-embed .sky-footer { display: none; }
+.sky-today-embed .sky-shell { position: relative; display: block; width: 100%; padding: 0; }
+.sky-today-embed .scene-card { border: 0; border-radius: 0; box-shadow: none; }
+.sky-today-embed .scene { min-height: 0; height: 100vh; }
+.sky-today-embed .scene__overlay { display: none; }
+
+.sky-today-embed .sky-hero { position: absolute; z-index: 2; top: 12px; left: 12px; }
+.sky-today-embed .time-readout { margin: 0; padding: 8px 12px; border-radius: 12px; background: #0b1118e8; text-align: left; }
+.sky-today-embed .time-readout span { font-size: clamp(1.3rem, 4vw, 2rem); }
+.sky-today-embed .time-readout small { font-size: .72rem; }
