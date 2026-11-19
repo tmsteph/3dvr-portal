@@ -32,7 +32,11 @@ try {
       // title lives in the work-item sidecar, not the queue's task text.
       const savedTitle = JSON.parse(saved.runtimeWorkItemJson || '{}').title || '';
       const requestedTitle = JSON.parse(input.record.runtimeWorkItemJson || '{}').title || '';
-      if (saved.task !== input.record.task || savedTitle !== requestedTitle) {
+      // The exact signed request is the retry identity, even when whitespace
+      // normalization would produce the same queue task and sidecar title.
+      // Legacy records without a digest retain the task/title comparison.
+      if (saved.task !== input.record.task || savedTitle !== requestedTitle ||
+          (saved.operatorRequestDigest && saved.operatorRequestDigest !== input.record.operatorRequestDigest)) {
         throw Error('Task identity conflict');
       }
     }
@@ -117,7 +121,10 @@ export function createOperatorDispatchHandler(options = {}) {
     const input = {action,id,prefix};
     if (action === 'enqueue') {
       const built = buildOperatorDelegatedTask({text,title}, {id,tenantAlias:'operator-owner'});
-      input.record = {...built.record, backend:'codex', requiredCapabilities:'codex', unsafe:false};
+      // Persist the immutable signed command identity. Do not hash generated
+      // work-item timestamps, which legitimately differ on an HTTP retry.
+      const operatorRequestDigest = createHash('sha256').update(JSON.stringify({text,title})).digest('hex');
+      input.record = {...built.record, backend:'codex', requiredCapabilities:'codex', unsafe:false, operatorRequestDigest};
     }
     try {
       const result = await run(input);
