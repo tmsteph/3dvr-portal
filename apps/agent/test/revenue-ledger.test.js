@@ -127,7 +127,7 @@ test('ledger prevents invalid send transitions and records one run per trigger',
 test('an idempotency key cannot silently lose another prospect\'s event or change its meaning', () => withLedger((db) => {
   const alice = createProspect(db, { name: 'Alice', contact: 'alice@example.test' }).prospect;
   const bob = createProspect(db, { name: 'Bob', contact: 'bob@example.test' }).prospect;
-  const input = { prospectId: alice.id, toState: 'verified', idempotencyKey: 'shared:verify' };
+  const input = { prospectId: alice.id, toState: 'verified', idempotencyKey: 'shared:verify', payload: { sourceUrl: 'https://original.example.test' } };
   const first = transitionProspect(db, input);
   assert.equal(transitionProspect(db, input).event.id, first.event.id);
   assert.throws(
@@ -137,6 +137,16 @@ test('an idempotency key cannot silently lose another prospect\'s event or chang
   assert.throws(
     () => transitionProspect(db, { ...input, toState: 'drafted' }),
     /Idempotency key conflicts/,
+  );
+  assert.throws(
+    () => transitionProspect(db, { ...input, payload: { sourceUrl: 'https://different.example.test' } }),
+    /Idempotency key conflicts/,
+    'same key and stage must not silently suppress conflicting provenance',
+  );
+  assert.throws(
+    () => transitionProspect(db, { ...input, payload: {} }),
+    /Idempotency key conflicts/,
+    'omitting original evidence must not be treated as a valid replay',
   );
   assert.throws(
     () => transitionProspect(db, { ...input, type: 'payment_succeeded' }),
@@ -173,7 +183,7 @@ function getProspectState(db, id) {
 test('legacy imports cannot replay a different lead or a normal transition', () => withLedger((db) => {
   const alice = createProspect(db, { name: 'Alice import', contact: 'alice-import@example.test' }).prospect;
   const bob = createProspect(db, { name: 'Bob import', contact: 'bob-import@example.test' }).prospect;
-  const input = { prospectId: alice.id, toState: 'drafted', idempotencyKey: 'shared:import' };
+  const input = { prospectId: alice.id, toState: 'drafted', idempotencyKey: 'shared:import', payload: { sourceFile: 'legacy-first.csv' } };
   const first = importProspectState(db, input);
   assert.equal(importProspectState(db, input).event.id, first.event.id);
   assert.throws(
@@ -182,6 +192,15 @@ test('legacy imports cannot replay a different lead or a normal transition', () 
   );
   assert.throws(
     () => importProspectState(db, { ...input, toState: 'eligible' }),
+    /Idempotency key conflicts/,
+  );
+  assert.throws(
+    () => importProspectState(db, { ...input, payload: { sourceFile: 'different-import.csv' } }),
+    /Idempotency key conflicts/,
+    'legacy import retries must preserve immutable source evidence',
+  );
+  assert.throws(
+    () => importProspectState(db, { ...input, payload: {} }),
     /Idempotency key conflicts/,
   );
   assert.throws(
