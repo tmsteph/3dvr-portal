@@ -20,7 +20,31 @@ const {
   subjectMatchesFreeDesignGate,
   recordLeadReplyFeedback,
   upsertMessageState,
+  sendCoordinatedReply,
 } = require('../thomas-agent/node/inbox-monitor');
+
+test('all inbox auto-reply send modes fail closed without message-bound human approval', async () => {
+  let senderCalls = 0;
+  const sendImpl = async () => {
+    senderCalls += 1;
+    throw new Error('unapproved transport must not be reached');
+  };
+  for (const kind of ['inbox-lead-reply', 'inbox-public-agent-reply', 'inbox-free-design-reply']) {
+    const result = await sendCoordinatedReply(kind, {
+      messageId: '<inbound@test.example>',
+      fromEmail: 'buyer@test.example',
+      replyToEmail: 'buyer@test.example',
+      subject: 'Re: automation',
+      // A caller-controlled boolean or receipt-shaped object is not authority.
+      approved: true,
+      approvalReceipt: { verified: true, recipient: 'buyer@test.example' },
+    }, sendImpl);
+    assert.equal(result.ok, false, kind);
+    assert.equal(result.skipped, true, kind);
+    assert.match(result.reason, /message-specific human approval receipt required/i);
+  }
+  assert.equal(senderCalls, 0, 'no sender called for any reply mode');
+});
 
 test('detects bounce mail and extracts candidate addresses', () => {
   const message = {
