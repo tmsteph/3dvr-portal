@@ -343,6 +343,42 @@ test('nested work-item JSON cannot attribute another prospect to a queue task', 
   assert.notEqual(display.owner, 'other-sales');
 });
 
+test('active retry cannot inherit a completed sidecar payment stage or evidence', () => {
+  const current = sampleWorkItem();
+  const previousCompletion = workItemToRuntimeSidecar({
+    ...current,
+    state: 'done',
+    evidence: [{ type: 'provider_payment', id: 'prior-payment' }],
+    metadata: { stage: 'won', paymentStatus: 'paid', lastEvent: 'payment_received' },
+    result: 'Earlier invoice paid'
+  });
+  for (const status of ['queued', 'running', 'claimed', 'verifying', 'blocked']) {
+    const record = mergeQueueRuntimeRecord({
+      id: current.id,
+      task: current.intent,
+      status,
+      evidenceCount: 1,
+      updatedAt: '2026-09-12T23:00:00.000Z'
+    }, previousCompletion);
+    const item = queueRecordToWorkItem(record);
+    const display = normalizeQueueRecordForWorkboard(record);
+    assert.equal(item.state === 'done', false, status);
+    assert.deepEqual(item.evidence, [], status);
+    assert.equal(item.metadata.stage, undefined, status);
+    assert.equal(item.metadata.paymentStatus, undefined, status);
+    assert.equal(item.metadata.lastEvent, undefined, status);
+    assert.equal(item.metadata.evidenceCount, 0, status);
+    assert.equal(display.evidenceCount, 0, status);
+  }
+  const completed = mergeQueueRuntimeRecord({
+    id: current.id, task: current.intent, status: 'completed',
+    evidenceCount: 1, resultSummary: 'Current worker completed'
+  }, previousCompletion);
+  assert.equal(queueRecordToWorkItem(completed).metadata.stage, 'won',
+    'terminal sidecar details remain inspectable for completed work, but are not payment verification');
+  assert.equal(normalizeQueueRecordForWorkboard(completed).evidenceCount, 1);
+});
+
 test('human checkpoints remain visible through the sidecar', () => {
   const item = createWorkItem({
     id: 'work-known-contact',
