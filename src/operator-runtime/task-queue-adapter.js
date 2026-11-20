@@ -207,6 +207,10 @@ export function queueRecordToWorkItem(record = {}) {
   // sidecar (or queue summary) still contains a previous paid-looking result.
   // Failed/cancelled tasks keep their separate queue error diagnostic.
   const completed = queueState === 'done';
+  // A queued/ready retry has not been claimed by this attempt. An old
+  // workerDeviceId in the queue must not attribute the new attempt to the
+  // worker that handled an earlier run.
+  const unclaimed = queueState === 'queued' || queueState === 'ready';
 
   return createWorkItem({
     ...source,
@@ -224,7 +228,7 @@ export function queueRecordToWorkItem(record = {}) {
       verificationStatus: text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
       humanCheckpointStatus: text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required',
       evidenceCount: Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0,
-      workerDeviceId: text(record.workerDeviceId, 200)
+      workerDeviceId: unclaimed ? '' : text(record.workerDeviceId, 200)
     }
   });
 }
@@ -245,7 +249,7 @@ export function normalizeQueueRecordForWorkboard(record = {}) {
     verificationStatus: item.metadata?.verificationStatus || 'not_started',
     humanCheckpointStatus: item.metadata?.humanCheckpointStatus || 'not_required',
     evidenceCount: item.metadata?.evidenceCount || item.evidence.length,
-    workerDeviceId: item.metadata?.workerDeviceId || text(record.workerDeviceId, 200),
+    workerDeviceId: item.metadata?.workerDeviceId || '',
     runtimeVersion: text(record.runtimeVersion, 80),
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
