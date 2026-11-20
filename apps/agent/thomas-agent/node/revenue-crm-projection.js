@@ -38,42 +38,16 @@ function remoteProjectionRoots(options = {}) {
   };
 }
 
-function paymentReceiptFor(event = {}) {
-  // CRM display must never interpret a quoted plan, a payment-intent ID or
-  // a generic lead event as proof that a customer actually paid. This is only
-  // structural screening; the upstream payment adapter still MUST authenticate
-  // the provider callback before persisting a payment_succeeded event.
-  if (event.type !== 'payment_succeeded') return null;
-  let payload = {};
-  try { payload = JSON.parse(event.payload_json || '{}'); } catch {}
-  const payment = payload.payment && typeof payload.payment === 'object' ? payload.payment : payload;
-  const amountCents = Number(payment.amount_cents ?? payment.amountCents ?? payment.amount_paid ?? payment.amount_total);
-  const currency = String(payment.currency || '').trim().toUpperCase();
-  const paidAt = String(payment.paid_at || payment.paidAt || payment.created_at || event.created_at || '').trim();
-  const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
-  const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
-  const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
-  // A status string and monetary amount are not a provider payment reference.
-  // Keep this a schema guard, not a claim of authenticating the provider.
-  const paymentReference = [
-    payment.payment_intent_id, payment.paymentIntentId,
-    payment.charge_id, payment.chargeId,
-    payment.transaction_id, payment.transactionId,
-    payment.provider_event_id, payment.providerEventId,
-  ].find(value => typeof value === 'string' && value.trim());
-  if (String(payment.status || '').trim().toLowerCase() !== 'succeeded'
-    || !hasAmount || !/^[A-Z]{3}$/.test(currency) || !paymentReference) return null;
-  return {
-    amountCents: hasAmount ? amountCents : null,
-    amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
-    currency,
-    paidAt,
-    recurringCents: hasRecurring ? recurringCents : null,
-    recurringValue: hasRecurring ? `${currency} ${(recurringCents / 100).toFixed(2)}` : '',
-    plan: String(payment.plan || payment.plan_name || '').trim(),
-    paymentIntentId: String(payment.payment_intent_id || payment.paymentIntentId || '').trim(),
-    subscriptionId: String(payment.subscription_id || payment.subscriptionId || '').trim(),
-  };
+function paymentReceiptFor(_event = {}) {
+  // Revenue ledger transitions intentionally reject caller-authored
+  // "payment_succeeded" records. A CRM projection cannot authenticate a
+  // provider callback by checking a status string, amount and payment ID.
+  //
+  // There is no trusted payment-adapter receipt attached to this projection.
+  // Fail closed until an independently authenticated provider integration
+  // passes verified payment evidence to the CRM (with replay/identity checks).
+  // Never let a forged or manually inserted event label a lead "Paid Customer".
+  return null;
 }
 
 function recordFor(prospect, event, now) {
