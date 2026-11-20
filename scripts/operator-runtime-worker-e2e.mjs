@@ -38,6 +38,17 @@ if (productionPeer) {
 if (peers.some(peer => !['127.0.0.1', '[::1]'].includes(new URL(peer).hostname))) {
   throw new Error('Only literal loopback relays are allowed for queue-writing E2E.');
 }
+// A literal loopback IP alone is not enough: hidden URL credentials or query
+// parameters could be leaked to CI logs or interpreted by a relay adapter.
+// Require the same narrow, explicit /gun endpoint shape used by the isolated
+// CRM projection check. A loopback/SSH tunnel still needs separate approval.
+if (peers.some(peer => {
+  const url = new URL(peer);
+  return !url.port || url.username || url.password
+    || !['/gun', '/gun/'].includes(url.pathname) || url.search || url.hash;
+})) {
+  throw new Error('Loopback relay must use an explicit /gun path and port without credentials, query or fragment.');
+}
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
