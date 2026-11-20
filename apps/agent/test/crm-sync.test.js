@@ -101,6 +101,32 @@ test('historical outreach must not reopen a manually closed lead', () => {
   assert.equal(payload.touches.length, 2, 'keep history without implying a new customer or reopening');
 });
 
+test('suppressed and closed leads cannot reopen or inherit follow-ups from historical replies', () => {
+  for (const status of ['closed', 'suppressed', 'unsubscribed', 'opted-out', 'do-not-contact']) {
+    const lead = {
+      name: 'Synthetic Opt Out', link: 'https://opt-out.example',
+      contact: 'mailto:owner@opt-out.example', status, date: '2026-11-19',
+    };
+    const payload = buildCrmSyncPayload({
+      leads: [lead],
+      outreach: [{
+        name: lead.name, contact: lead.contact, site: lead.link, status: 'replied',
+        timestamp: '2026-11-18T12:00:00.000Z', nextFollowUp: '2026-11-25',
+        body: 'Synthetic historical reply',
+      }],
+      now: '2026-11-20T08:00:00.000Z',
+    });
+    assert.equal(payload.records.length, 1, status);
+    const record = payload.records[0];
+    assert.equal(record.status, 'Closed', status);
+    assert.match(record.nextBestAction, /do not contact/i, status);
+    assert.equal(record.nextFollowUp, '', status + ' cannot inherit a follow-up reminder');
+    assert.equal(record.lastContacted, '', status + ' was not reopened');
+    assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 1,
+      status + ' should retain historic reply evidence without reactivating');
+  }
+});
+
 test('buildCrmSyncPayload creates records and stable touch log entries', () => {
   const leads = [
     {

@@ -18,6 +18,12 @@ function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
 }
 
+const NO_CONTACT_STATES = new Set(['closed', 'suppressed', 'unsubscribed', 'opted-out', 'do-not-contact']);
+
+function isNoContactStatus(status) {
+  return NO_CONTACT_STATES.has(normalizeLower(status));
+}
+
 function slugify(input) {
   return normalizeLower(input)
     .replace(/['"]/g, '')
@@ -126,7 +132,7 @@ function leadFromOutreachEntry(entry = {}) {
 function mergeOutreachIntoLead(lead, entries = []) {
   // Historical outreach is not authorization to reopen a closed record.
   // A human must explicitly decide that a newly observed reply warrants reopening.
-  if (normalizeLower(lead.status) === 'closed') return lead;
+  if (isNoContactStatus(lead.status)) return lead;
   const relevant = entries.filter(entry => contactsMatch(entry, lead));
   if (!relevant.length) return lead;
   const successful = relevant.filter(entry => ['sent', 'submitted', 'replied'].includes(normalizeLower(entry.status)));
@@ -157,7 +163,7 @@ function statusForLead(lead) {
   if (status === 'replied') return 'Warm - Discovery';
   if (status === 'nurture') return 'Warm - Awareness';
   // The legacy CSV "closed" value says nothing about payment or an actual win.
-  if (status === 'closed') return 'Closed';
+  if (isNoContactStatus(status)) return 'Closed';
   if (status === 'failed') return 'Lost';
   return 'Lead';
 }
@@ -173,6 +179,7 @@ function nextActionForLead(lead) {
   const status = normalizeLower(lead.status);
   const action = leadAction(lead);
   if (status === 'closed') return 'Keep closed. Review verified commercial outcomes before counting a win; do not contact automatically.';
+  if (isNoContactStatus(status)) return 'Do not contact. Keep the suppression until an authorized human explicitly clears it.';
   if (status === 'failed') return 'Repair the contact route before any future outreach.';
   if (status === 'nurture') return 'Revisit later with a more specific reason to reach out.';
   if (status === 'contacted') return 'Wait for a reply; stay quiet unless there is a new material reason to reach out.';
@@ -397,7 +404,8 @@ function buildCrmSyncPayload({
     record.lastMessageSubject = normalizeText(latest.subject);
     record.lastMessage = String(latest.body || '');
     record.lastDeliveryStatus = normalizeText(latest.deliveryStatus || latest.status);
-    record.nextFollowUp = normalizeText(latest.nextFollowUp) || record.nextFollowUp;
+    // Imported outreach history cannot schedule a contact after an opt-out or closure.
+    record.nextFollowUp = record.status === 'Closed' ? '' : normalizeText(latest.nextFollowUp) || record.nextFollowUp;
     record.updated = now;
   }
 
