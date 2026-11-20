@@ -143,6 +143,36 @@ test('a queued retry cannot display a stale paid result from an earlier attempt'
   assert.equal(normalizeQueueRecordForWorkboard(finished).resultSummary, 'Worker confirmed completion');
 });
 
+test('queued retry hides old worker attribution until a new worker claims the task', () => {
+  const lead = sampleWorkItem();
+  const stale = workItemToRuntimeSidecar({
+    ...lead, state: 'done', metadata: { workerLane: 'revenue-worker' }
+  });
+  const queued = mergeQueueRuntimeRecord({
+    id: lead.id,
+    task: lead.intent,
+    status: 'queued',
+    workerDeviceId: 'worker-from-prior-attempt',
+    updatedAt: '2026-09-12T21:10:00.000Z'
+  }, stale);
+
+  assert.equal(queueRecordToWorkItem(queued).state, 'queued');
+  assert.equal(queueRecordToWorkItem(queued).metadata.workerDeviceId, '');
+  assert.equal(normalizeQueueRecordForWorkboard(queued).workerDeviceId, '',
+    'the unclaimed retry must not display the old worker');
+
+  const ready = { ...queued, runtimeState: 'ready' };
+  assert.equal(queueRecordToWorkItem(ready).state, 'ready');
+  assert.equal(normalizeQueueRecordForWorkboard(ready).workerDeviceId, '');
+
+  // Once the queue actually reports an active/terminal attempt, its own
+  // worker ID remains useful attribution. Never use the sidecar as an ID.
+  const claimed = { ...queued, status: 'running', workerDeviceId: 'worker-current' };
+  assert.equal(normalizeQueueRecordForWorkboard(claimed).workerDeviceId, 'worker-current');
+  const completed = { ...claimed, status: 'completed' };
+  assert.equal(normalizeQueueRecordForWorkboard(completed).workerDeviceId, 'worker-current');
+});
+
 test('non-completed worker states cannot display old successful or paid results', () => {
   const lead = sampleWorkItem();
   const oldSuccess = workItemToRuntimeSidecar({
