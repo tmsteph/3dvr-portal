@@ -216,8 +216,13 @@ export function queueRecordToWorkItem(record = {}) {
   // A retried task must not inherit a terminal sidecar's past payment stage,
   // completed evidence, or other attempt-specific business metadata. The
   // canonical CRM remains the place for historical, independently verified facts.
-  const staleTerminalSidecar = ['done', 'failed', 'cancelled'].includes(text(record.runtimeState, 80))
-    && !['done', 'failed', 'cancelled'].includes(queueState);
+  // Terminal queue states also have retries: a failed/cancelled retry must
+  // not inherit a prior successful payment or evidence from a done sidecar.
+  // Conversely, a newly completed attempt must not inherit failed/cancelled
+  // sidecar metadata. Treat differing terminal states as separate attempts.
+  const sidecarState = text(record.runtimeState, 80);
+  const staleTerminalSidecar = ['done', 'failed', 'cancelled'].includes(sidecarState)
+    && sidecarState !== queueState;
   // The worker queue's approval gate takes precedence over a stale sidecar.
   // This is display metadata, not a signed outbound authorization receipt.
   const queueApproval = text(record.approvalStatus, 80).toLowerCase();
