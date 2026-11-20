@@ -51,7 +51,9 @@ function projectInboxMessage(db, message = {}) {
     prospectId: prospect.id,
     toState: state,
     type: `inbox_${state}`,
-    idempotencyKey: `inbox:${messageId}:${state}`,
+    // One DSN may report failure for several distinct contacts. The inbox
+    // message ID is unique per prospect, not globally unique across leads.
+    idempotencyKey: `inbox:${prospect.id}:${messageId}:${state}`,
     payload: { messageId, uid: text(message.uid), subject: text(message.subject) },
   }) };
 }
