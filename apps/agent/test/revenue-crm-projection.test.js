@@ -219,6 +219,7 @@ test('isolated CRM acceptance relay configuration fails closed before any Gun co
   const cases = [
     '', 'wss://gun-relay-3dvr.fly.dev/gun', 'wss://gun-relay-3dvr.fly.dev./gun',
     'wss://gun-relay-3dvr.fly.dev.evil/gun',
+    'ws://localhost:8765/gun', 'http://localhost:9876/gun',
     'ws://localhost.evil:8765/gun', 'ws://127.0.0.1.evil:8765/gun',
     'ws://localhost/gun', 'file:///tmp/gun', 'ws://user:pass@localhost:8765/gun',
     'ws://localhost:8765/other', 'ws://localhost:8765/gun?peer=prod',
@@ -235,10 +236,7 @@ test('isolated CRM acceptance relay configuration fails closed before any Gun co
     projectionPeer({ isolated: true, relayUrl: 'ws://127.0.0.1:8765/gun' }),
     'ws://127.0.0.1:8765/gun'
   );
-  assert.equal(
-    projectionPeer({ isolated: true, relayUrl: 'http://localhost:9876/gun' }),
-    'http://localhost:9876/gun'
-  );
+
   assert.equal(
     projectionPeer({ isolated: true, relayUrl: 'ws://[::1]:9876/gun' }),
     'ws://[::1]:9876/gun'
@@ -261,6 +259,7 @@ test('projectPendingCrm passes isolated relay options to the real writer before 
     '',
     'wss://gun-relay-3dvr.fly.dev/gun',
     'ws://localhost/gun',
+    'ws://localhost:8765/gun',
     'ws://user:password@localhost:8765/gun',
     'ws://localhost:8765/gun?peer=prod'
   ]) {
@@ -292,4 +291,22 @@ test('isolated CRM projection rejects caller-supplied Gun roots before any datab
       /Isolated CRM projection cannot override Gun roots/,
     );
   }
+});
+
+test('isolated CRM projection refuses the real writer injected as a test adapter', async () => {
+  // An injected real writer with caller-supplied roots could otherwise bypass
+  // the validated loopback relay and touch a production Gun graph.
+  const { writeCrmSync } = require('../thomas-agent/node/crm-sync');
+  const neverReadDb = { prepare() { throw new Error('database read before isolation check'); } };
+  await assert.rejects(
+    projectPendingCrm(neverReadDb, {
+      isolated: true,
+      write: writeCrmSync,
+      writeOptions: {
+        crmRoot: { get() { throw new Error('untrusted CRM root used'); } },
+        touchRoot: { get() { throw new Error('untrusted touch root used'); } },
+      },
+    }),
+    /Isolated CRM projection cannot inject the real Gun writer/
+  );
 });
