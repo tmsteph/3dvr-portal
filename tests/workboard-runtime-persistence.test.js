@@ -90,6 +90,28 @@ test('runtime sidecar survives worker queue normalization and restores Workboard
   assert.equal(display.evidenceCount, 1);
 });
 
+
+test('queued worker record cannot inherit a stale completed or failed runtime state', () => {
+  const base = sampleWorkItem();
+  for (const staleState of ['running', 'verifying', 'done', 'failed', 'cancelled']) {
+    const staleSidecar = workItemToRuntimeSidecar({ ...base, state: staleState });
+    const merged = mergeQueueRuntimeRecord({
+      id: base.id,
+      task: base.intent,
+      status: 'queued',
+      updatedAt: '2026-09-12T21:00:00.000Z'
+    }, staleSidecar);
+    assert.equal(queueRecordToWorkItem(merged).state, 'queued', staleState);
+    assert.equal(normalizeQueueRecordForWorkboard(merged).status, 'queued', staleState);
+  }
+
+  // A new ready work item intentionally serializes to a queued worker record.
+  // Keep that distinction, but never let a stale terminal sidecar override it.
+  const ready = workItemToAgentQueueRecord({ ...base, state: 'ready' });
+  assert.equal(queueRecordToWorkItem(ready).state, 'ready');
+  assert.equal(normalizeQueueRecordForWorkboard(ready).status, 'ready');
+});
+
 test('human checkpoints remain visible through the sidecar', () => {
   const item = createWorkItem({
     id: 'work-known-contact',
