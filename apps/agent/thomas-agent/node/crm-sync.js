@@ -199,7 +199,8 @@ function buildCrmRecord(lead, options = {}) {
     ? normalizeText(lead.contact)
     : '';
   const link = normalizeText(lead.link);
-  const lastContacted = ['contacted', 'replied', 'failed'].includes(status)
+  // A failed attempt is not evidence the prospect was actually contacted.
+  const lastContacted = ['contacted', 'replied'].includes(status)
     ? isoDate(lead.date, new Date(now))
     : '';
   const nextFollowUp = '';
