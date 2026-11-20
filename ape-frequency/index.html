@@ -45,6 +45,7 @@ main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:
 .lb-list li:last-child{border-bottom:0}
 .lb-list .rk{color:var(--muted);width:2em}
 .lb-list .nm{flex:1;letter-spacing:.22em;font-weight:700}
+.lb-list .dt{color:var(--muted);font-size:.72rem;min-width:3.4em;text-align:right}
 .lb-list li.me{background:#ffffff10;border-radius:8px}
 .lb-empty{color:var(--muted);padding:14px 2px 2px}
 .lb-form{margin-top:16px;border-top:1px solid #ededff17;padding-top:14px}
@@ -225,6 +226,12 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
       var nm = document.createElement("span"); nm.className = "nm"; nm.textContent = s.name;
       var sc = document.createElement("span"); sc.textContent = s.score;
       li.appendChild(rk); li.appendChild(nm); li.appendChild(sc);
+      if (s.ts) {
+        var d = new Date(s.ts * 1000);
+        var dt = document.createElement("span"); dt.className = "dt";
+        dt.textContent = d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + (d.getFullYear() !== new Date().getFullYear() ? ", " + d.getFullYear() : "");
+        li.appendChild(dt);
+      }
       lbList.appendChild(li);
     });
   }
