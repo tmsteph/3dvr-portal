@@ -75,8 +75,14 @@ export function queueStatusFromWorkItemState(state = 'queued') {
 
 export function workItemStateFromQueueRecord(record = {}) {
   const status = text(record.status, 80).toLowerCase().replace(/[\s-]+/g, '_');
-  if (status && status !== 'queued') return QUEUE_STATUS_TO_STATE[status] || text(record.runtimeState, 80) || 'queued';
-  return text(record.runtimeState, 80) || QUEUE_STATUS_TO_STATE[status] || 'queued';
+  if (status === 'queued') {
+    // The worker queue is authoritative: a stale runtime sidecar must not
+    // render an actually queued task as completed, failed, or running.
+    // Preserve 'ready' because both ready and queued serialize as queued.
+    return text(record.runtimeState, 80) === 'ready' ? 'ready' : 'queued';
+  }
+  if (status) return QUEUE_STATUS_TO_STATE[status] || text(record.runtimeState, 80) || 'queued';
+  return text(record.runtimeState, 80) || 'queued';
 }
 
 export function workItemToAgentQueueRecord(input = {}, overrides = {}) {
