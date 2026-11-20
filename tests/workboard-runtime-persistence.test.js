@@ -112,6 +112,35 @@ test('queued worker record cannot inherit a stale completed or failed runtime st
   assert.equal(normalizeQueueRecordForWorkboard(ready).status, 'ready');
 });
 
+test('runtime sidecar with a different task ID cannot contaminate CRM work attribution', () => {
+  const current = sampleWorkItem();
+  const foreign = createWorkItem({
+    ...current,
+    id: 'work-runtime-foreign',
+    title: 'Foreign paid prospect',
+    owner: 'other-sales',
+    state: 'done',
+    evidence: [{ id: 'foreign-payment', type: 'provider_payment' }],
+    metadata: { stage: 'won', workerLane: 'other-lane' }
+  });
+  const queueLatest = {
+    id: current.id,
+    task: current.intent,
+    status: 'queued',
+    updatedAt: '2026-09-12T21:00:00.000Z'
+  };
+
+  const merged = mergeQueueRuntimeRecord(queueLatest, workItemToRuntimeSidecar(foreign));
+  assert.deepEqual(merged, queueLatest, 'a foreign sidecar must be ignored completely');
+
+  const display = normalizeQueueRecordForWorkboard(merged);
+  assert.equal(display.status, 'queued');
+  assert.equal(display.task, current.intent);
+  assert.equal(display.evidenceCount, 0);
+  assert.notEqual(display.owner, 'other-sales');
+  assert.notEqual(display.workerLane, 'other-lane');
+});
+
 test('human checkpoints remain visible through the sidecar', () => {
   const item = createWorkItem({
     id: 'work-known-contact',
