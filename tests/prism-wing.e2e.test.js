@@ -117,10 +117,16 @@ test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45
     const strafePage = await openWing(browser);
     const strafeStart = await state(strafePage);
     await strafePage.keyboard.down('KeyD');
-    await strafePage.waitForTimeout(750);
-    await strafePage.keyboard.up('KeyD');
-    const strafed = await state(strafePage);
-    assert.ok(Math.abs(strafed.position.x-strafeStart.position.x) > .45, 'D should move the ship sideways');
+    try {
+      // Slow frames can advance less simulation time than a fixed wall-clock hold.
+      await strafePage.waitForFunction(
+        startX => Math.abs(window.__prismWingDebug.getState().position.x - startX) > .45,
+        strafeStart.position.x,
+        { timeout: 8_000 }
+      );
+    } finally {
+      await strafePage.keyboard.up('KeyD');
+    }
     await strafePage.close();
 
     const risePage = await openWing(browser);
