@@ -201,12 +201,17 @@ export function queueRecordToWorkItem(record = {}) {
     metadata: {}
   };
 
+  const queueState = workItemStateFromQueueRecord(record);
+  // A queued/retried task has no verified result from this attempt. A stale
+  // runtime sidecar or old worker summary must never appear as its outcome.
+  const pending = queueState === 'queued' || queueState === 'ready';
+
   return createWorkItem({
     ...source,
     id: text(record.id, 240) || source.id,
-    state: workItemStateFromQueueRecord(record),
+    state: queueState,
     updatedAt: text(record.updatedAt, 80) || source.updatedAt,
-    result: record.resultSummary || source.result || null,
+    result: pending ? null : (record.resultSummary || source.result || null),
     metadata: {
       ...(source.metadata || {}),
       queueStatus: text(record.status, 80),
@@ -239,6 +244,8 @@ export function normalizeQueueRecordForWorkboard(record = {}) {
     runtimeVersion: text(record.runtimeVersion, 80),
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
-    resultSummary: text(record.resultSummary, 2000) || resultSummary(item.result)
+    resultSummary: item.state === 'queued' || item.state === 'ready'
+      ? ''
+      : (text(record.resultSummary, 2000) || resultSummary(item.result))
   };
 }
