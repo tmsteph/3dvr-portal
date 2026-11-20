@@ -1,6 +1,7 @@
 import { queueCodeChange } from '../operator/forge.js';
 import { normalizeQueueRecordForWorkboard } from '../src/operator-runtime/task-queue-adapter.js';
 import { mergeQueueRuntimeRecord } from '../src/operator-runtime/runtime-sidecar.js';
+import { laneFor, friendlyStatus } from '../src/operator-runtime/workboard-status.js';
 
 const ROOT = '3dvr-portal';
 const AGENT_OWNER_ALIAS = '3dvr-managed';
@@ -38,16 +39,6 @@ function clean(value = '', max = 500) {
   return String(value ?? '').trim().slice(0, max);
 }
 
-function laneFor(status = '', kind = '') {
-  const normalized = clean(status, 80).toLowerCase().replace(/[\s-]+/g, '_');
-  if (kind === 'github-pr') return ['closed', 'merged'].includes(normalized) ? 'done' : 'review';
-  if (kind === 'github-issue') return normalized === 'closed' ? 'done' : 'inbox';
-  if (['done', 'completed', 'complete', 'merged', 'closed', 'success', 'succeeded', 'cancelled', 'canceled'].includes(normalized)) return 'done';
-  if (['review', 'ready_for_review', 'awaiting_review', 'needs_review', 'waiting_human', 'blocked', 'failed', 'error', 'skipped'].includes(normalized)) return 'review';
-  if (['working', 'running', 'in_progress', 'executing', 'claimed', 'processing', 'waiting_external', 'verifying'].includes(normalized)) return 'working';
-  return 'inbox';
-}
-
 function recordUrl(kind, id) {
   if (kind === 'agent-task') return `/operator-runtime/?task=${encodeURIComponent(id)}`;
   const params = new URLSearchParams({ kind: kind === 'edit' ? 'edit' : 'suggestion', id });
@@ -77,20 +68,6 @@ function kindLabel(kind) {
   if (kind === 'github-issue') return 'Issue';
   if (kind === 'agent-task') return 'Runtime task';
   return 'Agent task';
-}
-
-function friendlyStatus(item, lane) {
-  const normalized = clean(item.record.status || 'open', 80).toLowerCase().replace(/[\s-]+/g, '_');
-  if (normalized === 'waiting_external') return 'waiting outside';
-  if (normalized === 'verifying') return 'verifying';
-  if (lane === 'review') {
-    if (normalized === 'waiting_human') return 'needs you';
-    if (['failed', 'error', 'blocked', 'skipped'].includes(normalized)) return normalized.replaceAll('_', ' ');
-    return 'needs review';
-  }
-  if (lane === 'working') return 'working';
-  if (lane === 'done') return normalized === 'merged' ? 'merged' : 'done';
-  return 'queued';
 }
 
 function sortedItems() {
