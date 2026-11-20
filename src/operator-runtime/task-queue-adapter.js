@@ -218,6 +218,12 @@ export function queueRecordToWorkItem(record = {}) {
   // canonical CRM remains the place for historical, independently verified facts.
   const staleTerminalSidecar = ['done', 'failed', 'cancelled'].includes(text(record.runtimeState, 80))
     && !['done', 'failed', 'cancelled'].includes(queueState);
+  // The worker queue's approval gate takes precedence over a stale sidecar.
+  // This is display metadata, not a signed outbound authorization receipt.
+  const queueApproval = text(record.approvalStatus, 80).toLowerCase();
+  const humanCheckpointStatus = ['required', 'approved'].includes(queueApproval)
+    ? queueApproval
+    : (text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required');
 
   return createWorkItem({
     ...source,
@@ -234,7 +240,7 @@ export function queueRecordToWorkItem(record = {}) {
       queueStatus: text(record.status, 80),
       workerLane: text(record.workerLane, 120) || source.metadata?.workerLane || '',
       verificationStatus: text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
-      humanCheckpointStatus: text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required',
+      humanCheckpointStatus,
       evidenceCount: staleTerminalSidecar ? 0 : (Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0),
       workerDeviceId: unclaimed ? '' : text(record.workerDeviceId, 200)
     }
