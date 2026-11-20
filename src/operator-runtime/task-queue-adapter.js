@@ -202,16 +202,18 @@ export function queueRecordToWorkItem(record = {}) {
   };
 
   const queueState = workItemStateFromQueueRecord(record);
-  // A queued/retried task has no verified result from this attempt. A stale
-  // runtime sidecar or old worker summary must never appear as its outcome.
-  const pending = queueState === 'queued' || queueState === 'ready';
+  // Only an authoritative completed queue status can expose a successful
+  // result. A retry can already be running/reviewing/verifying while its
+  // sidecar (or queue summary) still contains a previous paid-looking result.
+  // Failed/cancelled tasks keep their separate queue error diagnostic.
+  const completed = queueState === 'done';
 
   return createWorkItem({
     ...source,
     id: text(record.id, 240) || source.id,
     state: queueState,
     updatedAt: text(record.updatedAt, 80) || source.updatedAt,
-    result: pending ? null : (record.resultSummary || source.result || null),
+    result: completed ? (record.resultSummary || source.result || null) : null,
     metadata: {
       ...(source.metadata || {}),
       queueStatus: text(record.status, 80),
@@ -244,8 +246,8 @@ export function normalizeQueueRecordForWorkboard(record = {}) {
     runtimeVersion: text(record.runtimeVersion, 80),
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
-    resultSummary: item.state === 'queued' || item.state === 'ready'
-      ? ''
-      : (text(record.resultSummary, 2000) || resultSummary(item.result))
+    resultSummary: item.state === 'done'
+      ? (text(record.resultSummary, 2000) || resultSummary(item.result))
+      : ''
   };
 }
