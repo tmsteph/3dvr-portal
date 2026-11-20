@@ -27,7 +27,9 @@ test('verified success and active, blocked, and waiting states remain distinguis
 });
 
 test('Workboard uses the tested pure status functions, not a divergent local labeler', async () => {
-  const source = await readFile(new URL('../workboard/app.js', import.meta.url), 'utf8');
+  const [source, template] = await Promise.all([readFile(new URL('../workboard/app.js', import.meta.url), 'utf8'), readFile(new URL('../workboard/index.html', import.meta.url), 'utf8')]);
   assert.match(source, /import \{ laneFor, friendlyStatus \} from ['"]\.\.\/src\/operator-runtime\/workboard-status\.js['"]/);
   assert.doesNotMatch(source, /function friendlyStatus\(/);
+  assert.match(source, /done: \['FINISHED', 'Completed, closed or cancelled'\]/);
+  assert.match(template, /data-filter="done"[^>]*>Finished <span/);
 });
