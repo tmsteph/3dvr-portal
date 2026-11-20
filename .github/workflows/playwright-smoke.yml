@@ -73,3 +73,18 @@ jobs:
 
       - name: Run private Cell mobile browser check
         run: node --test tests/cell-private.e2e.test.js
+
+  ape-frequency-preview:
+    name: Ape Frequency phone and desktop preview
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+      - run: npm ci
+      - run: npm run playwright:install:linux
+      - name: Check logo, links, responsive layout, keyboard and reduced motion
+        run: node --test tests/ape-frequency-preview.e2e.test.js
