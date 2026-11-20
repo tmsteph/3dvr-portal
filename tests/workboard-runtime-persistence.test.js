@@ -5,6 +5,7 @@ import test from 'node:test';
 import { createWorkItem } from '../src/operator-runtime/work-item.js';
 import {
   normalizeQueueRecordForWorkboard,
+  queueRecordForMapKey,
   queueRecordToWorkItem,
   workItemStateFromQueueRecord,
   workItemToAgentQueueRecord,
@@ -274,6 +275,32 @@ test('partial worker latest without status cannot inherit stale sidecar success'
   }, paidSidecar);
   assert.equal(queueRecordToWorkItem(confirmed).state, 'done');
   assert.equal(normalizeQueueRecordForWorkboard(confirmed).resultSummary, 'Current worker completed');
+});
+
+test('Workboard map key rejects mismatched queue identity before joining CRM sidecars', async () => {
+  const legitimate = sampleWorkItem();
+  const foreignPaid = {
+    id: 'different-paid-prospect',
+    status: 'completed',
+    task: 'Foreign account said invoice paid',
+    runtimeState: 'done',
+    resultSummary: 'Payment received'
+  };
+  assert.equal(queueRecordForMapKey(foreignPaid, legitimate.id), null,
+    'do not render a completed prospect under another task key');
+  assert.equal(queueRecordForMapKey(foreignPaid, ''), null,
+    'empty map key is not a valid queue identity');
+  assert.deepEqual(queueRecordForMapKey({ task: legitimate.intent, status: 'queued' }, legitimate.id),
+    { id: legitimate.id, task: legitimate.intent, status: 'queued' },
+    'legacy values without an ID adopt their authoritative map key');
+  assert.deepEqual(queueRecordForMapKey({ id: legitimate.id, status: 'running' }, legitimate.id),
+    { id: legitimate.id, status: 'running' });
+
+  const workboard = await readFile(new URL('../workboard/app.js', import.meta.url), 'utf8');
+  assert.match(workboard, /queueRecordForMapKey\(latest, id\)/,
+    'Workboard must validate the map key before joining sidecars');
+  assert.match(workboard, /mergeQueueRuntimeRecord\(keyedLatest, runtime\)/,
+    'only the validated value may join runtime CRM context');
 });
 
 test('runtime sidecar with a different task ID cannot contaminate CRM work attribution', () => {
