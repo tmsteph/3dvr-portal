@@ -213,7 +213,10 @@ export function queueRecordToWorkItem(record = {}) {
     id: text(record.id, 240) || source.id,
     state: queueState,
     updatedAt: text(record.updatedAt, 80) || source.updatedAt,
-    result: completed ? (record.resultSummary || source.result || null) : null,
+    // A completed queue status alone does not authenticate a prior sidecar's
+    // result. Only the worker's current queue summary may be displayed as the
+    // current completion result; an empty worker summary must stay empty.
+    result: completed ? (text(record.resultSummary, 2000) || null) : null,
     metadata: {
       ...(source.metadata || {}),
       queueStatus: text(record.status, 80),
@@ -247,7 +250,7 @@ export function normalizeQueueRecordForWorkboard(record = {}) {
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
     resultSummary: item.state === 'done'
-      ? (text(record.resultSummary, 2000) || resultSummary(item.result))
+      ? text(record.resultSummary, 2000)
       : ''
   };
 }
