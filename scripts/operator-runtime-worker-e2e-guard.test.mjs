@@ -39,7 +39,13 @@ const cases = [
   { name: 'private network host is not an isolated process', peers: 'http://192.168.1.2:8765/gun', expected: 'Only literal loopback relays' },
   { name: 'DNS alias is not a literal loopback', peers: 'http://localhost:8765/gun', expected: 'Only literal loopback relays' },
   { name: 'all-network-interfaces address is not a relay peer', peers: 'http://0.0.0.0:8765/gun', expected: 'Only literal loopback relays' },
-  { name: 'one remote peer poisons an otherwise local list', peers: 'http://127.0.0.1:8765/gun,https://staging.example.net/gun', expected: 'Only literal loopback relays' }
+  { name: 'one remote peer poisons an otherwise local list', peers: 'http://127.0.0.1:8765/gun,https://staging.example.net/gun', expected: 'Only literal loopback relays' },
+  { name: 'loopback without a port', peers: 'http://127.0.0.1/gun', expected: 'Loopback relay must use' },
+  { name: 'loopback wrong Gun path', peers: 'http://127.0.0.1:8765/gun-relay', expected: 'Loopback relay must use' },
+  { name: 'loopback credential leak', peers: 'http://test:secret@127.0.0.1:8765/gun', expected: 'Loopback relay must use' },
+  { name: 'loopback query parameter', peers: 'http://127.0.0.1:8765/gun?upstream=remote', expected: 'Loopback relay must use' },
+  { name: 'loopback fragment', peers: 'http://127.0.0.1:8765/gun#remote', expected: 'Loopback relay must use' },
+  { name: 'mixed valid and ambiguous loopback peers', peers: 'http://127.0.0.1:8765/gun,http://[::1]:8765/other', expected: 'Loopback relay must use' }
 ];
 
 writeFileSync(spyTarget, instrumented, { flag: 'wx' });
