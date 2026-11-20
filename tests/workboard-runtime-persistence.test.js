@@ -141,6 +141,44 @@ test('runtime sidecar with a different task ID cannot contaminate CRM work attri
   assert.notEqual(display.workerLane, 'other-lane');
 });
 
+test('nested work-item JSON cannot attribute another prospect to a queue task', () => {
+  const current = sampleWorkItem();
+  const foreign = createWorkItem({
+    id: 'work-runtime-foreign-paid',
+    title: 'Foreign prospect marked paid',
+    domain: 'revenue',
+    state: 'done',
+    owner: 'other-sales',
+    metadata: { stage: 'won', paymentStatus: 'paid' },
+    evidence: [{ type: 'payment', id: 'not-this-lead' }],
+    createdAt: NOW,
+    updatedAt: NOW
+  });
+  const disguisedSidecar = {
+    ...workItemToRuntimeSidecar(current),
+    // Outer task ID matches, but its embedded work item belongs to someone else.
+    runtimeWorkItemJson: JSON.stringify(foreign)
+  };
+  const merged = mergeQueueRuntimeRecord({
+    id: current.id,
+    task: current.intent,
+    status: 'queued',
+    updatedAt: '2026-09-12T21:00:00.000Z'
+  }, disguisedSidecar);
+  const restored = queueRecordToWorkItem(merged);
+  const display = normalizeQueueRecordForWorkboard(merged);
+
+  assert.equal(restored.id, current.id);
+  assert.equal(restored.state, 'queued');
+  assert.equal(restored.owner, 'sales', 'use the matching envelope owner, not foreign JSON');
+  assert.notEqual(restored.title, foreign.title);
+  assert.notEqual(restored.metadata.stage, 'won');
+  assert.notEqual(restored.metadata.paymentStatus, 'paid');
+  assert.equal(display.status, 'queued');
+  assert.notEqual(display.title, foreign.title);
+  assert.notEqual(display.owner, 'other-sales');
+});
+
 test('human checkpoints remain visible through the sidecar', () => {
   const item = createWorkItem({
     id: 'work-known-contact',
