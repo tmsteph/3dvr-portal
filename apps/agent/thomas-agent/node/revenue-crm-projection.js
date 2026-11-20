@@ -9,7 +9,10 @@ function projectionPeer(options = {}) {
     if (!relay) throw new Error('Isolated CRM relay requires an explicit loopback URL');
     let parsed;
     try { parsed = new URL(relay); } catch { throw new Error('Invalid isolated CRM relay URL'); }
-    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+    // Do not trust hostname aliases such as localhost: host resolution can point
+    // outside this process/container. An isolated test peer must be a literal
+    // loopback address, matching the disabled legacy worker E2E guard.
+    const loopback = ['127.0.0.1', '[::1]'].includes(parsed.hostname);
     const allowedProtocol = ['ws:', 'wss:', 'http:', 'https:'].includes(parsed.protocol);
     if (!loopback || !allowedProtocol || !parsed.port || parsed.username || parsed.password
       || !['/gun', '/gun/'].includes(parsed.pathname) || parsed.search || parsed.hash) {
@@ -118,6 +121,11 @@ async function projectPendingCrm(db, options = {}) {
   // The isolated acceptance fence must not be bypassed by caller-supplied
   // production Gun roots. Only an explicitly injected offline test writer may
   // receive custom roots; the real writer must construct verified loopback roots.
+  if (options.isolated === true && options.write === writeCrmSync) {
+    // Passing the production-capable adapter as an injected test writer would
+    // skip relay validation and could use caller-provided remote Gun roots.
+    throw new Error('Isolated CRM projection cannot inject the real Gun writer');
+  }
   if (options.isolated === true && !options.write && options.writeOptions) {
     throw new Error('Isolated CRM projection cannot override Gun roots');
   }
