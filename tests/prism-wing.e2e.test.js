@@ -117,7 +117,13 @@ test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45
     const strafePage = await openWing(browser);
     const strafeStart = await state(strafePage);
     await strafePage.keyboard.down('KeyD');
-    await strafePage.waitForTimeout(750);
+    // WebGL simulation time can lag wall-clock time on software-rendered CI runners.
+    // Hold the key until the *observed* sideways movement reaches the same
+    // threshold, rather than releasing it after an arbitrary 750 ms.
+    await strafePage.waitForFunction(startX => {
+      const current = window.__prismWingDebug.getState();
+      return current.strafe > .5 && Math.abs(current.position.x-startX) > .45;
+    }, strafeStart.position.x, { timeout: 8_000 });
     await strafePage.keyboard.up('KeyD');
     const strafed = await state(strafePage);
     assert.ok(Math.abs(strafed.position.x-strafeStart.position.x) > .45, 'D should move the ship sideways');
