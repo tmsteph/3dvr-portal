@@ -87,7 +87,9 @@ export function workItemStateFromQueueRecord(record = {}) {
     // status we cannot interpret; mark it blocked for manual inspection.
     return QUEUE_STATUS_TO_STATE[status] || 'blocked';
   }
-  return text(record.runtimeState, 80) || 'queued';
+  // Missing queue status is not a worker receipt. A sidecar alone must
+  // never turn a partial/legacy latest record into a completed task.
+  return 'blocked';
 }
 
 export function workItemToAgentQueueRecord(input = {}, overrides = {}) {
