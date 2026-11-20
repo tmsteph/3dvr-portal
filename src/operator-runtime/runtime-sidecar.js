@@ -42,6 +42,11 @@ export function workItemToRuntimeSidecar(input = {}, overrides = {}) {
 
 export function mergeQueueRuntimeRecord(queueRecord = {}, runtimeRecord = {}) {
   if (!runtimeRecord || typeof runtimeRecord !== 'object') return { ...queueRecord };
+  // A sidecar for another task cannot supply workflow, evidence, or CRM context
+  // for this queue item. Preserve legacy records with a missing identity.
+  const queueId = text(queueRecord.id, 240);
+  const runtimeId = text(runtimeRecord.id, 240);
+  if (queueId && runtimeId && queueId !== runtimeId) return { ...queueRecord };
   return {
     ...queueRecord,
     ...runtimeRecord,
