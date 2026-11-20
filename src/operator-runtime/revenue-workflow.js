@@ -75,6 +75,13 @@ export function createRevenueLeadWorkItem(input = {}) {
   const title = input.title || `Revenue opportunity${leadName ? ` · ${leadName}` : ''}`;
   const now = input.now || new Date().toISOString();
 
+  // No trusted payment-provider adapter exists to authenticate a won result.
+  // A freshly constructed item must not bypass the payment_received guard by
+  // claiming a paid stage directly; historical paid imports need verification.
+  if (input.stage === 'won') {
+    throw new TypeError('won revenue stage requires an authenticated payment provider adapter');
+  }
+
   return createWorkItem({
     id: input.id,
     title,
