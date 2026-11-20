@@ -14,7 +14,7 @@
 <style>
 :root{font-family:Inter,Arial,sans-serif;color:#f7f7f8;background:#09090a;color-scheme:dark;--muted:#bcbcc3}
 *{box-sizing:border-box} body{margin:0;min-width:0;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(16px,4vw,56px);background:radial-gradient(ellipse at 50% 2%,#26262a 0%,#121214 43%,#09090a 74%)}
-main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:grid;grid-template-rows:1fr auto auto;min-height:clamp(470px,73svh,740px);overflow:hidden;border:1px solid #bfbfc336;border-radius:clamp(20px,4vw,42px);background:linear-gradient(147deg,#252528,#121214 46%,#18181c);box-shadow:0 28px 85px #0009,inset 0 1px 0 #ffffff15}
+main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:grid;grid-template-rows:auto 1fr auto auto;min-height:clamp(470px,73svh,740px);overflow:hidden;border:1px solid #bfbfc336;border-radius:clamp(20px,4vw,42px);background:linear-gradient(147deg,#252528,#121214 46%,#18181c);box-shadow:0 28px 85px #0009,inset 0 1px 0 #ffffff15}
 .shell::before{content:"";position:absolute;z-index:-1;inset:0;background:repeating-linear-gradient(0deg,transparent 0 37px,#f5f5ff06 38px 39px),repeating-linear-gradient(90deg,transparent 0 37px,#f5f5ff06 38px 39px);mask-image:radial-gradient(ellipse at 46% 60%,#000,transparent 68%);pointer-events:none}
 .shell::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse 92% 82% at 50% 42%,transparent 54%,rgba(0,0,0,.16) 78%,rgba(0,0,0,.44) 100%)}
 .bottom{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:clamp(16px,3vw,34px);font-size:.68rem;font-weight:700;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
@@ -28,7 +28,7 @@ main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:
 .logo-slot img{display:block;width:100%;height:auto;}
 .bottom{border-top:1px solid #ededff17;background:#10101270;backdrop-filter:blur(12px)}
 .bottom span:last-child{text-align:right}.bottom a{color:inherit;text-underline-offset:.2em}.bottom a:focus-visible{outline:2px solid white;outline-offset:3px}
-.score{margin-top:26px;padding:.55em 1.05em;border:1px solid #e5e5ef37;border-radius:999px;background:#2424289c;font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);opacity:0;transform:scale(.8);visibility:hidden;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35),visibility 0s linear .25s}
+.score{justify-self:center;margin-top:20px;padding:.55em 1.05em;border:1px solid #e5e5ef37;border-radius:999px;background:#2424289c;font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);opacity:0;transform:scale(.8);visibility:hidden;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35),visibility 0s linear .25s}
 .score.on{opacity:1;transform:scale(1);visibility:visible;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35)}
 .score b{color:#fff;font-variant-numeric:tabular-nums;margin-inline-start:.45em}
 nav:not([hidden]){display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:0 12px 24px}
@@ -41,9 +41,9 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
 </head>
 <body>
 <main><section class="shell" aria-labelledby="title">
+<div class="score" id="score">Score<b id="score-n">0</b></div>
 <div class="hero">
 <div class="logo-slot" id="logo-slot" tabindex="0" role="button" aria-label="Ape Frequency logo. Press it."><h1 class="sr-only" id="title">Ape Frequency</h1><img src="ape-frequency-wordmark-alpha.webp" width="1600" height="1200" alt="" draggable="false"></div>
-<div class="score" id="score">Score<b id="score-n">0</b></div>
 </div>
 <nav aria-label="Ape Frequency social accounts">
 <a href="https://www.youtube.com/@ApeFrequency">YouTube</a>
