@@ -6,6 +6,7 @@ import { createWorkItem } from '../src/operator-runtime/work-item.js';
 import {
   normalizeQueueRecordForWorkboard,
   queueRecordToWorkItem,
+  workItemStateFromQueueRecord,
   workItemToAgentQueueRecord,
   workItemToQueueSummary
 } from '../src/operator-runtime/task-queue-adapter.js';
@@ -110,6 +111,23 @@ test('queued worker record cannot inherit a stale completed or failed runtime st
   const ready = workItemToAgentQueueRecord({ ...base, state: 'ready' });
   assert.equal(queueRecordToWorkItem(ready).state, 'ready');
   assert.equal(normalizeQueueRecordForWorkboard(ready).status, 'ready');
+});
+
+test('unknown worker status cannot inherit stale successful runtime sidecar', () => {
+  const work = sampleWorkItem();
+  const completedSidecar = workItemToRuntimeSidecar({ ...work, state: 'done' });
+  const unknownQueue = mergeQueueRuntimeRecord({
+    id: work.id,
+    task: work.intent,
+    status: 'worker-status-not-recognized',
+    updatedAt: '2026-09-12T21:00:00.000Z'
+  }, completedSidecar);
+
+  assert.equal(workItemStateFromQueueRecord(unknownQueue), 'blocked');
+  assert.equal(queueRecordToWorkItem(unknownQueue).state, 'blocked');
+  assert.equal(normalizeQueueRecordForWorkboard(unknownQueue).status, 'blocked');
+  // Legacy sidecar-only snapshots with no queue status retain their state.
+  assert.equal(workItemStateFromQueueRecord({ runtimeState: 'done' }), 'done');
 });
 
 test('runtime sidecar with a different task ID cannot contaminate CRM work attribution', () => {
