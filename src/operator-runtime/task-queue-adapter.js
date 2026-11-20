@@ -81,7 +81,12 @@ export function workItemStateFromQueueRecord(record = {}) {
     // Preserve 'ready' because both ready and queued serialize as queued.
     return text(record.runtimeState, 80) === 'ready' ? 'ready' : 'queued';
   }
-  if (status) return QUEUE_STATUS_TO_STATE[status] || text(record.runtimeState, 80) || 'queued';
+  if (status) {
+    // An unknown worker status is not a successful completion receipt.
+    // Never fall back to a stale sidecar's done/running state for a queue
+    // status we cannot interpret; mark it blocked for manual inspection.
+    return QUEUE_STATUS_TO_STATE[status] || 'blocked';
+  }
   return text(record.runtimeState, 80) || 'queued';
 }
 
