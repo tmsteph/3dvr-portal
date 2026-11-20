@@ -92,6 +92,17 @@ export function workItemStateFromQueueRecord(record = {}) {
   return 'blocked';
 }
 
+// Gun map keys are the queue's routing identity. A value advertising a
+// different task ID must never be rendered under that key (or joined to its
+// CRM/runtime sidecar). Legacy values lacking an inner ID can use the key.
+export function queueRecordForMapKey(record = {}, mapKey = '') {
+  const key = text(mapKey, 240);
+  if (!key || !record || typeof record !== 'object' || Array.isArray(record)) return null;
+  const advertisedId = text(record.id, 240);
+  if (advertisedId && advertisedId !== key) return null;
+  return { ...record, id: key };
+}
+
 export function workItemToAgentQueueRecord(input = {}, overrides = {}) {
   const item = createWorkItem(input);
   const workerLane = text(overrides.workerLane || item.metadata?.workerLane || item.identityLease?.lane, 120);
