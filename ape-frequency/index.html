@@ -17,12 +17,12 @@
 main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:grid;grid-template-rows:auto 1fr auto auto;min-height:clamp(470px,73svh,740px);overflow:hidden;border:1px solid #bfbfc336;border-radius:clamp(20px,4vw,42px);background:linear-gradient(147deg,#252528,#121214 46%,#18181c);box-shadow:0 28px 85px #0009,inset 0 1px 0 #ffffff15}
 .shell::before{content:"";position:absolute;z-index:-1;inset:0;background:repeating-linear-gradient(0deg,transparent 0 37px,#f5f5ff06 38px 39px),repeating-linear-gradient(90deg,transparent 0 37px,#f5f5ff06 38px 39px);mask-image:radial-gradient(ellipse at 46% 60%,#000,transparent 68%);pointer-events:none}
 .shell::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse 92% 82% at 50% 42%,transparent 54%,rgba(0,0,0,.16) 78%,rgba(0,0,0,.44) 100%)}
-.bottom{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:clamp(16px,3vw,34px);font-size:.68rem;font-weight:700;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:clamp(16px,3vw,34px);font-size:.68rem;font-weight:700;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 .led{width:7px;height:7px;display:inline-block;vertical-align:middle;border-radius:50%;background:#e5e5e9;margin-inline-end:.65em;box-shadow:0 0 10px #ffffff82}
 .hero{min-width:0;position:relative;display:grid;place-items:center;align-content:center;text-align:center;padding:0 14px;perspective:900px}
 .particle{position:absolute;border-radius:50%;pointer-events:none;z-index:5}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
-.logo-slot{position:relative;display:grid;place-items:center;width:min(100%,680px);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;border-radius:14px}
+.logo-slot{position:relative;display:grid;place-items:center;width:min(100%,680px);cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;border-radius:14px}
 .logo-slot:focus-visible{outline:2px solid white;outline-offset:5px}
 .logo-slot::before{content:"";position:absolute;z-index:-1;width:85%;height:60%;background:radial-gradient(ellipse,#fff1,transparent 67%);pointer-events:none}
 .logo-slot img{display:block;width:100%;height:auto;}
@@ -31,6 +31,31 @@ main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:
 .score{justify-self:center;margin-top:20px;padding:.55em 1.05em;border:1px solid #e5e5ef37;border-radius:999px;background:#2424289c;font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);opacity:0;transform:scale(.8);visibility:hidden;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35),visibility 0s linear .25s}
 .score.on{opacity:1;transform:scale(1);visibility:visible;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35)}
 .score b{color:#fff;font-variant-numeric:tabular-nums;margin-inline-start:.45em}
+.lb-link{appearance:none;background:none;border:0;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:.2em}
+.lb-link:focus-visible{outline:2px solid white;outline-offset:3px}
+.lb{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:18px;background:#0a0a0cd9;backdrop-filter:blur(10px)}
+.lb[hidden]{display:none}
+.lb-sheet{width:min(100%,380px);max-height:100%;overflow:auto;border:1px solid #bfbfc336;border-radius:20px;background:linear-gradient(160deg,#26262a,#141416);padding:22px;box-shadow:0 24px 60px #000a;text-align:left}
+.lb-head{display:flex;justify-content:space-between;align-items:center}
+.lb-title{font-size:.8rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.lb-close{appearance:none;background:none;border:1px solid #e5e5ef37;border-radius:999px;color:inherit;width:32px;height:32px;font-size:1.05rem;line-height:1;cursor:pointer}
+.lb-close:focus-visible{outline:2px solid white;outline-offset:2px}
+.lb-list{list-style:none;margin:12px 0 0;padding:0}
+.lb-list li{display:flex;justify-content:space-between;gap:10px;padding:.5em .35em;border-bottom:1px solid #ededff12;font-variant-numeric:tabular-nums}
+.lb-list li:last-child{border-bottom:0}
+.lb-list .rk{color:var(--muted);width:2em}
+.lb-list .nm{flex:1;letter-spacing:.22em;font-weight:700}
+.lb-list li.me{background:#ffffff10;border-radius:8px}
+.lb-empty{color:var(--muted);padding:14px 2px 2px}
+.lb-form{margin-top:16px;border-top:1px solid #ededff17;padding-top:14px}
+.lb-form p{margin:0 0 10px;color:var(--muted);font-size:.88rem}
+.lb-form p b{color:#fff}
+.lb-row{display:flex;gap:8px}
+.lb-input{flex:1;min-width:0;background:#101012;border:1px solid #e5e5ef45;border-radius:10px;color:#fff;padding:.6em .8em;font:inherit;font-weight:700;letter-spacing:.3em;text-transform:uppercase}
+.lb-input:focus-visible{outline:2px solid white;outline-offset:1px}
+.lb-save{appearance:none;border:1px solid #e5e5ef55;border-radius:10px;background:#2a2a2e;color:#fff;padding:.6em 1.1em;font:inherit;font-weight:700;cursor:pointer}
+.lb-save:disabled{opacity:.45;cursor:default}
+.lb-msg{min-height:1.2em;margin-top:8px;font-size:.82rem;color:var(--muted)}
 nav:not([hidden]){display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:0 12px 24px}
 nav a{padding:.6em .85em;color:inherit;text-decoration:none;border:1px solid #e5e5ef55;border-radius:999px;background:#252529a0;font-size:.82rem;line-height:1.5;font-weight:700;transition:background-color .18s ease,border-color .18s ease,transform .12s ease} nav a:hover{border-color:#bebec1;background:#37373b} nav a:active{transform:scale(.95)}
 nav a:focus-visible{outline:2px solid white;outline-offset:3px}
@@ -50,7 +75,22 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
 <a href="https://www.tiktok.com/@ape.frequency">TikTok</a>
 <a href="https://www.instagram.com/apefrequency/">Instagram</a>
 </nav>
-<footer class="bottom"><span><a href="https://apefrequency.com/">Current site</a></span></footer>
+<footer class="bottom"><span><button class="lb-link" id="lb-open" type="button">Leaderboard</button></span><span><a href="https://apefrequency.com/">Current site</a></span></footer>
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-labelledby="lb-title">
+<div class="lb-sheet">
+<div class="lb-head"><span class="lb-title" id="lb-title">Leaderboard</span><button class="lb-close" id="lb-close" type="button" aria-label="Close leaderboard">&times;</button></div>
+<ol class="lb-list" id="lb-list"></ol>
+<div class="lb-empty" id="lb-empty" hidden>No scores yet. Be the first.</div>
+<form class="lb-form" id="lb-form">
+<p>Your score: <b id="lb-score">0</b></p>
+<div class="lb-row">
+<input class="lb-input" id="lb-name" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC" aria-label="Your initials, three characters">
+<button class="lb-save" id="lb-save" type="submit">Save</button>
+</div>
+<div class="lb-msg" id="lb-msg"></div>
+</form>
+</div>
+</div>
 </section></main>
 <script>
 (function(){
@@ -65,22 +105,49 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
   var score = parseInt(localStorage.getItem("ape-score") || "0", 10) || 0;
   scoreN.textContent = score;
 
-  if (!reduce && window.matchMedia("(pointer: fine)").matches) {
+  if (!reduce) {
     var trx = 0, try_ = 0, crx = 0, cry = 0, raf = null;
+    var spinY = 0, velY = 0, dragRX = 0, dragging = false, lastX = 0, lastY = 0;
     function loop(){
       crx += (trx - crx) * 0.08; cry += (try_ - cry) * 0.08;
-      slot.style.transform = "rotateX(" + crx.toFixed(2) + "deg) rotateY(" + cry.toFixed(2) + "deg)";
-      if (Math.abs(trx - crx) > 0.04 || Math.abs(try_ - cry) > 0.04) { raf = requestAnimationFrame(loop); }
+      if (!dragging) {
+        spinY += velY; velY *= 0.96;
+        dragRX *= 0.88; if (Math.abs(dragRX) < 0.05) dragRX = 0;
+      }
+      slot.style.transform = "rotateX(" + (crx + dragRX).toFixed(2) + "deg) rotateY(" + (cry + (spinY % 360)).toFixed(2) + "deg)";
+      if (dragging || Math.abs(velY) > 0.02 || dragRX !== 0 || Math.abs(trx - crx) > 0.04 || Math.abs(try_ - cry) > 0.04) { raf = requestAnimationFrame(loop); }
       else { raf = null; }
     }
     function kick(){ if (!raf) raf = requestAnimationFrame(loop); }
-    shell.addEventListener("pointermove", function(e){
-      var r = shell.getBoundingClientRect();
-      try_ = ((e.clientX - r.left) / r.width - 0.5) * 9;
-      trx = -((e.clientY - r.top) / r.height - 0.5) * 8;
+    if (window.matchMedia("(pointer: fine)").matches) {
+      shell.addEventListener("pointermove", function(e){
+        if (dragging) return;
+        var r = shell.getBoundingClientRect();
+        try_ = ((e.clientX - r.left) / r.width - 0.5) * 9;
+        trx = -((e.clientY - r.top) / r.height - 0.5) * 8;
+        kick();
+      });
+      shell.addEventListener("pointerleave", function(){ trx = 0; try_ = 0; kick(); });
+    }
+    slot.addEventListener("pointerdown", function(e){
+      if (e.button !== undefined && e.button !== 0) return;
+      dragging = true; lastX = e.clientX; lastY = e.clientY; velY = 0;
+      try { slot.setPointerCapture(e.pointerId); } catch (err) {}
+      slot.style.cursor = "grabbing";
       kick();
     });
-    shell.addEventListener("pointerleave", function(){ trx = 0; try_ = 0; kick(); });
+    slot.addEventListener("pointermove", function(e){
+      if (!dragging) return;
+      var dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      spinY += dx * 0.45;
+      velY = velY * 0.6 + dx * 0.18;
+      dragRX = Math.max(-32, Math.min(32, dragRX - dy * 0.22));
+      kick();
+    });
+    function endDrag(){ if (!dragging) return; dragging = false; slot.style.cursor = ""; kick(); }
+    slot.addEventListener("pointerup", endDrag);
+    slot.addEventListener("pointercancel", endDrag);
   }
 
   var colors = ["#ffffff", "#e9e2cf", "#d8c08a"];
@@ -137,6 +204,64 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
   slot.addEventListener("pointerdown", function(e){ press(e.clientX, e.clientY); });
   slot.addEventListener("keydown", function(e){
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); press(); }
+  });
+
+  var API = "https://apefrequency.com/api/boops";
+  var lb = document.getElementById("lb");
+  var lbList = document.getElementById("lb-list");
+  var lbEmpty = document.getElementById("lb-empty");
+  var lbScore = document.getElementById("lb-score");
+  var lbName = document.getElementById("lb-name");
+  var lbMsg = document.getElementById("lb-msg");
+  var lbSave = document.getElementById("lb-save");
+  var lastRank = -1, lastName = "";
+  function renderBoard(scores){
+    lbList.innerHTML = "";
+    lbEmpty.hidden = scores.length > 0;
+    scores.forEach(function(s, i){
+      var li = document.createElement("li");
+      if (lastRank === i + 1 && s.name === lastName) li.className = "me";
+      var rk = document.createElement("span"); rk.className = "rk"; rk.textContent = (i + 1) + ".";
+      var nm = document.createElement("span"); nm.className = "nm"; nm.textContent = s.name;
+      var sc = document.createElement("span"); sc.textContent = s.score;
+      li.appendChild(rk); li.appendChild(nm); li.appendChild(sc);
+      lbList.appendChild(li);
+    });
+  }
+  function loadBoard(){
+    fetch(API, { cache: "no-store" }).then(function(r){ return r.json(); }).then(function(d){ renderBoard(d.scores || []); }).catch(function(){ lbMsg.textContent = "Could not load the board."; });
+  }
+  function openLb(){
+    lb.hidden = false;
+    lbScore.textContent = score;
+    lbMsg.textContent = score > 0 ? "" : "Press the logo to build a score first.";
+    lbSave.disabled = score < 1;
+    lastRank = -1; lastName = "";
+    loadBoard();
+    if (score > 0) lbName.focus();
+  }
+  function closeLb(){ lb.hidden = true; }
+  document.getElementById("lb-open").addEventListener("click", openLb);
+  document.getElementById("lb-close").addEventListener("click", closeLb);
+  lb.addEventListener("click", function(e){ if (e.target === lb) closeLb(); });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape" && !lb.hidden) closeLb(); });
+  lbName.addEventListener("input", function(){ lbName.value = lbName.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3); });
+  document.getElementById("lb-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var name = lbName.value;
+    if (!/^[A-Z0-9]{3}$/.test(name)) { lbMsg.textContent = "Initials are 3 letters or digits."; return; }
+    if (score < 1) { lbMsg.textContent = "Press the logo to build a score first."; return; }
+    lbSave.disabled = true;
+    fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name, score: score }) })
+      .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+      .then(function(res){
+        if (!res.ok) { lbMsg.textContent = res.d.error || "Could not save."; lbSave.disabled = false; return; }
+        lastRank = res.d.rank; lastName = name;
+        renderBoard(res.d.scores || []);
+        lbMsg.textContent = "Saved. You are #" + res.d.rank + ".";
+        lbSave.disabled = false;
+      })
+      .catch(function(){ lbMsg.textContent = "Could not save. Try again."; lbSave.disabled = false; });
   });
 })();
 </script>
