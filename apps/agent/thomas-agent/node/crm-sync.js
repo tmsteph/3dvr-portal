@@ -383,7 +383,12 @@ function buildCrmSyncPayload({
     // A later failed attempt is not evidence of a later delivered message.
     // Imported log order is not necessarily chronological, especially for replies.
     record.lastContacted = latestSend ? isoDate(latestSend.timestamp, new Date(now)) : record.lastContacted;
-    record.lastTouchType = replies.length ? 'reply-received' : 'outreach-sent';
+    // A legacy outreach-log entry is not proof a message was sent. In
+    // particular, failed-only or draft-only histories must not manufacture
+    // an outbound-send touch for the CRM funnel.
+    record.lastTouchType = replies.length ? 'reply-received'
+      : latestSend ? 'outreach-sent'
+        : normalizeLower(latest.status) === 'failed' ? 'outreach-failed' : 'note';
     record.replyCount = replies.length;
     record.lastReplyAt = latestReply?.timestamp || '';
     record.lastCampaign = normalizeText(latest.campaignId || latest.experiment || latest.experimentId);
