@@ -32,6 +32,12 @@ const productionPeer = peers.some(peer => {
 if (productionPeer) {
   throw new Error('Production relay blocked. Queue-writing E2E must use an isolated relay.');
 }
+// A non-production hostname is not proof of isolation: it could still write
+// to somebody else's staging or public relay. Require a literal loopback peer;
+// if a dedicated test server is used, terminate its SSH tunnel locally.
+if (peers.some(peer => !['127.0.0.1', '[::1]'].includes(new URL(peer).hostname))) {
+  throw new Error('Only literal loopback relays are allowed for queue-writing E2E.');
+}
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;

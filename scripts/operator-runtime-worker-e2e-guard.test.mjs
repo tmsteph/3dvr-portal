@@ -34,7 +34,12 @@ const cases = [
   { name: 'non-network peer scheme', peers: 'file:///tmp/gun-relay', expected: 'Invalid THREEDVR_GUN_PEERS URL protocol' },
   { name: 'mixed production relay list', peers: 'http://localhost:8765/gun,wss://relay.3dvr.tech/gun', expected: 'Production relay blocked' },
   { name: 'production subdomain', peers: 'https://foo.portal.3dvr.tech/gun-relay', expected: 'Production relay blocked' },
-  { name: 'invalid relay URL', peers: 'not-a-url', expected: 'Invalid THREEDVR_GUN_PEERS URL' }
+  { name: 'invalid relay URL', peers: 'not-a-url', expected: 'Invalid THREEDVR_GUN_PEERS URL' },
+  { name: 'non-production remote host is still unsafe', peers: 'https://staging.example.net/gun', expected: 'Only literal loopback relays' },
+  { name: 'private network host is not an isolated process', peers: 'http://192.168.1.2:8765/gun', expected: 'Only literal loopback relays' },
+  { name: 'DNS alias is not a literal loopback', peers: 'http://localhost:8765/gun', expected: 'Only literal loopback relays' },
+  { name: 'all-network-interfaces address is not a relay peer', peers: 'http://0.0.0.0:8765/gun', expected: 'Only literal loopback relays' },
+  { name: 'one remote peer poisons an otherwise local list', peers: 'http://127.0.0.1:8765/gun,https://staging.example.net/gun', expected: 'Only literal loopback relays' }
 ];
 
 writeFileSync(spyTarget, instrumented, { flag: 'wx' });
@@ -71,6 +76,20 @@ try {
   assert.doesNotMatch(control.stdout, /E2E_ENQUEUE_ACKNOWLEDGED=true/,
     'no enqueue acknowledgment may be reported by the spy');
   console.log('PASS isolated relay reaches transport spy (no network/queue writes)');
+  // IPv6 loopback is also a valid isolated peer.
+  const ipv6 = spawnSync(process.execPath, [spyTarget], {
+    env: {
+      ...process.env,
+      THREEDVR_GUN_PEERS: 'http://[::1]:8765/gun',
+      THREEDVR_GUN_RELAY: '',
+      OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION: 'false'
+    },
+    encoding: 'utf8',
+    timeout: 15000
+  });
+  assert.equal(ipv6.status, 1, 'IPv6 loopback must reach mocked Gun constructor');
+  assert.match(ipv6.stderr, /NETWORK_TRANSPORT_INSTANTIATED/);
+  console.log('PASS IPv6 loopback reaches transport spy (no network/queue writes)');
 } finally {
   unlinkSync(spyTarget);
 }
