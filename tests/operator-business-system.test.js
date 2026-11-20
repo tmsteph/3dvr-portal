@@ -100,6 +100,20 @@ test('fresh email requires human approval even in business hours; policy defers 
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'sms', localHour: 10 }).decision, 'approval');
 });
 
+test('revenue lead creation cannot forge a paid stage before provider verification', () => {
+  for (const input of [
+    { id: 'fake-paid-stage', stage: 'won' },
+    { id: 'fake-paid-complete', stage: 'won', state: 'done', result: { amountCents: 50000, currency: 'USD' } },
+  ]) {
+    assert.throws(() => createRevenueLeadWorkItem(input), /authenticated payment provider adapter/);
+  }
+  const awaitingPayment = createRevenueLeadWorkItem({
+    id: 'real-awaiting-payment', stage: 'payment', state: 'waiting_external'
+  });
+  assert.equal(revenueStage(awaitingPayment), 'payment');
+  assert.equal(awaitingPayment.state, 'waiting_external');
+});
+
 test('revenue workflow records sent/reply receipts but cannot claim paid without a provider adapter', () => {
   let item = createRevenueLeadWorkItem({
     id: 'lead-1',
