@@ -379,6 +379,60 @@ test('active retry cannot inherit a completed sidecar payment stage or evidence'
   assert.equal(normalizeQueueRecordForWorkboard(completed).evidenceCount, 1);
 });
 
+test('a failed or cancelled retry cannot inherit an older paid terminal sidecar', () => {
+  const lead = sampleWorkItem();
+  const previousPaid = workItemToRuntimeSidecar({
+    ...lead,
+    state: 'done',
+    metadata: { stage: 'won', paymentStatus: 'paid', lastEvent: 'payment_received' },
+    evidence: [{ type: 'provider_payment', id: 'previous-attempt-only' }]
+  });
+
+  for (const status of ['failed', 'cancelled']) {
+    const current = mergeQueueRuntimeRecord({
+      id: lead.id,
+      task: lead.intent,
+      status,
+      error: status === 'failed' ? 'Current attempt failed' : '',
+      resultSummary: 'Old invoice paid',
+      evidenceCount: 1,
+      updatedAt: '2026-09-12T23:30:00.000Z'
+    }, previousPaid);
+    const item = queueRecordToWorkItem(current);
+    const display = normalizeQueueRecordForWorkboard(current);
+
+    assert.equal(item.state, status, status);
+    assert.equal(item.result, null, status);
+    assert.deepEqual(item.evidence, [], status);
+    assert.equal(item.metadata.stage, undefined, status);
+    assert.equal(item.metadata.paymentStatus, undefined, status);
+    assert.equal(item.metadata.lastEvent, undefined, status);
+    assert.equal(display.evidenceCount, 0, status);
+    assert.equal(display.resultSummary, '', status);
+    if (status === 'failed') assert.equal(display.error, 'Current attempt failed');
+  }
+
+  // A new successful attempt must not inherit an old failed sidecar either.
+  const previousFailure = workItemToRuntimeSidecar({
+    ...lead, state: 'failed', metadata: { lastEvent: 'old_failure' },
+    evidence: [{ type: 'error', id: 'old-attempt' }]
+  });
+  const newCompletion = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, status: 'completed',
+    resultSummary: 'Fresh worker completion',
+    updatedAt: '2026-09-12T23:31:00.000Z'
+  }, previousFailure);
+  assert.equal(queueRecordToWorkItem(newCompletion).result, 'Fresh worker completion');
+  assert.equal(queueRecordToWorkItem(newCompletion).metadata.lastEvent, undefined);
+  assert.deepEqual(queueRecordToWorkItem(newCompletion).evidence, []);
+
+  // A matching terminal sidecar is still inspectable as unverified metadata.
+  const matching = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, status: 'completed', resultSummary: 'New result'
+  }, previousPaid);
+  assert.equal(queueRecordToWorkItem(matching).metadata.stage, 'won');
+});
+
 test('human checkpoints remain visible through the sidecar', () => {
   const item = createWorkItem({
     id: 'work-known-contact',
