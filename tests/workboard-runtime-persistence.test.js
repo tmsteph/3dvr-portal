@@ -245,8 +245,35 @@ test('unknown worker status cannot inherit stale successful runtime sidecar', ()
   assert.equal(workItemStateFromQueueRecord(unknownQueue), 'blocked');
   assert.equal(queueRecordToWorkItem(unknownQueue).state, 'blocked');
   assert.equal(normalizeQueueRecordForWorkboard(unknownQueue).status, 'blocked');
-  // Legacy sidecar-only snapshots with no queue status retain their state.
-  assert.equal(workItemStateFromQueueRecord({ runtimeState: 'done' }), 'done');
+  // A missing queue status is also not a completion receipt.
+  assert.equal(workItemStateFromQueueRecord({ runtimeState: 'done' }), 'blocked');
+});
+
+test('partial worker latest without status cannot inherit stale sidecar success', () => {
+  const lead = sampleWorkItem();
+  const paidSidecar = workItemToRuntimeSidecar({
+    ...lead, state: 'done', result: { summary: 'Prior invoice paid' },
+    metadata: { stage: 'won' }
+  });
+  const merged = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, updatedAt: '2026-09-12T22:15:00.000Z',
+    resultSummary: 'Prior invoice paid'
+    // status deliberately missing: no authoritative queue completion
+  }, paidSidecar);
+  assert.equal(merged.status, 'blocked');
+  assert.equal(queueRecordToWorkItem(merged).state, 'blocked');
+  assert.equal(queueRecordToWorkItem(merged).result, null);
+  const shown = normalizeQueueRecordForWorkboard(merged);
+  assert.equal(shown.status, 'blocked');
+  assert.equal(shown.resultSummary, '');
+
+  // A real queue terminal event remains sufficient for status display.
+  const confirmed = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, status: 'completed',
+    resultSummary: 'Current worker completed', updatedAt: '2026-09-12T22:16:00.000Z'
+  }, paidSidecar);
+  assert.equal(queueRecordToWorkItem(confirmed).state, 'done');
+  assert.equal(normalizeQueueRecordForWorkboard(confirmed).resultSummary, 'Current worker completed');
 });
 
 test('runtime sidecar with a different task ID cannot contaminate CRM work attribution', () => {
