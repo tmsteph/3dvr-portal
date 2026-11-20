@@ -49,6 +49,8 @@ jobs:
                 [ -f "$key" ] || continue
                 if metrics="$(ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' <<'REMOTE'
           set -euo pipefail
+          # Differentiate a reached SSH session from SSH/auth failures on probe exit.
+          printf '3dvr_remote_session=connected\n'
           if [ -f /usr/local/sbin/3dvr-cloud-reliability-health ]; then
             # The probe must not consume the remaining bash -s script over SSH.
             # Its JSON result goes to stderr; metrics are emitted on stdout below.
@@ -116,10 +118,17 @@ jobs:
 
                   echo "$name healthy via $user@$host"
                   return 0
+                else
+                  # The remote script can exit nonzero after SSH succeeded (e.g. D-state
+                  # processes). That is NOT an authentication or connectivity failure.
+                  if grep -Fxq "3dvr_remote_session=connected" <<<"$metrics"; then
+                    echo "::error::$name SSH succeeded via $user@$host, but remote health probe failed"
+                    return 2
+                  fi
                 fi
               done
             done
-            echo "::error::$name is unreachable or critically resource constrained ($host)"
+            echo "::error::$name could not establish a working SSH session ($host)"
             return 1
           }
 
