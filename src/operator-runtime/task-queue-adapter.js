@@ -213,23 +213,29 @@ export function queueRecordToWorkItem(record = {}) {
   // workerDeviceId in the queue must not attribute the new attempt to the
   // worker that handled an earlier run.
   const unclaimed = queueState === 'queued' || queueState === 'ready';
+  // A retried task must not inherit a terminal sidecar's past payment stage,
+  // completed evidence, or other attempt-specific business metadata. The
+  // canonical CRM remains the place for historical, independently verified facts.
+  const staleTerminalSidecar = ['done', 'failed', 'cancelled'].includes(text(record.runtimeState, 80))
+    && !['done', 'failed', 'cancelled'].includes(queueState);
 
   return createWorkItem({
     ...source,
     id: text(record.id, 240) || source.id,
     state: queueState,
+    evidence: staleTerminalSidecar ? [] : source.evidence,
     updatedAt: text(record.updatedAt, 80) || source.updatedAt,
     // A completed queue status alone does not authenticate a prior sidecar's
     // result. Only the worker's current queue summary may be displayed as the
     // current completion result; an empty worker summary must stay empty.
     result: completed ? (text(record.resultSummary, 2000) || null) : null,
     metadata: {
-      ...(source.metadata || {}),
+      ...(staleTerminalSidecar ? {} : (source.metadata || {})),
       queueStatus: text(record.status, 80),
       workerLane: text(record.workerLane, 120) || source.metadata?.workerLane || '',
       verificationStatus: text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
       humanCheckpointStatus: text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required',
-      evidenceCount: Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0,
+      evidenceCount: staleTerminalSidecar ? 0 : (Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0),
       workerDeviceId: unclaimed ? '' : text(record.workerDeviceId, 200)
     }
   });
