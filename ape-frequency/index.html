@@ -3,45 +3,120 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
+<link rel="canonical" href="https://apefrequency.com/">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="Ape Frequency. Find the latest on YouTube, TikTok, and Instagram.">
 <title>Ape Frequency | Site Preview</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{font-family:Inter,Arial,sans-serif;color:#f7f7f8;background:#09090a;color-scheme:dark;--muted:#bcbcc3}
 *{box-sizing:border-box} body{margin:0;min-width:0;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(16px,4vw,56px);background:radial-gradient(ellipse at 50% 2%,#26262a 0%,#121214 43%,#09090a 74%)}
-main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:grid;grid-template-rows:auto 1fr auto auto;min-height:clamp(470px,73svh,740px);overflow:hidden;border:1px solid #bfbfc336;border-radius:clamp(20px,4vw,42px);background:linear-gradient(147deg,#252528,#121214 46%,#18181c);box-shadow:0 28px 85px #0009,inset 0 1px 0 #ffffff15}
+main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:grid;grid-template-rows:1fr auto auto;min-height:clamp(470px,73svh,740px);overflow:hidden;border:1px solid #bfbfc336;border-radius:clamp(20px,4vw,42px);background:linear-gradient(147deg,#252528,#121214 46%,#18181c);box-shadow:0 28px 85px #0009,inset 0 1px 0 #ffffff15}
 .shell::before{content:"";position:absolute;z-index:-1;inset:0;background:repeating-linear-gradient(0deg,transparent 0 37px,#f5f5ff06 38px 39px),repeating-linear-gradient(90deg,transparent 0 37px,#f5f5ff06 38px 39px);mask-image:radial-gradient(ellipse at 46% 60%,#000,transparent 68%);pointer-events:none}
-.top,.bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:clamp(16px,3vw,34px);font-size:.68rem;font-weight:700;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-.top{align-self:start}.top img{width:clamp(65px,12vw,100px);height:auto;display:block;mix-blend-mode:screen}.badge{padding:.65em .9em;border:1px solid #e5e5ef37;border-radius:999px;background:#2424289c;backdrop-filter:blur(12px)}
+.shell::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse 92% 82% at 50% 42%,transparent 54%,rgba(0,0,0,.16) 78%,rgba(0,0,0,.44) 100%)}
+.bottom{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:clamp(16px,3vw,34px);font-size:.68rem;font-weight:700;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 .led{width:7px;height:7px;display:inline-block;vertical-align:middle;border-radius:50%;background:#e5e5e9;margin-inline-end:.65em;box-shadow:0 0 10px #ffffff82}
-.hero{min-width:0;position:relative;display:grid;place-items:center;align-content:center;text-align:center;padding:0 14px}
+.hero{min-width:0;position:relative;display:grid;place-items:center;align-content:center;text-align:center;padding:0 14px;perspective:900px}
+.particle{position:absolute;border-radius:50%;pointer-events:none;z-index:5}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
-.logo-slot{position:relative;display:grid;place-items:center;width:min(100%,680px)}
+.logo-slot{position:relative;display:grid;place-items:center;width:min(100%,680px);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;border-radius:14px}
+.logo-slot:focus-visible{outline:2px solid white;outline-offset:5px}
 .logo-slot::before{content:"";position:absolute;z-index:-1;width:85%;height:60%;background:radial-gradient(ellipse,#fff1,transparent 67%);pointer-events:none}
-.logo-slot img{display:block;width:100%;height:auto;mix-blend-mode:screen}
+.logo-slot img{display:block;width:100%;height:auto;}
 .bottom{border-top:1px solid #ededff17;background:#10101270;backdrop-filter:blur(12px)}
 .bottom span:last-child{text-align:right}.bottom a{color:inherit;text-underline-offset:.2em}.bottom a:focus-visible{outline:2px solid white;outline-offset:3px}
-nav:not([hidden]){display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:0 18px 24px}
-nav a{padding:.65em 1em;color:inherit;text-decoration:none;border:1px solid #e5e5ef55;border-radius:999px;background:#252529a0;font-size:.875rem;line-height:1.5;font-weight:700;transition:background-color .18s ease,border-color .18s ease} nav a:hover{border-color:#bebec1;background:#37373b}
+nav:not([hidden]){display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:0 12px 24px}
+nav a{padding:.6em .85em;color:inherit;text-decoration:none;border:1px solid #e5e5ef55;border-radius:999px;background:#252529a0;font-size:.82rem;line-height:1.5;font-weight:700;transition:background-color .18s ease,border-color .18s ease,transform .12s ease} nav a:hover{border-color:#bebec1;background:#37373b} nav a:active{transform:scale(.95)}
 nav a:focus-visible{outline:2px solid white;outline-offset:3px}
 @media(prefers-reduced-motion:no-preference){.logo-slot::before{animation:breathe 5s ease-in-out infinite alternate}@keyframes breathe{from{opacity:.34;transform:scale(.9)}to{opacity:.82;transform:scale(1.05)}}}
 @media(prefers-reduced-motion:reduce){nav a{transition:none}}
-@media(max-width:370px){.top,.bottom{letter-spacing:.09em;font-size:.63rem}.hero{padding-inline:8px}}
+@media(max-width:370px){.bottom{letter-spacing:.09em;font-size:.63rem}.hero{padding-inline:8px}}
 </style>
 </head>
 <body>
 <main><section class="shell" aria-labelledby="title">
-<header class="top"><img src="ape-frequency-mark.jpg" width="2048" height="683" alt=""><span class="badge">Design preview</span></header>
 <div class="hero">
-<div class="logo-slot"><h1 class="sr-only" id="title">Ape Frequency</h1><img src="ape-frequency-wordmark.jpg" width="1600" height="1200" alt=""></div>
+<div class="logo-slot" id="logo-slot" tabindex="0" role="button" aria-label="Ape Frequency logo. Press it."><h1 class="sr-only" id="title">Ape Frequency</h1><img src="ape-frequency-wordmark-alpha.webp" width="1600" height="1200" alt="" draggable="false"></div>
 </div>
 <nav aria-label="Ape Frequency social accounts">
 <a href="https://www.youtube.com/@ApeFrequency">YouTube</a>
 <a href="https://www.tiktok.com/@ape.frequency">TikTok</a>
 <a href="https://www.instagram.com/apefrequency/">Instagram</a>
 </nav>
-<footer class="bottom"><span>Ape Frequency</span><span><a href="https://apefrequency.com/">Current site</a></span></footer>
+<footer class="bottom"><span><a href="https://apefrequency.com/">Current site</a></span></footer>
 </section></main>
+<script>
+(function(){
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var slot = document.getElementById("logo-slot");
+  var img = slot.querySelector("img");
+  var hero = document.querySelector(".hero");
+  var shell = document.querySelector(".shell");
+  var pressAnim = null;
+
+  if (!reduce && window.matchMedia("(pointer: fine)").matches) {
+    var trx = 0, try_ = 0, crx = 0, cry = 0, raf = null;
+    function loop(){
+      crx += (trx - crx) * 0.08; cry += (try_ - cry) * 0.08;
+      slot.style.transform = "rotateX(" + crx.toFixed(2) + "deg) rotateY(" + cry.toFixed(2) + "deg)";
+      if (Math.abs(trx - crx) > 0.04 || Math.abs(try_ - cry) > 0.04) { raf = requestAnimationFrame(loop); }
+      else { raf = null; }
+    }
+    function kick(){ if (!raf) raf = requestAnimationFrame(loop); }
+    shell.addEventListener("pointermove", function(e){
+      var r = shell.getBoundingClientRect();
+      try_ = ((e.clientX - r.left) / r.width - 0.5) * 9;
+      trx = -((e.clientY - r.top) / r.height - 0.5) * 8;
+      kick();
+    });
+    shell.addEventListener("pointerleave", function(){ trx = 0; try_ = 0; kick(); });
+  }
+
+  var colors = ["#ffffff", "#e9e2cf", "#d8c08a"];
+  function burst(x, y, n){
+    if (reduce) return;
+    var hr = hero.getBoundingClientRect();
+    for (var i = 0; i < n; i++) {
+      var p = document.createElement("span");
+      p.className = "particle";
+      var s = 2 + Math.random() * 2.5;
+      p.style.width = s + "px"; p.style.height = s + "px";
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.boxShadow = "0 0 6px rgba(255,255,255,.5)";
+      p.style.left = (x - hr.left) + "px"; p.style.top = (y - hr.top) + "px";
+      hero.appendChild(p);
+      var dx = (Math.random() - 0.5) * 90;
+      var dy = -(34 + Math.random() * 70);
+      var anim = p.animate([
+        { transform: "translate(-50%,-50%) scale(1)", opacity: 0.95 },
+        { transform: "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(0.4)", opacity: 0 }
+      ], { duration: 900 + Math.random() * 500, easing: "cubic-bezier(.22,.61,.36,1)" });
+      anim.onfinish = (function(el){ return function(){ el.remove(); }; })(p);
+    }
+  }
+
+  function press(x, y){
+    if (!reduce) {
+      if (pressAnim) pressAnim.cancel();
+      pressAnim = img.animate([
+        { transform: "scale(1)" },
+        { transform: "scale(0.978)", offset: 0.3 },
+        { transform: "scale(1.006)", offset: 0.68 },
+        { transform: "scale(1)" }
+      ], { duration: 480, easing: "cubic-bezier(.22,.9,.28,1)" });
+    }
+    var r = slot.getBoundingClientRect();
+    burst(x || (r.left + r.width / 2), y || (r.top + r.height / 2), 5);
+  }
+
+  slot.addEventListener("pointerdown", function(e){ press(e.clientX, e.clientY); });
+  slot.addEventListener("keydown", function(e){
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); press(); }
+  });
+})();
+</script>
 </body>
 </html>
