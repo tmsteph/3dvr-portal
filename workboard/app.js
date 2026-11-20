@@ -31,7 +31,7 @@ const filterCopy = {
   focus: ['FOCUS', 'Needs you + active work'],
   inbox: ['QUEUE', 'Waiting to start'],
   review: ['NEEDS YOU', 'Decisions and review'],
-  done: ['DONE', 'Recently completed'],
+  done: ['FINISHED', 'Completed, closed or cancelled'],
   all: ['ALL WORK', 'Everything in one place']
 };
 
@@ -168,8 +168,8 @@ function updateEmptyState(filter) {
     title.textContent = 'You are all caught up.';
     copy.textContent = 'No decisions are waiting on you.';
   } else if (filter === 'done') {
-    title.textContent = 'No completed work yet.';
-    copy.textContent = 'Finished work will collect here.';
+    title.textContent = 'No finished work yet.';
+    copy.textContent = 'Terminal work will collect here with its actual outcome.';
   } else {
     title.textContent = 'No work to show.';
     copy.textContent = 'Queue something above to get moving.';
