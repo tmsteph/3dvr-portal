@@ -431,3 +431,38 @@ test('CRM contact and reply dates follow actual event times, not failed attempts
   assert.equal(record.status, 'Warm - Discovery');
   assert.equal(record.lastDeliveryStatus, 'failed', 'latest event status is still visible separately');
 });
+
+
+test('failed-only and draft-only outreach history never fabricates a sent contact', () => {
+  const failedLead = {
+    name: 'Synthetic Failure', link: 'https://failed-only.example',
+    contact: 'mailto:owner@failed-only.example', status: 'failed', date: '2026-11-19',
+  };
+  assert.equal(
+    buildCrmRecord(failedLead, { now: '2026-11-19T12:00:00.000Z' }).lastContacted,
+    '',
+    'failed delivery is not proof the prospect was contacted'
+  );
+  for (const [status, expectedTouch] of [
+    ['failed', 'outreach-failed'],
+    ['draft', 'note'],
+  ]) {
+    const payload = buildCrmSyncPayload({
+      leads: [{ ...failedLead, status: 'new' }],
+      outreach: [{
+        name: failedLead.name, contact: failedLead.contact,
+        status, timestamp: '2026-11-19T12:00:00.000Z',
+        subject: 'Unsent synthetic message',
+      }],
+      now: '2026-11-19T12:01:00.000Z',
+    });
+    assert.equal(payload.records.length, 1);
+    assert.equal(payload.records[0].lastContacted, '', status);
+    assert.equal(payload.records[0].lastTouchType, expectedTouch, status);
+    assert.equal(payload.records[0].replyCount, 0, status);
+    assert.equal(
+      payload.touches.filter(touch => touch.touchType === 'outreach-sent').length,
+      0, status + ' cannot become an acknowledged send'
+    );
+  }
+});
