@@ -1,5 +1,5 @@
 import { queueCodeChange } from '../operator/forge.js';
-import { normalizeQueueRecordForWorkboard } from '../src/operator-runtime/task-queue-adapter.js';
+import { normalizeQueueRecordForWorkboard, queueRecordForMapKey } from '../src/operator-runtime/task-queue-adapter.js';
 import { mergeQueueRuntimeRecord } from '../src/operator-runtime/runtime-sidecar.js';
 import { laneFor, friendlyStatus } from '../src/operator-runtime/workboard-status.js';
 
@@ -228,8 +228,16 @@ function syncAgentQueueItem(id) {
     render();
     return;
   }
+  // Reject a value filed under another task's map key, rather than
+  // showing its prospect/CRM context under the wrong task.
+  const keyedLatest = queueRecordForMapKey(latest, id);
+  if (!keyedLatest) {
+    records.delete(key);
+    render();
+    return;
+  }
   const runtime = agentQueueRuntime.get(id) || {};
-  const merged = mergeQueueRuntimeRecord(latest, runtime);
+  const merged = mergeQueueRuntimeRecord(keyedLatest, runtime);
   records.set(key, {
     id,
     kind: 'agent-task',
