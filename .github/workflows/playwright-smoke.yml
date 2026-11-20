@@ -73,3 +73,6 @@ jobs:
 
       - name: Run private Cell mobile browser check
         run: node --test tests/cell-private.e2e.test.js
+
+      - name: Check Ape Frequency preview at phone and desktop widths
+        run: node --test tests/ape-frequency-preview.e2e.test.js
