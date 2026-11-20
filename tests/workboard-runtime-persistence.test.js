@@ -177,6 +177,31 @@ test('non-completed worker states cannot display old successful or paid results'
   assert.equal(normalizeQueueRecordForWorkboard(confirmed).resultSummary, 'New worker completion');
 });
 
+test('completed worker record without a current result cannot revive a previous paid sidecar', () => {
+  const lead = sampleWorkItem();
+  const oldSidecar = workItemToRuntimeSidecar({
+    ...lead,
+    state: 'done',
+    result: { summary: 'Earlier paid invoice that does not belong to this completion' }
+  });
+
+  // Worker finished the current attempt but supplied no result summary. The
+  // stale sidecar is still joined; it is not evidence of this completion.
+  const current = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, status: 'completed',
+    resultSummary: '',
+    updatedAt: '2026-09-12T22:00:00.000Z'
+  }, oldSidecar);
+  assert.equal(queueRecordToWorkItem(current).state, 'done');
+  assert.equal(queueRecordToWorkItem(current).result, null);
+  assert.equal(normalizeQueueRecordForWorkboard(current).resultSummary, '');
+
+  // A new summary recorded by the actual queue still surfaces normally.
+  const withWorkerReceipt = { ...current, resultSummary: 'Current worker result' };
+  assert.equal(queueRecordToWorkItem(withWorkerReceipt).result, 'Current worker result');
+  assert.equal(normalizeQueueRecordForWorkboard(withWorkerReceipt).resultSummary, 'Current worker result');
+});
+
 test('unknown worker status cannot inherit stale successful runtime sidecar', () => {
   const work = sampleWorkItem();
   const completedSidecar = workItemToRuntimeSidecar({ ...work, state: 'done' });
