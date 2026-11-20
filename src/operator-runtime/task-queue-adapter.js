@@ -166,7 +166,13 @@ export function queueRecordToWorkItem(record = {}) {
   let parsed = null;
   if (record.runtimeWorkItemJson) {
     try {
-      parsed = JSON.parse(record.runtimeWorkItemJson);
+      const candidate = JSON.parse(record.runtimeWorkItemJson);
+      // The inner work item must belong to the actual worker queue task.
+      // A matching sidecar envelope alone cannot establish that identity.
+      if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+        && text(record.id, 240) && text(candidate.id, 240) === text(record.id, 240)) {
+        parsed = candidate;
+      }
     } catch (_error) {
       parsed = null;
     }
