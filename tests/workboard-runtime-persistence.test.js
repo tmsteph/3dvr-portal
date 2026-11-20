@@ -400,6 +400,32 @@ test('human checkpoints remain visible through the sidecar', () => {
   assert.equal(display.humanCheckpointStatus, 'required');
 });
 
+test('queue approval gate overrides stale human-checkpoint sidecars', () => {
+  const lead = sampleWorkItem();
+  const staleNotRequired = workItemToRuntimeSidecar(lead, {
+    humanCheckpointStatus: 'not_required'
+  });
+  const review = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, status: 'review',
+    approvalStatus: 'required',
+    updatedAt: '2026-09-12T23:20:00.000Z'
+  }, staleNotRequired);
+  assert.equal(queueRecordToWorkItem(review).metadata.humanCheckpointStatus, 'required');
+  assert.equal(normalizeQueueRecordForWorkboard(review).humanCheckpointStatus, 'required',
+    'required queue approval cannot disappear behind a stale not_required sidecar');
+
+  const staleRequired = workItemToRuntimeSidecar({
+    ...lead, humanCheckpoint: { status: 'required' }
+  });
+  const approved = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, status: 'running',
+    approvalStatus: 'approved',
+    updatedAt: '2026-09-12T23:21:00.000Z'
+  }, staleRequired);
+  assert.equal(normalizeQueueRecordForWorkboard(approved).humanCheckpointStatus, 'approved',
+    'the current queue approval display should not be overridden by an older checkpoint');
+});
+
 test('Workboard and Operator use the shared runtime persistence bridge', async () => {
   const [workboard, template, operatorQueue, docs] = await Promise.all([
     readFile(new URL('../workboard/app.js', import.meta.url), 'utf8'),
