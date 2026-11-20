@@ -51,7 +51,9 @@ export function mergeQueueRuntimeRecord(queueRecord = {}, runtimeRecord = {}) {
     ...queueRecord,
     ...runtimeRecord,
     id: text(queueRecord.id, 240) || text(runtimeRecord.id, 240),
-    status: text(queueRecord.status, 80) || text(runtimeRecord.runtimeState, 80),
+    // Only the worker queue's own status is authoritative. A partial latest
+    // record with no status must not inherit stale sidecar success or payment.
+    status: text(queueRecord.status, 80) || 'blocked',
     task: text(queueRecord.task, 8000) || '',
     updatedAt: text(queueRecord.updatedAt, 80) || text(runtimeRecord.updatedAt, 80),
     resultSummary: text(queueRecord.resultSummary, 2000),
