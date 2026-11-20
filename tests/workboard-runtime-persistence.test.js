@@ -113,6 +113,36 @@ test('queued worker record cannot inherit a stale completed or failed runtime st
   assert.equal(normalizeQueueRecordForWorkboard(ready).status, 'ready');
 });
 
+test('a queued retry cannot display a stale paid result from an earlier attempt', () => {
+  const lead = sampleWorkItem();
+  const completed = workItemToRuntimeSidecar({
+    ...lead,
+    state: 'done',
+    result: { summary: 'Paid invoice from an earlier attempt' }
+  });
+  // Both a finished sidecar and a leftover worker result can survive a retry.
+  const queued = mergeQueueRuntimeRecord({
+    id: lead.id,
+    task: lead.intent,
+    status: 'queued',
+    resultSummary: 'Old paid invoice',
+    updatedAt: '2026-09-12T21:00:00.000Z'
+  }, completed);
+
+  assert.equal(queueRecordToWorkItem(queued).state, 'queued');
+  assert.equal(queueRecordToWorkItem(queued).result, null);
+  assert.equal(normalizeQueueRecordForWorkboard(queued).resultSummary, '');
+
+  const ready = { ...queued, status: 'ready' };
+  assert.equal(queueRecordToWorkItem(ready).result, null);
+  assert.equal(normalizeQueueRecordForWorkboard(ready).resultSummary, '');
+
+  // Do not discard a result when the authoritative worker reports completion.
+  const finished = { ...queued, status: 'completed', resultSummary: 'Worker confirmed completion' };
+  assert.equal(queueRecordToWorkItem(finished).result, 'Worker confirmed completion');
+  assert.equal(normalizeQueueRecordForWorkboard(finished).resultSummary, 'Worker confirmed completion');
+});
+
 test('unknown worker status cannot inherit stale successful runtime sidecar', () => {
   const work = sampleWorkItem();
   const completedSidecar = workItemToRuntimeSidecar({ ...work, state: 'done' });
