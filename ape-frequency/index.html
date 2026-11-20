@@ -28,11 +28,14 @@ main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:
 .logo-slot img{display:block;width:100%;height:auto;}
 .bottom{border-top:1px solid #ededff17;background:#10101270;backdrop-filter:blur(12px)}
 .bottom span:last-child{text-align:right}.bottom a{color:inherit;text-underline-offset:.2em}.bottom a:focus-visible{outline:2px solid white;outline-offset:3px}
+.score{margin-top:26px;padding:.55em 1.05em;border:1px solid #e5e5ef37;border-radius:999px;background:#2424289c;font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);opacity:0;transform:scale(.8);visibility:hidden;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35),visibility 0s linear .25s}
+.score.on{opacity:1;transform:scale(1);visibility:visible;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35)}
+.score b{color:#fff;font-variant-numeric:tabular-nums;margin-inline-start:.45em}
 nav:not([hidden]){display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:0 12px 24px}
 nav a{padding:.6em .85em;color:inherit;text-decoration:none;border:1px solid #e5e5ef55;border-radius:999px;background:#252529a0;font-size:.82rem;line-height:1.5;font-weight:700;transition:background-color .18s ease,border-color .18s ease,transform .12s ease} nav a:hover{border-color:#bebec1;background:#37373b} nav a:active{transform:scale(.95)}
 nav a:focus-visible{outline:2px solid white;outline-offset:3px}
 @media(prefers-reduced-motion:no-preference){.logo-slot::before{animation:breathe 5s ease-in-out infinite alternate}@keyframes breathe{from{opacity:.34;transform:scale(.9)}to{opacity:.82;transform:scale(1.05)}}}
-@media(prefers-reduced-motion:reduce){nav a{transition:none}}
+@media(prefers-reduced-motion:reduce){nav a{transition:none}.score{transition:none}}
 @media(max-width:370px){.bottom{letter-spacing:.09em;font-size:.63rem}.hero{padding-inline:8px}}
 </style>
 </head>
@@ -40,6 +43,7 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
 <main><section class="shell" aria-labelledby="title">
 <div class="hero">
 <div class="logo-slot" id="logo-slot" tabindex="0" role="button" aria-label="Ape Frequency logo. Press it."><h1 class="sr-only" id="title">Ape Frequency</h1><img src="ape-frequency-wordmark-alpha.webp" width="1600" height="1200" alt="" draggable="false"></div>
+<div class="score" id="score">Score<b id="score-n">0</b></div>
 </div>
 <nav aria-label="Ape Frequency social accounts">
 <a href="https://www.youtube.com/@ApeFrequency">YouTube</a>
@@ -56,6 +60,10 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
   var hero = document.querySelector(".hero");
   var shell = document.querySelector(".shell");
   var pressAnim = null;
+  var scoreEl = document.getElementById("score");
+  var scoreN = document.getElementById("score-n");
+  var score = parseInt(localStorage.getItem("ape-score") || "0", 10) || 0;
+  scoreN.textContent = score;
 
   if (!reduce && window.matchMedia("(pointer: fine)").matches) {
     var trx = 0, try_ = 0, crx = 0, cry = 0, raf = null;
@@ -98,7 +106,21 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
     }
   }
 
+  function bumpScore(){
+    score++;
+    try { localStorage.setItem("ape-score", String(score)); } catch (e) {}
+    scoreN.textContent = score;
+    scoreEl.classList.add("on");
+    if (!reduce) {
+      scoreEl.animate([
+        { transform: "scale(1)" },
+        { transform: "scale(1.14)", offset: 0.35 },
+        { transform: "scale(1)" }
+      ], { duration: 300, easing: "ease-out" });
+    }
+  }
   function press(x, y){
+    bumpScore();
     if (!reduce) {
       if (pressAnim) pressAnim.cancel();
       pressAnim = img.animate([
