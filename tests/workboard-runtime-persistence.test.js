@@ -143,6 +143,40 @@ test('a queued retry cannot display a stale paid result from an earlier attempt'
   assert.equal(normalizeQueueRecordForWorkboard(finished).resultSummary, 'Worker confirmed completion');
 });
 
+test('non-completed worker states cannot display old successful or paid results', () => {
+  const lead = sampleWorkItem();
+  const oldSuccess = workItemToRuntimeSidecar({
+    ...lead,
+    state: 'done',
+    result: { summary: 'Payment succeeded on an earlier attempt' }
+  });
+  for (const status of [
+    'queued', 'ready', 'running', 'claimed', 'verifying', 'review',
+    'waiting', 'blocked', 'failed', 'cancelled', 'unknown-worker-status'
+  ]) {
+    // A retry may be claimed or even failed before stale metadata is removed.
+    const merged = mergeQueueRuntimeRecord({
+      id: lead.id, task: lead.intent, status,
+      resultSummary: 'Old invoice paid',
+      error: status === 'failed' ? 'Worker retry failed' : '',
+      updatedAt: '2026-09-12T21:30:00.000Z'
+    }, oldSuccess);
+    const item = queueRecordToWorkItem(merged);
+    const display = normalizeQueueRecordForWorkboard(merged);
+    assert.equal(item.result, null, status);
+    assert.equal(display.resultSummary, '', status);
+    if (status === 'failed') assert.equal(display.error, 'Worker retry failed');
+  }
+  // Worker completion is the only state that may display its successful result.
+  const confirmed = mergeQueueRuntimeRecord({
+    id: lead.id, task: lead.intent, status: 'completed',
+    resultSummary: 'New worker completion',
+    updatedAt: '2026-09-12T21:40:00.000Z'
+  }, oldSuccess);
+  assert.equal(queueRecordToWorkItem(confirmed).result, 'New worker completion');
+  assert.equal(normalizeQueueRecordForWorkboard(confirmed).resultSummary, 'New worker completion');
+});
+
 test('unknown worker status cannot inherit stale successful runtime sidecar', () => {
   const work = sampleWorkItem();
   const completedSidecar = workItemToRuntimeSidecar({ ...work, state: 'done' });
