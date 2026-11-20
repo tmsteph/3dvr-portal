@@ -324,7 +324,7 @@ function buildOutreachTouch(entry, record, options = {}) {
     threadId: normalizeText(entry.threadId),
     deliveryStatus: normalizeText(entry.deliveryStatus || entry.status),
     replyStatus: normalizeText(entry.replyStatus || (status === 'replied' ? 'replied' : 'pending')),
-    nextFollowUp: normalizeText(entry.nextFollowUp),
+    nextFollowUp: record.status === 'Closed' ? '' : normalizeText(entry.nextFollowUp),
     targetUrl: normalizeText(entry.targetUrl),
     previewUrl: normalizeText(entry.previewUrl),
     recipientId: normalizeText(entry.recipientId),

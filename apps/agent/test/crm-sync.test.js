@@ -122,8 +122,9 @@ test('suppressed and closed leads cannot reopen or inherit follow-ups from histo
     assert.match(record.nextBestAction, /do not contact/i, status);
     assert.equal(record.nextFollowUp, '', status + ' cannot inherit a follow-up reminder');
     assert.equal(record.lastContacted, '', status + ' was not reopened');
-    assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 1,
-      status + ' should retain historic reply evidence without reactivating');
+    const replyTouches = payload.touches.filter(touch => touch.touchType === 'reply-received');
+    assert.equal(replyTouches.length, 1, status + ' should retain historic reply evidence');
+    assert.equal(replyTouches[0].nextFollowUp, '', status + ' cannot schedule a follow-up through a touch');
   }
 });
 
