@@ -177,6 +177,15 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
       if (isolated && crm.succeeded < 1) {
         throw new Error('Isolated acceptance incomplete: no acknowledged CRM projection');
       }
+      if (isolated) {
+        // A limited batch may acknowledge one event while leaving other
+        // scratch events pending. Do not confuse a partial CRM sync with
+        // acceptance of the complete test fixture.
+        const outstanding = db.prepare("SELECT COUNT(*) AS n FROM projection_outbox WHERE status <> 'succeeded'").get().n;
+        if (outstanding > 0) {
+          throw new Error(`Isolated acceptance incomplete: ${outstanding} unresolved CRM projection(s)`);
+        }
+      }
       const failed = inbox.errors.length || crm.failed || delivery.error;
       const finished = finishRun(db, {
         runId: started.run.id,
