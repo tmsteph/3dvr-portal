@@ -88,8 +88,9 @@ function recordFor(prospect, event, now) {
       `Canonical revenue state: ${prospect.state}`,
       prospect.source_url ? `Source: ${prospect.source_url}` : '',
     ].filter(Boolean).join(' | '),
-    // No-sending and suppression must not inherit a stale automatic reminder.
-    nextFollowUp: '',
+    // Only blocked/no-follow-up states clear obsolete reminders. Preserve a
+    // human-scheduled discovery follow-up on an open/replied CRM record.
+    ...(['sent', 'bounced', 'suppressed'].includes(prospect.state) ? { nextFollowUp: '' } : {}),
     nextBestAction,
     created: prospect.created_at,
     updated: now,
