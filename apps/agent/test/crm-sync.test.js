@@ -577,3 +577,35 @@ test('failed-only and draft-only outreach history never fabricates a sent contac
     );
   }
 });
+
+test('colliding legacy CRM slugs quarantine different buyer identities and their outreach', () => {
+  const aliceDot = {
+    name: 'Synthetic Buyer', link: 'https://synthetic-buyer.example.test',
+    contact: 'alice.smith@buyer.example.test', status: 'contacted', date: '2026-11-19',
+  };
+  const aliceDash = {
+    ...aliceDot, contact: 'alice-smith@buyer.example.test',
+    status: 'suppressed', date: '2026-11-20',
+  };
+  const independent = {
+    name: 'Independent Buyer', link: 'https://independent.example.test',
+    contact: 'owner@independent.example.test', status: 'new', date: '2026-11-20',
+  };
+  assert.equal(buildLeadId(aliceDot), buildLeadId(aliceDash),
+    'legacy slug-based IDs collide despite different valid email addresses');
+
+  const payload = buildCrmSyncPayload({
+    leads: [aliceDot, aliceDash, { ...aliceDot, date: '2026-11-21' }, independent],
+    outreach: [{
+      name: aliceDot.name, contact: aliceDot.contact,
+      timestamp: '2026-11-20T12:00:00.000Z', status: 'sent',
+      messageId: 'synthetic-not-a-provider-receipt',
+    }],
+    now: '2026-11-21T09:00:00.000Z',
+    includeAll: true,
+  });
+  assert.deepEqual(payload.identityConflicts, [buildLeadId(aliceDot)]);
+  assert.deepEqual(payload.records.map(record => record.email), ['owner@independent.example.test']);
+  assert.equal(payload.touches.length, 1, 'no colliding buyer can acquire the other buyer\'s touch history');
+  assert.equal(payload.records[0].status, 'Lead', 'unrelated buyer can still be imported');
+});
