@@ -97,7 +97,9 @@ function defaultApprovalStatus(record = {}) {
   // 'unsafe' controls the executor sandbox, not human authorization.
   // A caller cannot skip a high-risk gate by supplying 'not_required'.
   if (record.unsafe || APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass))) {
-    return status === 'approved' ? 'approved' : 'required';
+    // Preserve an explicit veto for review/audit; an agent-supplied
+    // 'approved' value is still not sufficient to run a high-risk task.
+    return ['approved', 'rejected'].includes(status) ? status : 'required';
   }
   return status || 'not_required';
 }
@@ -318,10 +320,15 @@ function canWorkerRunTask(record = {}, options = {}) {
       profile,
     };
   }
-  if (record.approvalStatus === 'required') {
+  // A human veto, pending review, or an unrecognized approval value must
+  // never become runnable merely because the task itself is low risk.
+  // Queue-normalized ordinary tasks default to 'not_required'; tolerate an
+  // absent legacy value but fail closed for every explicit non-grant.
+  const approval = normalizeText(record.approvalStatus).toLowerCase();
+  if (approval && !['not_required', 'approved'].includes(approval)) {
     return {
       ok: false,
-      reason: `approval required for ${riskClass}`,
+      reason: `approval not granted (${approval}) for ${riskClass}`,
       profile,
     };
   }
