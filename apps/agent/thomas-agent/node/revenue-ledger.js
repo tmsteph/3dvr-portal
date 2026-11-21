@@ -265,13 +265,14 @@ function findProspectByContact(db, contact) {
 }
 
 function pendingProjections(db, limit = 100) {
-  // Skip actively claimed rows *before* applying LIMIT. Otherwise two workers
-  // selecting the same bounded batch can starve fresh revenue events.
+  // Skip any prospect with an in-flight CRM write *before* LIMIT. Different
+  // events for one buyer must not race and overwrite an opt-out with old state.
   const now = new Date().toISOString();
   return db.prepare(`SELECT * FROM projection_outbox WHERE status IN ('pending','failed')
     AND NOT EXISTS (
       SELECT 1 FROM projection_claims c
-      WHERE c.projection_id = projection_outbox.id AND c.expires_at > ?
+      JOIN projection_outbox active ON active.id = c.projection_id
+      WHERE active.prospect_id = projection_outbox.prospect_id AND c.expires_at > ?
     )
     ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
       attempts ASC, updated_at ASC, created_at ASC, id ASC LIMIT ?`)
@@ -285,16 +286,22 @@ function claimProjection(db, { id } = {}) {
   const now = new Date();
   // The default CRM write timeout is 10 seconds. The longer lease allows for
   // scheduling delays; an expired claim can be reclaimed after a worker crash.
-  // This bounds concurrent writers, but an unacknowledged remote write still
-  // needs reconciliation/readback before a lease-expiry retry is fully safe.
+  // Serialize across all events for a prospect, not just the same event ID.
+  // Lease-expiry retries still need independent CRM idempotency/readback.
   const expiresAt = new Date(now.getTime() + 120000).toISOString();
   const result = db.prepare(`INSERT INTO projection_claims (projection_id, claim_token, expires_at)
     SELECT id, ?, ? FROM projection_outbox
     WHERE id = ? AND status IN ('pending','failed')
+      AND NOT EXISTS (
+        SELECT 1 FROM projection_claims c
+        JOIN projection_outbox active ON active.id = c.projection_id
+        WHERE active.prospect_id = projection_outbox.prospect_id
+          AND c.projection_id <> projection_outbox.id AND c.expires_at > ?
+      )
     ON CONFLICT(projection_id) DO UPDATE SET
       claim_token = excluded.claim_token, expires_at = excluded.expires_at
     WHERE projection_claims.expires_at <= ?`)
-    .run(token, expiresAt, projectionId, now.toISOString());
+    .run(token, expiresAt, projectionId, now.toISOString(), now.toISOString());
   return result.changes ? token : null;
 }
 
