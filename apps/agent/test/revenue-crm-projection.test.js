@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { claimProjection, createProspect, finishProjection, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { projectPendingCrm, recordFor } = require('../thomas-agent/node/revenue-crm-projection');
 test('CRM projection retries a timeout and completes idempotently', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-projection-'));
@@ -18,6 +18,45 @@ test('CRM projection retries a timeout and completes idempotently', async () => 
     assert.equal(succeeded.succeeded, 1);
     assert.equal(pendingProjections(db).length, 0);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('expired CRM claim cannot falsely acknowledge a projection without re-claiming', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-expired-claim-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, {
+      name: 'Synthetic Expired Claim', contact: 'expired@example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-expired-verified'
+    });
+    const row = pendingProjections(db)[0];
+    const expiredToken = claimProjection(db, { id: row.id });
+    assert.ok(expiredToken);
+    // Simulate clock/worker delay in a scratch database. No remote write or timer.
+    db.prepare('UPDATE projection_claims SET expires_at = ? WHERE projection_id = ?')
+      .run('2000-01-01T00:00:00.000Z', row.id);
+    assert.throws(
+      () => finishProjection(db, { id: row.id, status: 'succeeded', claimToken: expiredToken }),
+      /CRM projection claim is stale or missing/,
+      'an expired worker lease is not proof of an acknowledged CRM write'
+    );
+    assert.equal(db.prepare('SELECT status FROM projection_outbox WHERE id = ?').get(row.id).status, 'pending');
+    const reclaimedToken = claimProjection(db, { id: row.id });
+    assert.ok(reclaimedToken);
+    assert.notEqual(reclaimedToken, expiredToken);
+    assert.throws(
+      () => finishProjection(db, { id: row.id, status: 'failed', claimToken: expiredToken }),
+      /CRM projection claim is stale or missing/,
+      'old worker cannot demote the new lease owner'
+    );
+    finishProjection(db, { id: row.id, status: 'succeeded', claimToken: reclaimedToken });
+    assert.equal(db.prepare('SELECT status FROM projection_outbox WHERE id = ?').get(row.id).status, 'succeeded');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM projection_claims').get().n, 0);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('two SQLite CRM projection workers cannot write one outbox event concurrently', async () => {
