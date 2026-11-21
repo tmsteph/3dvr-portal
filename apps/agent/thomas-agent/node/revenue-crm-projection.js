@@ -1,4 +1,4 @@
-const { finishProjection, getProspect, pendingProjections } = require('./revenue-ledger');
+const { claimProjection, finishProjection, getProspect, pendingProjections } = require('./revenue-ledger');
 const { buildLeadId, writeCrmSync } = require('./crm-sync');
 
 // #3774: An isolated acceptance check must never silently fall back to the
@@ -150,8 +150,13 @@ async function projectPendingCrm(db, options = {}) {
   const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots(options));
   const rows = pendingProjections(db, options.limit || 100);
   const collidingIds = rows.length ? collidingCrmRecordIds(db) : new Set();
-  const result = { attempted: rows.length, succeeded: 0, failed: 0, errors: [] };
+  const result = { attempted: 0, succeeded: 0, failed: 0, errors: [] };
   for (const row of rows) {
+    // SELECT alone cannot reserve work. An atomic SQLite claim coordinates
+    // multiple schedulers/connections before any external Gun write begins.
+    const claimToken = claimProjection(db, { id: row.id });
+    if (!claimToken) continue;
+    result.attempted += 1;
     const prospect = getProspect(db, row.prospect_id);
     const event = db.prepare('SELECT * FROM revenue_events WHERE id = ?').get(row.event_id);
     try {
@@ -183,11 +188,11 @@ async function projectPendingCrm(db, options = {}) {
       if (response.records !== payload.records.length || response.touches !== payload.touches.length) {
         throw new Error('CRM projection missing affirmative record/touch write counts');
       }
-      finishProjection(db, { id: row.id, status: 'succeeded' });
+      finishProjection(db, { id: row.id, status: 'succeeded', claimToken });
       result.succeeded += 1;
     } catch (error) {
       const message = String(error?.message || error);
-      finishProjection(db, { id: row.id, status: 'failed', error: message });
+      finishProjection(db, { id: row.id, status: 'failed', error: message, claimToken });
       result.failed += 1;
       result.errors.push(message);
     }
