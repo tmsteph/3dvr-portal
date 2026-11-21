@@ -110,8 +110,9 @@ test('successful CRM outbox projection is terminal even when a stale retry repor
     id: row.id, status: 'succeeded', claimToken
   }), /stale or missing/, 'replaying a completed claim cannot settle again');
   const after = db.prepare('SELECT status, attempts, last_error FROM projection_outbox WHERE id = ?').get(row.id);
-  assert.deepEqual(after, { status: 'succeeded', attempts: 1, last_error: '' },
-    'late receipts cannot overwrite durable success');
+  assert.equal(after.status, 'succeeded');
+  assert.equal(after.attempts, 1, 'late receipts cannot inflate the retry count');
+  assert.equal(after.last_error, '', 'late failure cannot overwrite durable success');
   assert.equal(pendingProjections(db).length, 0, 'completed work must not be queued for replay');
   assert.throws(() => finishProjection(db, { id: 'missing', status: 'failed' }), /does not exist/);
 }));
