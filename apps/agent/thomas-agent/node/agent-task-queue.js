@@ -310,11 +310,11 @@ function canWorkerRunTask(record = {}, options = {}) {
   // Evaluate the policy at worker claim time too: legacy and imported tasks
   // may bypass enqueue normalization or carry a forged 'not_required' value.
   // This is defense in depth, NOT proof of a signed human approval receipt.
-  if ((record.unsafe || APPROVAL_REQUIRED_RISKS.has(riskClass))
+  if ((record.unsafe || options.unsafe || APPROVAL_REQUIRED_RISKS.has(riskClass))
     && record.approvalStatus !== 'approved') {
     return {
       ok: false,
-      reason: `approval required for ${record.unsafe ? 'unsafe executor' : riskClass}`,
+      reason: `approval required for ${record.unsafe || options.unsafe ? 'unsafe executor' : riskClass}`,
       profile,
     };
   }
