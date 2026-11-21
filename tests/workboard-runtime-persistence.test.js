@@ -332,6 +332,49 @@ test('runtime sidecar with a different task ID cannot contaminate CRM work attri
   assert.notEqual(display.workerLane, 'other-lane');
 });
 
+test('runtime sidecar cannot override worker queue tenant, approval, or execution policy', () => {
+  const lead = sampleWorkItem();
+  const queue = {
+    id: lead.id,
+    task: lead.intent,
+    status: 'review',
+    tenantId: 'portal:operator',
+    tenantAlias: '3dvr-managed',
+    approvalStatus: 'required',
+    riskClass: 'external_write',
+    requiredCapabilities: 'crm-read,approval',
+    requestedBy: 'authenticated-founder',
+    updatedAt: '2026-09-12T23:45:00.000Z'
+  };
+  // Stale or malformed runtime snapshots must not loosen the actual worker
+  // policy. A sidecar is only a presentation bridge, never an approval token.
+  const sidecar = {
+    ...workItemToRuntimeSidecar(lead),
+    status: 'completed',
+    task: 'Different task',
+    tenantId: 'other-tenant',
+    tenantAlias: 'other-owner',
+    approvalStatus: 'approved',
+    riskClass: 'draft',
+    requiredCapabilities: '',
+    requestedBy: 'other-person',
+    resultSummary: 'Invoice paid',
+    workerDeviceId: 'other-worker',
+    unexpectedField: 'untrusted'
+  };
+  const merged = mergeQueueRuntimeRecord(queue, sidecar);
+
+  for (const key of ['task', 'status', 'tenantId', 'tenantAlias', 'approvalStatus',
+    'riskClass', 'requiredCapabilities', 'requestedBy', 'updatedAt']) {
+    assert.equal(merged[key], queue[key], key);
+  }
+  assert.equal(merged.resultSummary, '', 'sidecar cannot fabricate a queue result');
+  assert.equal(merged.workerDeviceId, '', 'sidecar cannot assign a worker');
+  assert.equal(Object.hasOwn(merged, 'unexpectedField'), false);
+  assert.equal(normalizeQueueRecordForWorkboard(merged).humanCheckpointStatus, 'required');
+  assert.equal(normalizeQueueRecordForWorkboard(merged).status, 'waiting_human');
+});
+
 test('nested work-item JSON cannot attribute another prospect to a queue task', () => {
   const current = sampleWorkItem();
   const foreign = createWorkItem({
