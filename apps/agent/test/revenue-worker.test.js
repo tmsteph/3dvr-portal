@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { run, deliverCandidate } = require('../thomas-agent/node/revenue-worker');
-const { openLedger } = require('../thomas-agent/node/revenue-ledger');
+const { openLedger, createProspect, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function candidate(filePath) {
   fs.writeFileSync(filePath, JSON.stringify({
@@ -63,8 +63,9 @@ test('isolated revenue run uses scratch ledger, not host inbox or live ledger', 
     await assert.rejects(run('symlink', { isolated: true, ledgerFile: symlink }), /symlink/);
     assert.equal(fs.existsSync(active), false, 'rejected isolated runs must not create the live ledger');
     const first = await run('scratch-canary', { crm: { isolated: true }, ledgerFile: scratch });
-    assert.equal(first.status, 'succeeded');
+    assert.equal(first.status, 'failed', 'disabled CRM must not count as an isolated acceptance success');
     const summary = JSON.parse(first.summary_json);
+    assert.match(summary.error, /CRM projection is disabled/);
     assert.equal(summary.inbox.skipped, true, 'isolated acceptance must not parse the host inbox');
     assert.equal(summary.delivery.disabled, true);
     assert.equal(summary.delivery.sends, 0);
@@ -72,7 +73,7 @@ test('isolated revenue run uses scratch ledger, not host inbox or live ledger', 
     assert.equal(fs.existsSync(scratch), true, 'test state must be stored separately');
     const replay = await run('scratch-canary', { crm: { isolated: true }, ledgerFile: scratch });
     assert.equal(replay.replayed, true);
-    assert.equal(replay.status, 'succeeded');
+    assert.equal(replay.status, 'failed');
   } finally {
     names.forEach((name, index) => {
       if (original[index] === undefined) delete process.env[name];
@@ -80,6 +81,59 @@ test('isolated revenue run uses scratch ledger, not host inbox or live ledger', 
     });
     fs.rmSync(tmp, { recursive: true, force: true });
     fs.rmSync(scratchDir, { recursive: true, force: true });
+  }
+});
+
+test('isolated CRM acceptance needs a real scratch event and labels acknowledgement as not readback', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-acceptance-'));
+  const scratch = path.join(tmp, 'isolated.sqlite');
+  const empty = path.join(tmp, 'empty.sqlite');
+  const previous = process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  process.env.THREEDVR_CRM_PROJECTION_ENABLED = 'true';
+  let writeCalls = 0;
+  const fakeWriter = async payload => {
+    writeCalls += 1;
+    return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+  };
+  try {
+    const emptyRun = await run('empty-acceptance', {
+      isolated: true, ledgerFile: empty, crm: { isolated: true, write: fakeWriter }
+    });
+    assert.equal(emptyRun.status, 'failed');
+    assert.match(JSON.parse(emptyRun.summary_json).error, /no acknowledged CRM projection/);
+    assert.equal(writeCalls, 0, 'a scratch ledger with no queued CRM event cannot prove work');
+
+    const db = openLedger({ filePath: scratch });
+    try {
+      const buyer = createProspect(db, {
+        name: 'Synthetic Acceptance Buyer', contact: 'canary@example.test'
+      }).prospect;
+      transitionProspect(db, {
+        prospectId: buyer.id, toState: 'verified', idempotencyKey: 'isolated-acceptance-verified'
+      });
+    } finally { db.close(); }
+
+    const tested = await run('project-one-synthetic-event', {
+      isolated: true, ledgerFile: scratch, crm: { isolated: true, write: fakeWriter }
+    });
+    assert.equal(tested.status, 'succeeded');
+    const summary = JSON.parse(tested.summary_json);
+    assert.equal(summary.crm.succeeded, 1);
+    assert.equal(summary.crm.failed, 0);
+    assert.equal(summary.delivery.sends, 0);
+    assert.equal(summary.verification.crmWriteAcknowledged, true);
+    assert.equal(summary.verification.independentCrmReadbackVerified, false);
+    assert.equal(summary.verification.hostedWorkerVerified, false);
+    assert.equal(writeCalls, 1, 'synthetic writer was invoked once; no real CRM was contacted');
+    const replay = await run('project-one-synthetic-event', {
+      isolated: true, ledgerFile: scratch, crm: { isolated: true, write: fakeWriter }
+    });
+    assert.equal(replay.replayed, true);
+    assert.equal(writeCalls, 1);
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+    else process.env.THREEDVR_CRM_PROJECTION_ENABLED = previous;
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
 
