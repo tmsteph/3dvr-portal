@@ -125,6 +125,71 @@ test('CRM projection serializes different events for one buyer across SQLite wor
   }
 });
 
+test('expired CRM lease handoff preserves newer success and continues unrelated batch work', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-stale-handoff-'));
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const oldWorker = openLedger({ filePath: ledger });
+  const newWorker = openLedger({ filePath: ledger });
+  let releaseOldWrite;
+  const heldWrite = new Promise(resolve => { releaseOldWrite = resolve; });
+  let signalStarted;
+  const oldWriteStarted = new Promise(resolve => { signalStarted = resolve; });
+  const oldWrites = [];
+  const newWrites = [];
+  try {
+    for (const [index, contact] of ['first@example.test', 'second@example.test'].entries()) {
+      const prospect = createProspect(oldWorker, { name: 'Synthetic ' + index, contact }).prospect;
+      transitionProspect(oldWorker, {
+        prospectId: prospect.id, toState: 'verified', idempotencyKey: 'handoff:' + index
+      });
+    }
+    const originalBatch = projectPendingCrm(oldWorker, {
+      limit: 2,
+      write: async payload => {
+        const email = payload.records[0].email;
+        oldWrites.push(email);
+        if (email === 'first@example.test') {
+          signalStarted();
+          await heldWrite;
+        }
+        return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+      },
+    });
+    await oldWriteStarted;
+    // Simulate expiry with a local scratch SQLite edit, not a remote relay,
+    // timer, production queue or actual CRM transport.
+    oldWorker.prepare('UPDATE projection_claims SET expires_at = ?')
+      .run('2000-01-01T00:00:00.000Z');
+    const reclaimed = await projectPendingCrm(newWorker, {
+      limit: 1,
+      write: async payload => {
+        newWrites.push(payload.records[0].email);
+        return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+      },
+    });
+    assert.equal(reclaimed.succeeded, 1);
+    assert.deepEqual(newWrites, ['first@example.test'], 'new holder settles the reclaimed first event');
+
+    releaseOldWrite();
+    const settled = await originalBatch;
+    assert.equal(settled.attempted, 2);
+    assert.equal(settled.failed, 1, 'old holder cannot count its stale result as accepted');
+    assert.equal(settled.succeeded, 1, 'unrelated second prospect must still complete');
+    assert.match(settled.errors.join(' '), /lost its claim|stale or missing/);
+    assert.deepEqual(oldWrites, ['first@example.test', 'second@example.test']);
+    const rows = newWorker.prepare('SELECT status, attempts FROM projection_outbox ORDER BY created_at, id').all();
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every(row => row.status === 'succeeded' && row.attempts === 1),
+      'the stolen claim must not demote or double-settle the newer success');
+    assert.equal(newWorker.prepare('SELECT COUNT(*) AS total FROM projection_claims').get().total, 0);
+  } finally {
+    releaseOldWrite();
+    oldWorker.close();
+    newWorker.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('CRM outbox refuses cross-prospect event linkage before writing any mismatched record', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-cross-lead-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
