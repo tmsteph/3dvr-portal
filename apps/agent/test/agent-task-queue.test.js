@@ -304,21 +304,19 @@ test('unsafe high-risk enqueue cannot grant itself approval before worker claim'
   assert.equal(blocked.length, 0);
   assert.equal(executions, 0);
 
-  // Existing explicit approval state is a compatibility control, not proof
-  // that a signed recipient/action-bound human receipt exists.
+  // Queue update and CLI fields are not trusted human authorization.
+  // Even an 'approved' status cannot execute unsafe/high-risk tasks without
+  // a server-verified approval receipt, which does not exist yet.
   await updateTask('task-6', { approvalStatus: 'approved' }, workerOptions);
   const results = await runWorkerOnce({
     ...workerOptions,
-    runAgentTaskImpl: async () => ({
-      ok: true,
-      backend: 'codex',
-      result: { ok: true, stdout: 'published' },
-    }),
+    runAgentTaskImpl: async () => { executions += 1; throw new Error('forged approval execution'); },
   });
-  const completed = await readTask('task-6', workerOptions);
-  assert.equal(results.length, 1);
-  assert.equal(completed.approvalStatus, 'approved');
-  assert.equal(completed.status, 'completed');
+  const stillQueued = await readTask('task-6', workerOptions);
+  assert.equal(results.length, 0);
+  assert.equal(executions, 0);
+  assert.equal(stillQueued.approvalStatus, 'approved');
+  assert.equal(stillQueued.status, 'queued');
 });
 
 test('unsafe and high-risk tasks reject missing or forged not_required approval', async () => {
@@ -327,7 +325,7 @@ test('unsafe and high-risk tasks reject missing or forged not_required approval'
     workerRiskClasses: 'read_only,draft,workspace_write,external_write,money,credential',
   };
   for (const riskClass of ['external_write', 'money', 'credential']) {
-    for (const approvalStatus of ['', 'not_required', 'rejected', 'required']) {
+    for (const approvalStatus of ['', 'not_required', 'rejected', 'required', 'approved']) {
       const result = canWorkerRunTask({
         backend: 'codex', riskClass, approvalStatus, unsafe: false,
       }, worker);
@@ -345,6 +343,14 @@ test('unsafe and high-risk tasks reject missing or forged not_required approval'
     backend: 'codex', riskClass: 'workspace_write', unsafe: false,
     approvalStatus: 'not_required',
   }, { ...worker, unsafe: true }).ok, false);
+  assert.match(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: false,
+    approvalStatus: 'approved',
+  }, { ...worker, unsafe: true }).reason, /verified human approval receipt required/);
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: false,
+    approvalStatus: 'not_required',
+  }, worker).ok, true, 'ordinary workspace edits still run without new approval gates');
 
   const rootNode = fakeRoot();
   const forged = await enqueueTask('External action', {
