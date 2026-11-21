@@ -164,9 +164,19 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
         ? { scanned: 0, matched: 0, unmatched: 0, errors: [], skipped: true }
         : consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
       delivery = await deliverCandidate(db, options);
-      crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
+      const projectionEnabled = enabled(process.env.THREEDVR_CRM_PROJECTION_ENABLED);
+      crm = projectionEnabled
         ? await projectPendingCrm(db, isolated ? { ...(options.crm || {}), isolated: true } : (options.crm || {}))
         : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
+      // A scratch no-send canary must not report success as though it tested
+      // CRM when projection was disabled or the scratch outbox was empty.
+      // Acknowledged writes still do NOT prove independent CRM readback.
+      if (isolated && !projectionEnabled) {
+        throw new Error('Isolated acceptance incomplete: CRM projection is disabled');
+      }
+      if (isolated && crm.succeeded < 1) {
+        throw new Error('Isolated acceptance incomplete: no acknowledged CRM projection');
+      }
       const failed = inbox.errors.length || crm.failed || delivery.error;
       const finished = finishRun(db, {
         runId: started.run.id,
@@ -177,6 +187,11 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
           delivery,
           inbox,
           crm,
+          ...(isolated ? { verification: {
+            crmWriteAcknowledged: crm.succeeded > 0,
+            independentCrmReadbackVerified: false,
+            hostedWorkerVerified: false,
+          } } : {}),
         },
       });
       return { ...finished, replayed: false };
