@@ -258,7 +258,12 @@ function findProspectByContact(db, contact) {
 }
 
 function pendingProjections(db, limit = 100) {
-  return db.prepare("SELECT * FROM projection_outbox WHERE status IN ('pending','failed') ORDER BY created_at, id LIMIT ?")
+  // Fresh work must not be starved by permanently failed collision/quarantine
+  // rows. Retry older failures fairly as well: attempts increase on failure,
+  // so bounded runs rotate through them rather than retrying one stuck row.
+  return db.prepare(`SELECT * FROM projection_outbox WHERE status IN ('pending','failed')
+    ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+      attempts ASC, updated_at ASC, created_at ASC, id ASC LIMIT ?`)
     .all(Math.max(1, Number(limit) || 100));
 }
 
