@@ -315,12 +315,15 @@ function finishProjection(db, { id, status, error = '', claimToken = '' } = {}) 
     // and the status update happen under the same SQLite write lock.
     const row = db.prepare('SELECT status FROM projection_outbox WHERE id = ?').get(projectionId);
     if (!row) throw new Error('Projection does not exist');
-    const claim = db.prepare('SELECT claim_token FROM projection_claims WHERE projection_id = ?')
+    const claim = db.prepare('SELECT claim_token, expires_at FROM projection_claims WHERE projection_id = ?')
       .get(projectionId);
     // Every settlement must prove ownership of a live claim. A tokenless
     // caller must not mark a queued or failed CRM write as acknowledged, nor
     // steal an active worker's result via the exported ledger API.
-    if (!claimToken || !claim || claim.claim_token !== claimToken) {
+    if (!claimToken || !claim || claim.claim_token !== claimToken
+      || claim.expires_at <= new Date().toISOString()) {
+      // An expired lease cannot certify a completed remote write, even if
+      // nobody has reclaimed it yet. Reconcile CRM before a potential retry.
       throw new Error('CRM projection claim is stale or missing');
     }
     const result = db.prepare(`UPDATE projection_outbox
