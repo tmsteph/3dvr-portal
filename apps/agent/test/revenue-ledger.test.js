@@ -362,3 +362,65 @@ test('legacy imports cannot replay a different lead or a normal transition', () 
   assert.equal(pendingProjections(db).length, 1);
   assert.equal(db.prepare('SELECT state FROM prospects WHERE id=?').get(bob.id).state, 'prospect');
 }));
+
+test('stale prospect read cannot overwrite a concurrent suppression', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Race Check Buyer', contact: 'race@example.test' }).prospect;
+  const sqliteFile = db.prepare('PRAGMA database_list').all().find(row => row.name === 'main').file;
+  const other = openLedger({ filePath: sqliteFile });
+  try {
+    let injected = false;
+    // Deterministically put a competing worker's transaction between the
+    // first worker's validation read and its write-lock acquisition.
+    const firstWorker = {
+      prepare: (...args) => db.prepare(...args),
+      exec: statement => {
+        if (statement === 'BEGIN IMMEDIATE' && !injected) {
+          injected = true;
+          transitionProspect(other, {
+            prospectId: prospect.id, toState: 'suppressed',
+            idempotencyKey: 'race:opt-out'
+          });
+        }
+        return db.exec(statement);
+      },
+    };
+    assert.throws(() => transitionProspect(firstWorker, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'race:stale-verification'
+    }), /Concurrent prospect state transition/);
+    assert.equal(injected, true);
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(prospect.id).state, 'suppressed');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 1);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM projection_outbox').get().n, 1);
+    assert.equal(db.prepare('SELECT idempotency_key FROM revenue_events').get().idempotency_key, 'race:opt-out');
+  } finally { other.close(); }
+}));
+
+test('stale legacy import cannot replace a concurrent opt-out', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Import Race Buyer', contact: 'import-race@example.test' }).prospect;
+  const sqliteFile = db.prepare('PRAGMA database_list').all().find(row => row.name === 'main').file;
+  const other = openLedger({ filePath: sqliteFile });
+  try {
+    let injected = false;
+    const importer = {
+      prepare: (...args) => db.prepare(...args),
+      exec: statement => {
+        if (statement === 'BEGIN IMMEDIATE' && !injected) {
+          injected = true;
+          transitionProspect(other, {
+            prospectId: prospect.id, toState: 'suppressed',
+            idempotencyKey: 'race:import-opt-out'
+          });
+        }
+        return db.exec(statement);
+      },
+    };
+    assert.throws(() => importProspectState(importer, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'race:stale-import'
+    }), /Concurrent prospect state transition/);
+    assert.equal(injected, true);
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(prospect.id).state, 'suppressed');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 1);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM projection_outbox').get().n, 1);
+    assert.equal(db.prepare('SELECT idempotency_key FROM revenue_events').get().idempotency_key, 'race:import-opt-out');
+  } finally { other.close(); }
+}));
