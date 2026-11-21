@@ -1130,11 +1130,12 @@
       document.getElementById('auth-reload').hidden = false;
     }
     window.addEventListener('pagehide', () => {
+      if (authAttemptState === 'idle') return;
       authAttemptState = 'terminal';
       clearTimeout(authAttemptTimer);
     });
     window.addEventListener('pageshow', event => {
-      if (!event.persisted) return;
+      if (!event.persisted || authAttemptState === 'idle') return;
       authAttemptState = 'terminal';
       clearTimeout(authAttemptTimer);
       // A restored document may still contain an unresolved Gun attempt.
