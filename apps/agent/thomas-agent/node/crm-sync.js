@@ -393,6 +393,10 @@ function buildCrmSyncPayload({
   // touches, reply counts or follow-ups. A name-only match is unsafe when
   // multiple contacts share that name. Exact identity wins when unique.
   const outreachByIndex = selectedLeads.map(() => []);
+  // A replayed import line is one historical event, not two replies or
+  // two delivered messages. Deduplicate exact rows per matched lead while
+  // preserving distinct events even when they share a subject or recipient.
+  const seenOutreachByIndex = selectedLeads.map(() => new Set());
   for (const entry of outreach) {
     const exact = selectedLeads.flatMap((lead, index) =>
       contactIdentity(lead) === contactIdentity(entry) ? [index] : []);
@@ -407,7 +411,14 @@ function buildCrmSyncPayload({
         && !entryIdentity.startsWith('name:');
       return contactsMatch(lead, entry) && !conflictingRoutes ? [index] : [];
     });
-    if (candidates.length === 1) outreachByIndex[candidates[0]].push(entry);
+    if (candidates.length === 1) {
+      const index = candidates[0];
+      const eventKey = JSON.stringify(entry);
+      if (!seenOutreachByIndex[index].has(eventKey)) {
+        seenOutreachByIndex[index].add(eventKey);
+        outreachByIndex[index].push(entry);
+      }
+    }
   }
   const records = selectedLeads.map((lead, index) =>
     buildCrmRecord(mergeOutreachIntoLead(lead, outreachByIndex[index]), { now }));
