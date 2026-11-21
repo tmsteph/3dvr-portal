@@ -294,8 +294,14 @@ function buildLeadTouch(lead, record, options = {}) {
 
 function buildOutreachTouch(entry, record, options = {}) {
   const now = normalizeText(options.now) || new Date().toISOString();
-  const status = normalizeLower(entry.status) || 'sent';
+  // Legacy rows without an explicit delivery status are not evidence of a
+  // sent message. Likewise a saved draft is not a failed delivery attempt.
+  const status = normalizeLower(entry.status) || 'unknown';
   const kind = normalizeLower(entry.kind) || 'message';
+  const delivered = ['sent', 'submitted'].includes(status);
+  const touchType = status === 'replied' ? 'reply-received'
+    : delivered ? 'outreach-sent'
+      : ['failed', 'bounced'].includes(status) ? 'outreach-failed' : 'note';
   const id = `touch-agent-outreach-${stableHash([
     entry.timestamp,
     entry.name,
@@ -310,8 +316,8 @@ function buildOutreachTouch(entry, record, options = {}) {
     crmRecordId: record.id,
     contactId: '',
     contactName: record.name,
-    type: status === 'sent' || status === 'submitted' ? 'message' : 'note',
-    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : 'outreach-failed',
+    type: delivered ? 'message' : 'note',
+    touchType,
     channel: normalizeText(entry.route || kind),
     summary: `${kind} ${status}${entry.subject ? `: ${entry.subject}` : ''}`,
     outcome: normalizeText(entry.note) || (status === 'sent' ? 'Outbound message sent.' : `Outreach logged as ${status}.`),
