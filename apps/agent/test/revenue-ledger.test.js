@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { acknowledgedDeliveryCount, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, importProspectState, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { acknowledgedDeliveryCount, createProspect, findProspectByContact, finishDeliveryAttempt, claimProjection, finishProjection, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, importProspectState, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function withLedger(fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-ledger-'));
@@ -103,6 +103,37 @@ test('successful CRM outbox projection is terminal even when a stale retry repor
     'a second success acknowledgement is idempotent');
   assert.equal(pendingProjections(db).length, 0, 'completed work must not be queued for replay');
   assert.throws(() => finishProjection(db, { id: 'missing', status: 'failed' }), /does not exist/);
+}));
+
+test('expired CRM claim can be recovered without accepting the stale worker receipt', () => withLedger((db) => {
+  const prospect = createProspect(db, {
+    name: 'Synthetic Lease Recovery', contact: 'lease@example.test'
+  }).prospect;
+  transitionProspect(db, {
+    prospectId: prospect.id, toState: 'verified', idempotencyKey: 'lease:verified'
+  });
+  const row = pendingProjections(db)[0];
+  const first = claimProjection(db, { id: row.id });
+  assert.ok(first);
+  assert.equal(claimProjection(db, { id: row.id }), null, 'claim is exclusive');
+  assert.equal(pendingProjections(db).length, 0, 'live lease hides the row');
+  // Model the crash/expired lease using the scratch SQLite ledger; no timeouts,
+  // remote relay, real CRM or external writer are involved.
+  db.prepare('UPDATE projection_claims SET expires_at = ? WHERE projection_id = ?')
+    .run('2000-01-01T00:00:00.000Z', row.id);
+  const recovered = claimProjection(db, { id: row.id });
+  assert.ok(recovered);
+  assert.notEqual(recovered, first);
+  assert.throws(() => finishProjection(db, {
+    id: row.id, status: 'failed', error: 'late timeout', claimToken: first
+  }), /stale or missing/);
+  const saved = finishProjection(db, {
+    id: row.id, status: 'succeeded', claimToken: recovered
+  });
+  assert.equal(saved.status, 'succeeded');
+  assert.equal(saved.attempts, 1);
+  assert.equal(pendingProjections(db).length, 0);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM projection_claims').get().n, 0);
 }));
 
 test('ledger refuses unattributed acknowledged deliveries at the persistence boundary', () => withLedger((db) => {
