@@ -307,14 +307,14 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  // Evaluate the policy at worker claim time too: legacy and imported tasks
-  // may bypass enqueue normalization or carry a forged 'not_required' value.
-  // This is defense in depth, NOT proof of a signed human approval receipt.
-  if ((record.unsafe || options.unsafe || APPROVAL_REQUIRED_RISKS.has(riskClass))
-    && record.approvalStatus !== 'approved') {
+  // Fail closed until a server-controlled, task-bound, single-use human
+  // approval verifier exists. The queue's approvalStatus is caller-writable:
+  // even 'approved' is not proof that a human authorized this execution.
+  // Never let an agent, legacy import, or worker --unsafe flag bypass it.
+  if (record.unsafe || options.unsafe || APPROVAL_REQUIRED_RISKS.has(riskClass)) {
     return {
       ok: false,
-      reason: `approval required for ${record.unsafe || options.unsafe ? 'unsafe executor' : riskClass}`,
+      reason: `verified human approval receipt required for ${record.unsafe || options.unsafe ? 'unsafe executor' : riskClass}`,
       profile,
     };
   }
