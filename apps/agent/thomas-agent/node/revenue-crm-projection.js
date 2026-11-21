@@ -81,7 +81,15 @@ function recordFor(prospect, event, now) {
     canonicalState: prospect.state,
     source: '3dvr-revenue-ledger',
     campaignId: prospect.campaign_id,
-    lastSignal: paymentSignal || `Canonical revenue state: ${prospect.state}`,
+    // Preserve the original public evidence in the Operator-visible CRM.
+    // A state label alone cannot be traced back to a buyer's request.
+    sourceUrl: prospect.source_url || '',
+    lastSignal: paymentSignal || [
+      `Canonical revenue state: ${prospect.state}`,
+      prospect.source_url ? `Source: ${prospect.source_url}` : '',
+    ].filter(Boolean).join(' | '),
+    // No-sending and suppression must not inherit a stale automatic reminder.
+    nextFollowUp: '',
     nextBestAction,
     created: prospect.created_at,
     updated: now,
