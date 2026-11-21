@@ -339,6 +339,12 @@ test('unsafe and high-risk tasks reject missing or forged not_required approval'
     backend: 'codex', riskClass: 'workspace_write', unsafe: true,
     approvalStatus: 'not_required',
   }, worker).ok, false);
+  // Worker-wide sandbox bypass also needs approval: buildTaskArgs inherits
+  // options.unsafe even when the task itself does not request it.
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: false,
+    approvalStatus: 'not_required',
+  }, { ...worker, unsafe: true }).ok, false);
 
   const rootNode = fakeRoot();
   const forged = await enqueueTask('External action', {
