@@ -79,8 +79,16 @@ test('state transitions atomically queue idempotent CRM projections', () => with
   const queued = pendingProjections(db);
   assert.equal(queued.length, 1);
   assert.equal(JSON.parse(queued[0].payload_json).state, 'verified');
-  assert.equal(finishProjection(db, { id: queued[0].id, status: 'failed', error: 'timeout' }).attempts, 1);
-  assert.equal(finishProjection(db, { id: queued[0].id, status: 'succeeded' }).attempts, 2);
+  const firstClaim = claimProjection(db, { id: queued[0].id });
+  assert.ok(firstClaim);
+  assert.equal(finishProjection(db, {
+    id: queued[0].id, status: 'failed', error: 'timeout', claimToken: firstClaim
+  }).attempts, 1);
+  const retryClaim = claimProjection(db, { id: queued[0].id });
+  assert.ok(retryClaim);
+  assert.equal(finishProjection(db, {
+    id: queued[0].id, status: 'succeeded', claimToken: retryClaim
+  }).attempts, 2);
   assert.equal(pendingProjections(db).length, 0);
 }));
 
@@ -88,21 +96,59 @@ test('successful CRM outbox projection is terminal even when a stale retry repor
   const prospect = createProspect(db, { name: 'Safe Buyer', contact: 'safe@example.test' }).prospect;
   transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'terminal:verified' });
   const row = pendingProjections(db)[0];
-  const success = finishProjection(db, { id: row.id, status: 'succeeded' });
+  const claimToken = claimProjection(db, { id: row.id });
+  assert.ok(claimToken);
+  const success = finishProjection(db, { id: row.id, status: 'succeeded', claimToken });
   assert.equal(success.status, 'succeeded');
   assert.equal(success.attempts, 1);
 
   // Simulate a second worker finishing after the winning CRM acknowledgement.
-  const staleFailure = finishProjection(db, {
-    id: row.id, status: 'failed', error: 'late timeout from concurrent attempt'
-  });
-  assert.equal(staleFailure.status, 'succeeded');
-  assert.equal(staleFailure.attempts, 1, 'late failure must not inflate retry count');
-  assert.equal(staleFailure.last_error, '', 'late failure must not overwrite durable success');
-  assert.equal(finishProjection(db, { id: row.id, status: 'succeeded' }).attempts, 1,
-    'a second success acknowledgement is idempotent');
+  assert.throws(() => finishProjection(db, {
+    id: row.id, status: 'failed', error: 'late timeout from concurrent attempt', claimToken
+  }), /stale or missing/, 'late failure cannot settle without its expired claim');
+  assert.throws(() => finishProjection(db, {
+    id: row.id, status: 'succeeded', claimToken
+  }), /stale or missing/, 'replaying a completed claim cannot settle again');
+  const after = db.prepare('SELECT status, attempts, last_error FROM projection_outbox WHERE id = ?').get(row.id);
+  assert.deepEqual(after, { status: 'succeeded', attempts: 1, last_error: '' },
+    'late receipts cannot overwrite durable success');
   assert.equal(pendingProjections(db).length, 0, 'completed work must not be queued for replay');
   assert.throws(() => finishProjection(db, { id: 'missing', status: 'failed' }), /does not exist/);
+}));
+
+test('CRM outbox cannot be settled without the worker claim, even after a failed retry', () => withLedger((db) => {
+  const prospect = createProspect(db, {
+    name: 'No Unclaimed Success', contact: 'unclaimed@example.test'
+  }).prospect;
+  transitionProspect(db, {
+    prospectId: prospect.id, toState: 'verified', idempotencyKey: 'unclaimed:verified'
+  });
+  const row = pendingProjections(db)[0];
+  assert.throws(() => finishProjection(db, {
+    id: row.id, status: 'succeeded'
+  }), /stale or missing/, 'a tokenless adapter cannot forge a CRM acknowledgement');
+  const owner = claimProjection(db, { id: row.id });
+  assert.ok(owner);
+  assert.throws(() => finishProjection(db, {
+    id: row.id, status: 'succeeded'
+  }), /stale or missing/, 'a second worker cannot finish work owned by the first');
+  assert.throws(() => finishProjection(db, {
+    id: row.id, status: 'failed', claimToken: 'forged-worker-claim'
+  }), /stale or missing/, 'a forged token cannot invalidate the current worker');
+  assert.equal(db.prepare('SELECT status, attempts FROM projection_outbox WHERE id = ?').get(row.id).status, 'pending');
+  assert.equal(finishProjection(db, {
+    id: row.id, status: 'failed', claimToken: owner, error: 'retry required'
+  }).attempts, 1);
+  assert.throws(() => finishProjection(db, {
+    id: row.id, status: 'succeeded'
+  }), /stale or missing/, 'failed rows cannot be marked successful without a new claim');
+  assert.equal(db.prepare('SELECT status, attempts FROM projection_outbox WHERE id = ?').get(row.id).status, 'failed');
+  const retry = claimProjection(db, { id: row.id });
+  assert.ok(retry);
+  assert.equal(finishProjection(db, {
+    id: row.id, status: 'succeeded', claimToken: retry
+  }).attempts, 2);
+  assert.equal(pendingProjections(db).length, 0);
 }));
 
 test('expired CRM claim can be recovered without accepting the stale worker receipt', () => withLedger((db) => {
