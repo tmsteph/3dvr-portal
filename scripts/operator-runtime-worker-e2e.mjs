@@ -2,10 +2,53 @@ import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
 
-const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay')
+const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
+// This test writes real queue records. Never silently target production.
+if (peers.length === 0) {
+  throw new Error('Set THREEDVR_GUN_PEERS to an isolated test relay; no default relay is permitted.');
+}
+const productionPeer = peers.some(peer => {
+  let url;
+  try {
+    url = new URL(peer);
+  } catch {
+    throw new Error('Invalid THREEDVR_GUN_PEERS URL');
+  }
+  // Gun peers must be actual network endpoints; never accept file/data URLs.
+  if (!['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) {
+    throw new Error('Invalid THREEDVR_GUN_PEERS URL protocol');
+  }
+  // DNS treats terminal dots as an absolute hostname; do not let an equivalent
+  // production FQDN such as portal.3dvr.tech. bypass the denylist.
+  const host = url.hostname.toLowerCase().replace(/\.+$/, '');
+  // Keep in sync with the active CRM/Notes/Clipboard Gun relay defaults.
+  const productionHosts = ['portal.3dvr.tech', 'relay.3dvr.tech', 'gun-relay-3dvr.fly.dev'];
+  return productionHosts.some(productionHost =>
+    host === productionHost || host.endsWith('.' + productionHost));
+});
+if (productionPeer) {
+  throw new Error('Production relay blocked. Queue-writing E2E must use an isolated relay.');
+}
+// A non-production hostname is not proof of isolation: it could still write
+// to somebody else's staging or public relay. Require a literal loopback peer;
+// if a dedicated test server is used, terminate its SSH tunnel locally.
+if (peers.some(peer => !['127.0.0.1', '[::1]'].includes(new URL(peer).hostname))) {
+  throw new Error('Only literal loopback relays are allowed for queue-writing E2E.');
+}
+// A literal loopback IP alone is not enough: hidden URL credentials or query
+// parameters could be leaked to CI logs or interpreted by a relay adapter.
+// Require the same narrow, explicit /gun endpoint shape used by the isolated
+// CRM projection check. A loopback/SSH tunnel still needs separate approval.
+if (peers.some(peer => {
+  const url = new URL(peer);
+  return !url.port || url.username || url.password
+    || !['/gun', '/gun/'].includes(url.pathname) || url.search || url.hash;
+})) {
+  throw new Error('Loopback relay must use an explicit /gun path and port without credentials, query or fragment.');
+}
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
@@ -49,7 +92,7 @@ function put(node, value) {
       settled = true;
       clearTimeout(timer);
       resolve({
-        acknowledged: !ack?.err,
+        acknowledged: Boolean(ack && typeof ack === 'object' && (ack.ok === 1 || ack.ok === true) && !ack.err),
         error: ack?.err ? String(ack.err) : '',
         ack: ack || {}
       });
@@ -88,7 +131,10 @@ async function main() {
     put(queue.get('runtime').get(taskId), built.runtime)
   ]);
   console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
-  console.log('E2E_ENQUEUE_ATTEMPTED=true');
+  if (writes.some(write => !write.acknowledged || write.timedOut || write.error)) {
+    throw new Error('Operator runtime enqueue failed: all three queue writes must be acknowledged without errors.');
+  }
+  console.log('E2E_ENQUEUE_ACKNOWLEDGED=true');
 
   const transitions = [];
   const deadline = Date.now() + maxWaitMs;
@@ -115,6 +161,9 @@ async function main() {
 
   if ((record?.status || record?.state) !== 'completed') {
     throw new Error(`Operator runtime task did not complete: ${record?.status || record?.state || 'timeout'} ${record?.error || ''}`);
+  }
+  if (typeof record.workerDeviceId !== 'string' || !record.workerDeviceId.trim()) {
+    throw new Error('Operator runtime completion has no attributable workerDeviceId.');
   }
 }
 
