@@ -353,8 +353,28 @@ function buildCrmSyncPayload({
     .filter(entry => normalizeText(entry.contact) || normalizeText(entry.site))
     .filter(entry => !leads.some(lead => contactsMatch(lead, entry)))
     .map(leadFromOutreachEntry);
-  const qualifiedLeads = [...leads, ...outreachOnlyLeads]
-    .filter((lead) => shouldSyncLeadToCrm(lead, { includeAll }));
+  // An imported CSV can contain the same contact more than once. Duplicate
+  // CRM IDs cause duplicate writes and make a valid reply ambiguous (so it
+  // gets dropped). Canonicalize before matching outreach or applying a limit.
+  // Never silently reopen an opted-out/closed contact using a newer scrape.
+  const distinctLeads = new Map();
+  for (const lead of [...leads, ...outreachOnlyLeads].filter(
+    candidate => shouldSyncLeadToCrm(candidate, { includeAll })
+  )) {
+    const id = buildLeadId(lead);
+    const prior = distinctLeads.get(id);
+    if (!prior) {
+      distinctLeads.set(id, lead);
+      continue;
+    }
+    const priorBlocked = isNoContactStatus(prior.status);
+    const incomingBlocked = isNoContactStatus(lead.status);
+    const newer = (Date.parse(lead.date || '') || 0) > (Date.parse(prior.date || '') || 0);
+    if ((!priorBlocked && incomingBlocked) || (priorBlocked === incomingBlocked && newer)) {
+      distinctLeads.set(id, lead);
+    }
+  }
+  const qualifiedLeads = [...distinctLeads.values()];
   const selectedLeads = limit > 0 ? qualifiedLeads.slice(0, limit) : qualifiedLeads;
   // Associate each message with exactly one lead before applying status,
   // touches, reply counts or follow-ups. A name-only match is unsafe when
