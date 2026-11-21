@@ -358,11 +358,24 @@ function buildCrmSyncPayload({
   // gets dropped). Canonicalize before matching outreach or applying a limit.
   // Never silently reopen an opted-out/closed contact using a newer scrape.
   const distinctLeads = new Map();
+  const identityConflicts = new Set();
   for (const lead of [...leads, ...outreachOnlyLeads].filter(
     candidate => shouldSyncLeadToCrm(candidate, { includeAll })
   )) {
     const id = buildLeadId(lead);
+    // CRM IDs use a human-readable slug: different emails such as
+    // alice.smith@domain and alice-smith@domain can collapse to one ID.
+    // Never merge unrelated buyers, overwrite their opt-outs, or attribute
+    // outreach across this collision. Quarantine every row with that ID,
+    // including later duplicates, until an explicit migration can assign
+    // non-colliding stable identifiers.
+    if (identityConflicts.has(id)) continue;
     const prior = distinctLeads.get(id);
+    if (prior && contactIdentity(prior) !== contactIdentity(lead)) {
+      distinctLeads.delete(id);
+      identityConflicts.add(id);
+      continue;
+    }
     if (!prior) {
       distinctLeads.set(id, lead);
       continue;
@@ -435,7 +448,7 @@ function buildCrmSyncPayload({
     record.updated = now;
   }
 
-  return { records, touches };
+  return { records, touches, identityConflicts: [...identityConflicts] };
 }
 
 function putGun(node, payload, timeoutMs = DEFAULT_WRITE_TIMEOUT_MS) {
@@ -524,6 +537,9 @@ function printPreview(payload, options = {}) {
   const records = payload.records || [];
   const touches = payload.touches || [];
   console.log(`CRM sync preview: records=${records.length} touches=${touches.length}`);
+  if (payload.identityConflicts?.length) {
+    console.warn(`CRM identity collision(s) quarantined: ${payload.identityConflicts.join(', ')}. Manual review required before migration.`);
+  }
   for (const record of records.slice(0, options.previewLimit || 8)) {
     console.log(`- ${record.name} | ${record.status} | ${record.marketSegment} | ${record.nextBestAction}`);
   }
