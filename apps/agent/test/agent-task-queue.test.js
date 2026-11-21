@@ -295,7 +295,7 @@ test('unsafe high-risk enqueue cannot grant itself approval before worker claim'
   };
   const pending = await readTask('task-6', workerOptions);
   assert.equal(pending.approvalStatus, 'required');
-  assert.match(canWorkerRunTask(pending, workerOptions).reason, /approval required/);
+  assert.match(canWorkerRunTask(pending, workerOptions).reason, /verified human approval receipt required/);
   let executions = 0;
   const blocked = await runWorkerOnce({
     ...workerOptions,
@@ -330,7 +330,7 @@ test('unsafe and high-risk tasks reject missing or forged not_required approval'
         backend: 'codex', riskClass, approvalStatus, unsafe: false,
       }, worker);
       assert.equal(result.ok, false, `${riskClass}/${approvalStatus}`);
-      assert.match(result.reason, /approval required/, `${riskClass}/${approvalStatus}`);
+      assert.match(result.reason, /verified human approval receipt required/, `${riskClass}/${approvalStatus}`);
     }
   }
   assert.equal(canWorkerRunTask({
