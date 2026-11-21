@@ -84,6 +84,27 @@ test('state transitions atomically queue idempotent CRM projections', () => with
   assert.equal(pendingProjections(db).length, 0);
 }));
 
+test('successful CRM outbox projection is terminal even when a stale retry reports failure', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Safe Buyer', contact: 'safe@example.test' }).prospect;
+  transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'terminal:verified' });
+  const row = pendingProjections(db)[0];
+  const success = finishProjection(db, { id: row.id, status: 'succeeded' });
+  assert.equal(success.status, 'succeeded');
+  assert.equal(success.attempts, 1);
+
+  // Simulate a second worker finishing after the winning CRM acknowledgement.
+  const staleFailure = finishProjection(db, {
+    id: row.id, status: 'failed', error: 'late timeout from concurrent attempt'
+  });
+  assert.equal(staleFailure.status, 'succeeded');
+  assert.equal(staleFailure.attempts, 1, 'late failure must not inflate retry count');
+  assert.equal(staleFailure.last_error, '', 'late failure must not overwrite durable success');
+  assert.equal(finishProjection(db, { id: row.id, status: 'succeeded' }).attempts, 1,
+    'a second success acknowledgement is idempotent');
+  assert.equal(pendingProjections(db).length, 0, 'completed work must not be queued for replay');
+  assert.throws(() => finishProjection(db, { id: 'missing', status: 'failed' }), /does not exist/);
+}));
+
 test('ledger refuses unattributed acknowledged deliveries at the persistence boundary', () => withLedger((db) => {
   const prospect = createProspect(db, { name: 'Synthetic no-send', contact: 'synthetic@example.test' }).prospect;
   const malformed = [
