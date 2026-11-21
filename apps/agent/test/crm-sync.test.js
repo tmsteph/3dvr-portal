@@ -128,6 +128,50 @@ test('suppressed and closed leads cannot reopen or inherit follow-ups from histo
   }
 });
 
+test('duplicate CSV rows resolve to one CRM identity with attributable outreach history', () => {
+  const contact = 'mailto:owner@dedupe.example.test';
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Synthetic Duplicate', contact, link: 'https://dedupe.example.test', status: 'new', date: '2026-11-18' },
+      { name: 'Synthetic Duplicate', contact: 'OWNER@dedupe.example.test', link: 'https://dedupe.example.test',
+        status: 'contacted', date: '2026-11-19' },
+    ],
+    outreach: [{
+      name: 'Synthetic Duplicate', contact, status: 'sent',
+      timestamp: '2026-11-19T12:00:00.000Z', messageId: 'dedupe-test-message',
+    }],
+    now: '2026-11-20T12:00:00.000Z',
+    includeAll: true,
+  });
+  assert.equal(payload.records.length, 1, 'one person must not appear as two CRM records');
+  assert.equal(payload.records[0].status, 'Warm - Follow-up');
+  assert.equal(payload.records[0].lastContacted, '2026-11-19');
+  assert.equal(payload.touches.length, 2, 'one lead note and one attributable sent touch');
+  assert.equal(payload.touches.filter(t => t.touchType === 'outreach-sent').length, 1);
+  assert.ok(payload.touches.every(t => t.recordId === payload.records[0].id));
+});
+
+test('duplicate CSV rows cannot reopen a suppressed contact or schedule outreach', () => {
+  const contact = 'owner@closed-duplicate.example.test';
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Synthetic Opt Out', contact, status: 'opted-out', date: '2026-11-17' },
+      { name: 'Synthetic Opt Out', contact: 'mailto:' + contact, status: 'new', date: '2026-11-20' },
+    ],
+    outreach: [{
+      name: 'Synthetic Opt Out', contact, status: 'sent', nextFollowUp: '2026-11-25',
+      timestamp: '2026-11-18T12:00:00.000Z',
+    }],
+    now: '2026-11-20T12:00:00.000Z',
+    includeAll: true,
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Closed');
+  assert.equal(payload.records[0].nextFollowUp, '');
+  assert.match(payload.records[0].nextBestAction, /do not contact/i);
+  assert.equal(payload.touches.length, 2, 'historical message remains visible without reopening');
+});
+
 test('buildCrmSyncPayload creates records and stable touch log entries', () => {
   const leads = [
     {
