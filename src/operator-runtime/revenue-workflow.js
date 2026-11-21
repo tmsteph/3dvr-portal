@@ -75,11 +75,20 @@ export function createRevenueLeadWorkItem(input = {}) {
   const title = input.title || `Revenue opportunity${leadName ? ` · ${leadName}` : ''}`;
   const now = input.now || new Date().toISOString();
 
-  // No trusted payment-provider adapter exists to authenticate a won result.
-  // A freshly constructed item must not bypass the payment_received guard by
-  // claiming a paid stage directly; historical paid imports need verification.
-  if (input.stage === 'won') {
+  // Lead stages are a finite pipeline. Unknown stages cannot be advanced or
+  // measured reliably and should not enter the CRM/work queue.
+  const stage = input.stage || 'research';
+  if (!REVENUE_STAGES.includes(stage)) {
+    throw new TypeError(`unknown revenue stage: ${stage}`);
+  }
+  // There is no trusted payment-provider adapter. Reject both an invented
+  // paid stage and a completed work-item wrapper around an active pipeline
+  // stage; neither constitutes an attributable paid outcome.
+  if (stage === 'won') {
     throw new TypeError('won revenue stage requires an authenticated payment provider adapter');
+  }
+  if (input.state === 'done' && stage !== 'lost') {
+    throw new TypeError('completed revenue lead requires a verified terminal stage');
   }
 
   return createWorkItem({
@@ -102,7 +111,7 @@ export function createRevenueLeadWorkItem(input = {}) {
     result: input.result,
     metadata: {
       ...(input.metadata || {}),
-      stage: input.stage || 'research',
+      stage,
       leadName: leadName || null,
       relationship: normalizeRelationship(input.relationship),
       campaign: input.campaign || null,
