@@ -137,6 +137,61 @@ test('isolated CRM acceptance needs a real scratch event and labels acknowledgem
   }
 });
 
+test('isolated CRM acceptance rejects a partially projected scratch batch', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-partial-crm-'));
+  const ledgerFile = path.join(tmp, 'partial.sqlite');
+  const original = process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  process.env.THREEDVR_CRM_PROJECTION_ENABLED = 'true';
+  let acknowledged = 0;
+  const fakeWriter = async payload => {
+    acknowledged += 1;
+    return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+  };
+  try {
+    const db = openLedger({ filePath: ledgerFile });
+    try {
+      for (const suffix of ['alpha', 'beta']) {
+        const prospect = createProspect(db, {
+          name: `Synthetic ${suffix}`, contact: `${suffix}@example.test`
+        }).prospect;
+        transitionProspect(db, {
+          prospectId: prospect.id, toState: 'verified',
+          idempotencyKey: `partial-acceptance-${suffix}`
+        });
+      }
+    } finally { db.close(); }
+
+    const partial = await run('partial-scratch-batch', {
+      isolated: true, ledgerFile, crm: { isolated: true, write: fakeWriter, limit: 1 }
+    });
+    assert.equal(partial.status, 'failed', 'one acknowledged write is not a complete acceptance');
+    const report = JSON.parse(partial.summary_json);
+    assert.equal(report.crm.succeeded, 1);
+    assert.equal(report.crm.failed, 0);
+    assert.equal(report.delivery.sends, 0);
+    assert.match(report.error, /1 unresolved CRM projection/);
+    const inspection = openLedger({ filePath: ledgerFile });
+    try {
+      assert.equal(inspection.prepare("SELECT COUNT(*) AS n FROM projection_outbox WHERE status <> 'succeeded'").get().n, 1);
+    } finally { inspection.close(); }
+    assert.equal(acknowledged, 1, 'only a synthetic writer was invoked');
+
+    const resumed = await run('remaining-scratch-batch', {
+      isolated: true, ledgerFile, crm: { isolated: true, write: fakeWriter, limit: 1 }
+    });
+    assert.equal(resumed.status, 'succeeded', 'a later test may pass after all scratch rows are acknowledged');
+    const complete = JSON.parse(resumed.summary_json);
+    assert.equal(complete.verification.independentCrmReadbackVerified, false);
+    assert.equal(complete.verification.hostedWorkerVerified, false);
+    assert.equal(complete.delivery.sends, 0);
+    assert.equal(acknowledged, 2);
+  } finally {
+    if (original === undefined) delete process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+    else process.env.THREEDVR_CRM_PROJECTION_ENABLED = original;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('isolated scratch ledger rejects hard links to host data', async () => {
   const hostDir = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-host-hardlink-'));
   const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-scratch-hardlink-'));
