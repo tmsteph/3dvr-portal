@@ -192,7 +192,17 @@ async function projectPendingCrm(db, options = {}) {
       result.succeeded += 1;
     } catch (error) {
       const message = String(error?.message || error);
-      finishProjection(db, { id: row.id, status: 'failed', error: message, claimToken });
+      try {
+        finishProjection(db, { id: row.id, status: 'failed', error: message, claimToken });
+      } catch (settlementError) {
+        // A reclaimed lease may already belong to a newer worker. Never
+        // overwrite its result or abort the rest of this worker's batch.
+        // Unknown SQLite/ledger errors still surface instead of being hidden.
+        if (!/CRM projection claim is stale or missing/.test(String(settlementError?.message || settlementError))) {
+          throw settlementError;
+        }
+        result.errors.push('CRM projection lost its claim; remote write needs reconciliation');
+      }
       result.failed += 1;
       result.errors.push(message);
     }
