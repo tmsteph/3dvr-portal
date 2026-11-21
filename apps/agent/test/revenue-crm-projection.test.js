@@ -56,6 +56,50 @@ test('CRM outbox refuses cross-prospect event linkage before writing any mismatc
   }
 });
 
+test('CRM projection quarantines two distinct ledger buyers sharing one legacy slug ID', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-id-collision-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const contacts = ['alice.smith@buyer.example.test', 'alice-smith@buyer.example.test'];
+    for (const [i, contact] of contacts.entries()) {
+      const prospect = createProspect(db, { name: 'Distinct Buyer ' + i, contact }).prospect;
+      transitionProspect(db, {
+        prospectId: prospect.id, toState: 'verified', idempotencyKey: 'collision:' + i
+      });
+    }
+    const writes = [];
+    const write = async payload => {
+      writes.push(payload);
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    };
+    const blocked = await projectPendingCrm(db, { write });
+    assert.equal(blocked.attempted, 2);
+    assert.equal(blocked.failed, 2);
+    assert.equal(blocked.succeeded, 0);
+    assert.equal(writes.length, 0, 'neither distinct contact may overwrite the shared CRM slug');
+    assert.equal(pendingProjections(db).length, 2, 'both outbox entries remain retryable');
+    assert.ok(blocked.errors.every(error => /ID collision.*manual reconciliation/.test(error)));
+
+    // Quarantine only the ambiguous identities; independent work keeps moving.
+    const unrelated = createProspect(db, {
+      name: 'Independent Buyer', contact: 'independent@buyer.example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: unrelated.id, toState: 'verified', idempotencyKey: 'independent:verified'
+    });
+    const retry = await projectPendingCrm(db, { write });
+    assert.equal(retry.attempted, 3);
+    assert.equal(retry.failed, 2);
+    assert.equal(retry.succeeded, 1);
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].records[0].email, 'independent@buyer.example.test');
+    assert.equal(pendingProjections(db).length, 2);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('CRM projection preserves the legacy stable record identity while waiting quietly after contact', () => {
   const record = recordFor({ id: 'uuid', name: 'Acme', contact: 'mailto:info@acme.test', source_url: 'https://acme.test', state: 'sent', campaign_id: '', created_at: '2026-01-01T00:00:00Z' }, { id: 'event' }, '2026-01-02T00:00:00Z');
   assert.equal(record.id, 'agent-lead-info-acme-test');
