@@ -269,6 +269,14 @@ function pendingProjections(db, limit = 100) {
   // events for one buyer must not race and overwrite an opt-out with old state.
   const now = new Date().toISOString();
   return db.prepare(`SELECT * FROM projection_outbox WHERE status IN ('pending','failed')
+    -- Never project a newer event while an older event for this buyer is
+    -- unresolved. A failed old opt-out/reply must not later overwrite newer
+    -- CRM state merely because fresh pending work was prioritized.
+    AND NOT EXISTS (
+      SELECT 1 FROM projection_outbox older
+      WHERE older.prospect_id = projection_outbox.prospect_id
+        AND older.rowid < projection_outbox.rowid AND older.status <> 'succeeded'
+    )
     AND NOT EXISTS (
       SELECT 1 FROM projection_claims c
       JOIN projection_outbox active ON active.id = c.projection_id
@@ -292,6 +300,13 @@ function claimProjection(db, { id } = {}) {
   const result = db.prepare(`INSERT INTO projection_claims (projection_id, claim_token, expires_at)
     SELECT id, ?, ? FROM projection_outbox
     WHERE id = ? AND status IN ('pending','failed')
+      -- Enforce predecessor ordering at the atomic claim boundary too:
+      -- direct claim callers must not bypass the pendingProjections filter.
+      AND NOT EXISTS (
+        SELECT 1 FROM projection_outbox older
+        WHERE older.prospect_id = projection_outbox.prospect_id
+          AND older.rowid < projection_outbox.rowid AND older.status <> 'succeeded'
+      )
       AND NOT EXISTS (
         SELECT 1 FROM projection_claims c
         JOIN projection_outbox active ON active.id = c.projection_id
