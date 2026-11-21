@@ -100,6 +100,57 @@ test('CRM projection quarantines two distinct ledger buyers sharing one legacy s
   }
 });
 
+test('bounded CRM projection does not starve fresh leads behind quarantined failures', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-retry-fairness-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  const writes = [];
+  const write = async payload => {
+    writes.push(payload.records[0].email);
+    return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+  };
+  try {
+    // These are distinct buyers, but their legacy CRM IDs collide. Once
+    // quarantined, retrying them must not block a healthy third buyer.
+    for (const [i, contact] of [
+      'alice.smith@buyer.example.test', 'alice-smith@buyer.example.test'
+    ].entries()) {
+      const buyer = createProspect(db, { name: 'Collision ' + i, contact }).prospect;
+      transitionProspect(db, {
+        prospectId: buyer.id, toState: 'verified', idempotencyKey: 'fair-collision:' + i
+      });
+    }
+    const blocked = await projectPendingCrm(db, { write, limit: 2 });
+    assert.equal(blocked.failed, 2);
+    assert.equal(writes.length, 0);
+    const healthy = createProspect(db, {
+      name: 'Ready Buyer', contact: 'ready@buyer.example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: healthy.id, toState: 'verified', idempotencyKey: 'fair-ready'
+    });
+
+    const processed = await projectPendingCrm(db, { write, limit: 1 });
+    assert.equal(processed.attempted, 1);
+    assert.equal(processed.succeeded, 1,
+      'new independent lead must be projected even when old failed rows exist');
+    assert.deepEqual(writes, ['ready@buyer.example.test']);
+    assert.equal(pendingProjections(db).length, 2);
+
+    // In failure-only mode, a bounded run must rotate instead of looping
+    // forever on the same retryable collision record.
+    const firstRetryId = pendingProjections(db, 1)[0].id;
+    const retry = await projectPendingCrm(db, { write, limit: 1 });
+    assert.equal(retry.failed, 1);
+    assert.equal(pendingProjections(db).length, 2);
+    assert.notEqual(pendingProjections(db, 1)[0].id, firstRetryId,
+      'failed outbox rows should take turns when batch limit is small');
+    assert.deepEqual(writes, ['ready@buyer.example.test']);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('CRM projection preserves the legacy stable record identity while waiting quietly after contact', () => {
   const record = recordFor({ id: 'uuid', name: 'Acme', contact: 'mailto:info@acme.test', source_url: 'https://acme.test', state: 'sent', campaign_id: '', created_at: '2026-01-01T00:00:00Z' }, { id: 'event' }, '2026-01-02T00:00:00Z');
   assert.equal(record.id, 'agent-lead-info-acme-test');
