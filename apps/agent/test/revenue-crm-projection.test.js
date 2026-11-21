@@ -5,6 +5,27 @@ const os = require('node:os');
 const path = require('node:path');
 const { claimProjection, createProspect, finishProjection, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { projectPendingCrm, recordFor } = require('../thomas-agent/node/revenue-crm-projection');
+
+test('revenue CRM retains the public source and clears stale follow-up on suppression', () => {
+  const sourceUrl = 'https://example.test/public-request-123';
+  const prospect = {
+    id: 'synthetic-1', name: 'Synthetic Buyer', contact: 'synthetic@example.test',
+    source_url: sourceUrl, state: 'suppressed', campaign_id: 'discovery',
+    created_at: '2026-11-21T20:00:00Z',
+  };
+  const event = {
+    id: 'synthetic-opt-out', type: 'opt_out', from_state: 'verified',
+    to_state: 'suppressed', created_at: '2026-11-21T20:01:00Z',
+  };
+  const projected = recordFor(prospect, event, '2026-11-21T20:02:00Z');
+  assert.equal(projected.sourceUrl, sourceUrl, 'provenance must reach Operator CRM');
+  assert.match(projected.lastSignal, /Source: https:\/\/example\.test\/public-request-123/);
+  assert.equal(projected.status, 'Closed');
+  assert.equal(projected.nextFollowUp, '', 'suppression must not retain an automatic reminder');
+  assert.match(projected.nextBestAction, /Do not contact/);
+  assert.equal(projected.lastPaymentAmountCents, undefined, 'no payment without provider verification');
+});
+
 test('CRM projection retries a timeout and completes idempotently', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-projection-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
