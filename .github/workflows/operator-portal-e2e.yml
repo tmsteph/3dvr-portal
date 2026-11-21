@@ -24,6 +24,7 @@ on:
       - 'tests/home-operator-persistence.e2e.test.js'
       - 'tests/operator-device-sync.e2e.test.js'
       - 'tests/auth-real-gun.e2e.test.mjs'
+      - 'tests/operator-e2e-preflight.test.js'
       - '.github/workflows/operator-portal-e2e.yml'
       - 'src/operator/**'
       - 'api/openai-site.js'
@@ -44,6 +45,9 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
+      - name: Verify Operator E2E safety preflight offline
+        if: github.event_name == 'pull_request'
+        run: node --test tests/operator-e2e-preflight.test.js
       - name: Verify the PR checkout with isolated local servers
         if: github.event_name == 'pull_request'
         run: |
