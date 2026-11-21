@@ -93,9 +93,13 @@ function normalizeRiskClass(value) {
 }
 
 function defaultApprovalStatus(record = {}) {
-  if (normalizeText(record.approvalStatus)) return normalizeText(record.approvalStatus);
-  if (record.unsafe) return 'approved';
-  return APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)) ? 'required' : 'not_required';
+  const status = normalizeText(record.approvalStatus).toLowerCase();
+  // 'unsafe' controls the executor sandbox, not human authorization.
+  // A caller cannot skip a high-risk gate by supplying 'not_required'.
+  if (record.unsafe || APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass))) {
+    return status === 'approved' ? 'approved' : 'required';
+  }
+  return status || 'not_required';
 }
 
 function normalizeTenantRecord(record = {}) {
@@ -303,6 +307,17 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
+  // Evaluate the policy at worker claim time too: legacy and imported tasks
+  // may bypass enqueue normalization or carry a forged 'not_required' value.
+  // This is defense in depth, NOT proof of a signed human approval receipt.
+  if ((record.unsafe || APPROVAL_REQUIRED_RISKS.has(riskClass))
+    && record.approvalStatus !== 'approved') {
+    return {
+      ok: false,
+      reason: `approval required for ${record.unsafe ? 'unsafe executor' : riskClass}`,
+      profile,
+    };
+  }
   if (record.approvalStatus === 'required') {
     return {
       ok: false,
