@@ -41,7 +41,18 @@ const DEFAULT_FORM_MODE = String(process.env.THREEDVR_AUTOPILOT_FORM_MODE || 're
 const DEFAULT_EMAIL_MODE = String(process.env.THREEDVR_AUTOPILOT_EMAIL_MODE || 'action').trim().toLowerCase();
 const DEFAULT_EMAIL_COOLDOWN_HOURS = parseInteger(process.env.THREEDVR_AUTOPILOT_EMAIL_COOLDOWN_HOURS, 12);
 const DEFAULT_EMAIL_TRANSPORT = String(process.env.THREEDVR_AUTOPILOT_EMAIL_TRANSPORT || 'portal').trim().toLowerCase();
-const DEFAULT_AUTO_SEND = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_AUTO_SEND || '').trim());
+// A campaign-wide flag is not evidence of approval for a specific recipient,
+// channel and exact message. Retain the legacy setting only for diagnostics;
+// the automatic sending lane must fail closed until a verified approval receipt
+// is consumed by the sender. Manual approved-send commands are separate.
+const LEGACY_AUTO_SEND_REQUESTED = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_AUTO_SEND || '').trim());
+function autoSendApprovalPolicy(configured = false) {
+  return {
+    enabled: false,
+    blockedReason: configured ? 'autonomous prospect outreach disabled: explicit human approval required' : '',
+  };
+}
+const DEFAULT_AUTO_SEND = autoSendApprovalPolicy(LEGACY_AUTO_SEND_REQUESTED).enabled;
 const DEFAULT_FRESH_DISCOVERY_ONLY = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_AUTOPILOT_FRESH_DISCOVERY_ONLY || 'true').trim());
 const DEFAULT_AUTO_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT, 1);
 const DEFAULT_DAILY_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT, 5);
@@ -154,7 +165,7 @@ Environment:
   THREEDVR_AUTOPILOT_EMAIL_MODE          action | always | never
   THREEDVR_AUTOPILOT_EMAIL_COOLDOWN_HOURS dedupe window for repeated emails
   THREEDVR_AUTOPILOT_EMAIL_TRANSPORT     portal | auto | gmail
-  THREEDVR_AUTOPILOT_AUTO_SEND           true to send first-touch email automatically for mailto leads
+  THREEDVR_AUTOPILOT_AUTO_SEND           deprecated/ignored; prospect sends require per-message human approval
   THREEDVR_AUTOPILOT_FRESH_DISCOVERY_ONLY true (default) limits autonomous sends to crawler-discovered leads
   THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT     max automated outreach sends per run
   THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT    max successful outreach sends across all runs per UTC day
@@ -770,7 +781,8 @@ function isExpectedCampaignBlock(reason) {
     || isBusinessHoursDeferral(normalized)
     || normalized === 'daily or campaign send limit reached'
     || normalized === 'campaign is outside its active date range'
-    || normalized === 'threedvr_autopilot_paused is enabled';
+    || normalized === 'threedvr_autopilot_paused is enabled'
+    || normalized === 'autonomous prospect outreach disabled: explicit human approval required';
 }
 
 function buildAlertItems(summary) {
@@ -1091,7 +1103,7 @@ async function main() {
     end: DEFAULT_CAMPAIGN_END,
   });
   const sendBlockedReason = !DEFAULT_AUTO_SEND
-    ? ''
+    ? autoSendApprovalPolicy(LEGACY_AUTO_SEND_REQUESTED).blockedReason
     : DEFAULT_PAUSED
       ? 'THREEDVR_AUTOPILOT_PAUSED is enabled'
       : !DEFAULT_OUTREACH_POSTAL_ADDRESS
@@ -1103,7 +1115,7 @@ async function main() {
               : campaignAllowance.allowed < 1
             ? 'daily or campaign send limit reached'
             : '';
-  const runSendLimit = Math.min(DEFAULT_AUTO_SEND_LIMIT, campaignAllowance.allowed);
+  const runSendLimit = DEFAULT_AUTO_SEND ? Math.min(DEFAULT_AUTO_SEND_LIMIT, campaignAllowance.allowed) : 0;
   const autoSent = [];
   if (DEFAULT_AUTO_SEND && !options.dryRun && !sendBlockedReason && runSendLimit > 0) {
     const candidates = pickAutoSendLeads(readLeads(LEADS_FILE), runSendLimit, outreachEntries);
@@ -1391,6 +1403,7 @@ async function main() {
 }
 
 module.exports = {
+  autoSendApprovalPolicy,
   buildActionItems,
   buildAlertItems,
   countRouteBuckets,
