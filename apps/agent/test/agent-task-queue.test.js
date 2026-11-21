@@ -272,7 +272,7 @@ test('worker skips tasks that need approval or unsupported capabilities', async 
   assert.equal(results.length, 0);
 });
 
-test('unsafe high-risk task is approved and can run on capable worker', async () => {
+test('unsafe high-risk enqueue cannot grant itself approval before worker claim', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Publish static site', {
     rootNode,
@@ -285,24 +285,72 @@ test('unsafe high-risk task is approved and can run on capable worker', async ()
     force: true,
   });
 
-  const results = await runWorkerOnce({
+  const workerOptions = {
     rootNode,
     ownerAlias: 'tenant-a',
     deviceId: 'do-worker',
     workerCapabilities: 'node,codex,static-hosting',
     workerRiskClasses: 'read_only,draft,workspace_write,external_write',
     force: true,
+  };
+  const pending = await readTask('task-6', workerOptions);
+  assert.equal(pending.approvalStatus, 'required');
+  assert.match(canWorkerRunTask(pending, workerOptions).reason, /approval required/);
+  let executions = 0;
+  const blocked = await runWorkerOnce({
+    ...workerOptions,
+    runAgentTaskImpl: async () => { executions += 1; throw new Error('unapproved execution'); },
+  });
+  assert.equal(blocked.length, 0);
+  assert.equal(executions, 0);
+
+  // Existing explicit approval state is a compatibility control, not proof
+  // that a signed recipient/action-bound human receipt exists.
+  await updateTask('task-6', { approvalStatus: 'approved' }, workerOptions);
+  const results = await runWorkerOnce({
+    ...workerOptions,
     runAgentTaskImpl: async () => ({
       ok: true,
       backend: 'codex',
       result: { ok: true, stdout: 'published' },
     }),
   });
-  const completed = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
-
+  const completed = await readTask('task-6', workerOptions);
   assert.equal(results.length, 1);
   assert.equal(completed.approvalStatus, 'approved');
   assert.equal(completed.status, 'completed');
+});
+
+test('unsafe and high-risk tasks reject missing or forged not_required approval', async () => {
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write,money,credential',
+  };
+  for (const riskClass of ['external_write', 'money', 'credential']) {
+    for (const approvalStatus of ['', 'not_required', 'rejected', 'required']) {
+      const result = canWorkerRunTask({
+        backend: 'codex', riskClass, approvalStatus, unsafe: false,
+      }, worker);
+      assert.equal(result.ok, false, `${riskClass}/${approvalStatus}`);
+      assert.match(result.reason, /approval required/, `${riskClass}/${approvalStatus}`);
+    }
+  }
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: true,
+    approvalStatus: 'not_required',
+  }, worker).ok, false);
+
+  const rootNode = fakeRoot();
+  const forged = await enqueueTask('External action', {
+    rootNode, ownerAlias: 'tenant-a', id: 'forged-approval', backend: 'codex',
+    riskClass: 'external_write', approvalStatus: 'not_required', force: true,
+  });
+  assert.equal(forged.approvalStatus, 'required');
+  const unsafeDraft = await enqueueTask('Run outside sandbox', {
+    rootNode, ownerAlias: 'tenant-a', id: 'unsafe-draft', backend: 'codex',
+    riskClass: 'workspace_write', unsafe: true, force: true,
+  });
+  assert.equal(unsafeDraft.approvalStatus, 'required');
 });
 
 
