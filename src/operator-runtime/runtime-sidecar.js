@@ -47,9 +47,21 @@ export function mergeQueueRuntimeRecord(queueRecord = {}, runtimeRecord = {}) {
   const queueId = text(queueRecord.id, 240);
   const runtimeId = text(runtimeRecord.id, 240);
   if (queueId && runtimeId && queueId !== runtimeId) return { ...queueRecord };
+  // The sidecar supplies runtime presentation context, not worker policy.
+  // Never let extra sidecar keys replace tenant, approval, capabilities,
+  // risk class, request owner or other authoritative queue fields.
+  const runtimeFields = [
+    'runtimeVersion', 'runtimeWorkItemJson', 'runtimeState', 'runtimeDomain',
+    'runtimeWorkflow', 'runtimeOwner', 'runtimePriority', 'runtimeRisk',
+    'workerLane', 'verificationStatus', 'humanCheckpointStatus',
+    'evidenceCount', 'createdAt'
+  ];
+  const runtimeContext = Object.fromEntries(runtimeFields
+    .filter(key => Object.hasOwn(runtimeRecord, key))
+    .map(key => [key, runtimeRecord[key]]));
   return {
     ...queueRecord,
-    ...runtimeRecord,
+    ...runtimeContext,
     id: text(queueRecord.id, 240) || text(runtimeRecord.id, 240),
     // Only the worker queue's own status is authoritative. A partial latest
     // record with no status must not inherit stale sidecar success or payment.
