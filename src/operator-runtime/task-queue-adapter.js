@@ -75,8 +75,32 @@ export function queueStatusFromWorkItemState(state = 'queued') {
 
 export function workItemStateFromQueueRecord(record = {}) {
   const status = text(record.status, 80).toLowerCase().replace(/[\s-]+/g, '_');
-  if (status && status !== 'queued') return QUEUE_STATUS_TO_STATE[status] || text(record.runtimeState, 80) || 'queued';
-  return text(record.runtimeState, 80) || QUEUE_STATUS_TO_STATE[status] || 'queued';
+  if (status === 'queued') {
+    // The worker queue is authoritative: a stale runtime sidecar must not
+    // render an actually queued task as completed, failed, or running.
+    // Preserve 'ready' because both ready and queued serialize as queued.
+    return text(record.runtimeState, 80) === 'ready' ? 'ready' : 'queued';
+  }
+  if (status) {
+    // An unknown worker status is not a successful completion receipt.
+    // Never fall back to a stale sidecar's done/running state for a queue
+    // status we cannot interpret; mark it blocked for manual inspection.
+    return QUEUE_STATUS_TO_STATE[status] || 'blocked';
+  }
+  // Missing queue status is not a worker receipt. A sidecar alone must
+  // never turn a partial/legacy latest record into a completed task.
+  return 'blocked';
+}
+
+// Gun map keys are the queue's routing identity. A value advertising a
+// different task ID must never be rendered under that key (or joined to its
+// CRM/runtime sidecar). Legacy values lacking an inner ID can use the key.
+export function queueRecordForMapKey(record = {}, mapKey = '') {
+  const key = text(mapKey, 240);
+  if (!key || !record || typeof record !== 'object' || Array.isArray(record)) return null;
+  const advertisedId = text(record.id, 240);
+  if (advertisedId && advertisedId !== key) return null;
+  return { ...record, id: key };
 }
 
 export function workItemToAgentQueueRecord(input = {}, overrides = {}) {
@@ -160,7 +184,13 @@ export function queueRecordToWorkItem(record = {}) {
   let parsed = null;
   if (record.runtimeWorkItemJson) {
     try {
-      parsed = JSON.parse(record.runtimeWorkItemJson);
+      const candidate = JSON.parse(record.runtimeWorkItemJson);
+      // The inner work item must belong to the actual worker queue task.
+      // A matching sidecar envelope alone cannot establish that identity.
+      if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+        && text(record.id, 240) && text(candidate.id, 240) === text(record.id, 240)) {
+        parsed = candidate;
+      }
     } catch (_error) {
       parsed = null;
     }
@@ -184,20 +214,51 @@ export function queueRecordToWorkItem(record = {}) {
     metadata: {}
   };
 
+  const queueState = workItemStateFromQueueRecord(record);
+  // Only an authoritative completed queue status can expose a successful
+  // result. A retry can already be running/reviewing/verifying while its
+  // sidecar (or queue summary) still contains a previous paid-looking result.
+  // Failed/cancelled tasks keep their separate queue error diagnostic.
+  const completed = queueState === 'done';
+  // A queued/ready retry has not been claimed by this attempt. An old
+  // workerDeviceId in the queue must not attribute the new attempt to the
+  // worker that handled an earlier run.
+  const unclaimed = queueState === 'queued' || queueState === 'ready';
+  // A retried task must not inherit a terminal sidecar's past payment stage,
+  // completed evidence, or other attempt-specific business metadata. The
+  // canonical CRM remains the place for historical, independently verified facts.
+  // Terminal queue states also have retries: a failed/cancelled retry must
+  // not inherit a prior successful payment or evidence from a done sidecar.
+  // Conversely, a newly completed attempt must not inherit failed/cancelled
+  // sidecar metadata. Treat differing terminal states as separate attempts.
+  const sidecarState = text(record.runtimeState, 80);
+  const staleTerminalSidecar = ['done', 'failed', 'cancelled'].includes(sidecarState)
+    && sidecarState !== queueState;
+  // The worker queue's approval gate takes precedence over a stale sidecar.
+  // This is display metadata, not a signed outbound authorization receipt.
+  const queueApproval = text(record.approvalStatus, 80).toLowerCase();
+  const humanCheckpointStatus = ['required', 'approved'].includes(queueApproval)
+    ? queueApproval
+    : (text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required');
+
   return createWorkItem({
     ...source,
     id: text(record.id, 240) || source.id,
-    state: workItemStateFromQueueRecord(record),
+    state: queueState,
+    evidence: staleTerminalSidecar ? [] : source.evidence,
     updatedAt: text(record.updatedAt, 80) || source.updatedAt,
-    result: record.resultSummary || source.result || null,
+    // A completed queue status alone does not authenticate a prior sidecar's
+    // result. Only the worker's current queue summary may be displayed as the
+    // current completion result; an empty worker summary must stay empty.
+    result: completed ? (text(record.resultSummary, 2000) || null) : null,
     metadata: {
-      ...(source.metadata || {}),
+      ...(staleTerminalSidecar ? {} : (source.metadata || {})),
       queueStatus: text(record.status, 80),
       workerLane: text(record.workerLane, 120) || source.metadata?.workerLane || '',
       verificationStatus: text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
-      humanCheckpointStatus: text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required',
-      evidenceCount: Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0,
-      workerDeviceId: text(record.workerDeviceId, 200)
+      humanCheckpointStatus,
+      evidenceCount: staleTerminalSidecar ? 0 : (Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0),
+      workerDeviceId: unclaimed ? '' : text(record.workerDeviceId, 200)
     }
   });
 }
@@ -218,10 +279,12 @@ export function normalizeQueueRecordForWorkboard(record = {}) {
     verificationStatus: item.metadata?.verificationStatus || 'not_started',
     humanCheckpointStatus: item.metadata?.humanCheckpointStatus || 'not_required',
     evidenceCount: item.metadata?.evidenceCount || item.evidence.length,
-    workerDeviceId: item.metadata?.workerDeviceId || text(record.workerDeviceId, 200),
+    workerDeviceId: item.metadata?.workerDeviceId || '',
     runtimeVersion: text(record.runtimeVersion, 80),
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
-    resultSummary: text(record.resultSummary, 2000) || resultSummary(item.result)
+    resultSummary: item.state === 'done'
+      ? text(record.resultSummary, 2000)
+      : ''
   };
 }
