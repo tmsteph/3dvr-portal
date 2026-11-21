@@ -476,6 +476,7 @@ test('missing-status and draft outreach log entries remain notes, never sent or 
         subject: 'Unsent draft only',
       }],
       now: '2026-11-20T20:01:00.000Z',
+      includeAll: true,
     });
     assert.equal(payload.records.length, 1);
     assert.equal(payload.records[0].status, 'Lead');
@@ -493,6 +494,7 @@ test('missing-status and draft outreach log entries remain notes, never sent or 
       name: lead.name, contact: lead.contact, status: 'failed',
       timestamp: '2026-11-20T20:02:00.000Z',
     }],
+    includeAll: true,
   });
   assert.equal(failed.touches.find(touch => touch.source === '3dvr-agent/outreach-log').touchType, 'outreach-failed',
     'explicit failed delivery retains its distinct status');
