@@ -114,6 +114,31 @@ test('revenue lead creation cannot forge a paid stage before provider verificati
   assert.equal(awaitingPayment.state, 'waiting_external');
 });
 
+test('new revenue leads reject unknown pipeline stages and forged completed states', () => {
+  for (const stage of ['not-a-stage', 'paid', '']) {
+    if (!stage) continue;
+    assert.throws(
+      () => createRevenueLeadWorkItem({ id: 'invalid-stage', stage }),
+      /unknown revenue stage/,
+      'unknown stage must not enter the queue or CRM',
+    );
+  }
+  for (const stage of [undefined, 'research', 'outreach', 'waiting_reply', 'payment']) {
+    assert.throws(
+      () => createRevenueLeadWorkItem({ id: 'false-completion', stage, state: 'done',
+        result: { amountCents: 50000, currency: 'USD' } }),
+      /verified terminal stage/,
+      'completed wrapper must not masquerade as a paid lead',
+    );
+  }
+  const closed = createRevenueLeadWorkItem({ id: 'closed-not-paid', stage: 'lost', state: 'done' });
+  assert.equal(closed.metadata.stage, 'lost');
+  assert.equal(closed.state, 'done');
+  const active = createRevenueLeadWorkItem({ id: 'awaiting-review', stage: 'payment', state: 'waiting_external' });
+  assert.equal(active.metadata.stage, 'payment');
+  assert.equal(active.state, 'waiting_external');
+});
+
 test('revenue workflow records sent/reply receipts but cannot claim paid without a provider adapter', () => {
   let item = createRevenueLeadWorkItem({
     id: 'lead-1',
