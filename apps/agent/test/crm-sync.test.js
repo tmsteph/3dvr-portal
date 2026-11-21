@@ -257,6 +257,26 @@ test('buildCrmSyncPayload makes outreach the canonical contact and message histo
   assert.equal(messageTouch.touchType, 'outreach-sent');
 });
 
+test('replayed identical outreach rows do not inflate reply counts or CRM touches', () => {
+  const firstReply = {
+    name: 'Synthetic Buyer', contact: 'buyer@replay.example.test',
+    status: 'replied', kind: 'email', messageId: 'reply-1',
+    timestamp: '2026-11-21T08:00:00.000Z', body: 'First synthetic reply',
+  };
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Synthetic Buyer', contact: 'buyer@replay.example.test', status: 'new' }],
+    outreach: [firstReply, { ...firstReply }, { ...firstReply,
+      messageId: 'reply-2', timestamp: '2026-11-21T08:05:00.000Z', body: 'Second synthetic reply' }],
+    includeAll: true,
+    now: '2026-11-21T08:10:00.000Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].replyCount, 2, 'replayed identical row is one reply');
+  assert.equal(payload.records[0].status, 'Warm - Discovery');
+  assert.equal(payload.touches.length, 3, 'one lead note and two distinct replies');
+  assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 2);
+});
+
 test('buildCrmSyncPayload deduplicates a lead and its outreach by email', () => {
   const payload = buildCrmSyncPayload({
     leads: [{ name: 'Known Lead', link: 'https://known.example', contact: 'mailto:owner@known.example', status: 'new' }],
