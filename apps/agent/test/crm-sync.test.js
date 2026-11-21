@@ -460,6 +460,44 @@ test('CRM contact and reply dates follow actual event times, not failed attempts
 });
 
 
+test('missing-status and draft outreach log entries remain notes, never sent or failed touches', () => {
+  const lead = {
+    name: 'Synthetic Review Lead',
+    link: 'https://review-only.example.test',
+    contact: 'review@review-only.example.test',
+    status: 'new',
+  };
+  for (const status of [undefined, '', 'draft', 'pending_approval']) {
+    const payload = buildCrmSyncPayload({
+      leads: [lead],
+      outreach: [{
+        name: lead.name, contact: lead.contact, status,
+        timestamp: '2026-11-20T20:00:00.000Z',
+        subject: 'Unsent draft only',
+      }],
+      now: '2026-11-20T20:01:00.000Z',
+    });
+    assert.equal(payload.records.length, 1);
+    assert.equal(payload.records[0].status, 'Lead');
+    assert.equal(payload.records[0].lastContacted, '');
+    assert.equal(payload.records[0].lastTouchType, 'note');
+    const touches = payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log');
+    assert.equal(touches.length, 1);
+    assert.equal(touches[0].touchType, 'note', String(status));
+    assert.equal(touches[0].type, 'note', String(status));
+    assert.equal(payload.touches.filter(touch => touch.touchType === 'outreach-sent').length, 0);
+  }
+  const failed = buildCrmSyncPayload({
+    leads: [lead],
+    outreach: [{
+      name: lead.name, contact: lead.contact, status: 'failed',
+      timestamp: '2026-11-20T20:02:00.000Z',
+    }],
+  });
+  assert.equal(failed.touches.find(touch => touch.source === '3dvr-agent/outreach-log').touchType, 'outreach-failed',
+    'explicit failed delivery retains its distinct status');
+});
+
 test('failed-only and draft-only outreach history never fabricates a sent contact', () => {
   const failedLead = {
     name: 'Synthetic Failure', link: 'https://failed-only.example',
