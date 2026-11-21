@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  autoSendApprovalPolicy,
   buildActionItems,
   buildAlertItems,
   countRouteBuckets,
@@ -12,6 +13,20 @@ const {
   normalizeCrawlSource,
   splitLocations,
 } = require('../thomas-agent/node/autopilot');
+
+test('legacy auto-send configuration cannot authorize any prospect message', () => {
+  const configured = autoSendApprovalPolicy(true);
+  assert.equal(configured.enabled, false);
+  assert.match(configured.blockedReason, /explicit human approval required/);
+  assert.deepEqual(autoSendApprovalPolicy(false), { enabled: false, blockedReason: '' });
+  assert.deepEqual(buildAlertItems({
+    counts: { replied: 0 },
+    autoSent: [],
+    campaign: { sendBlockedReason: configured.blockedReason, draftQueueEnabled: false },
+    openAiCosts: { limitExceeded: false },
+    codex: { mode: 'off' },
+  }), []);
+});
 
 test('splitLocations preserves city and state commas', () => {
   assert.deepEqual(splitLocations('San Diego, CA'), ['San Diego, CA']);
