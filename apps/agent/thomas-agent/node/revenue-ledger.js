@@ -230,7 +230,12 @@ function transitionProspect(db, input = {}) {
   const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: eventType, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
-    db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
+    // Recheck the state atomically under the SQLite write lock. A different
+    // worker may have suppressed/replied to this lead after our validation;
+    // never overwrite that newer state or invent a stale CRM event.
+    const moved = db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ? AND state = ?')
+      .run(toState, now, id, prospect.state);
+    if (moved.changes !== 1) throw new Error('Concurrent prospect state transition; reload and retry');
     db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
     db.prepare(`INSERT INTO projection_outbox (id, idempotency_key, prospect_id, event_id, destination, payload_json, status, attempts, last_error, created_at, updated_at)
@@ -385,7 +390,12 @@ function importProspectState(db, input = {}) {
   const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
-    db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
+    // Recheck the state atomically under the SQLite write lock. A different
+    // worker may have suppressed/replied to this lead after our validation;
+    // never overwrite that newer state or invent a stale CRM event.
+    const moved = db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ? AND state = ?')
+      .run(toState, now, id, prospect.state);
+    if (moved.changes !== 1) throw new Error('Concurrent prospect state transition; reload and retry');
     db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
     db.prepare(`INSERT INTO projection_outbox (id, idempotency_key, prospect_id, event_id, destination, payload_json, status, attempts, last_error, created_at, updated_at)
