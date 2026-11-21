@@ -9,7 +9,9 @@ const {
   enqueueTask,
   publicTask,
   readTask,
+  runQueuedTask,
   runWorkerOnce,
+  updateTask,
 } = require('../thomas-agent/node/agent-task-queue');
 const sqliteQueue = require('../thomas-agent/node/task-queue-sqlite-store');
 
@@ -81,6 +83,41 @@ test('concurrent workers atomically claim a SQLite task only once', async (t) =>
 
   assert.equal(executions, 1);
   assert.equal((await readTask('concurrent-task', options)).status, 'completed');
+});
+
+test('SQLite claim rechecks a newer human veto or high-risk change before execution', async (t) => {
+  const options = await queueOptions(t, {
+    gunSync: false,
+    workerCapabilities: 'node,openai',
+    workerRiskClasses: 'read_only,draft,workspace_write,money',
+  });
+  for (const [id, patch, expectedReason] of [
+    ['revoked-between-read-and-claim', { approvalStatus: 'rejected' }, /approval not granted \\(rejected\\)/],
+    ['risk-raised-between-read-and-claim', { riskClass: 'money', approvalStatus: 'approved' }, /verified human approval receipt required/],
+  ]) {
+    await enqueueTask('Synthetic read-only research', {
+      ...options, id, backend: 'openai', riskClass: 'read_only',
+    });
+    const staleEligibleSnapshot = await readTask(id, options);
+    assert.equal(staleEligibleSnapshot.approvalStatus, 'not_required');
+    await updateTask(id, patch, options);
+    let executions = 0;
+    const outcome = await runQueuedTask(staleEligibleSnapshot, {
+      ...options,
+      runAgentTaskImpl: async () => {
+        executions++;
+        throw new Error('stale eligibility must not execute');
+      },
+    });
+    assert.equal(executions, 0, id);
+    assert.equal(outcome.skipped, true, id);
+    assert.match(outcome.reason, expectedReason);
+    const current = await readTask(id, options);
+    assert.equal(current.status, 'skipped', id);
+    assert.match(current.error, expectedReason);
+    assert.equal(current.approvalStatus, patch.approvalStatus, id);
+    if (patch.riskClass) assert.equal(current.riskClass, patch.riskClass, id);
+  }
 });
 
 test('long SQLite work renews an expired initial claim against a competing worker', async (t) => {
