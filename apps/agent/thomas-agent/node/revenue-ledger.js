@@ -269,11 +269,21 @@ function pendingProjections(db, limit = 100) {
 
 function finishProjection(db, { id, status, error = '' } = {}) {
   if (!['succeeded', 'failed'].includes(status)) throw new Error('projection status must be succeeded or failed');
+  // A late timeout from another projection worker must never demote a
+  // previously acknowledged CRM write back to failed/retryable. Make this
+  // atomic across SQLite connections, not a read-then-write race.
   const result = db.prepare(`UPDATE projection_outbox
-    SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ? WHERE id = ?`)
+    SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
+    WHERE id = ? AND status IN ('pending', 'failed')`)
     .run(status, normalize(error), new Date().toISOString(), normalize(id));
-  if (!result.changes) throw new Error('Projection does not exist');
-  return db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(normalize(id));
+  const saved = db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(normalize(id));
+  if (!saved) throw new Error('Projection does not exist');
+  // An already-succeeded write is terminal, including stale failure reports.
+  // Its attempt count and durable CRM receipt must remain unchanged.
+  if (!result.changes && saved.status !== 'succeeded') {
+    throw new Error('Projection was not pending or failed');
+  }
+  return saved;
 }
 
 // Imports are an auditable backfill, not normal lifecycle transitions. A legacy
