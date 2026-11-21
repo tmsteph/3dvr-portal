@@ -241,6 +241,12 @@ test('CRM outbox refuses cross-prospect event linkage before writing any mismatc
     transitionProspect(db, {
       prospectId: second.id, toState: 'verified', idempotencyKey: 'cross-lead-south'
     });
+    const third = createProspect(db, {
+      name: 'Synthetic West', contact: 'west@example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: third.id, toState: 'verified', idempotencyKey: 'cross-lead-west'
+    });
     // Both foreign keys still reference valid rows. Only their relationship is
     // corrupt, so schema FK enforcement alone cannot catch this attribution bug.
     db.prepare('UPDATE projection_outbox SET prospect_id=? WHERE event_id=?').run(second.id, firstEvent.id);
@@ -254,11 +260,19 @@ test('CRM outbox refuses cross-prospect event linkage before writing any mismatc
     assert.equal(result.failed, 1);
     assert.match(result.errors.join(' '), /identity mismatch/);
     assert.equal(writes.length, 1, 'mismatched event must never reach CRM writer');
-    assert.equal(writes[0].records[0].email, 'south@example.test');
-    assert.equal(writes[0].touches[0].contactName, 'Synthetic South');
+    // The corrupt earlier row now belongs to the same projected buyer. The
+    // healthy later event for that buyer must remain blocked until repaired,
+    // while an independent buyer continues normally.
+    assert.equal(writes[0].records[0].email, 'west@example.test');
+    assert.equal(writes[0].touches[0].contactName, 'Synthetic West');
     const corrupted = db.prepare('SELECT status,attempts FROM projection_outbox WHERE event_id=?').get(firstEvent.id);
     assert.equal(corrupted.status, 'failed', 'quarantine is retryable, never silently accepted');
     assert.equal(corrupted.attempts, 1);
+    const blocked = db.prepare(
+      'SELECT id FROM projection_outbox WHERE prospect_id=? AND event_id<>(SELECT id FROM revenue_events WHERE idempotency_key=?)'
+    ).get(second.id, 'cross-lead-north');
+    assert.equal(claimProjection(db, { id: blocked.id }), null,
+      'valid later event stays quarantined behind the corrupt predecessor');
   } finally {
     db.close();
     fs.rmSync(tmp, { recursive: true, force: true });
