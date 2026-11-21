@@ -183,6 +183,58 @@ test('expired CRM claim can be recovered without accepting the stale worker rece
   assert.equal(db.prepare('SELECT count(*) AS n FROM projection_claims').get().n, 0);
 }));
 
+test('CRM outbox preserves each buyer event order across failures without blocking other buyers', () => withLedger((db) => {
+  const buyer = createProspect(db, {
+    name: 'Synthetic Buyer', contact: 'ordered@example.test'
+  }).prospect;
+  const independent = createProspect(db, {
+    name: 'Independent Buyer', contact: 'independent@example.test'
+  }).prospect;
+  transitionProspect(db, {
+    prospectId: buyer.id, toState: 'verified', idempotencyKey: 'order:verified'
+  });
+  transitionProspect(db, {
+    prospectId: buyer.id, toState: 'suppressed', idempotencyKey: 'order:suppressed'
+  });
+  transitionProspect(db, {
+    prospectId: independent.id, toState: 'verified', idempotencyKey: 'order:independent'
+  });
+
+  const [older, newer] = db.prepare(
+    'SELECT * FROM projection_outbox WHERE prospect_id = ? ORDER BY rowid ASC'
+  ).all(buyer.id);
+  const independentRow = db.prepare(
+    'SELECT * FROM projection_outbox WHERE prospect_id = ?'
+  ).get(independent.id);
+  assert.deepEqual(new Set(pendingProjections(db).map(row => row.id)),
+    new Set([older.id, independentRow.id]),
+    'later same-buyer event must not enter the eligible batch');
+  assert.equal(claimProjection(db, { id: newer.id }), null,
+    'direct atomic claim must not bypass predecessor ordering');
+
+  const oldClaim = claimProjection(db, { id: older.id });
+  assert.ok(oldClaim);
+  finishProjection(db, { id: older.id, status: 'failed', error: 'synthetic timeout', claimToken: oldClaim });
+  assert.equal(claimProjection(db, { id: newer.id }), null,
+    'failed predecessor still blocks a newer event for the same buyer');
+  assert.deepEqual(new Set(pendingProjections(db).map(row => row.id)),
+    new Set([older.id, independentRow.id]),
+    'unrelated buyer work continues while the older buyer event awaits retry');
+
+  const otherClaim = claimProjection(db, { id: independentRow.id });
+  assert.ok(otherClaim);
+  finishProjection(db, { id: independentRow.id, status: 'succeeded', claimToken: otherClaim });
+  const retryClaim = claimProjection(db, { id: older.id });
+  assert.ok(retryClaim);
+  finishProjection(db, { id: older.id, status: 'succeeded', claimToken: retryClaim });
+  assert.deepEqual(pendingProjections(db).map(row => row.id), [newer.id],
+    'newer opt-out event becomes eligible only after predecessor settled');
+  const newClaim = claimProjection(db, { id: newer.id });
+  assert.ok(newClaim);
+  finishProjection(db, { id: newer.id, status: 'succeeded', claimToken: newClaim });
+  assert.equal(pendingProjections(db).length, 0);
+}));
+
 test('ledger refuses unattributed acknowledged deliveries at the persistence boundary', () => withLedger((db) => {
   const prospect = createProspect(db, { name: 'Synthetic no-send', contact: 'synthetic@example.test' }).prospect;
   const malformed = [
