@@ -313,9 +313,14 @@ function finishProjection(db, { id, status, error = '', claimToken = '' } = {}) 
     // A delayed timeout/result from a former worker cannot clear the current
     // worker's lease or change its acknowledged success. Token verification
     // and the status update happen under the same SQLite write lock.
+    const row = db.prepare('SELECT status FROM projection_outbox WHERE id = ?').get(projectionId);
+    if (!row) throw new Error('Projection does not exist');
     const claim = db.prepare('SELECT claim_token FROM projection_claims WHERE projection_id = ?')
       .get(projectionId);
-    if (claim ? claim.claim_token !== claimToken : Boolean(claimToken)) {
+    // Every settlement must prove ownership of a live claim. A tokenless
+    // caller must not mark a queued or failed CRM write as acknowledged, nor
+    // steal an active worker's result via the exported ledger API.
+    if (!claimToken || !claim || claim.claim_token !== claimToken) {
       throw new Error('CRM projection claim is stale or missing');
     }
     const result = db.prepare(`UPDATE projection_outbox
