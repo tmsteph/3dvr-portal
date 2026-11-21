@@ -92,7 +92,7 @@ test('SQLite claim rechecks a newer human veto or high-risk change before execut
     workerRiskClasses: 'read_only,draft,workspace_write,money',
   });
   for (const [id, patch, expectedReason] of [
-    ['revoked-between-read-and-claim', { approvalStatus: 'rejected' }, /approval not granted \\(rejected\\)/],
+    ['revoked-between-read-and-claim', { approvalStatus: 'rejected' }, /approval not granted \(rejected\)/],
     ['risk-raised-between-read-and-claim', { riskClass: 'money', approvalStatus: 'approved' }, /verified human approval receipt required/],
   ]) {
     await enqueueTask('Synthetic read-only research', {
