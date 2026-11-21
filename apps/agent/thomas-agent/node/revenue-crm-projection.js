@@ -116,6 +116,24 @@ function touchFor(prospect, event, now) {
   };
 }
 
+// The legacy CRM key is a punctuation-stripping slug. Two distinct ledger
+// contacts can map to the same CRM record ID (e.g. alice.smith@ vs alice-smith@).
+// Fail closed for *both* identities rather than letting either record, opt-out,
+// or reply touch overwrite the other. Historical collisions require review.
+function collidingCrmRecordIds(db) {
+  const owners = new Map();
+  const collisions = new Set();
+  for (const prospect of db.prepare('SELECT id, name, contact, source_url FROM prospects').all()) {
+    const crmId = buildLeadId({
+      name: prospect.name, contact: prospect.contact, link: prospect.source_url
+    });
+    const owner = owners.get(crmId);
+    if (owner && owner !== prospect.id) collisions.add(crmId);
+    else owners.set(crmId, prospect.id);
+  }
+  return collisions;
+}
+
 async function projectPendingCrm(db, options = {}) {
   const write = options.write || writeCrmSync;
   // The isolated acceptance fence must not be bypassed by caller-supplied
@@ -131,6 +149,7 @@ async function projectPendingCrm(db, options = {}) {
   }
   const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots(options));
   const rows = pendingProjections(db, options.limit || 100);
+  const collidingIds = rows.length ? collidingCrmRecordIds(db) : new Set();
   const result = { attempted: rows.length, succeeded: 0, failed: 0, errors: [] };
   for (const row of rows) {
     const prospect = getProspect(db, row.prospect_id);
@@ -141,6 +160,12 @@ async function projectPendingCrm(db, options = {}) {
       // event. Never project that person's reply/payment into this CRM record.
       if (event.prospect_id !== prospect.id) {
         throw new Error('CRM projection prospect/event identity mismatch');
+      }
+      const crmId = buildLeadId({
+        name: prospect.name, contact: prospect.contact, link: prospect.source_url
+      });
+      if (collidingIds.has(crmId)) {
+        throw new Error('CRM projection ID collision across distinct prospects; manual reconciliation required');
       }
       const now = new Date().toISOString();
       const payload = {
