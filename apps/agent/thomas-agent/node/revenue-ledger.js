@@ -84,6 +84,13 @@ function openLedger(options = {}) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    -- At most one active writer for each CRM outbox event. Kept in the
+    -- existing ledger database, not a second queue or process-local mutex.
+    CREATE TABLE IF NOT EXISTS projection_claims (
+      projection_id TEXT PRIMARY KEY REFERENCES projection_outbox(id) ON DELETE CASCADE,
+      claim_token TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -258,32 +265,69 @@ function findProspectByContact(db, contact) {
 }
 
 function pendingProjections(db, limit = 100) {
-  // Fresh work must not be starved by permanently failed collision/quarantine
-  // rows. Retry older failures fairly as well: attempts increase on failure,
-  // so bounded runs rotate through them rather than retrying one stuck row.
+  // Skip actively claimed rows *before* applying LIMIT. Otherwise two workers
+  // selecting the same bounded batch can starve fresh revenue events.
+  const now = new Date().toISOString();
   return db.prepare(`SELECT * FROM projection_outbox WHERE status IN ('pending','failed')
+    AND NOT EXISTS (
+      SELECT 1 FROM projection_claims c
+      WHERE c.projection_id = projection_outbox.id AND c.expires_at > ?
+    )
     ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
       attempts ASC, updated_at ASC, created_at ASC, id ASC LIMIT ?`)
-    .all(Math.max(1, Number(limit) || 100));
+    .all(now, Math.max(1, Number(limit) || 100));
 }
 
-function finishProjection(db, { id, status, error = '' } = {}) {
+function claimProjection(db, { id } = {}) {
+  const projectionId = normalize(id);
+  if (!projectionId) throw new Error('Projection ID is required');
+  const token = randomUUID();
+  const now = new Date();
+  // The default CRM write timeout is 10 seconds. The longer lease allows for
+  // scheduling delays; an expired claim can be reclaimed after a worker crash.
+  // This bounds concurrent writers, but an unacknowledged remote write still
+  // needs reconciliation/readback before a lease-expiry retry is fully safe.
+  const expiresAt = new Date(now.getTime() + 120000).toISOString();
+  const result = db.prepare(`INSERT INTO projection_claims (projection_id, claim_token, expires_at)
+    SELECT id, ?, ? FROM projection_outbox
+    WHERE id = ? AND status IN ('pending','failed')
+    ON CONFLICT(projection_id) DO UPDATE SET
+      claim_token = excluded.claim_token, expires_at = excluded.expires_at
+    WHERE projection_claims.expires_at <= ?`)
+    .run(token, expiresAt, projectionId, now.toISOString());
+  return result.changes ? token : null;
+}
+
+function finishProjection(db, { id, status, error = '', claimToken = '' } = {}) {
   if (!['succeeded', 'failed'].includes(status)) throw new Error('projection status must be succeeded or failed');
-  // A late timeout from another projection worker must never demote a
-  // previously acknowledged CRM write back to failed/retryable. Make this
-  // atomic across SQLite connections, not a read-then-write race.
-  const result = db.prepare(`UPDATE projection_outbox
-    SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
-    WHERE id = ? AND status IN ('pending', 'failed')`)
-    .run(status, normalize(error), new Date().toISOString(), normalize(id));
-  const saved = db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(normalize(id));
-  if (!saved) throw new Error('Projection does not exist');
-  // An already-succeeded write is terminal, including stale failure reports.
-  // Its attempt count and durable CRM receipt must remain unchanged.
-  if (!result.changes && saved.status !== 'succeeded') {
-    throw new Error('Projection was not pending or failed');
+  const projectionId = normalize(id);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    // A delayed timeout/result from a former worker cannot clear the current
+    // worker's lease or change its acknowledged success. Token verification
+    // and the status update happen under the same SQLite write lock.
+    const claim = db.prepare('SELECT claim_token FROM projection_claims WHERE projection_id = ?')
+      .get(projectionId);
+    if (claim ? claim.claim_token !== claimToken : Boolean(claimToken)) {
+      throw new Error('CRM projection claim is stale or missing');
+    }
+    const result = db.prepare(`UPDATE projection_outbox
+      SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
+      WHERE id = ? AND status IN ('pending','failed')`)
+      .run(status, normalize(error), new Date().toISOString(), projectionId);
+    const saved = db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(projectionId);
+    if (!saved) throw new Error('Projection does not exist');
+    if (!result.changes && saved.status !== 'succeeded') {
+      throw new Error('Projection was not pending or failed');
+    }
+    if (claim) db.prepare('DELETE FROM projection_claims WHERE projection_id = ? AND claim_token = ?')
+      .run(projectionId, claimToken);
+    db.exec('COMMIT');
+    return saved;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
   }
-  return saved;
 }
 
 // Imports are an auditable backfill, not normal lifecycle transitions. A legacy
@@ -322,4 +366,4 @@ function importProspectState(db, input = {}) {
   return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
-module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };
+module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, claimProjection, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };
