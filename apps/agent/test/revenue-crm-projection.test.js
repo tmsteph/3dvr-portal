@@ -24,6 +24,11 @@ test('revenue CRM retains the public source and clears stale follow-up on suppre
   assert.equal(projected.nextFollowUp, '', 'suppression must not retain an automatic reminder');
   assert.match(projected.nextBestAction, /Do not contact/);
   assert.equal(projected.lastPaymentAmountCents, undefined, 'no payment without provider verification');
+  const activeDiscovery = recordFor({ ...prospect, state: 'replied' },
+    { ...event, to_state: 'replied', type: 'reply_received' }, '2026-11-21T20:03:00Z');
+  assert.equal(activeDiscovery.status, 'Warm - Discovery');
+  assert.equal(activeDiscovery.nextFollowUp, undefined,
+    'a projected reply must not erase a human-scheduled CRM follow-up');
 });
 
 test('CRM projection retries a timeout and completes idempotently', async () => {
