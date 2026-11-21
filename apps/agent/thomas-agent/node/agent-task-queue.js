@@ -377,6 +377,20 @@ async function runQueuedTask(record, options = {}) {
       options,
     );
     if (!claimed) return { ok: false, skipped: true, reason: 'claimed by another worker' };
+    // Listing and claiming are separate operations. The atomic SQLite claim
+    // returns the current persisted record, which may have been vetoed or
+    // upgraded to a sensitive risk after the worker's initial eligibility check.
+    // Recheck that claimed record before any executor is invoked.
+    const claimedEligibility = canWorkerRunTask(claimed, options);
+    if (!claimedEligibility.ok) {
+      await finishClaimedTask(claimed, {
+        status: 'skipped',
+        completedAt: nowIso(),
+        resultSummary: claimedEligibility.reason,
+        error: claimedEligibility.reason,
+      }, options);
+      return { ok: false, skipped: true, reason: claimedEligibility.reason };
+    }
     claimed.workerCapabilities = normalizeCsv(runnable.profile.capabilities);
   } else {
     lease = await claimLease(`remote-task:${record.id}`, {
