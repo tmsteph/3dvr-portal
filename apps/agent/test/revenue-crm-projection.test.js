@@ -67,6 +67,64 @@ test('two SQLite CRM projection workers cannot write one outbox event concurrent
   }
 });
 
+test('CRM projection serializes different events for one buyer across SQLite workers', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-same-buyer-'));
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const firstDb = openLedger({ filePath: ledger });
+  const secondDb = openLedger({ filePath: ledger });
+  let releaseWrite;
+  const heldWrite = new Promise(resolve => { releaseWrite = resolve; });
+  let signalStarted;
+  const writeStarted = new Promise(resolve => { signalStarted = resolve; });
+  const writes = [];
+  try {
+    const buyer = createProspect(firstDb, {
+      name: 'Synthetic Opt Out', contact: 'optout@example.test'
+    }).prospect;
+    transitionProspect(firstDb, {
+      prospectId: buyer.id, toState: 'verified', idempotencyKey: 'same-buyer-verified'
+    });
+    const first = projectPendingCrm(firstDb, { write: async payload => {
+      writes.push(payload.records[0].canonicalState);
+      signalStarted();
+      await heldWrite;
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    await writeStarted;
+
+    // An opt-out event arrives while the earlier buyer write is still in flight.
+    // A second worker must not project it concurrently and then risk having
+    // the late prior write overwrite the Closed/Do not contact CRM state.
+    transitionProspect(secondDb, {
+      prospectId: buyer.id, toState: 'suppressed', idempotencyKey: 'same-buyer-suppressed'
+    });
+    assert.equal(pendingProjections(secondDb).length, 0,
+      'a held buyer claim excludes every event for that buyer before LIMIT');
+    const competing = await projectPendingCrm(secondDb, { write: async () => {
+      throw new Error('concurrent same-buyer CRM write');
+    } });
+    assert.equal(competing.attempted, 0);
+
+    releaseWrite();
+    assert.equal((await first).succeeded, 1);
+    const final = await projectPendingCrm(secondDb, { write: async payload => {
+      writes.push(payload.records[0].canonicalState);
+      assert.equal(payload.records[0].status, 'Closed');
+      assert.equal(payload.records[0].nextBestAction, 'Do not contact.');
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    assert.equal(final.succeeded, 1);
+    assert.deepEqual(writes, ['verified', 'suppressed']);
+    assert.equal(pendingProjections(firstDb).length, 0);
+    assert.equal(firstDb.prepare('SELECT COUNT(*) AS total FROM projection_claims').get().total, 0);
+  } finally {
+    releaseWrite();
+    firstDb.close();
+    secondDb.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('CRM outbox refuses cross-prospect event linkage before writing any mismatched record', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-cross-lead-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
