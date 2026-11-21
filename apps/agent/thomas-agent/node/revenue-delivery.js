@@ -4,7 +4,34 @@ async function deliverProspect(db, input = {}, send) {
   if (typeof send !== 'function') throw new Error('send function is required');
   const attemptId = String(input.attemptId || '').trim();
   if (!attemptId) throw new Error('attemptId is required');
-  const reserved = reserveDeliveryAttempt(db, { attemptId, prospectId: input.prospectId });
+  // A direct caller must not bypass the worker's eligibility and manual
+  // reconciliation checks. Otherwise the sender can be invoked for a
+  // suppressed, bounced or already-contacted prospect before the ledger
+  // rejects the state transition (too late to undo an external email).
+  // Preserve idempotent reads of the original attempt after its state changes.
+  // Atomically check + reserve across competing worker processes. A plain
+  // SELECT followed by INSERT could let two different attempt IDs send to
+  // the same prospect if concurrent workers both saw no prior attempt.
+  db.exec('BEGIN IMMEDIATE');
+  let reserved;
+  try {
+    const existing = db.prepare('SELECT prospect_id FROM delivery_attempts WHERE attempt_key = ?').get(attemptId);
+    if (!existing) {
+      const prospect = getProspect(db, input.prospectId);
+      if (!prospect || prospect.state !== 'eligible') {
+        throw new Error('Prospect must be eligible before delivery');
+      }
+      const prior = db.prepare('SELECT attempt_key FROM delivery_attempts WHERE prospect_id = ? LIMIT 1').get(prospect.id);
+      if (prior) {
+        throw new Error('Prior delivery attempt requires manual reconciliation before a new attempt');
+      }
+    }
+    reserved = reserveDeliveryAttempt(db, { attemptId, prospectId: input.prospectId });
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
   if (reserved.replayed) {
     const error = reserved.attempt.status === 'in_flight'
       ? 'Delivery attempt is ambiguous after interruption; refusing to resend'
@@ -19,7 +46,14 @@ async function deliverProspect(db, input = {}, send) {
   let receipt;
   try {
     receipt = await send();
-    if (!receipt || receipt.acknowledged !== true) throw new Error('Sender did not return an acknowledgement');
+    if (!receipt || receipt.acknowledged !== true
+      || typeof receipt.messageId !== 'string' || !receipt.messageId.trim()
+      || typeof receipt.transport !== 'string' || !receipt.transport.trim()) {
+      // A process exiting successfully or a caller-supplied boolean alone
+      // cannot establish a provider-attributable send. Keep an ambiguous
+      // attempt quarantined rather than advance the CRM to "sent".
+      throw new Error('Sender did not return an attributable delivery acknowledgement');
+    }
   } catch (error) {
     const failed = transitionProspect(db, {
       prospectId: input.prospectId,

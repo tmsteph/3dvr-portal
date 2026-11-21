@@ -93,9 +93,15 @@ function normalizeRiskClass(value) {
 }
 
 function defaultApprovalStatus(record = {}) {
-  if (normalizeText(record.approvalStatus)) return normalizeText(record.approvalStatus);
-  if (record.unsafe) return 'approved';
-  return APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)) ? 'required' : 'not_required';
+  const status = normalizeText(record.approvalStatus).toLowerCase();
+  // 'unsafe' controls the executor sandbox, not human authorization.
+  // A caller cannot skip a high-risk gate by supplying 'not_required'.
+  if (record.unsafe || APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass))) {
+    // Preserve an explicit veto for review/audit; an agent-supplied
+    // 'approved' value is still not sufficient to run a high-risk task.
+    return ['approved', 'rejected'].includes(status) ? status : 'required';
+  }
+  return status || 'not_required';
 }
 
 function normalizeTenantRecord(record = {}) {
@@ -303,10 +309,26 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  if (record.approvalStatus === 'required') {
+  // Fail closed until a server-controlled, task-bound, single-use human
+  // approval verifier exists. The queue's approvalStatus is caller-writable:
+  // even 'approved' is not proof that a human authorized this execution.
+  // Never let an agent, legacy import, or worker --unsafe flag bypass it.
+  if (record.unsafe || options.unsafe || APPROVAL_REQUIRED_RISKS.has(riskClass)) {
     return {
       ok: false,
-      reason: `approval required for ${riskClass}`,
+      reason: `verified human approval receipt required for ${record.unsafe || options.unsafe ? 'unsafe executor' : riskClass}`,
+      profile,
+    };
+  }
+  // A human veto, pending review, or an unrecognized approval value must
+  // never become runnable merely because the task itself is low risk.
+  // Queue-normalized ordinary tasks default to 'not_required'; tolerate an
+  // absent legacy value but fail closed for every explicit non-grant.
+  const approval = normalizeText(record.approvalStatus).toLowerCase();
+  if (approval && !['not_required', 'approved'].includes(approval)) {
+    return {
+      ok: false,
+      reason: `approval not granted (${approval}) for ${riskClass}`,
       profile,
     };
   }
@@ -355,6 +377,20 @@ async function runQueuedTask(record, options = {}) {
       options,
     );
     if (!claimed) return { ok: false, skipped: true, reason: 'claimed by another worker' };
+    // Listing and claiming are separate operations. The atomic SQLite claim
+    // returns the current persisted record, which may have been vetoed or
+    // upgraded to a sensitive risk after the worker's initial eligibility check.
+    // Recheck that claimed record before any executor is invoked.
+    const claimedEligibility = canWorkerRunTask(claimed, options);
+    if (!claimedEligibility.ok) {
+      await finishClaimedTask(claimed, {
+        status: 'skipped',
+        completedAt: nowIso(),
+        resultSummary: claimedEligibility.reason,
+        error: claimedEligibility.reason,
+      }, options);
+      return { ok: false, skipped: true, reason: claimedEligibility.reason };
+    }
     claimed.workerCapabilities = normalizeCsv(runnable.profile.capabilities);
   } else {
     lease = await claimLease(`remote-task:${record.id}`, {

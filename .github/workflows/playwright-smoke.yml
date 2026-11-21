@@ -42,7 +42,7 @@ jobs:
         run: node --test tests/operator-self-edit-integration.test.js
 
       - name: Run Operator business system regression tests
-        run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js
+        run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js tests/money-outbound-autopilot.test.js tests/outreach-suppression.test.js
 
       - name: Run browser lane regression tests
         run: node --test tests/browser-lane-lease.test.js

@@ -104,7 +104,7 @@ test('suppression database self-heals from the legacy outreach log', async () =>
   }
 });
 
-test('live lead-outreach handler blocks a second cold email to the same recipient', async () => {
+test('lead-outreach API bearer token never replaces message-specific human approval', async () => {
   await withDb(async (base) => {
     const email = 'prospect@example.com';
     const config = {
@@ -126,22 +126,29 @@ test('live lead-outreach handler blocks a second cold email to the same recipien
       headers: { authorization: 'Bearer operator-secret' },
       body: { mode: 'lead-outreach', to: [email], subject: 'First subject', text: 'First cold message.' },
     }, first);
-    assert.equal(first.statusCode, 200);
-    assert.equal(sends, 1);
+    assert.equal(first.statusCode, 403);
+    assert.equal(first.body.code, 'human_approval_receipt_required');
+    assert.equal(sends, 0);
+    assert.equal(recipientDecision(email, { config }).allowed, true, 'rejection must not reserve a recipient');
 
-    const second = mockRes();
+    const forged = mockRes();
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer operator-secret' },
-      body: { mode: 'lead-outreach', to: [email], subject: 'Different subject', text: 'Different cold message.' },
-    }, second);
-    assert.equal(second.statusCode, 409);
-    assert.equal(second.body.code, 'recipient_suppressed');
-    assert.equal(sends, 1);
+      body: {
+        mode: 'lead-outreach', to: [email], subject: 'Another subject', text: 'Different message.',
+        approved: true,
+        approvalReceipt: { id: 'forged-client-approval', recipient: email, approved: true },
+      },
+    }, forged);
+    assert.equal(forged.statusCode, 403);
+    assert.equal(forged.body.code, 'human_approval_receipt_required');
+    assert.equal(sends, 0);
+    assert.equal(recipientDecision(email, { config }).allowed, true);
   });
 });
 
-test('threaded replies bypass cold-outreach suppression', async () => {
+test('thread headers cannot bypass the HTTP human-approval gate', async () => {
   await withDb(async (base) => {
     const email = 'thread@example.com';
     const config = {
@@ -164,9 +171,27 @@ test('threaded replies bypass cold-outreach suppression', async () => {
       body: {
         mode: 'lead-outreach', to: [email], subject: 'Re: existing thread', text: 'Continuing our thread.',
         inReplyTo: '<prior@example.com>', references: '<prior@example.com>',
+        approved: true,
       },
     }, res);
-    assert.equal(res.statusCode, 200);
-    assert.equal(sends, 1);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.code, 'human_approval_receipt_required');
+    assert.equal(sends, 0);
   });
+});
+
+test('lead-outreach still rejects invalid bearer tokens before the approval gate', async () => {
+  let sends = 0;
+  const handler = createUnifiedEmailHandler({
+    config: { AGENT_OPERATOR_EMAIL_TOKEN: 'operator-secret' },
+    mailTransport: { sendMail: async () => { sends++; } },
+  });
+  const res = mockRes();
+  await handler({
+    method: 'POST',
+    headers: { authorization: 'Bearer incorrect' },
+    body: { mode: 'lead-outreach', to: ['lead@example.com'], subject: 'Hello', text: 'Message' },
+  }, res);
+  assert.equal(res.statusCode, 401);
+  assert.equal(sends, 0);
 });

@@ -272,7 +272,58 @@ test('worker skips tasks that need approval or unsupported capabilities', async 
   assert.equal(results.length, 0);
 });
 
-test('unsafe high-risk task is approved and can run on capable worker', async () => {
+test('low-risk worker respects explicit human veto and pending approval', async () => {
+  const rootNode = fakeRoot();
+  const options = {
+    rootNode, ownerAlias: 'tenant-a', deviceId: 'do-worker',
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write',
+    force: true,
+  };
+  const rejected = await enqueueTask('Research synthetic company', {
+    ...options, id: 'vetoed-research', backend: 'codex',
+    riskClass: 'read_only', approvalStatus: 'rejected',
+  });
+  assert.equal(rejected.approvalStatus, 'rejected', 'veto remains visible in the queue');
+  assert.match(canWorkerRunTask(rejected, options).reason, /approval not granted \(rejected\)/);
+  for (const status of ['required', 'pending', 'revoked', 'unknown']) {
+    assert.match(canWorkerRunTask({ ...rejected, approvalStatus: status }, options).reason,
+      /approval not granted/, status);
+  }
+  let executions = 0;
+  const blocked = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => { executions++; throw new Error('veto bypass'); },
+  });
+  assert.equal(blocked.length, 0);
+  assert.equal(executions, 0);
+  assert.equal((await readTask(rejected.id, options)).status, 'queued');
+  // Ordinary read-only work is still available when no human veto exists.
+  const restored = await updateTask(rejected.id, { approvalStatus: 'not_required' }, options);
+  assert.equal(restored.approvalStatus, 'not_required');
+  assert.equal(canWorkerRunTask(restored, options).ok, true);
+  const result = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => {
+      executions++;
+      return { ok: true, backend: 'codex', result: { stdout: 'synthetic research complete' } };
+    },
+  });
+  assert.equal(result.length, 1);
+  assert.equal(executions, 1);
+  assert.equal((await readTask(rejected.id, options)).status, 'completed');
+
+  const unsafeRejected = await enqueueTask('External synthetic action', {
+    ...options, id: 'rejected-external', backend: 'codex',
+    riskClass: 'external_write', approvalStatus: 'rejected',
+  });
+  assert.equal(unsafeRejected.approvalStatus, 'rejected', 'high-risk veto remains visible');
+  assert.match(canWorkerRunTask(unsafeRejected, {
+    ...options, workerRiskClasses: 'read_only,draft,workspace_write,external_write',
+  }).reason, /verified human approval receipt required/);
+});
+
+test('unsafe high-risk enqueue cannot grant itself approval before worker claim', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Publish static site', {
     rootNode,
@@ -285,24 +336,84 @@ test('unsafe high-risk task is approved and can run on capable worker', async ()
     force: true,
   });
 
-  const results = await runWorkerOnce({
+  const workerOptions = {
     rootNode,
     ownerAlias: 'tenant-a',
     deviceId: 'do-worker',
     workerCapabilities: 'node,codex,static-hosting',
     workerRiskClasses: 'read_only,draft,workspace_write,external_write',
     force: true,
-    runAgentTaskImpl: async () => ({
-      ok: true,
-      backend: 'codex',
-      result: { ok: true, stdout: 'published' },
-    }),
+  };
+  const pending = await readTask('task-6', workerOptions);
+  assert.equal(pending.approvalStatus, 'required');
+  assert.match(canWorkerRunTask(pending, workerOptions).reason, /verified human approval receipt required/);
+  let executions = 0;
+  const blocked = await runWorkerOnce({
+    ...workerOptions,
+    runAgentTaskImpl: async () => { executions += 1; throw new Error('unapproved execution'); },
   });
-  const completed = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
+  assert.equal(blocked.length, 0);
+  assert.equal(executions, 0);
 
-  assert.equal(results.length, 1);
-  assert.equal(completed.approvalStatus, 'approved');
-  assert.equal(completed.status, 'completed');
+  // Queue update and CLI fields are not trusted human authorization.
+  // Even an 'approved' status cannot execute unsafe/high-risk tasks without
+  // a server-verified approval receipt, which does not exist yet.
+  await updateTask('task-6', { approvalStatus: 'approved' }, workerOptions);
+  const results = await runWorkerOnce({
+    ...workerOptions,
+    runAgentTaskImpl: async () => { executions += 1; throw new Error('forged approval execution'); },
+  });
+  const stillQueued = await readTask('task-6', workerOptions);
+  assert.equal(results.length, 0);
+  assert.equal(executions, 0);
+  assert.equal(stillQueued.approvalStatus, 'approved');
+  assert.equal(stillQueued.status, 'queued');
+});
+
+test('unsafe and high-risk tasks reject missing or forged not_required approval', async () => {
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write,money,credential',
+  };
+  for (const riskClass of ['external_write', 'money', 'credential']) {
+    for (const approvalStatus of ['', 'not_required', 'rejected', 'required', 'approved']) {
+      const result = canWorkerRunTask({
+        backend: 'codex', riskClass, approvalStatus, unsafe: false,
+      }, worker);
+      assert.equal(result.ok, false, `${riskClass}/${approvalStatus}`);
+      assert.match(result.reason, /verified human approval receipt required/, `${riskClass}/${approvalStatus}`);
+    }
+  }
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: true,
+    approvalStatus: 'not_required',
+  }, worker).ok, false);
+  // Worker-wide sandbox bypass also needs approval: buildTaskArgs inherits
+  // options.unsafe even when the task itself does not request it.
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: false,
+    approvalStatus: 'not_required',
+  }, { ...worker, unsafe: true }).ok, false);
+  assert.match(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: false,
+    approvalStatus: 'approved',
+  }, { ...worker, unsafe: true }).reason, /verified human approval receipt required/);
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'workspace_write', unsafe: false,
+    approvalStatus: 'not_required',
+  }, worker).ok, true, 'ordinary workspace edits still run without new approval gates');
+
+  const rootNode = fakeRoot();
+  const forged = await enqueueTask('External action', {
+    rootNode, ownerAlias: 'tenant-a', id: 'forged-approval', backend: 'codex',
+    riskClass: 'external_write', approvalStatus: 'not_required', force: true,
+  });
+  assert.equal(forged.approvalStatus, 'required');
+  const unsafeDraft = await enqueueTask('Run outside sandbox', {
+    rootNode, ownerAlias: 'tenant-a', id: 'unsafe-draft', backend: 'codex',
+    riskClass: 'workspace_write', unsafe: true, force: true,
+  });
+  assert.equal(unsafeDraft.approvalStatus, 'required');
 });
 
 

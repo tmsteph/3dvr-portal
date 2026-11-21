@@ -103,7 +103,8 @@ async function main() {
   const dispatch = await dispatchOutboundWebhook({
     queue,
     webhookUrl: process.env.MONEY_OUTBOUND_SENDER_WEBHOOK_URL || '',
-    token: process.env.MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN || ''
+    token: process.env.MONEY_OUTBOUND_SENDER_WEBHOOK_TOKEN || '',
+    dryRun: dryRun === true
   });
   const summary = buildOutboundSummary({
     queue,
@@ -138,10 +139,10 @@ async function main() {
     sent: false,
     skipped: true,
     failed: false,
-    reason: 'operator delivery not requested'
+    reason: dryRun === true ? 'dry-run: operator delivery disabled' : 'operator delivery not requested'
   };
 
-  if (parseBool(args.sendEmail, false)) {
+  if (dryRun !== true && parseBool(args.sendEmail, false)) {
     delivery = await sendEmailBrief({
       subject: '3DVR Outbound Autopilot',
       text: summary,
@@ -149,7 +150,7 @@ async function main() {
     });
   }
 
-  if (parseBool(args.sendTelegram, false)) {
+  if (dryRun !== true && parseBool(args.sendTelegram, false)) {
     delivery = await sendTelegramBrief({
       text: summary,
       dryRun: parseBool(process.env.MONEY_OPERATOR_TELEGRAM_DRY_RUN, false)

@@ -84,6 +84,13 @@ function openLedger(options = {}) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    -- At most one active writer for each CRM outbox event. Kept in the
+    -- existing ledger database, not a second queue or process-local mutex.
+    CREATE TABLE IF NOT EXISTS projection_claims (
+      projection_id TEXT PRIMARY KEY REFERENCES projection_outbox(id) ON DELETE CASCADE,
+      claim_token TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -93,7 +100,15 @@ function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
   const prospect = normalize(prospectId);
   if (!key || !prospect) throw new Error('attemptId and prospectId are required');
   const existing = db.prepare('SELECT * FROM delivery_attempts WHERE attempt_key = ?').get(key);
-  if (existing) return { attempt: existing, replayed: true };
+  if (existing) {
+    // An attempt belongs to exactly one prospect. Reusing its key for a
+    // different lead must not silently suppress that lead's delivery or
+    // mistake the original lead's acknowledgement for theirs.
+    if (existing.prospect_id !== prospect) {
+      throw new Error('Delivery attempt key conflicts with an existing prospect');
+    }
+    return { attempt: existing, replayed: true };
+  }
   const now = new Date().toISOString();
   const attempt = {
     id: randomUUID(), attempt_key: key, prospect_id: prospect, status: 'in_flight',
@@ -107,6 +122,14 @@ function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
 
 function finishDeliveryAttempt(db, { attemptId, status, messageId = '', transport = '', error = '' } = {}) {
   if (!['acknowledged', 'failed'].includes(status)) throw new Error('delivery status must be acknowledged or failed');
+  // This public ledger entry point can be called without deliverProspect. Do not
+  // let a boolean or an unattributed result inflate acknowledged-send counts.
+  if (status === 'acknowledged' && (
+    typeof messageId !== 'string' || !messageId.trim()
+    || typeof transport !== 'string' || !transport.trim()
+  )) {
+    throw new Error('Acknowledged delivery requires messageId and transport');
+  }
   const result = db.prepare(`UPDATE delivery_attempts
     SET status = ?, message_id = ?, transport = ?, error = ?, updated_at = ?
     WHERE attempt_key = ? AND status = 'in_flight'`)
@@ -128,9 +151,23 @@ function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
 }
 
 function contactKey({ contact, sourceUrl, name } = {}) {
-  const contactValue = normalize(contact).toLowerCase();
+  const rawContact = normalize(contact).toLowerCase();
+  const withoutMailto = rawContact.replace(/^mailto:/, '');
+  // Plain email and mailto URLs name one prospect, not two.
+  // Non-email URLs remain distinct contact identities.
+  const contactValue = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(withoutMailto)
+    ? withoutMailto : rawContact;
   if (contactValue) return `contact:${contactValue}`;
   return `source:${normalize(sourceUrl).toLowerCase()}|name:${normalize(name).toLowerCase()}`;
+}
+
+// Preserve lookups of historical mailto:-keyed rows during migration.
+function contactKeyVariants(input = {}) {
+  const canonical = contactKey(input);
+  const normalized = normalize(input.contact).toLowerCase().replace(/^mailto:/, '');
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+    ? [canonical, `contact:mailto:${normalized}`]
+    : [canonical];
 }
 
 function getProspect(db, id) {
@@ -138,9 +175,16 @@ function getProspect(db, id) {
 }
 
 function createProspect(db, input = {}) {
+  // A name by itself is not a reliable unique buyer identity. Without a
+  // contact route or source, different real prospects collapse into the
+  // same "source:|name:" key and contaminate CRM follow-up history.
+  if (!normalize(input.contact) && !normalize(input.sourceUrl)) {
+    throw new Error('Prospect requires a contact route or source URL');
+  }
   const now = new Date().toISOString();
   const key = contactKey(input);
-  const existing = db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
+  const aliases = contactKeyVariants(input);
+  const existing = db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${aliases.map(() => '?').join(',')}) LIMIT 1`).get(...aliases);
   if (existing) return { prospect: existing, created: false };
   const prospect = {
     id: normalize(input.id) || randomUUID(), contact_key: key, name: normalize(input.name) || 'Unknown',
@@ -157,13 +201,33 @@ function transitionProspect(db, input = {}) {
   const toState = normalize(input.toState);
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
+  // No authenticated provider adapter is attached to this generic ledger
+  // transition. Reject caller-authored payment events instead of letting a
+  // forged payload become a CRM "Paid Customer" projection.
+  const eventType = normalize(input.type) || 'state_transition';
+  if (eventType === 'payment_succeeded') {
+    throw new Error('payment_succeeded requires a verified provider adapter');
+  }
   const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
-  if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  if (replay) {
+    // A retry must refer to the *same* prospect, destination state and event
+    // type. Otherwise a shared idempotency key could silently suppress a
+    // different lead's CRM outbox event.
+    // A matching key must also identify the same immutable evidence payload.
+    // Otherwise a retry with a different source or message could masquerade
+    // as a successful recorded transition while silently losing its details.
+    if (replay.prospect_id !== id || replay.to_state !== toState
+      || replay.type !== eventType
+      || replay.payload_json !== JSON.stringify(input.payload || {})) {
+      throw new Error('Idempotency key conflicts with an existing revenue event');
+    }
+    return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  }
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
   const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: normalize(input.type) || 'state_transition', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
+  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: eventType, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
@@ -196,25 +260,86 @@ function finishRun(db, { runId, status, summary } = {}) {
 }
 
 function findProspectByContact(db, contact) {
-  const value = normalize(contact);
-  const keys = [contactKey({ contact: value })];
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) keys.push(contactKey({ contact: `mailto:${value}` }));
-  if (/^mailto:/i.test(value)) keys.push(contactKey({ contact: value.replace(/^mailto:/i, '') }));
-  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')}) LIMIT 1`).get(...new Set(keys)) || null;
+  const keys = contactKeyVariants({ contact });
+  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')}) LIMIT 1`).get(...keys) || null;
 }
 
 function pendingProjections(db, limit = 100) {
-  return db.prepare("SELECT * FROM projection_outbox WHERE status IN ('pending','failed') ORDER BY created_at, id LIMIT ?")
-    .all(Math.max(1, Number(limit) || 100));
+  // Skip any prospect with an in-flight CRM write *before* LIMIT. Different
+  // events for one buyer must not race and overwrite an opt-out with old state.
+  const now = new Date().toISOString();
+  return db.prepare(`SELECT * FROM projection_outbox WHERE status IN ('pending','failed')
+    AND NOT EXISTS (
+      SELECT 1 FROM projection_claims c
+      JOIN projection_outbox active ON active.id = c.projection_id
+      WHERE active.prospect_id = projection_outbox.prospect_id AND c.expires_at > ?
+    )
+    ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+      attempts ASC, updated_at ASC, created_at ASC, id ASC LIMIT ?`)
+    .all(now, Math.max(1, Number(limit) || 100));
 }
 
-function finishProjection(db, { id, status, error = '' } = {}) {
+function claimProjection(db, { id } = {}) {
+  const projectionId = normalize(id);
+  if (!projectionId) throw new Error('Projection ID is required');
+  const token = randomUUID();
+  const now = new Date();
+  // The default CRM write timeout is 10 seconds. The longer lease allows for
+  // scheduling delays; an expired claim can be reclaimed after a worker crash.
+  // Serialize across all events for a prospect, not just the same event ID.
+  // Lease-expiry retries still need independent CRM idempotency/readback.
+  const expiresAt = new Date(now.getTime() + 120000).toISOString();
+  const result = db.prepare(`INSERT INTO projection_claims (projection_id, claim_token, expires_at)
+    SELECT id, ?, ? FROM projection_outbox
+    WHERE id = ? AND status IN ('pending','failed')
+      AND NOT EXISTS (
+        SELECT 1 FROM projection_claims c
+        JOIN projection_outbox active ON active.id = c.projection_id
+        WHERE active.prospect_id = projection_outbox.prospect_id
+          AND c.projection_id <> projection_outbox.id AND c.expires_at > ?
+      )
+    ON CONFLICT(projection_id) DO UPDATE SET
+      claim_token = excluded.claim_token, expires_at = excluded.expires_at
+    WHERE projection_claims.expires_at <= ?`)
+    .run(token, expiresAt, projectionId, now.toISOString(), now.toISOString());
+  return result.changes ? token : null;
+}
+
+function finishProjection(db, { id, status, error = '', claimToken = '' } = {}) {
   if (!['succeeded', 'failed'].includes(status)) throw new Error('projection status must be succeeded or failed');
-  const result = db.prepare(`UPDATE projection_outbox
-    SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ? WHERE id = ?`)
-    .run(status, normalize(error), new Date().toISOString(), normalize(id));
-  if (!result.changes) throw new Error('Projection does not exist');
-  return db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(normalize(id));
+  const projectionId = normalize(id);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    // A delayed timeout/result from a former worker cannot clear the current
+    // worker's lease or change its acknowledged success. Token verification
+    // and the status update happen under the same SQLite write lock.
+    const row = db.prepare('SELECT status FROM projection_outbox WHERE id = ?').get(projectionId);
+    if (!row) throw new Error('Projection does not exist');
+    const claim = db.prepare('SELECT claim_token FROM projection_claims WHERE projection_id = ?')
+      .get(projectionId);
+    // Every settlement must prove ownership of a live claim. A tokenless
+    // caller must not mark a queued or failed CRM write as acknowledged, nor
+    // steal an active worker's result via the exported ledger API.
+    if (!claimToken || !claim || claim.claim_token !== claimToken) {
+      throw new Error('CRM projection claim is stale or missing');
+    }
+    const result = db.prepare(`UPDATE projection_outbox
+      SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
+      WHERE id = ? AND status IN ('pending','failed')`)
+      .run(status, normalize(error), new Date().toISOString(), projectionId);
+    const saved = db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(projectionId);
+    if (!saved) throw new Error('Projection does not exist');
+    if (!result.changes && saved.status !== 'succeeded') {
+      throw new Error('Projection was not pending or failed');
+    }
+    if (claim) db.prepare('DELETE FROM projection_claims WHERE projection_id = ? AND claim_token = ?')
+      .run(projectionId, claimToken);
+    db.exec('COMMIT');
+    return saved;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 // Imports are an auditable backfill, not normal lifecycle transitions. A legacy
@@ -225,7 +350,15 @@ function importProspectState(db, input = {}) {
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
   const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
-  if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  if (replay) {
+    // Imported history must also be immutable under its replay key.
+    if (replay.prospect_id !== id || replay.to_state !== toState
+      || replay.type !== 'legacy_import'
+      || replay.payload_json !== JSON.stringify(input.payload || {})) {
+      throw new Error('Idempotency key conflicts with an existing revenue event');
+    }
+    return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  }
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (prospect.state !== 'prospect' && prospect.state !== toState) throw new Error(`Cannot import ${toState} over existing ${prospect.state} state`);
@@ -245,4 +378,4 @@ function importProspectState(db, input = {}) {
   return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
-module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };
+module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, claimProjection, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };

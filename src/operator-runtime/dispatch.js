@@ -27,7 +27,20 @@ try {
   const owner = '3dvr-managed';
   let row = db.prepare('SELECT status,record_json FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
   if (input.action === 'enqueue') {
-    if (row && JSON.parse(row.record_json).task !== input.record.task) throw Error('Task identity conflict');
+    if (row) {
+      const saved = JSON.parse(row.record_json);
+      // A retry of the same signed request must not accept a changed title:
+      // title lives in the work-item sidecar, not the queue's task text.
+      const savedTitle = JSON.parse(saved.runtimeWorkItemJson || '{}').title || '';
+      const requestedTitle = JSON.parse(input.record.runtimeWorkItemJson || '{}').title || '';
+      // The exact signed request is the retry identity, even when whitespace
+      // normalization would produce the same queue task and sidecar title.
+      // Legacy records without a digest retain the task/title comparison.
+      if (saved.task !== input.record.task || savedTitle !== requestedTitle ||
+          (saved.operatorRequestDigest && saved.operatorRequestDigest !== input.record.operatorRequestDigest)) {
+        throw Error('Task identity conflict');
+      }
+    }
     if (!row) {
       const count = db.prepare("SELECT count(*) AS n FROM tasks WHERE owner_alias=? AND id LIKE ? AND status IN ('queued','running')").get(owner,input.prefix+'%').n;
       if (count >= 5) throw Error('Five tasks are already pending; wait for a result');
@@ -138,7 +151,10 @@ export function createOperatorDispatchHandler(options = {}) {
     const input = {action,id,prefix};
     if (action === 'enqueue') {
       const built = buildOperatorDelegatedTask({text,title}, {id,tenantAlias:ownerAlias ? 'operator-owner' : adminAlias});
-      input.record = {...built.record, backend:'codex', requiredCapabilities:'codex', unsafe:false};
+      // Persist the immutable signed command identity. Do not hash generated
+      // work-item timestamps, which legitimately differ on an HTTP retry.
+      const operatorRequestDigest = createHash('sha256').update(JSON.stringify({text,title})).digest('hex');
+      input.record = {...built.record, backend:'codex', requiredCapabilities:'codex', unsafe:false, operatorRequestDigest};
     }
     try {
       const result = await run(input);

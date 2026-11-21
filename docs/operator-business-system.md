@@ -51,10 +51,11 @@ The system should automate routine, low-risk work while keeping identity-sensiti
 
 Current outbound rule:
 
-- Fresh direct-email leads may send autonomously during the local 08:00–18:00 business window when campaign caps/policy allow it.
-- Known contacts require a human send checkpoint.
-- Unknown relationships are classified before autonomous outreach.
-- Non-email outbound remains approval-gated until that channel has its own proven policy.
+- Research, qualification, personalized drafting, and review-queue creation may run autonomously.
+- Every external outreach send (including fresh email, known contacts, unknown relationships, SMS and webhook dispatch) requires explicit human approval for that exact recipient, channel and message content.
+- Allowlisting, business hours, campaign caps, a caller-provided boolean, or an approved draft are not themselves send approval. The sending transport must verify a durable, expiry-bound, single-use human approval receipt; until implemented, sender paths fail closed.
+- Follow-up reminders may run without sending; a new send requires its own approval.
+- Legacy `ask-autopilot` ignores `THREEDVR_AUTOPILOT_AUTO_SEND=1` rather than treating campaign configuration as permission to call `ask-send --auto`. The legacy flag is reported as blocked; research and human-reviewed drafts remain available. A verified message-bound receipt is still required for any future approved-send automation.
 - Signatures, payments, account/security changes, and other sensitive identity actions remain human-checkpoint work.
 
 A human checkpoint pauses that work item only. Other unrelated workers should continue.
