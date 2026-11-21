@@ -20,6 +20,53 @@ test('CRM projection retries a timeout and completes idempotently', async () => 
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test('two SQLite CRM projection workers cannot write one outbox event concurrently', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-claimed-'));
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const firstDb = openLedger({ filePath: ledger });
+  const secondDb = openLedger({ filePath: ledger });
+  let releaseWrite;
+  const heldWrite = new Promise(resolve => { releaseWrite = resolve; });
+  let markStarted;
+  const writeStarted = new Promise(resolve => { markStarted = resolve; });
+  let writeCount = 0;
+  try {
+    const prospect = createProspect(firstDb, {
+      name: 'Synthetic Concurrency Buyer', contact: 'concurrent@example.test'
+    }).prospect;
+    transitionProspect(firstDb, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-concurrent-verified'
+    });
+    const first = projectPendingCrm(firstDb, { write: async payload => {
+      writeCount += 1;
+      markStarted();
+      await heldWrite;
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    await writeStarted;
+    assert.equal(pendingProjections(secondDb).length, 0,
+      'a claimed in-flight row cannot consume another bounded worker batch');
+    const second = await projectPendingCrm(secondDb, { write: async payload => {
+      writeCount += 1;
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    assert.deepEqual(second, { attempted: 0, succeeded: 0, failed: 0, errors: [] });
+    assert.equal(writeCount, 1, 'only the lease holder may call the CRM writer');
+    releaseWrite();
+    const completed = await first;
+    assert.equal(completed.succeeded, 1);
+    assert.equal(pendingProjections(secondDb).length, 0);
+    assert.equal(firstDb.prepare("SELECT status, attempts FROM projection_outbox").get().status, 'succeeded');
+    assert.equal(firstDb.prepare("SELECT count(*) AS n FROM projection_claims").get().n, 0,
+      'completed work releases its claim');
+  } finally {
+    releaseWrite();
+    firstDb.close();
+    secondDb.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('CRM outbox refuses cross-prospect event linkage before writing any mismatched record', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-cross-lead-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
