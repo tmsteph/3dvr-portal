@@ -1175,9 +1175,15 @@
         authAttemptState = 'auth';
         setAuthBusy(true, 'Verifying…');
         setAuthStatus('Connected. Verifying your account…');
-        const authenticate = () => user.auth(alias, password, ack => {
+        // The legacy alias index contains dangling links. Its original signed
+        // account node is still available on the relay. Resolve that node
+        // directly and let SEA verify the password against its auth record.
+        const legacyPub = !creating && alias === 'tmsteph@3dvr'
+          ? 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg'
+          : null;
+        const authenticate = () => user.auth(legacyPub ? {pub: legacyPub} : alias, password, ack => {
           if (authAttemptState !== 'auth') return;
-          if (!ack || ack.err || ack.wait || !user.is || !user.is.pub) {
+          if (!ack || ack.err || ack.wait || !user.is || !user.is.pub || (legacyPub && (user.is.pub !== legacyPub || user.is.alias !== alias))) {
             requireAuthReload(ack && ack.wait
               ? 'An account verification is already pending.'
               : 'Account verification did not complete. Check your username and password.');
