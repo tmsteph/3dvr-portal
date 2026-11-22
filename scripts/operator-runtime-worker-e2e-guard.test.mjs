@@ -6,10 +6,13 @@ import { fileURLToPath } from 'node:url';
 const target = fileURLToPath(new URL('./operator-runtime-worker-e2e.mjs', import.meta.url));
 const spyTarget = fileURLToPath(new URL('./.operator-runtime-worker-e2e-transport-spy.mjs', import.meta.url));
 const source = readFileSync(target, 'utf8');
-assert.match(source, /^import Gun from 'gun';/m, 'expected Gun import for transport interception');
+// Instrument the first possible import of the Gun transport. Rejecting a
+// relay must finish before even importing code that could open a connection.
+assert.match(source, /^const \\{ default: Gun \\} = await import\\('gun'\\);$/m,
+  'expected deferred Gun import for transport interception');
 const instrumented = source.replace(
-  /^import Gun from 'gun';/m,
-  "const Gun = () => { throw new Error('NETWORK_TRANSPORT_INSTANTIATED'); };"
+  /^const \\{ default: Gun \\} = await import\\('gun'\\);$/m,
+  "const Gun = (() => { throw new Error('NETWORK_TRANSPORT_IMPORTED'); })();"
 );
 // Fail closed if a future workflow edit makes the legacy direct-Gun job runnable
 // on a PR, push, or manual dispatch. This is a static write-free safety check.
@@ -60,9 +63,9 @@ try {
     const result = spawnSync(process.execPath, [spyTarget], { env, encoding: 'utf8', timeout: 15000 });
     assert.equal(result.status, 1, testCase.name + ': expected rejection');
     assert.match(result.stderr, new RegExp(testCase.expected), testCase.name);
-    assert.doesNotMatch(result.stderr, /NETWORK_TRANSPORT_INSTANTIATED/, testCase.name + ': transport must not initialize');
+    assert.doesNotMatch(result.stderr, /NETWORK_TRANSPORT_IMPORTED/, testCase.name + ': transport must not import');
     assert.doesNotMatch(result.stdout, /E2E_ENQUEUE_ATTEMPTED=true|E2E_WRITE_RESULTS=|E2E_ENQUEUE_ACKNOWLEDGED=true/, testCase.name + ': must reject before writes');
-    console.log('PASS ' + testCase.name + ' (transport not initialized)');
+    console.log('PASS ' + testCase.name + ' (transport not imported)');
   }
   // Positive control: prove that an isolated relay reaches the spy.
   // Gun construction is mocked to throw before any network or queue write.
@@ -76,12 +79,12 @@ try {
     encoding: 'utf8',
     timeout: 15000
   });
-  assert.equal(control.status, 1, 'isolated relay must reach mocked Gun constructor');
-  assert.match(control.stderr, /NETWORK_TRANSPORT_INSTANTIATED/,
-    'isolated relay reaches transport spy without actual network initialization');
+  assert.equal(control.status, 1, 'isolated relay must reach mocked Gun import');
+  assert.match(control.stderr, /NETWORK_TRANSPORT_IMPORTED/,
+    'isolated relay reaches the deferred transport import without network initialization');
   assert.doesNotMatch(control.stdout, /E2E_ENQUEUE_ACKNOWLEDGED=true/,
     'no enqueue acknowledgment may be reported by the spy');
-  console.log('PASS isolated relay reaches transport spy (no network/queue writes)');
+  console.log('PASS isolated relay reaches transport import spy (no network/queue writes)');
   // IPv6 loopback is also a valid isolated peer.
   const ipv6 = spawnSync(process.execPath, [spyTarget], {
     env: {
@@ -93,9 +96,9 @@ try {
     encoding: 'utf8',
     timeout: 15000
   });
-  assert.equal(ipv6.status, 1, 'IPv6 loopback must reach mocked Gun constructor');
-  assert.match(ipv6.stderr, /NETWORK_TRANSPORT_INSTANTIATED/);
-  console.log('PASS IPv6 loopback reaches transport spy (no network/queue writes)');
+  assert.equal(ipv6.status, 1, 'IPv6 loopback must reach mocked Gun import');
+  assert.match(ipv6.stderr, /NETWORK_TRANSPORT_IMPORTED/);
+  console.log('PASS IPv6 loopback reaches transport import spy (no network/queue writes)');
 } finally {
   unlinkSync(spyTarget);
 }
