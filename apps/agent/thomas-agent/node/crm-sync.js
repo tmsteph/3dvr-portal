@@ -398,6 +398,13 @@ function buildCrmSyncPayload({
   // preserving distinct events even when they share a subject or recipient.
   const seenOutreachByIndex = selectedLeads.map(() => new Set());
   for (const entry of outreach) {
+    // A name-only historical log has no attributable contact or site route.
+    // Even when there is just one currently known buyer with that name, it
+    // cannot prove a send or reply; attaching it would fabricate CRM funnel
+    // activity and potentially schedule a follow-up for the wrong person.
+    // Keep it out of buyer projections until a human reconciles its identity.
+    const entryIdentity = contactIdentity(entry);
+    if (entryIdentity.startsWith('name:')) continue;
     const exact = selectedLeads.flatMap((lead, index) =>
       contactIdentity(lead) === contactIdentity(entry) ? [index] : []);
     const candidates = exact.length ? exact : selectedLeads.flatMap((lead, index) => {
