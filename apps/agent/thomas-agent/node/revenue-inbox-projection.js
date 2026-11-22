@@ -21,6 +21,16 @@ function referencedMessageIds(message = {}) {
     .filter(Boolean);
 }
 
+// A correlated delivery-status message can confirm successful delivery or a
+// temporary delay. Neither is evidence of a permanent bounce or a lost buyer.
+// Preserve ambiguous/mixed outcomes for review; do not update CRM to Lost.
+function nonFailureDsn(message = {}) {
+  const details = `${message.subject || ''} ${message.preview || ''}`;
+  return /\bstatus:\s*[24]\.\d{1,3}\.\d{1,3}\b/i.test(details)
+    || /\bdelivery status notification\s*\(\s*(?:success|delay|delayed)\s*\)/i.test(details)
+    || /\b(?:successfully delivered|delivery (?:was )?successful|(?:message|mail) was delivered|delivery (?:was )?delayed|temporarily deferred)\b/i.test(details);
+}
+
 // A DSN-like subject or a recipient hint is not proof of which outbound
 // message failed. Require a link to this same prospect's acknowledged provider
 // Message-ID, plus a plausible delivery-agent sender, before marking bounced.
@@ -67,6 +77,9 @@ function projectInboxMessage(db, message = {}) {
   // manual review rather than modifying a third party's contact state.
   if (state === 'suppressed' && lower(message.fromEmail) !== contact) {
     return { matched: false, state, reason: 'unattributed opt-out requires manual review' };
+  }
+  if (state === 'bounced' && nonFailureDsn(message)) {
+    return { matched: false, state, reason: 'non-failure delivery notice requires manual review' };
   }
   if (state === 'bounced' && (!hasDsnSender(message) || !hasAcknowledgedBounceLink(db, prospect.id, message))) {
     return { matched: false, state, reason: 'unattributed delivery failure requires manual review' };
