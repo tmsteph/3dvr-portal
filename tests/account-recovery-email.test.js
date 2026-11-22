@@ -466,7 +466,7 @@ describe('account recovery email api', () => {
   it('sends operator alerts through the unified mail route', async () => {
     const mail = createMailTransport();
     const handler = createUnifiedEmailHandler({
-      config: baseConfig,
+      config: { ...baseConfig, OPERATOR_EMAIL_TO: 'thomas@example.com' },
       mailTransport: mail
     });
 
@@ -500,6 +500,48 @@ describe('account recovery email api', () => {
     assert.equal(sent.subject, '[3dvr-agent] action needed');
     assert.match(sent.html, /3DVR operator alert/i);
     assert.match(sent.text, /New leads are ready for review/i);
+  });
+
+  it('keeps operator alerts to configured owner recipients even with a valid token', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: { ...baseConfig, OPERATOR_EMAIL_TO: 'thomas@example.com' },
+      mailTransport: mail
+    });
+
+    for (const to of [
+      ['prospect@example.com'],
+      ['thomas@example.com', 'prospect@example.com']
+    ]) {
+      const res = createMockRes();
+      await handler({
+        method: 'POST',
+        headers: { authorization: 'Bearer operator-secret' },
+        body: { mode: 'operator-alert', to, subject: 'New lead',
+          summary: 'Bypass attempt', approved: true }
+      }, res);
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.body.code, 'operator_alert_recipient_not_allowed');
+    }
+    assert.equal(mail.sendMail.mock.calls.length, 0,
+      'a token must not authorize arbitrary external recipients');
+  });
+
+  it('fails closed when no owner recipient is configured for operator alerts', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: { ...baseConfig, GMAIL_USER: '' },
+      mailTransport: mail
+    });
+    const res = createMockRes();
+    await handler({
+      method: 'POST', headers: { authorization: 'Bearer operator-secret' },
+      body: { mode: 'operator-alert', to: 'prospect@example.com',
+        subject: 'Lead', summary: 'Test' }
+    }, res);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.code, 'operator_alert_recipients_unconfigured');
+    assert.equal(mail.sendMail.mock.calls.length, 0);
   });
 
   it('rejects lead outreach without the shared token', async () => {
