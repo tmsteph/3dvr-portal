@@ -244,3 +244,48 @@ test('delivery failure for a different acknowledged contact cannot bounce this b
     assert.equal(linked.prospect.state, 'bounced');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('distinct linked replies are recorded as separate CRM touches, while replay is idempotent', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-repeat-reply-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, {
+      name: 'Synthetic Repeat Buyer', contact: 'repeat@test.example'
+    }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'rr:verified' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'rr:eligible' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'rr:sent' });
+    reserveDeliveryAttempt(db, { prospectId: buyer.id, attemptId: 'rr:outbound' });
+    finishDeliveryAttempt(db, {
+      attemptId: 'rr:outbound', status: 'acknowledged',
+      messageId: '<rr-outbound@test.example>', transport: 'synthetic-test'
+    });
+    const base = {
+      fromEmail: 'repeat@test.example', subject: 'Re: project question',
+      references: '<rr-outbound@test.example>'
+    };
+    const first = projectInboxMessage(db, { ...base, messageId: 'rr:reply-1' });
+    assert.equal(first.replayed, false);
+    assert.equal(first.prospect.state, 'replied');
+
+    const secondMessage = { ...base, messageId: 'rr:reply-2', preview: 'A second question' };
+    const second = projectInboxMessage(db, secondMessage);
+    assert.equal(second.matched, true);
+    assert.equal(second.replayed, false, 'new customer message must not be silently discarded');
+    assert.equal(second.event.from_state, 'replied');
+    assert.equal(second.event.to_state, 'replied');
+    assert.equal(second.prospect.state, 'replied');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_replied'").get().n, 2);
+    assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM projection_outbox o
+      JOIN revenue_events e ON e.id = o.event_id WHERE e.type='inbox_replied'`).get().n, 2,
+      'each genuine reply needs its own pending CRM touch');
+
+    const repeat = projectInboxMessage(db, secondMessage);
+    assert.equal(repeat.replayed, true);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_replied'").get().n, 2);
+    assert.throws(() => transitionProspect(db, {
+      prospectId: buyer.id, toState: 'replied', type: 'state_transition',
+      idempotencyKey: 'rr:forged-noop'
+    }), /Invalid transition/, 'generic self-transitions must stay forbidden');
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
