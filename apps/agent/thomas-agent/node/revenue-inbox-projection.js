@@ -33,7 +33,7 @@ function hasAcknowledgedOutbound(db, prospectId) {
 
 function hasDsnSender(message = {}) {
   const sender = lower(message.fromEmail || message.from);
-  return /(?:^|[<@.\\s_-])(mailer-daemon|postmaster)(?:[>@.\\s_-]|$)/.test(sender)
+  return /(?:^|[<@._ -])(mailer-daemon|postmaster)(?:[>@._ -]|$)/.test(sender)
     || /mail delivery (?:subsystem|system)/.test(sender);
 }
 
