@@ -241,7 +241,10 @@ test('expired CRM lease handoff preserves newer success and continues unrelated 
     assert.equal(settled.failed, 1, 'old holder cannot count its stale result as accepted');
     assert.equal(settled.succeeded, 1, 'unrelated second prospect must still complete');
     assert.match(settled.errors.join(' '), /lost its claim|stale or missing/);
-    assert.deepEqual(oldWrites, ['first@example.test', 'second@example.test']);
+    // Independent buyers have no durable relative ordering when timestamps tie:
+    // the outbox sorts by a generated ID. Verify both were attempted exactly
+    // once, not an accidental UUID-dependent sequence.
+    assert.deepEqual([...oldWrites].sort(), ['first@example.test', 'second@example.test']);
     const rows = newWorker.prepare('SELECT status, attempts FROM projection_outbox ORDER BY created_at, id').all();
     assert.equal(rows.length, 2);
     assert.ok(rows.every(row => row.status === 'succeeded' && row.attempts === 1),
