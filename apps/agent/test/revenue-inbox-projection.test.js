@@ -403,3 +403,43 @@ test('a request to stop by an event is a linked reply, while standalone STOP sti
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('linked discussion of unsubscribe features is not an opt-out; explicit unsubscribe remains terminal', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-unsubscribe-link-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, { name: 'Synthetic App Owner', contact: 'owner@test.example' }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'ul:v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'ul:e' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'ul:s' });
+    reserveDeliveryAttempt(db, { prospectId: buyer.id, attemptId: 'ul:outbound' });
+    finishDeliveryAttempt(db, { attemptId: 'ul:outbound', status: 'acknowledged',
+      messageId: '<ul-outbound@test.example>', transport: 'synthetic-test' });
+
+    const linked = {
+      fromEmail: 'owner@test.example', subject: 'Re: Customer portal implementation',
+      inReplyTo: '<ul-outbound@test.example>'
+    };
+    for (const [index, preview] of [
+      'Could you add an unsubscribe link to the customer portal?',
+      'We need to show users how they can unsubscribe from alerts.'
+    ].entries()) {
+      const reply = projectInboxMessage(db, { ...linked, messageId: 'ul:reply-' + index, preview });
+      assert.equal(reply.matched, true);
+      assert.equal(reply.prospect.state, 'replied', 'feature discussion must not suppress a buyer');
+    }
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_replied'").get().n, 2);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 0);
+    const unsubscribe = projectInboxMessage(db, { fromEmail: 'owner@test.example',
+      messageId: 'ul:optout', preview: 'Please unsubscribe me.' });
+    assert.equal(unsubscribe.matched, true);
+    assert.equal(unsubscribe.prospect.state, 'suppressed');
+    assert.equal(projectInboxMessage(db, { fromEmail: 'owner@test.example',
+      messageId: 'ul:optout', preview: 'Please unsubscribe me.' }).replayed, true);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 1);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
