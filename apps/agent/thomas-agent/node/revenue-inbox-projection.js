@@ -77,7 +77,12 @@ function projectInboxMessage(db, message = {}) {
   )) {
     return { matched: false, state, reason: 'unlinked reply requires manual review' };
   }
-  if (prospect.state === state || prospect.state === 'suppressed') return { matched: true, replayed: true, prospect };
+  // A new message ID from a buyer who already replied is not a replay.
+  // Let the ledger persist a second inbox_replied event and CRM touch; only
+  // the same message ID is idempotent. Suppression remains terminal.
+  if ((prospect.state === state && state !== 'replied') || prospect.state === 'suppressed') {
+    return { matched: true, replayed: true, prospect };
+  }
   if (!['sent', 'replied'].includes(prospect.state) && state !== 'suppressed') {
     throw new Error(`Inbox event ${state} is invalid for ${prospect.state} prospect`);
   }
