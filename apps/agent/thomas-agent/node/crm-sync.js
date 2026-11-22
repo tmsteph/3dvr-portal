@@ -467,8 +467,12 @@ function buildCrmSyncPayload({
     record.lastMessage = String(latest.body || '');
     record.lastDeliveryStatus = normalizeText(latest.deliveryStatus || latest.status);
     // Imported outreach history cannot schedule a contact after an opt-out or closure.
-    const latestDeliveryStatus = normalizeLower(latest.deliveryStatus || latest.status);
-    record.nextFollowUp = record.status === 'Closed' || ['failed', 'bounced'].includes(latestDeliveryStatus)
+    // Logs may disagree: an internal failed acknowledgement can coexist with
+    // a transport status such as "pending". Either explicit failure blocks
+    // stale follow-up scheduling until a human reconciles delivery.
+    const ambiguousDelivery = ['failed', 'bounced'].includes(normalizeLower(latest.status))
+      || ['failed', 'bounced'].includes(normalizeLower(latest.deliveryStatus));
+    record.nextFollowUp = record.status === 'Closed' || ambiguousDelivery
       ? '' : normalizeText(latest.nextFollowUp) || record.nextFollowUp;
     record.updated = now;
   }
