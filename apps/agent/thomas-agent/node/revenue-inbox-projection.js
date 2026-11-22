@@ -37,6 +37,13 @@ function projectInboxMessage(db, message = {}) {
   const prospect = findProspectByContact(db, contact);
   if (!prospect) return { matched: false, state: inboxState(message) };
   const state = inboxState(message);
+  // An unverified prospectEmail/recipient hint must not let an unrelated
+  // inbound sender suppress a different buyer's CRM record. Real opt-outs
+  // from that buyer remain immediately effective; ambiguous ones go to
+  // manual review rather than modifying a third party's contact state.
+  if (state === 'suppressed' && lower(message.fromEmail) !== contact) {
+    return { matched: false, state, reason: 'unattributed opt-out requires manual review' };
+  }
   if (state === 'replied' && (
     lower(message.fromEmail) !== contact ||
     !hasAcknowledgedThreadLink(db, prospect.id, message)
