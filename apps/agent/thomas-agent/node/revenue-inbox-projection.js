@@ -4,9 +4,13 @@ function text(value) { return String(value || '').trim(); }
 function lower(value) { return text(value).toLowerCase(); }
 
 function inboxState(message = {}) {
-  const haystack = `${message.from || ''} ${message.subject || ''} ${message.preview || ''}`.toLowerCase();
-  if (/unsubscribe|remove me|do not contact|don'?t contact|\bstop\b/.test(haystack)) return 'suppressed';
-  if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(haystack)) return 'bounced';
+  // Sender addresses and display names may contain 'stop' or 'unsubscribe'
+  // without expressing an opt-out. Only message content conveys intent.
+  const content = `${message.subject || ''} ${message.preview || ''}`.toLowerCase();
+  if (/unsubscribe|remove me|do not contact|don'?t contact|\bstop\b/.test(content)) return 'suppressed';
+  // Keep the sender available for delivery-agent classification.
+  const deliverySignal = `${message.from || ''} ${content}`.toLowerCase();
+  if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(deliverySignal)) return 'bounced';
   return 'replied';
 }
 
