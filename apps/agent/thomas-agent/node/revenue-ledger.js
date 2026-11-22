@@ -225,7 +225,14 @@ function transitionProspect(db, input = {}) {
   }
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
-  if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
+  // Distinct, correlated customer replies may arrive after the first reply.
+  // Keep each as an auditable event/CRM touch without reopening the lead or
+  // allowing arbitrary no-op transitions from the generic ledger API.
+  const subsequentInboxReply = prospect.state === 'replied' && toState === 'replied'
+    && eventType === 'inbox_replied';
+  if (!subsequentInboxReply && !TRANSITIONS[prospect.state].has(toState)) {
+    throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
+  }
   const now = new Date().toISOString();
   const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: eventType, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
   db.exec('BEGIN IMMEDIATE');
