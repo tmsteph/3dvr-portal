@@ -365,3 +365,41 @@ test('positive delivery receipts and temporary delays never mark a lead bounced'
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('a request to stop by an event is a linked reply, while standalone STOP still opts out', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-stop-by-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, {
+      name: 'Synthetic Venue Owner', contact: 'venue@test.example'
+    }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'visit:v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'visit:e' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'visit:s' });
+    reserveDeliveryAttempt(db, { prospectId: buyer.id, attemptId: 'visit:outbound' });
+    finishDeliveryAttempt(db, {
+      attemptId: 'visit:outbound', status: 'acknowledged',
+      messageId: '<visit-outbound@test.example>', transport: 'synthetic-test'
+    });
+    const visit = projectInboxMessage(db, {
+      fromEmail: 'venue@test.example', messageId: 'visit:reply',
+      inReplyTo: '<visit-outbound@test.example>',
+      subject: 'Can you stop by our event?', preview: 'Please stop by Tuesday to discuss our AV setup.'
+    });
+    assert.equal(visit.matched, true);
+    assert.equal(visit.prospect.state, 'replied', 'a visit request is not an opt-out');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 0);
+    const optOut = projectInboxMessage(db, {
+      fromEmail: 'venue@test.example', messageId: 'visit:stop', subject: 'STOP'
+    });
+    assert.equal(optOut.prospect.state, 'suppressed', 'standalone STOP must remain effective');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 1);
+    assert.equal(projectInboxMessage(db, {
+      fromEmail: 'venue@test.example', messageId: 'visit:stop', subject: 'STOP'
+    }).replayed, true);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
