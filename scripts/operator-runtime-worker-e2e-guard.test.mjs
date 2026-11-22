@@ -15,7 +15,12 @@ assert.ok(configBlock, 'expected explicit Gun construction options');
 const configText = configBlock[1];
 assert.match(configText, /^\s*peers,\s*$/m, 'Gun must use validated peers');
 for (const setting of ['axe', 'multicast', 'rad', 'radisk', 'localStorage', 'stats']) {
-  const definitions = [...configText.matchAll(new RegExp('^\\s*' + setting + ':\\s*(true|false)\\s*,?\\s*// relay must finish before even importing code that could open a connection.
+  const definitions = [...configText.matchAll(new RegExp('^\\s*' + setting + ':\\s*(true|false)\\s*,?\\s*$', 'gm'))];
+  assert.equal(definitions.length, 1, setting + ' must have exactly one literal setting');
+  assert.equal(definitions[0][1], 'false', setting + ' must be disabled in isolated Gun');
+}
+// Instrument the first possible import of the Gun transport. Rejecting a
+// relay must finish before even importing code that could open a connection.
 assert.match(source, /^const \{ default: Gun \} = await import\('gun'\);$/m,
   'expected deferred Gun import for transport interception');
 const instrumented = source.replace(
