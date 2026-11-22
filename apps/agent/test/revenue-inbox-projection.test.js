@@ -28,6 +28,9 @@ test('inbox message-id projection is replay-safe for replies and bounces', () =>
     transitionProspect(db, { prospectId: bounced.id, toState: 'verified', idempotencyKey: 'bv' });
     transitionProspect(db, { prospectId: bounced.id, toState: 'eligible', idempotencyKey: 'be' });
     transitionProspect(db, { prospectId: bounced.id, toState: 'sent', idempotencyKey: 'bs' });
+    reserveDeliveryAttempt(db, { prospectId: bounced.id, attemptId: 'bounce-outbound' });
+    finishDeliveryAttempt(db, { attemptId: 'bounce-outbound', status: 'acknowledged',
+      messageId: '<sent-bounce@test.example>', transport: 'synthetic-test' });
     const bounce = projectInboxMessage(db, { prospectEmail: 'bounce@test.example', messageId: 'bounce-1', from: 'mailer-daemon', subject: 'Delivery Status Notification (Failure)' });
     assert.equal(bounce.prospect.state, 'bounced');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
@@ -75,7 +78,11 @@ test('inbox projection bridges legacy mailto contact identities', () => {
     transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'lv' });
     transitionProspect(db, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'le' });
     transitionProspect(db, { prospectId: prospect.id, toState: 'sent', idempotencyKey: 'ls' });
-    const result = projectInboxMessage(db, { prospectEmail: 'legacy@test.example', messageId: 'legacy-bounce', subject: 'Delivery failure' });
+    reserveDeliveryAttempt(db, { prospectId: prospect.id, attemptId: 'legacy-outbound' });
+    finishDeliveryAttempt(db, { attemptId: 'legacy-outbound', status: 'acknowledged',
+      messageId: '<sent-legacy@test.example>', transport: 'synthetic-test' });
+    const result = projectInboxMessage(db, { prospectEmail: 'legacy@test.example',
+      messageId: 'legacy-bounce', fromEmail: 'postmaster@test.example', subject: 'Delivery failure' });
     assert.equal(result.prospect.state, 'bounced');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
@@ -132,6 +139,9 @@ test('one multi-recipient delivery failure preserves independent CRM events and 
       transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: email + ':verified' });
       transitionProspect(db, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: email + ':eligible' });
       transitionProspect(db, { prospectId: prospect.id, toState: 'sent', idempotencyKey: email + ':sent' });
+      reserveDeliveryAttempt(db, { prospectId: prospect.id, attemptId: email + ':outbound' });
+      finishDeliveryAttempt(db, { attemptId: email + ':outbound', status: 'acknowledged',
+        messageId: '<sent-' + index + '@test.example>', transport: 'synthetic-test' });
     }
     const inbox = path.join(tmp, 'inbox-state.json');
     fs.writeFileSync(inbox, JSON.stringify({ messages: {
@@ -157,4 +167,38 @@ test('one multi-recipient delivery failure preserves independent CRM events and 
     db.close();
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('unattributed delivery-failure hints cannot bounce a buyer without a provider outbound receipt', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-bounce-guard-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, { name: 'Buyer', contact: 'buyer@test.example' }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'bg:v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'bg:e' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'bg:s' });
+    const base = { prospectEmail: 'buyer@test.example', subject: 'Delivery failure' };
+    const checkRejected = (message) => {
+      const result = projectInboxMessage(db, { ...base, ...message });
+      assert.equal(result.matched, false);
+      assert.match(result.reason, /manual review/);
+      assert.equal(db.prepare('SELECT state FROM prospects WHERE id=?').get(buyer.id).state, 'sent');
+    };
+    checkRejected({ messageId: 'dsn-without-outbound', fromEmail: 'mailer-daemon@test.example' });
+
+    reserveDeliveryAttempt(db, { prospectId: buyer.id, attemptId: 'bg:outbound' });
+    finishDeliveryAttempt(db, { attemptId: 'bg:outbound', status: 'acknowledged',
+      messageId: '<sent-buyer@test.example>', transport: 'synthetic-test' });
+    checkRejected({ messageId: 'stranger-failure', fromEmail: 'unrelated@test.example' });
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_bounced'").get().n, 0);
+
+    const realDsn = { ...base, messageId: 'attributable-dsn',
+      from: 'Mail Delivery Subsystem <mailer-daemon@test.example>',
+      fromEmail: 'mailer-daemon@test.example' };
+    const first = projectInboxMessage(db, realDsn);
+    assert.equal(first.matched, true);
+    assert.equal(first.prospect.state, 'bounced');
+    assert.equal(projectInboxMessage(db, realDsn).replayed, true);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_bounced'").get().n, 1);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
