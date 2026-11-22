@@ -33,6 +33,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Run Helm SSH route preflight unit tests (offline)
+        run: python3 -m unittest discover -s tests -p helm_ssh_route_preflight_test.py -v
+
       - name: Verify signed Operator task delivery
         run: |
           node --test tests/operator-dispatch.test.js tests/operator-delegate-task.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js tests/self-host-shutdown.test.js tests/operator-action-receipt.test.js
