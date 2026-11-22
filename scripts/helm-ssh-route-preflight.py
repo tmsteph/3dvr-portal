@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Read-only loopback safety gate for the Portal -> Hetzner Helm SSH route.
 
-Only classifies the target resolved by the existing SSH configuration; it never
-opens an SSH transport or authenticates a host. A non-loopback result is not
-permission to restart services or replay uncertain receipts.
+Only classifies an explicitly supplied, separately reviewed effective SSH config
+dump; it never invokes ssh (whose Match exec can launch local commands), opens an
+SSH transport, or authenticates a host. A non-loopback result is not permission
+to restart services or replay uncertain receipts.
 """
 
 import ipaddress
@@ -25,14 +26,10 @@ def classify(config_host, ssh_config=None, resolved_addresses=None):
         return "BLOCKED_INVALID_ALIAS"
     try:
         if ssh_config is None:
-            # -G prints effective configuration without making an SSH connection.
-            proc = subprocess.run(
-                ["ssh", "-G", host], capture_output=True, text=True,
-                check=False, timeout=6,
-            )
-            if proc.returncode != 0:
-                return "BLOCKED_SSH_CONFIG_UNAVAILABLE"
-            ssh_config = proc.stdout
+            # OpenSSH "Match exec" can execute local shell commands even for
+            # ssh -G. Never parse the local SSH config from this safety tool.
+            # Require an explicitly supplied, separately reviewed dump.
+            return "BLOCKED_REVIEWED_CONFIG_REQUIRED"
         params = {}
         for line in ssh_config.splitlines():
             key, sep, val = line.partition(" ")
@@ -68,7 +65,20 @@ def classify(config_host, ssh_config=None, resolved_addresses=None):
 
 
 def main():
-    status = classify(os.getenv("THREEDVR_OPENCLAW_SSH_HOST", ""))
+    # The caller must separately review all applicable SSH configs/includes
+    # before capturing `ssh -G` output: OpenSSH Match exec can run shell
+    # commands during evaluation. This CLI never invokes ssh itself.
+    if sys.argv[1:] != ["--effective-config-stdin"]:
+        print("HELM_SSH_ROUTE_PREFLIGHT=BLOCKED_REVIEWED_CONFIG_REQUIRED")
+        return 2
+    try:
+        effective_config = sys.stdin.read(32769)
+    except (OSError, UnicodeError):
+        effective_config = ""
+    if not effective_config or len(effective_config) > 32768:
+        print("HELM_SSH_ROUTE_PREFLIGHT=BLOCKED_REVIEWED_CONFIG_REQUIRED")
+        return 2
+    status = classify(os.getenv("THREEDVR_OPENCLAW_SSH_HOST", ""), ssh_config=effective_config)
     print("HELM_SSH_ROUTE_PREFLIGHT=" + status)
     return 0 if status == "NON_LOOPBACK_ONLY_IDENTITY_UNVERIFIED" else 2
 
