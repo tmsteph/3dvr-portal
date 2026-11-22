@@ -21,15 +21,10 @@ function referencedMessageIds(message = {}) {
     .filter(Boolean);
 }
 
-// A DSN-like subject or a recipient hint is not proof that we ever sent to
-// that buyer. Require an attributable provider-acknowledged outbound attempt
-// and a plausible delivery-agent sender before changing the CRM to bounced.
-// This is an attribution check, NOT authenticated provider/DKIM verification.
-function hasAcknowledgedOutbound(db, prospectId) {
-  return Boolean(db.prepare(`SELECT 1 FROM delivery_attempts
-    WHERE prospect_id = ? AND status = 'acknowledged'
-      AND message_id != '' AND transport != '' LIMIT 1`).get(prospectId));
-}
+// A DSN-like subject or a recipient hint is not proof of which outbound
+// message failed. Require a link to this same prospect's acknowledged provider
+// Message-ID, plus a plausible delivery-agent sender, before marking bounced.
+// This is correlation only, NOT authenticated DSN/DKIM verification.
 
 function hasDsnSender(message = {}) {
   const sender = lower(message.fromEmail || message.from);
@@ -41,9 +36,22 @@ function hasAcknowledgedThreadLink(db, prospectId, message) {
   const ids = new Set(referencedMessageIds(message));
   if (!ids.size) return false;
   return db.prepare(`SELECT message_id FROM delivery_attempts
-    WHERE prospect_id = ? AND status = 'acknowledged' AND message_id != ''`)
+    WHERE prospect_id = ? AND status = 'acknowledged'
+      AND message_id != '' AND transport != ''`)
     .all(prospectId)
     .some(row => ids.has(String(row.message_id).trim().replace(/^<|>$/g, '').toLowerCase()));
+}
+
+// DSNs often supply the failed message's ID as Original-Message-ID rather
+// than In-Reply-To. Only the bounce path may use these additional fields:
+// an ordinary human reply still needs its own real References/In-Reply-To.
+function hasAcknowledgedBounceLink(db, prospectId, message) {
+  const originals = Array.isArray(message.originalMessageIds)
+    ? message.originalMessageIds : [message.originalMessageIds];
+  return hasAcknowledgedThreadLink(db, prospectId, {
+    inReplyTo: [message.inReplyTo, message.originalMessageId].filter(Boolean).join(' '),
+    references: [message.references, ...originals].filter(Boolean).join(' '),
+  });
 }
 
 function projectInboxMessage(db, message = {}) {
@@ -60,7 +68,7 @@ function projectInboxMessage(db, message = {}) {
   if (state === 'suppressed' && lower(message.fromEmail) !== contact) {
     return { matched: false, state, reason: 'unattributed opt-out requires manual review' };
   }
-  if (state === 'bounced' && (!hasAcknowledgedOutbound(db, prospect.id) || !hasDsnSender(message))) {
+  if (state === 'bounced' && (!hasDsnSender(message) || !hasAcknowledgedBounceLink(db, prospect.id, message))) {
     return { matched: false, state, reason: 'unattributed delivery failure requires manual review' };
   }
   if (state === 'replied' && (
