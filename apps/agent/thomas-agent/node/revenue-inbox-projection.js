@@ -16,7 +16,12 @@ function inboxState(message = {}) {
   // ("add an unsubscribe link"). Suppress only a direct request to leave,
   // never a feature discussion in an otherwise linked buyer reply.
   const explicitOptOut = /\bunsubscribe\s+(?:me|us|my\s+(?:email|address)|this\s+(?:email|address)|from\s+(?:your|the)\s+(?:list|newsletter|mailing list))\b|\b(?:i|we)\s+(?:want|wish|need|would like)\s+to\s+unsubscribe\b|\bremove me\b|\bdo not contact\b|\bdon'?t contact\b|\bstop\s+(?:contacting|emailing|messaging|texting|sending|mailing)\b/.test(content);
-  if (standaloneOptOut || explicitOptOut) return 'suppressed';
+  // Explicit first-person opt-outs also arrive as "take me off your list" or
+  // "don't email me". Require the request at the start of a subject/preview
+  // to avoid suppressing buyers discussing an opt-out *feature*.
+  const directOptOut = [subject, preview].some(part =>
+    /^(?:please[,\\s]+)?(?:take\\s+(?:me|us)\\s+off\\s+(?:(?:your|the|this)\\s+)?(?:(?:mailing|email)\\s+)?list|(?:do\\s+not|don['’]?t)\\s+(?:email|message|text|contact)\\s+(?:me|us))\\b/.test(part));
+  if (standaloneOptOut || explicitOptOut || directOptOut) return 'suppressed';
   // Keep the sender available for delivery-agent classification.
   const deliverySignal = `${message.from || ''} ${content}`.toLowerCase();
   if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(deliverySignal)) return 'bounced';
