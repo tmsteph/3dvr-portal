@@ -56,6 +56,7 @@
           <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">Chats</button>
           <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Branches</button>
           <button id="copy-conversation" type="button" aria-label="Copy conversation" title="Copy conversation">Copy</button>
+          <button id="preview-redacted-copy" type="button" hidden>Redact &amp; copy</button>
           <button id="toggle-view" type="button" aria-label="Switch to chat view" aria-pressed="false" title="Switch to chat view">Chat view</button>
         </nav>
         <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋ New chat</button>
@@ -129,6 +130,17 @@
         <h2 id="copy-dialog-title">Copy conversation</h2>
         <span>Your browser blocked automatic copying. Select the text below and copy it manually.</span>
         <textarea id="copy-text" readonly rows="12" aria-label="Conversation text"></textarea>
+      </div>
+    </dialog>
+    <dialog id="redacted-copy-dialog" aria-labelledby="redacted-copy-title" aria-describedby="redacted-copy-help">
+      <div class="copy-dialog-body">
+        <button id="close-redacted-copy" class="copy-close" type="button" aria-label="Close redaction preview" autofocus>×</button>
+        <p>OPERATOR</p>
+        <h2 id="redacted-copy-title">Review before copying</h2>
+        <span id="redacted-copy-help">Checked on this device for common emails, US phone numbers, SSN-shaped numbers, and IPv4 addresses. Workspace links are left out; names, secrets, and other details can still appear. Edit the preview before sharing.</span>
+        <textarea id="redacted-copy-text" rows="10" aria-label="Editable redaction preview" spellcheck="false" autocorrect="off" autocomplete="off" translate="no"></textarea>
+        <span id="redacted-copy-summary" role="status"></span>
+        <button id="copy-redacted-preview" type="button">Copy preview</button>
       </div>
     </dialog>
   </main>

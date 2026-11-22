@@ -346,3 +346,72 @@ test('homepage can chat while optional context loading is stalled', { timeout: 2
     await browser.close();
   }
 });
+
+test('Operator copies only the explicitly confirmed redaction preview', { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const width of [390, 1280]) {
+      const page = await browser.newPage({ viewport: { width, height: 844 }, serviceWorkers: 'block' });
+      await page.route('**/*', route => new URL(route.request().url()).origin === baseUrl
+        ? route.continue() : route.abort('blockedbyclient'));
+      await page.routeWebSocket('**/*', socket => socket.close());
+      await page.addInitScript(() => {
+        const messages = [
+          { role: 'user', content: 'Contact case@example.invalid.' },
+          { role: 'assistant', content: 'The test host is 192.0.2.13. Keep v1.2.3.4.' }
+        ];
+        localStorage.setItem('3dvr.operator.conversations.v2', JSON.stringify({
+          activeId: 'synthetic-preview',
+          conversations: [{ id: 'synthetic-preview', updatedAt: '2026-01-01T00:00:00Z', messages }]
+        }));
+        window.clipboardCalls = [];
+        window.rejectClipboard = false;
+        Object.defineProperty(navigator, 'clipboard', {
+          value: { writeText: async text => {
+            if (window.rejectClipboard) throw new DOMException('Clipboard blocked', 'NotAllowedError');
+            window.clipboardCalls.push(text);
+          } }
+        });
+      });
+
+      await page.goto(`${baseUrl}/operator/?conversation=synthetic-preview`, { waitUntil: 'domcontentloaded' });
+      const start = page.getByRole('button', { name: 'Redact & copy', exact: true });
+      const dialog = page.getByRole('dialog', { name: 'Review before copying' });
+      const field = dialog.getByRole('textbox', { name: 'Editable redaction preview' });
+      const confirm = dialog.getByRole('button', { name: 'Copy preview' });
+      const close = dialog.getByRole('button', { name: 'Close redaction preview' });
+      const writes = () => page.evaluate(() => window.clipboardCalls);
+      const original = 'You: Contact case@example.invalid.\n\nOperator: The test host is 192.0.2.13. Keep v1.2.3.4.';
+      const masked = 'You: Contact [EMAIL].\n\nOperator: The test host is [IPV4]. Keep v1.2.3.4.';
+      await start.click();
+      assert.equal(await field.inputValue(), masked);
+      assert.deepEqual(await writes(), []);
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({ state: 'hidden' });
+      assert.deepEqual(await writes(), []);
+
+      await start.click();
+      await field.fill(`${masked}\nReviewed.`);
+      await confirm.click();
+      await dialog.getByText('Preview copied.', { exact: true }).waitFor();
+      assert.deepEqual(await writes(), [`${masked}\nReviewed.`]);
+      await close.click();
+      await dialog.waitFor({ state: 'hidden' });
+      await page.getByRole('button', { name: 'Copy conversation', exact: true }).click();
+      await page.getByText('Conversation copied', { exact: true }).waitFor();
+      assert.deepEqual(await writes(), [`${masked}\nReviewed.`, original]);
+
+      await page.evaluate(() => { window.rejectClipboard = true; });
+      await start.click();
+      assert.equal(await field.inputValue(), masked);
+      await confirm.click();
+      await dialog.getByText(/copy the selected preview manually/i).waitFor();
+      assert.equal(await field.evaluate(el => el.selectionEnd - el.selectionStart), masked.length);
+      assert.deepEqual(await writes(), [`${masked}\nReviewed.`, original]);
+      await close.click();
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
+});

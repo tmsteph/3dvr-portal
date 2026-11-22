@@ -1,0 +1,602 @@
+[
+  {
+    "id": "clear-01",
+    "category": "clear",
+    "input": "Copy to the sandbox: eva.river+lab@example.com.",
+    "expected": "Copy to the sandbox: [EMAIL].",
+    "annotations": [
+      {
+        "type": "EMAIL",
+        "value": "eva.river+lab@example.com"
+      }
+    ],
+    "note": "Common dotted local part and plus tag; sentence period stays."
+  },
+  {
+    "id": "clear-02",
+    "category": "clear",
+    "input": "Reply draft: <CASE_42@example.org>; leave the brackets around it.",
+    "expected": "Reply draft: <[EMAIL]>; leave the brackets around it.",
+    "annotations": [
+      {
+        "type": "EMAIL",
+        "value": "CASE_42@example.org"
+      }
+    ],
+    "note": "Angle brackets, mixed case and underscore."
+  },
+  {
+    "id": "clear-03",
+    "category": "clear",
+    "input": "owner = ops-team@mail.example.net\nstatus = waiting",
+    "expected": "owner = [EMAIL]\nstatus = waiting",
+    "annotations": [
+      {
+        "type": "EMAIL",
+        "value": "ops-team@mail.example.net"
+      }
+    ],
+    "note": "Hyphenated local part and a subdomain; preserve the newline."
+  },
+  {
+    "id": "clear-04",
+    "category": "clear",
+    "input": "Escalate to 'preview-2@example.invalid' (internal exercise only).",
+    "expected": "Escalate to '[EMAIL]' (internal exercise only).",
+    "annotations": [
+      {
+        "type": "EMAIL",
+        "value": "preview-2@example.invalid"
+      }
+    ],
+    "note": "A reserved example namespace inside prose quotes."
+  },
+  {
+    "id": "clear-05",
+    "category": "clear",
+    "input": "Use dispatch@example.test, not the production list.",
+    "expected": "Use [EMAIL], not the production list.",
+    "annotations": [
+      {
+        "type": "EMAIL",
+        "value": "dispatch@example.test"
+      }
+    ],
+    "note": "Comma and nearby hyphen-free context should not be removed."
+  },
+  {
+    "id": "clear-06",
+    "category": "clear",
+    "input": "Synthetic callback: (202) 555-0101; leave a test message.",
+    "expected": "Synthetic callback: [PHONE]; leave a test message.",
+    "annotations": [
+      {
+        "type": "PHONE",
+        "value": "(202) 555-0101"
+      }
+    ],
+    "note": "Parenthesized area code."
+  },
+  {
+    "id": "clear-07",
+    "category": "clear",
+    "input": "Lab callback +1 (312) 555-0102 after lunch.",
+    "expected": "Lab callback [PHONE] after lunch.",
+    "annotations": [
+      {
+        "type": "PHONE",
+        "value": "+1 (312) 555-0102"
+      }
+    ],
+    "note": "Explicit plus country prefix before area-code parentheses."
+  },
+  {
+    "id": "clear-08",
+    "category": "clear",
+    "input": "Test telephone: 1-415-555-0103.",
+    "expected": "Test telephone: [PHONE].",
+    "annotations": [
+      {
+        "type": "PHONE",
+        "value": "1-415-555-0103"
+      }
+    ],
+    "note": "Bare country prefix and hyphen separators; preserve period."
+  },
+  {
+    "id": "clear-09",
+    "category": "clear",
+    "input": "Call the demo desk at 619.555.0104!",
+    "expected": "Call the demo desk at [PHONE]!",
+    "annotations": [
+      {
+        "type": "PHONE",
+        "value": "619.555.0104"
+      }
+    ],
+    "note": "Dot separators and sentence punctuation."
+  },
+  {
+    "id": "clear-10",
+    "category": "clear",
+    "input": "The demo phone is 212 555 0105\nNo calls should be placed.",
+    "expected": "The demo phone is [PHONE]\nNo calls should be placed.",
+    "annotations": [
+      {
+        "type": "PHONE",
+        "value": "212 555 0105"
+      }
+    ],
+    "note": "Space grouping and line end."
+  },
+  {
+    "id": "clear-11",
+    "category": "clear",
+    "input": "Fixture employee ID (SSN format): 000-12-0345.",
+    "expected": "Fixture employee ID (SSN format): [SSN].",
+    "annotations": [
+      {
+        "type": "SSN",
+        "value": "000-12-0345"
+      }
+    ],
+    "note": "Impossible SSN area; shape policy, not identity validation."
+  },
+  {
+    "id": "clear-12",
+    "category": "clear",
+    "input": "On the dummy intake form use [666-23-4567] in that box.",
+    "expected": "On the dummy intake form use [[SSN]] in that box.",
+    "annotations": [
+      {
+        "type": "SSN",
+        "value": "666-23-4567"
+      }
+    ],
+    "note": "Impossible area and adjacent literal brackets."
+  },
+  {
+    "id": "clear-13",
+    "category": "clear",
+    "input": "Sample tax identifier: 901-00-0000; all digits here are fictional.",
+    "expected": "Sample tax identifier: [SSN]; all digits here are fictional.",
+    "annotations": [
+      {
+        "type": "SSN",
+        "value": "901-00-0000"
+      }
+    ],
+    "note": "Impossible area, group, and serial; still mask by shape."
+  },
+  {
+    "id": "clear-14",
+    "category": "clear",
+    "input": "Ignore the dummy number 000-00-0000\nKeep the next line.",
+    "expected": "Ignore the dummy number [SSN]\nKeep the next line.",
+    "annotations": [
+      {
+        "type": "SSN",
+        "value": "000-00-0000"
+      }
+    ],
+    "note": "All-zero placeholder has SSN shape and should still be masked."
+  },
+  {
+    "id": "clear-15",
+    "category": "clear",
+    "input": "Documentation relay is 192.0.2.17:443; leave the port.",
+    "expected": "Documentation relay is [IPV4]:443; leave the port.",
+    "annotations": [
+      {
+        "type": "IPV4",
+        "value": "192.0.2.17"
+      }
+    ],
+    "note": "RFC 5737 host beside an explicit port."
+  },
+  {
+    "id": "clear-16",
+    "category": "clear",
+    "input": "Send no packets to (198.51.100.42). This is prose.",
+    "expected": "Send no packets to ([IPV4]). This is prose.",
+    "annotations": [
+      {
+        "type": "IPV4",
+        "value": "198.51.100.42"
+      }
+    ],
+    "note": "RFC 5737 IPv4 inside parentheses and before a sentence period."
+  },
+  {
+    "id": "clear-17",
+    "category": "clear",
+    "input": "Demo network: 203.0.113.0/24. Read the prefix too.",
+    "expected": "Demo network: [IPV4]/24. Read the prefix too.",
+    "annotations": [
+      {
+        "type": "IPV4",
+        "value": "203.0.113.0"
+      }
+    ],
+    "note": "RFC 5737 network address next to CIDR suffix."
+  },
+  {
+    "id": "clear-18",
+    "category": "clear",
+    "input": "Only reference https://203.0.113.255/demo in documentation.",
+    "expected": "Only reference https://[IPV4]/demo in documentation.",
+    "annotations": [
+      {
+        "type": "IPV4",
+        "value": "203.0.113.255"
+      }
+    ],
+    "note": "RFC 5737 host in a synthetic URL; preserve scheme/path."
+  },
+  {
+    "id": "clear-19",
+    "category": "clear",
+    "input": "Email: kit-7@example.com | Voice: +1-646-555-0108 | Test origin: 192.0.2.100",
+    "expected": "Email: [EMAIL] | Voice: [PHONE] | Test origin: [IPV4]",
+    "annotations": [
+      {
+        "type": "EMAIL",
+        "value": "kit-7@example.com"
+      },
+      {
+        "type": "PHONE",
+        "value": "+1-646-555-0108"
+      },
+      {
+        "type": "IPV4",
+        "value": "192.0.2.100"
+      }
+    ],
+    "note": "Multiple identifier classes in one row, with a plus-prefixed telephone."
+  },
+  {
+    "id": "clear-20",
+    "category": "clear",
+    "input": "🧪 Synthetic brief\nFrom: qa+alpha@example.org\nVoice: 303-555-0109\nTax form: 999-01-0199\nOrigin: 198.51.100.99\n**Keep this formatting.**",
+    "expected": "🧪 Synthetic brief\nFrom: [EMAIL]\nVoice: [PHONE]\nTax form: [SSN]\nOrigin: [IPV4]\n**Keep this formatting.**",
+    "annotations": [
+      {
+        "type": "EMAIL",
+        "value": "qa+alpha@example.org"
+      },
+      {
+        "type": "PHONE",
+        "value": "303-555-0109"
+      },
+      {
+        "type": "SSN",
+        "value": "999-01-0199"
+      },
+      {
+        "type": "IPV4",
+        "value": "198.51.100.99"
+      }
+    ],
+    "note": "One of each class; preserve Unicode, markdown and newlines."
+  },
+  {
+    "id": "clean-01",
+    "category": "clean",
+    "input": "Draft complete. The checklist needs one last review.",
+    "expected": "Draft complete. The checklist needs one last review.",
+    "annotations": [],
+    "note": "Ordinary work text."
+  },
+  {
+    "id": "clean-02",
+    "category": "clean",
+    "input": "Please send the drawing after the second rehearsal.",
+    "expected": "Please send the drawing after the second rehearsal.",
+    "annotations": [],
+    "note": "No implicit identifier for the phrase."
+  },
+  {
+    "id": "clean-03",
+    "category": "clean",
+    "input": "Café setup: use the unlabeled blue case.",
+    "expected": "Café setup: use the unlabeled blue case.",
+    "annotations": [],
+    "note": "Unicode punctuation and letters."
+  },
+  {
+    "id": "clean-04",
+    "category": "clean",
+    "input": "☁️ Network unavailable. Resume when a connection returns.",
+    "expected": "☁️ Network unavailable. Resume when a connection returns.",
+    "annotations": [],
+    "note": "Emoji and network language are not identifiers."
+  },
+  {
+    "id": "clean-05",
+    "category": "clean",
+    "input": "# Copy this note\n- Test complete\n- Next step: retest",
+    "expected": "# Copy this note\n- Test complete\n- Next step: retest",
+    "annotations": [],
+    "note": "Markdown structure and line breaks."
+  },
+  {
+    "id": "clean-06",
+    "category": "clean",
+    "input": "The evening gate closes at 6:45 p.m.",
+    "expected": "The evening gate closes at 6:45 p.m.",
+    "annotations": [],
+    "note": "Clock times are not in scope."
+  },
+  {
+    "id": "clean-07",
+    "category": "clean",
+    "input": "Invoice reference INV-2026-0042 is written on the envelope.",
+    "expected": "Invoice reference INV-2026-0042 is written on the envelope.",
+    "annotations": [],
+    "note": "Human-readable invoice reference."
+  },
+  {
+    "id": "clean-08",
+    "category": "clean",
+    "input": "Use sample units of 120 volts and 15 amps.",
+    "expected": "Use sample units of 120 volts and 15 amps.",
+    "annotations": [],
+    "note": "Technical quantities."
+  },
+  {
+    "id": "clean-09",
+    "category": "clean",
+    "input": "Try 3.14159 in the example and round to three places.",
+    "expected": "Try 3.14159 in the example and round to three places.",
+    "annotations": [],
+    "note": "Decimal is not an IP address."
+  },
+  {
+    "id": "clean-10",
+    "category": "clean",
+    "input": "Total: $1234.56, before shipping.",
+    "expected": "Total: $1234.56, before shipping.",
+    "annotations": [],
+    "note": "Currency amount is not an identifier."
+  },
+  {
+    "id": "clean-11",
+    "category": "clean",
+    "input": "Record counts were 123, 456, and 789 after merging.",
+    "expected": "Record counts were 123, 456, and 789 after merging.",
+    "annotations": [],
+    "note": "Comma-separated counts, not a formatted SSN."
+  },
+  {
+    "id": "clean-12",
+    "category": "clean",
+    "input": "Blank lines are meaningful.\n\nKeep one here.",
+    "expected": "Blank lines are meaningful.\n\nKeep one here.",
+    "annotations": [],
+    "note": "Double newline is preserved."
+  },
+  {
+    "id": "clean-13",
+    "category": "clean",
+    "input": "Indent this sample:\n\tflag = true",
+    "expected": "Indent this sample:\n\tflag = true",
+    "annotations": [],
+    "note": "Literal tab and newline retained."
+  },
+  {
+    "id": "clean-14",
+    "category": "clean",
+    "input": "speaker-height = 2.4 m; width = 1.8 m.",
+    "expected": "speaker-height = 2.4 m; width = 1.8 m.",
+    "annotations": [],
+    "note": "Measurements with decimal points."
+  },
+  {
+    "id": "clean-15",
+    "category": "clean",
+    "input": "Build number 10542 and stage 5 both passed.",
+    "expected": "Build number 10542 and stage 5 both passed.",
+    "annotations": [],
+    "note": "Short numerics left untouched."
+  },
+  {
+    "id": "clean-16",
+    "category": "clean",
+    "input": "See https://example.org/docs/copy for instructions.",
+    "expected": "See https://example.org/docs/copy for instructions.",
+    "annotations": [],
+    "note": "Reserved-domain URL without an address embedded."
+  },
+  {
+    "id": "clean-17",
+    "category": "clean",
+    "input": "Names in this fictional example: Iris, Rowan, and Cedar.",
+    "expected": "Names in this fictional example: Iris, Rowan, and Cedar.",
+    "annotations": [],
+    "note": "Ordinary names are out of scope."
+  },
+  {
+    "id": "clean-18",
+    "category": "clean",
+    "input": "«Local-only» means nothing leaves this tab.",
+    "expected": "«Local-only» means nothing leaves this tab.",
+    "annotations": [],
+    "note": "Non-ASCII delimiters."
+  },
+  {
+    "id": "clean-19",
+    "category": "clean",
+    "input": "[EMAIL] and [PHONE] are the literal labels in this example.",
+    "expected": "[EMAIL] and [PHONE] are the literal labels in this example.",
+    "annotations": [],
+    "note": "Existing placeholders are not new annotations."
+  },
+  {
+    "id": "clean-20",
+    "category": "clean",
+    "input": "  Keep the leading spaces\r\nAnd the line ending.  ",
+    "expected": "  Keep the leading spaces\r\nAnd the line ending.  ",
+    "annotations": [],
+    "note": "Leading/trailing spaces and CRLF preserved."
+  },
+  {
+    "id": "ambiguous-01",
+    "category": "ambiguous",
+    "input": "Have the file ready by 2026-11-22.",
+    "expected": "Have the file ready by 2026-11-22.",
+    "annotations": [],
+    "note": "ISO date, not an SSN."
+  },
+  {
+    "id": "ambiguous-02",
+    "category": "ambiguous",
+    "input": "The test run was tagged v192.0.2.23.",
+    "expected": "The test run was tagged v192.0.2.23.",
+    "annotations": [],
+    "note": "Leading version marker, not a bare IPv4."
+  },
+  {
+    "id": "ambiguous-03",
+    "category": "ambiguous",
+    "input": "The artifact version is 192.0.2.23.4.",
+    "expected": "The artifact version is 192.0.2.23.4.",
+    "annotations": [],
+    "note": "Five-part number; don't mask a four-part substring."
+  },
+  {
+    "id": "ambiguous-04",
+    "category": "ambiguous",
+    "input": "IPv4 typo for the exercise: 192.0.2.256.",
+    "expected": "IPv4 typo for the exercise: 192.0.2.256.",
+    "annotations": [],
+    "note": "Out-of-range last octet."
+  },
+  {
+    "id": "ambiguous-05",
+    "category": "ambiguous",
+    "input": "Legacy dotted counter: 192.00.2.17.",
+    "expected": "Legacy dotted counter: 192.00.2.17.",
+    "annotations": [],
+    "note": "IPv4 with a leading-zero octet is outside scope."
+  },
+  {
+    "id": "ambiguous-06",
+    "category": "ambiguous",
+    "input": "The parser rejected 999.198.51.100.7.",
+    "expected": "The parser rejected 999.198.51.100.7.",
+    "annotations": [],
+    "note": "Dotted extension must not expose a maskable four-octet suffix."
+  },
+  {
+    "id": "ambiguous-07",
+    "category": "ambiguous",
+    "input": "Proxy schematic uses 192.0.2.x as a placeholder.",
+    "expected": "Proxy schematic uses 192.0.2.x as a placeholder.",
+    "annotations": [],
+    "note": "Wildcard octet, not IPv4."
+  },
+  {
+    "id": "ambiguous-08",
+    "category": "ambiguous",
+    "input": "Inventory item 000-12-34567 has one extra digit.",
+    "expected": "Inventory item 000-12-34567 has one extra digit.",
+    "annotations": [],
+    "note": "SSN-shaped prefix with an extra digit must not match."
+  },
+  {
+    "id": "ambiguous-09",
+    "category": "ambiguous",
+    "input": "Reference X666-23-4567B is an alphanumeric part label.",
+    "expected": "Reference X666-23-4567B is an alphanumeric part label.",
+    "annotations": [],
+    "note": "Identifier-shaped substring in a larger token."
+  },
+  {
+    "id": "ambiguous-10",
+    "category": "ambiguous",
+    "input": "The digits 000120345 are a mock record sequence.",
+    "expected": "The digits 000120345 are a mock record sequence.",
+    "annotations": [],
+    "note": "Unhyphenated 9-digit sequence outside SSN scope."
+  },
+  {
+    "id": "ambiguous-11",
+    "category": "ambiguous",
+    "input": "Some claims used 000 12 0345 in the synthetic archive.",
+    "expected": "Some claims used 000 12 0345 in the synthetic archive.",
+    "annotations": [],
+    "note": "Unhyphenated spaced sequence outside SSN scope."
+  },
+  {
+    "id": "ambiguous-12",
+    "category": "ambiguous",
+    "input": "Equipment sequence 123-45-678 is deliberately short.",
+    "expected": "Equipment sequence 123-45-678 is deliberately short.",
+    "annotations": [],
+    "note": "Eight digits split 3-2-3."
+  },
+  {
+    "id": "ambiguous-13",
+    "category": "ambiguous",
+    "input": "The fictional shortcode is 555-0111, not a full NANP phone.",
+    "expected": "The fictional shortcode is 555-0111, not a full NANP phone.",
+    "annotations": [],
+    "note": "Seven-digit local number outside scope."
+  },
+  {
+    "id": "ambiguous-14",
+    "category": "ambiguous",
+    "input": "International display example: +44 20 7946 0958.",
+    "expected": "International display example: +44 20 7946 0958.",
+    "annotations": [],
+    "note": "Non-US sample; must not strip a matching tail."
+  },
+  {
+    "id": "ambiguous-15",
+    "category": "ambiguous",
+    "input": "The offer ID was T202-555-0112Q.",
+    "expected": "The offer ID was T202-555-0112Q.",
+    "annotations": [],
+    "note": "Phone-shaped substring inside a larger token."
+  },
+  {
+    "id": "ambiguous-16",
+    "category": "ambiguous",
+    "input": "The dummy sequence 2025550113 was in the import.",
+    "expected": "The dummy sequence 2025550113 was in the import.",
+    "annotations": [],
+    "note": "No separators; not a grouped NANP number."
+  },
+  {
+    "id": "ambiguous-17",
+    "category": "ambiguous",
+    "input": "Write @example.com if you mean a domain suffix only.",
+    "expected": "Write @example.com if you mean a domain suffix only.",
+    "annotations": [],
+    "note": "Local part is missing."
+  },
+  {
+    "id": "ambiguous-18",
+    "category": "ambiguous",
+    "input": "The pattern user [at] example [dot] net is deliberately obfuscated.",
+    "expected": "The pattern user [at] example [dot] net is deliberately obfuscated.",
+    "annotations": [],
+    "note": "No explicit address; no fuzzy inference."
+  },
+  {
+    "id": "ambiguous-19",
+    "category": "ambiguous",
+    "input": "Fixture address has shape actor@example (no public suffix).",
+    "expected": "Fixture address has shape actor@example (no public suffix).",
+    "annotations": [],
+    "note": "Domain without a dot is outside common-email scope."
+  },
+  {
+    "id": "ambiguous-20",
+    "category": "ambiguous",
+    "input": "Source package: https://example.com/releases/@scope/module.",
+    "expected": "Source package: https://example.com/releases/@scope/module.",
+    "annotations": [],
+    "note": "URL path with at-sign is not an email."
+  }
+]
