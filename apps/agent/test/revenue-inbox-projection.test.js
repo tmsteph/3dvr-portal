@@ -443,3 +443,41 @@ test('linked discussion of unsubscribe features is not an opt-out; explicit unsu
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('direct do-not-email and take-me-off requests suppress without mistaking feature work', () => {
+  const { inboxState } = require('../thomas-agent/node/revenue-inbox-projection');
+  assert.equal(inboxState({ preview: 'Please take me off your mailing list.' }), 'suppressed');
+  assert.equal(inboxState({ preview: 'Don’t email me again.' }), 'suppressed');
+  assert.equal(inboxState({ preview: 'Please add a take me off your list option.' }), 'replied');
+  assert.equal(inboxState({ preview: 'Can you add a “don’t email me” setting?' }), 'replied');
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-direct-optout-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, { name: 'Synthetic Buyer', contact: 'optout@test.example' }).prospect;
+    for (const [step, state] of ['verified', 'eligible', 'sent'].entries()) {
+      transitionProspect(db, { prospectId: buyer.id, toState: state,
+        idempotencyKey: 'direct-optout:' + step });
+    }
+    reserveDeliveryAttempt(db, { prospectId: buyer.id, attemptId: 'direct-optout:outbound' });
+    finishDeliveryAttempt(db, { attemptId: 'direct-optout:outbound', status: 'acknowledged',
+      messageId: '<direct-optout-outbound@test.example>', transport: 'synthetic-test' });
+    const feature = projectInboxMessage(db, {
+      fromEmail: 'optout@test.example', messageId: 'direct-optout:feature',
+      inReplyTo: '<direct-optout-outbound@test.example>',
+      preview: 'Please add a take me off your list option.'
+    });
+    assert.equal(feature.matched, true);
+    assert.equal(feature.prospect.state, 'replied');
+    const request = { fromEmail: 'optout@test.example', messageId: 'direct-optout:request',
+      preview: 'Don’t email me again.' };
+    const suppressed = projectInboxMessage(db, request);
+    assert.equal(suppressed.prospect.state, 'suppressed');
+    assert.equal(projectInboxMessage(db, request).replayed, true);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 1);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
