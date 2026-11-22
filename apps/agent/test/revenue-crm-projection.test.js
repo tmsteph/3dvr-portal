@@ -680,3 +680,82 @@ test('isolated CRM projection refuses the real writer injected as a test adapter
     /Isolated CRM projection cannot inject the real Gun writer/
   );
 });
+
+
+test('isolated source-only lead persists in separate scratch CRM and independent readback stays deduplicated', async () => {
+  // Incremental #3774 fixture: real revenue ledger, real outbox projection
+  // orchestration and independently reopened SQLite CRM *test double*.
+  // The injected writer is NOT the production Gun transport. No server,
+  // worker, OAuth, mail, phone, payment, or customer system is exercised.
+  const { DatabaseSync } = require('node:sqlite');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-provenance-readback-'));
+  const ledger = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  const crmFile = path.join(tmp, 'independent-crm-fixture.sqlite');
+  const writerDb = new DatabaseSync(crmFile);
+  writerDb.exec(
+    'CREATE TABLE records(id TEXT PRIMARY KEY, json TEXT NOT NULL);' +
+    'CREATE TABLE touches(id TEXT PRIMARY KEY, json TEXT NOT NULL);'
+  );
+  const sourceUrl = 'https://example.test/public/verified-demand-20261122';
+  const payload = { sourceUrl, observedNeed: 'A synthetic disconnected scheduling-to-CRM workflow' };
+  let readDb;
+  try {
+    const lead = createProspect(ledger, {
+      name: 'Synthetic Sourced Prospect', sourceUrl, campaignId: 'no-send-test'
+    }).prospect;
+    const transition = {
+      prospectId: lead.id, toState: 'verified', type: 'research_verified',
+      idempotencyKey: 'offline-source:verified:20261122', payload
+    };
+    const firstEvent = transitionProspect(ledger, transition).event;
+    let writes = 0;
+    const writer = async ({ records, touches }) => {
+      writes++;
+      for (const record of records) {
+        writerDb.prepare('INSERT INTO records(id,json) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json')
+          .run(record.id, JSON.stringify(record));
+      }
+      for (const touch of touches) {
+        writerDb.prepare('INSERT INTO touches(id,json) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json')
+          .run(touch.id, JSON.stringify(touch));
+      }
+      return { records: records.length, touches: touches.length, errors: [] };
+    };
+    const first = await projectPendingCrm(ledger, { isolated: true, write: writer });
+    assert.equal(first.attempted, 1);
+    assert.equal(first.succeeded, 1);
+    assert.equal(first.failed, 0);
+    assert.equal(pendingProjections(ledger).length, 0);
+    const replay = transitionProspect(ledger, transition);
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.event.id, firstEvent.id);
+    const second = await projectPendingCrm(ledger, { isolated: true, write: writer });
+    assert.equal(second.attempted, 0);
+    assert.equal(writes, 1, 'same evidence must never project a second time');
+    writerDb.close();
+
+    // Use an independent SQLite connection instead of trusting the writer
+    // return values. A successful mock acknowledgement alone proves little.
+    readDb = new DatabaseSync(crmFile, { readOnly: true });
+    const records = readDb.prepare('SELECT json FROM records').all();
+    const touches = readDb.prepare('SELECT json FROM touches').all();
+    assert.equal(records.length, 1);
+    assert.equal(touches.length, 1);
+    const record = JSON.parse(records[0].json);
+    const touch = JSON.parse(touches[0].json);
+    assert.equal(record.sourceUrl, sourceUrl);
+    assert.equal(record.canonicalEventId, firstEvent.id);
+    assert.equal(record.canonicalState, 'verified');
+    assert.equal(record.status, 'Lead', 'research is not a paid sale');
+    assert.equal(record.email, '', 'source-only research never invents a contact');
+    assert.equal(record.nextFollowUp, undefined, 'never invent an outbound follow-up');
+    assert.equal(record.lastPaymentAmountCents, undefined);
+    assert.equal(touch.crmRecordId, record.id);
+    assert.equal(touch.touchType, 'research_verified');
+  } finally {
+    if (readDb) readDb.close();
+    try { writerDb.close(); } catch { /* closed above after projection */ }
+    ledger.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
