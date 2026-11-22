@@ -10,8 +10,8 @@ function inboxState(message = {}) {
   const subject = lower(message.subject);
   const preview = lower(message.preview);
   const content = `${subject} ${preview}`;
-  const bareStop = [subject, preview].some(part => /^(?:please[,\\s]+)?stop[.!?\\s]*$/i.test(part));
-  const explicitOptOut = /\\bunsubscribe\\b|\\bremove me\\b|\\bdo not contact\\b|\\bdon'?t contact\\b|\\bstop\\s+(?:contacting|emailing|messaging|texting|sending|mailing)\\b/.test(content);
+  const bareStop = [subject, preview].some(part => /^(?:please[,\s]+)?stop[.!?\s]*$/i.test(part));
+  const explicitOptOut = /\bunsubscribe\b|\bremove me\b|\bdo not contact\b|\bdon'?t contact\b|\bstop\s+(?:contacting|emailing|messaging|texting|sending|mailing)\b/.test(content);
   if (bareStop || explicitOptOut) return 'suppressed';
   // Keep the sender available for delivery-agent classification.
   const deliverySignal = `${message.from || ''} ${content}`.toLowerCase();
