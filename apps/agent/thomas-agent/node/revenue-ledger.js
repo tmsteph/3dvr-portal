@@ -150,24 +150,32 @@ function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
     WHERE d.status = 'acknowledged' AND d.updated_at >= ?${campaign}`).get(...values).total;
 }
 
+function emailContact(value) {
+  const raw = normalize(value).toLowerCase();
+  // Mailto query parameters are compose hints, not a different recipient.
+  // Only strip a query for mailto: URLs; do not reinterpret arbitrary URLs.
+  const candidate = raw.startsWith('mailto:') ? raw.slice(7).split('?')[0] : raw;
+  return /^[^\s@/:?#<>]+@[^\s@/:?#<>]+\.[^\s@/:?#<>]+$/.test(candidate)
+    ? candidate : '';
+}
+
 function contactKey({ contact, sourceUrl, name } = {}) {
   const rawContact = normalize(contact).toLowerCase();
-  const withoutMailto = rawContact.replace(/^mailto:/, '');
-  // Plain email and mailto URLs name one prospect, not two.
-  // Non-email URLs remain distinct contact identities.
-  const contactValue = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(withoutMailto)
-    ? withoutMailto : rawContact;
+  // Plain email and mailto URLs, including compose parameters, identify one
+  // prospect. Profile URLs and handles are not email addresses.
+  const contactValue = emailContact(contact) || rawContact;
   if (contactValue) return `contact:${contactValue}`;
   return `source:${normalize(sourceUrl).toLowerCase()}|name:${normalize(name).toLowerCase()}`;
 }
 
-// Preserve lookups of historical mailto:-keyed rows during migration.
+// Preserve historical mailto:-keyed rows without creating a duplicate on a
+// replay of an older mailto URL with compose parameters.
 function contactKeyVariants(input = {}) {
   const canonical = contactKey(input);
-  const normalized = normalize(input.contact).toLowerCase().replace(/^mailto:/, '');
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
-    ? [canonical, `contact:mailto:${normalized}`]
-    : [canonical];
+  const email = emailContact(input.contact);
+  if (!email) return [canonical];
+  const raw = normalize(input.contact).toLowerCase();
+  return [...new Set([canonical, `contact:mailto:${email}`, `contact:${raw}`])];
 }
 
 function getProspect(db, id) {
