@@ -333,6 +333,34 @@ test('ambiguous name-only reply is not attributed to either buyer', () => {
   assert.equal(payload.touches.filter(touch => touch.touchType === 'reply-received').length, 0);
 });
 
+test('name-only legacy logs do not manufacture a reply or send for a single buyer', () => {
+  const lead = {
+    name: 'Only Known Studio',
+    link: 'https://only-known.example.test',
+    contact: 'owner@only-known.example.test',
+    status: 'new',
+  };
+  const payload = buildCrmSyncPayload({
+    leads: [lead],
+    outreach: [
+      { name: lead.name, status: 'replied', timestamp: '2026-11-21T18:00:00.000Z',
+        body: 'No sender or route evidence' },
+      { name: lead.name, status: 'sent', timestamp: '2026-11-21T19:00:00.000Z',
+        messageId: 'unattributed-legacy-row', nextFollowUp: '2026-11-25' },
+    ],
+    now: '2026-11-21T20:00:00.000Z',
+    includeAll: true,
+  });
+  assert.equal(payload.records.length, 1);
+  const record = payload.records[0];
+  assert.equal(record.status, 'Lead');
+  assert.equal(record.replyCount, undefined);
+  assert.equal(record.lastContacted, '');
+  assert.equal(record.nextFollowUp, '');
+  assert.equal(payload.touches.length, 1, 'unattributed rows must not become buyer activity');
+  assert.equal(payload.touches.filter(touch => ['reply-received', 'outreach-sent'].includes(touch.touchType)).length, 0);
+});
+
 test('a different concrete contact route cannot impersonate a same-named email buyer', () => {
   const payload = buildCrmSyncPayload({
     leads: [{
