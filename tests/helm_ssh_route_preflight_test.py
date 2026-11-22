@@ -1,9 +1,13 @@
-import sys
+import importlib.util
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from helm_ssh_route_preflight import classify
+# The deployed manual CLI has a hyphenated filename, so load that exact file.
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "helm-ssh-route-preflight.py"
+spec = importlib.util.spec_from_file_location("helm_ssh_route_preflight", SCRIPT)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+classify = module.classify
 
 
 class RouteSafetyTest(unittest.TestCase):
