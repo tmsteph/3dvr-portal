@@ -58,13 +58,16 @@ function recordFor(prospect, event, now) {
   const crmStatus = paymentReceipt ? 'Paid Customer' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
     sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
-    failed: 'Lost', suppressed: 'Closed',
+    // A failed or ambiguous send is not evidence that the buyer was lost.
+    // Some transports may have delivered before acknowledgement failed.
+    failed: 'Lead', suppressed: 'Closed',
   }[prospect.state] || 'Lead');
   const nextBestAction = paymentReceipt
     ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
     : ({
       sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
       replied: 'Continue discovery from the customer reply.',
+      failed: 'Manual delivery reconciliation required. A message may have been delivered; do not retry or follow up automatically.',
       bounced: 'Do not contact.',
       suppressed: 'Do not contact.',
     }[prospect.state] || 'Follow the canonical revenue state machine.');
