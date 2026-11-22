@@ -635,4 +635,4 @@ describe('account recovery email api', () => {
     assert.equal(res.statusCode, 403);
     assert.equal(res.body.code, 'human_approval_receipt_required');
     assert.equal(mail.sendMail.mock.calls.length, 0);
-  });});
+  });
