@@ -88,7 +88,7 @@ test('ambiguous failed delivery stays a review lead and never schedules automati
 
   const failedLog = {
     name: buyer.name, site: buyer.link, contact: buyer.contact,
-    status: 'failed', kind: 'email',
+    status: 'failed', deliveryStatus: 'pending', kind: 'email',
     timestamp: '2026-11-22T14:01:00Z',
     messageId: 'ambiguous-unconfirmed-send',
     nextFollowUp: '2026-11-23',
