@@ -7,6 +7,36 @@ const { createProspect, finishDeliveryAttempt, openLedger, reserveDeliveryAttemp
 const { projectInboxMessage } = require('../thomas-agent/node/revenue-inbox-projection');
 const { consumeInboxState } = require('../thomas-agent/node/revenue-inbox-consumer');
 
+test('sender STOP address does not suppress a linked reply without opt-out intent', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-sender-name-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, { name: 'Synthetic Stop Label', contact: 'stop@buyer.example.test' }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'stop-label:v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'stop-label:e' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'stop-label:s' });
+    reserveDeliveryAttempt(db, { prospectId: buyer.id, attemptId: 'stop-label:delivery' });
+    finishDeliveryAttempt(db, { attemptId: 'stop-label:delivery', status: 'acknowledged',
+      messageId: '<outbound-stop-label@buyer.example.test>', transport: 'synthetic-test' });
+    const reply = projectInboxMessage(db, {
+      from: 'Stop <stop@buyer.example.test>', fromEmail: 'stop@buyer.example.test',
+      messageId: 'stop-label:reply', subject: 'Re: Project scope',
+      preview: 'Could you explain the next steps?', inReplyTo: '<outbound-stop-label@buyer.example.test>'
+    });
+    assert.equal(reply.matched, true);
+    assert.equal(reply.prospect.state, 'replied', 'sender name alone must not suppress a linked reply');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 0);
+    const optOut = projectInboxMessage(db, {
+      from: 'Stop <stop@buyer.example.test>', fromEmail: 'stop@buyer.example.test',
+      messageId: 'stop-label:optout', preview: 'Please unsubscribe me.'
+    });
+    assert.equal(optOut.prospect.state, 'suppressed', 'explicit opt-out remains immediate');
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('inbox message-id projection is replay-safe for replies and bounces', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-ledger-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
