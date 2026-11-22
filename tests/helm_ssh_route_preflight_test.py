@@ -1,4 +1,7 @@
 import importlib.util
+import io
+from contextlib import redirect_stdout
+from unittest.mock import patch
 import unittest
 from pathlib import Path
 
@@ -34,6 +37,24 @@ class RouteSafetyTest(unittest.TestCase):
 
     def test_custom_port_needs_review(self):
         self.assertEqual(classify("alias", "hostname hetzner\nport 2222\n", ["10.0.0.8"]), "BLOCKED_UNRECOGNIZED_TRANSPORT")
+
+
+    def test_no_ssh_config_never_evaluates_match_exec(self):
+        # Calling ssh -G may execute arbitrary local Match exec commands.
+        with patch.object(module.subprocess, "run", side_effect=AssertionError("subprocess must not run")):
+            self.assertEqual(classify("alias"), "BLOCKED_REVIEWED_CONFIG_REQUIRED")
+
+    def test_cli_without_reviewed_stdin_fails_closed(self):
+        output = io.StringIO()
+        with patch.object(module.sys, "argv", ["helm-ssh-route-preflight.py"]), redirect_stdout(output):
+            self.assertEqual(module.main(), 2)
+        self.assertIn("BLOCKED_REVIEWED_CONFIG_REQUIRED", output.getvalue())
+
+    def test_cli_rejects_oversized_effective_config(self):
+        output = io.StringIO()
+        with patch.object(module.sys, "argv", ["helm-ssh-route-preflight.py", "--effective-config-stdin"]), patch.object(module.sys, "stdin", io.StringIO("x" * 32769)), redirect_stdout(output):
+            self.assertEqual(module.main(), 2)
+        self.assertIn("BLOCKED_REVIEWED_CONFIG_REQUIRED", output.getvalue())
 
 
 if __name__ == '__main__':
