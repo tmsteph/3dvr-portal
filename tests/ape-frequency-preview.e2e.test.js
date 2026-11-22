@@ -22,11 +22,14 @@ test('Ape Frequency live preview fits desktop and mobile with verified links', a
           motion: getComputedStyle(document.querySelector('.logo-slot'), '::before').animationName
         }));
         assert.ok(rendered.width <= width, 'no horizontal overflow at ' + width);
-        assert.deepEqual(rendered.images, [true, true]);
+        assert.deepEqual(rendered.images, [true], 'the single wordmark image must load');
         assert.equal(rendered.motion, reduce ? 'none' : 'breathe');
         assert.equal(await page.getByRole('link', { name: 'YouTube' }).getAttribute('href'), 'https://www.youtube.com/@ApeFrequency');
         assert.equal(await page.getByRole('link', { name: 'TikTok' }).getAttribute('href'), 'https://www.tiktok.com/@ape.frequency');
         assert.equal(await page.getByRole('link', { name: 'Instagram' }).getAttribute('href'), 'https://www.instagram.com/apefrequency/');
+        await page.keyboard.press('Tab');
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'logo-slot',
+          'keyboard navigation starts at the interactive logo');
         await page.keyboard.press('Tab');
         assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'YouTube');
       } finally {
