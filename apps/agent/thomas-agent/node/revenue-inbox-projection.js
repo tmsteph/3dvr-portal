@@ -21,6 +21,22 @@ function referencedMessageIds(message = {}) {
     .filter(Boolean);
 }
 
+// A DSN-like subject or a recipient hint is not proof that we ever sent to
+// that buyer. Require an attributable provider-acknowledged outbound attempt
+// and a plausible delivery-agent sender before changing the CRM to bounced.
+// This is an attribution check, NOT authenticated provider/DKIM verification.
+function hasAcknowledgedOutbound(db, prospectId) {
+  return Boolean(db.prepare(`SELECT 1 FROM delivery_attempts
+    WHERE prospect_id = ? AND status = 'acknowledged'
+      AND message_id != '' AND transport != '' LIMIT 1`).get(prospectId));
+}
+
+function hasDsnSender(message = {}) {
+  const sender = lower(message.fromEmail || message.from);
+  return /(?:^|[<@.\\s_-])(mailer-daemon|postmaster)(?:[>@.\\s_-]|$)/.test(sender)
+    || /mail delivery (?:subsystem|system)/.test(sender);
+}
+
 function hasAcknowledgedThreadLink(db, prospectId, message) {
   const ids = new Set(referencedMessageIds(message));
   if (!ids.size) return false;
@@ -43,6 +59,9 @@ function projectInboxMessage(db, message = {}) {
   // manual review rather than modifying a third party's contact state.
   if (state === 'suppressed' && lower(message.fromEmail) !== contact) {
     return { matched: false, state, reason: 'unattributed opt-out requires manual review' };
+  }
+  if (state === 'bounced' && (!hasAcknowledgedOutbound(db, prospect.id) || !hasDsnSender(message))) {
+    return { matched: false, state, reason: 'unattributed delivery failure requires manual review' };
   }
   if (state === 'replied' && (
     lower(message.fromEmail) !== contact ||
