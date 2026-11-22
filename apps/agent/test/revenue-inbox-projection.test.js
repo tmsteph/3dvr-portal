@@ -289,3 +289,49 @@ test('distinct linked replies are recorded as separate CRM touches, while replay
     }), /Invalid transition/, 'generic self-transitions must stay forbidden');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('positive delivery receipts and temporary delays never mark a lead bounced', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-delivery-success-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, {
+      name: 'Synthetic Receipt Buyer', contact: 'receipt@test.example'
+    }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'dsn-good:v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'dsn-good:e' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'dsn-good:s' });
+    reserveDeliveryAttempt(db, { prospectId: buyer.id, attemptId: 'dsn-good:outbound' });
+    finishDeliveryAttempt(db, {
+      attemptId: 'dsn-good:outbound', status: 'acknowledged',
+      messageId: '<receipt-out@test.example>', transport: 'synthetic-test'
+    });
+    const base = {
+      prospectEmail: 'receipt@test.example', fromEmail: 'postmaster@test.example',
+      originalMessageId: '<receipt-out@test.example>'
+    };
+    const notices = [
+      { subject: 'Delivery Status Notification (Success)' },
+      { subject: 'Delivery Status Notification (Delay)' },
+      { subject: 'Delivery Status Notification', preview: 'Status: 2.0.0 successfully delivered' },
+      { subject: 'Delivery Status Notification', preview: 'Status: 4.2.0 temporarily deferred' },
+    ];
+    for (const [index, notice] of notices.entries()) {
+      const result = projectInboxMessage(db, {
+        ...base, ...notice, messageId: 'dsn-nonfailure-' + index
+      });
+      assert.equal(result.matched, false, 'success or temporary delay cannot mean permanent bounce');
+      assert.match(result.reason, /manual review/);
+      assert.equal(db.prepare('SELECT state FROM prospects WHERE id=?').get(buyer.id).state, 'sent');
+    }
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_bounced'").get().n, 0);
+    const actualFailure = projectInboxMessage(db, {
+      ...base, messageId: 'dsn-actual-failure',
+      subject: 'Delivery Status Notification (Failure)', preview: 'Status: 5.1.1 user unknown'
+    });
+    assert.equal(actualFailure.matched, true, 'a correlated permanent delivery failure still bounces');
+    assert.equal(actualFailure.prospect.state, 'bounced');
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
