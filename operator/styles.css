@@ -74,3 +74,10 @@
 @keyframes operator-empty-breathe{0%,100%{transform:scale(.98)}50%{transform:scale(1.035)}}
 @media(max-width:600px){.operator-empty-portal__spinner{width:clamp(132px,42vw,190px);height:clamp(132px,42vw,190px)}#operator-log:empty~.welcome{padding:0 .25rem .7rem}}
 @media(prefers-reduced-motion:reduce){.operator-empty-portal__spinner{animation:none}}
+
+/* Keep the local redaction preview visually consistent with the copy fallback. */
+#redacted-copy-dialog{width:min(560px,calc(100% - 28px));max-height:calc(100% - 28px);border:1px solid #2a4059;border-radius:18px;background:#0a1625;color:#eef7ff;padding:0}
+#redacted-copy-dialog::backdrop{background:#000b;backdrop-filter:blur(3px)}
+#redacted-copy-text{width:100%;box-sizing:border-box;max-height:40dvh;padding:.75rem;border:1px solid #2a4059;border-radius:10px;background:#07101c;color:#eef7ff;font:inherit;font-size:.9rem;resize:vertical}
+#copy-redacted-preview{justify-self:start}
+#preview-redacted-copy[hidden]{display:none}
