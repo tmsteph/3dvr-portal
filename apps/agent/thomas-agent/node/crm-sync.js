@@ -164,7 +164,9 @@ function statusForLead(lead) {
   if (status === 'nurture') return 'Warm - Awareness';
   // The legacy CSV "closed" value says nothing about payment or an actual win.
   if (isNoContactStatus(status)) return 'Closed';
-  if (status === 'failed') return 'Lost';
+  // Failed transport acknowledgement cannot prove the buyer was lost or even
+  // that delivery did not occur. Keep it reviewable without inventing a loss.
+  if (status === 'failed') return 'Lead';
   return 'Lead';
 }
 
@@ -180,7 +182,7 @@ function nextActionForLead(lead) {
   const action = leadAction(lead);
   if (status === 'closed') return 'Keep closed. Review verified commercial outcomes before counting a win; do not contact automatically.';
   if (isNoContactStatus(status)) return 'Do not contact. Keep the suppression until an authorized human explicitly clears it.';
-  if (status === 'failed') return 'Repair the contact route before any future outreach.';
+  if (status === 'failed') return 'Manual delivery reconciliation required. The message may have arrived; do not retry or follow up automatically.';
   if (status === 'nurture') return 'Revisit later with a more specific reason to reach out.';
   if (status === 'contacted') return 'Wait for a reply; stay quiet unless there is a new material reason to reach out.';
   if (status === 'replied') return 'Reply with one clear next step and log the outcome.';
@@ -330,7 +332,10 @@ function buildOutreachTouch(entry, record, options = {}) {
     threadId: normalizeText(entry.threadId),
     deliveryStatus: normalizeText(entry.deliveryStatus || entry.status),
     replyStatus: normalizeText(entry.replyStatus || (status === 'replied' ? 'replied' : 'pending')),
-    nextFollowUp: record.status === 'Closed' ? '' : normalizeText(entry.nextFollowUp),
+    // A failed/ambiguous acknowledgement must not create a follow-up task
+    // even when a stale imported log included a suggested follow-up date.
+    nextFollowUp: record.status === 'Closed' || ['failed', 'bounced'].includes(status)
+      ? '' : normalizeText(entry.nextFollowUp),
     targetUrl: normalizeText(entry.targetUrl),
     previewUrl: normalizeText(entry.previewUrl),
     recipientId: normalizeText(entry.recipientId),
@@ -462,7 +467,9 @@ function buildCrmSyncPayload({
     record.lastMessage = String(latest.body || '');
     record.lastDeliveryStatus = normalizeText(latest.deliveryStatus || latest.status);
     // Imported outreach history cannot schedule a contact after an opt-out or closure.
-    record.nextFollowUp = record.status === 'Closed' ? '' : normalizeText(latest.nextFollowUp) || record.nextFollowUp;
+    const latestDeliveryStatus = normalizeLower(latest.deliveryStatus || latest.status);
+    record.nextFollowUp = record.status === 'Closed' || ['failed', 'bounced'].includes(latestDeliveryStatus)
+      ? '' : normalizeText(latest.nextFollowUp) || record.nextFollowUp;
     record.updated = now;
   }
 
