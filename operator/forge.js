@@ -1,6 +1,10 @@
 const FORGE_ROOT = '3dvr-portal';
 const PROOF_WAIT_MS = 900;
 const AUTH_WAIT_MS = 12000;
+// Match the vetted legacy target in sign-in.html (#3860). This is a public
+// verification key, not a credential; never select a key from browser hints.
+const LEGACY_OWNER_ALIAS = 'tmsteph@3dvr';
+const LEGACY_OWNER_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg';
 const WRITE_TIMEOUT_MS = 8000;
 const HELM_CACHE_ENTRY_LIMIT = 1000;
 const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
@@ -174,6 +178,10 @@ export async function seaPairCanSign(sea, expectedPub = '') {
 async function restoreStoredPortalSea(user) {
   const stored = readStoredPortalAuth();
   if (!stored || typeof user?.auth !== 'function') return null;
+  const legacyPub = stored.alias === LEGACY_OWNER_ALIAS ? LEGACY_OWNER_PUB : '';
+  // Reuse only an already bound, exact account from sign-in. An absent or
+  // different public key is not permission to try another account.
+  if (legacyPub && stored.expectedPub !== legacyPub) return null;
 
   const authenticated = await new Promise(resolve => {
     let settled = false;
@@ -186,11 +194,14 @@ async function restoreStoredPortalSea(user) {
     const timer = setTimeout(() => finish(false), AUTH_WAIT_MS);
 
     try {
-      user.auth(stored.alias, stored.password, ack => {
-        if (ack?.err) return finish(false);
+      // After a failed recall, the original account record can still be read
+      // directly even when its alias index does not resolve.
+      user.auth(legacyPub ? { pub: legacyPub } : stored.alias, stored.password, ack => {
+        if (!ack || ack.err || ack.wait) return finish(false);
         const actualPub = normalizeText(user?.is?.pub || user?._?.sea?.pub, 500);
         if (!actualPub) return finish(false);
         if (stored.expectedPub && stored.expectedPub !== actualPub) return finish(false);
+        if (legacyPub && user?.is?.alias !== LEGACY_OWNER_ALIAS) return finish(false);
         finish(true);
       });
     } catch {
@@ -201,7 +212,11 @@ async function restoreStoredPortalSea(user) {
   if (!authenticated) return null;
   const sea = await waitForSea(user, AUTH_WAIT_MS);
   const actualPub = normalizeText(user?.is?.pub || sea?.pub, 500);
-  return await seaPairCanSign(sea, actualPub) ? sea : null;
+  if (legacyPub && (actualPub !== legacyPub || sea?.pub !== legacyPub)) return null;
+  if (!await seaPairCanSign(sea, actualPub)) return null;
+  const current = readStoredPortalIdentity();
+  if (current?.alias !== stored.alias || current?.expectedPub !== stored.expectedPub) return null;
+  return sea;
 }
 
 async function ensurePortalSea(user) {
