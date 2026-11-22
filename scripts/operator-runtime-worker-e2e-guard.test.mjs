@@ -8,10 +8,10 @@ const spyTarget = fileURLToPath(new URL('./.operator-runtime-worker-e2e-transpor
 const source = readFileSync(target, 'utf8');
 // Instrument the first possible import of the Gun transport. Rejecting a
 // relay must finish before even importing code that could open a connection.
-assert.match(source, /^const \\{ default: Gun \\} = await import\\('gun'\\);$/m,
+assert.match(source, /^const \{ default: Gun \} = await import\('gun'\);$/m,
   'expected deferred Gun import for transport interception');
 const instrumented = source.replace(
-  /^const \\{ default: Gun \\} = await import\\('gun'\\);$/m,
+  /^const \{ default: Gun \} = await import\('gun'\);$/m,
   "const Gun = (() => { throw new Error('NETWORK_TRANSPORT_IMPORTED'); })();"
 );
 // Fail closed if a future workflow edit makes the legacy direct-Gun job runnable
