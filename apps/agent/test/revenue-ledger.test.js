@@ -58,6 +58,38 @@ test('email and mailto aliases dedupe one real prospect without changing non-ema
   assert.equal(web.created, true);
 }));
 
+test('mailto compose query strings reuse one buyer instead of creating CRM duplicates', () => withLedger((db) => {
+  const original = createProspect(db, {
+    name: 'First Buyer', contact: 'Buyer@Example.test'
+  });
+  const withSubject = createProspect(db, {
+    name: 'Same Buyer', contact: 'mailto:buyer@example.test?subject=Hello%20again',
+    sourceUrl: 'https://other.example.test'
+  });
+  const withBody = createProspect(db, {
+    name: 'Same Buyer again', contact: 'MAILTO:buyer@example.test?body=Hello'
+  });
+  assert.equal(withSubject.created, false);
+  assert.equal(withBody.created, false);
+  assert.equal(withSubject.prospect.id, original.prospect.id);
+  assert.equal(findProspectByContact(db, 'mailto:buyer@example.test?subject=Hi').id, original.prospect.id);
+
+  const composeFirst = createProspect(db, {
+    name: 'Second Buyer', contact: 'mailto:second@example.test?subject=Consultation'
+  });
+  assert.equal(composeFirst.prospect.contact_key, 'contact:second@example.test');
+  assert.equal(createProspect(db, {
+    name: 'Second Buyer again', contact: 'SECOND@example.test'
+  }).prospect.id, composeFirst.prospect.id);
+
+  // Existing legacy rows with the *same* full compose URL remain addressable.
+  db.prepare('UPDATE prospects SET contact_key = ? WHERE id = ?')
+    .run('contact:mailto:second@example.test?subject=consultation', composeFirst.prospect.id);
+  assert.equal(findProspectByContact(db, 'mailto:second@example.test?subject=Consultation').id,
+    composeFirst.prospect.id);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 2);
+}));
+
 test('legacy mailto contact keys remain discoverable and cannot be inserted twice', () => withLedger((db) => {
   const old = createProspect(db, { name: 'Legacy Buyer', contact: 'mailto:legacy@example.test' }).prospect;
   // Emulate a row already stored by the older ledger before normalization.
