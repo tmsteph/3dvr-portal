@@ -20,7 +20,7 @@ function inboxState(message = {}) {
   // "don't email me". Require the request at the start of a subject/preview
   // to avoid suppressing buyers discussing an opt-out *feature*.
   const directOptOut = [subject, preview].some(part =>
-    /^(?:please[,\\s]+)?(?:take\\s+(?:me|us)\\s+off\\s+(?:(?:your|the|this)\\s+)?(?:(?:mailing|email)\\s+)?list|(?:do\\s+not|don['’]?t)\\s+(?:email|message|text|contact)\\s+(?:me|us))\\b/.test(part));
+    /^(?:please[,\s]+)?(?:take\s+(?:me|us)\s+off\s+(?:(?:your|the|this)\s+)?(?:(?:mailing|email)\s+)?list|(?:do\s+not|don['’]?t)\s+(?:email|message|text|contact)\s+(?:me|us))\b/.test(part));
   if (standaloneOptOut || explicitOptOut || directOptOut) return 'suppressed';
   // Keep the sender available for delivery-agent classification.
   const deliverySignal = `${message.from || ''} ${content}`.toLowerCase();
