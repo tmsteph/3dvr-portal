@@ -4,10 +4,15 @@ function text(value) { return String(value || '').trim(); }
 function lower(value) { return text(value).toLowerCase(); }
 
 function inboxState(message = {}) {
-  // Sender addresses and display names may contain 'stop' or 'unsubscribe'
-  // without expressing an opt-out. Only message content conveys intent.
-  const content = `${message.subject || ''} ${message.preview || ''}`.toLowerCase();
-  if (/unsubscribe|remove me|do not contact|don'?t contact|\bstop\b/.test(content)) return 'suppressed';
+  // Sender addresses, and ordinary phrases like "stop by tomorrow", are
+  // not opt-outs. Bare STOP is an opt-out only as a complete subject/preview;
+  // otherwise require an explicit request to end communications.
+  const subject = lower(message.subject);
+  const preview = lower(message.preview);
+  const content = `${subject} ${preview}`;
+  const bareStop = [subject, preview].some(part => /^(?:please[,\\s]+)?stop[.!?\\s]*$/i.test(part));
+  const explicitOptOut = /\\bunsubscribe\\b|\\bremove me\\b|\\bdo not contact\\b|\\bdon'?t contact\\b|\\bstop\\s+(?:contacting|emailing|messaging|texting|sending|mailing)\\b/.test(content);
+  if (bareStop || explicitOptOut) return 'suppressed';
   // Keep the sender available for delivery-agent classification.
   const deliverySignal = `${message.from || ''} ${content}`.toLowerCase();
   if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(deliverySignal)) return 'bounced';
