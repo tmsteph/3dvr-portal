@@ -53,6 +53,15 @@ function paymentReceiptFor(_event = {}) {
   return null;
 }
 
+// A public profile handle or URL containing "@" is not a deliverable email.
+// Only a complete address (or a mailto: address) may populate the CRM email field.
+function emailForContact(contact) {
+  if (typeof contact !== 'string') return '';
+  const raw = contact.trim();
+  const candidate = /^mailto:/i.test(raw) ? raw.slice(7).split('?')[0] : raw;
+  return /^[^\\s@/:?#<>]+@[^\\s@/:?#<>]+\\.[^\\s@/:?#<>]+$/.test(candidate) ? candidate : '';
+}
+
 function recordFor(prospect, event, now) {
   const paymentReceipt = paymentReceiptFor(event);
   const crmStatus = paymentReceipt ? 'Paid Customer' : ({
@@ -79,7 +88,7 @@ function recordFor(prospect, event, now) {
     recordType: 'person',
     name: prospect.name,
     company: prospect.name,
-    email: /@/.test(prospect.contact) ? prospect.contact.replace(/^mailto:/i, '') : '',
+    email: emailForContact(prospect.contact),
     status: crmStatus,
     canonicalState: prospect.state,
     source: '3dvr-revenue-ledger',
