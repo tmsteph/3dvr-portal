@@ -72,8 +72,14 @@ const built = buildOperatorDelegatedTask({
 
 const gun = Gun({
   peers,
+  // Even a literal loopback peer is not an isolation boundary if transport
+  // discovery can silently add outside peers. Disable auxiliary discovery.
+  axe: false,
+  multicast: false,
+  rad: false,
   radisk: false,
-  localStorage: false
+  localStorage: false,
+  stats: false
 });
 const queue = gun
   .get('3dvr-portal')
