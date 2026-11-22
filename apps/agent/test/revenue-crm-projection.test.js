@@ -31,6 +31,30 @@ test('revenue CRM retains the public source and clears stale follow-up on suppre
     'a projected reply must not erase a human-scheduled CRM follow-up');
 });
 
+test('CRM projection does not turn profile URLs or social handles into email addresses', () => {
+  const prospect = {
+    id: 'synthetic-public-profile', name: 'Public Profile Buyer',
+    contact: '', source_url: 'https://example.test/public-request',
+    state: 'verified', campaign_id: 'discovery', created_at: '2026-11-22T16:00:00Z'
+  };
+  const event = {
+    id: 'synthetic-profile-event', type: 'verified', from_state: 'prospect',
+    to_state: 'verified', created_at: '2026-11-22T16:01:00Z'
+  };
+  for (const contact of [
+    '@publichandle', 'https://social.example/@publichandle',
+    'https://user@example.test/profile', 'not-an-email@',
+    'matrix:@person:example.test', 'mailto:not-an-address'
+  ]) {
+    assert.equal(recordFor({ ...prospect, contact }, event, '2026-11-22T16:02:00Z').email,
+      '', `social/public contact ${contact} must not become a CRM email destination`);
+  }
+  assert.equal(recordFor({ ...prospect, contact: 'Buyer+trial@Example.test' }, event,
+    '2026-11-22T16:02:00Z').email, 'Buyer+trial@Example.test');
+  assert.equal(recordFor({ ...prospect, contact: 'mailto:buyer@example.test?subject=Hello' }, event,
+    '2026-11-22T16:02:00Z').email, 'buyer@example.test');
+});
+
 test('ambiguous send failure stays a reviewable lead rather than a lost sale', () => {
   const prospect = {
     id: 'synthetic-ambiguous', name: 'Synthetic Buyer',
