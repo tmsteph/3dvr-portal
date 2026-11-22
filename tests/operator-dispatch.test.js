@@ -77,6 +77,20 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString(),runtimeWorkItemJson:JSON.stringify({title:'Original title'})};
   const invoke=input => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:'codex,node',THREEDVR_AGENT_QUEUE_DB:dbPath}});
   try {
+    // An old/foreign queue row can carry an Operator-shaped ID. Its result
+    // must not be adopted as an authenticated signed task (enqueue or status).
+    const collision = {...record,id:'operator-http-test-foreign-row'};
+    insert.run('3dvr-managed',collision.id,'completed',collision.updatedAt,JSON.stringify(collision),'sqlite');
+    const foreignInput = {action:'enqueue',id:collision.id,prefix:'operator-http-test-',record:collision};
+    const foreignEnqueue = invoke(foreignInput);
+    assert.notEqual(foreignEnqueue.status,0,'foreign-source enqueue must fail closed');
+    assert.match(foreignEnqueue.stderr,/Task source conflict/);
+    const foreignStatus = invoke({action:'status',id:collision.id,prefix:foreignInput.prefix});
+    assert.notEqual(foreignStatus.status,0,'foreign-source completed task must not produce a signed status receipt');
+    assert.match(foreignStatus.stderr,/Task source conflict/);
+    assert.equal(db.prepare('SELECT source,status FROM tasks WHERE id=?').get(collision.id).source,'sqlite');
+    db.prepare('DELETE FROM tasks WHERE id=?').run(collision.id);
+
     const input={action:'enqueue',id:record.id,prefix:'operator-http-test-',record};
     assert.equal(invoke(input).status,0);
     db.prepare('UPDATE tasks SET status=? WHERE id=?').run('running',record.id);
