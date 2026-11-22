@@ -1,5 +1,3 @@
-import Gun from 'gun';
-
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
 
 const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || '')
@@ -49,6 +47,10 @@ if (peers.some(peer => {
 })) {
   throw new Error('Loopback relay must use an explicit /gun path and port without credentials, query or fragment.');
 }
+// Import the Gun transport only after all relay safety checks pass.
+// A rejected relay must not even load code capable of opening a connection.
+const { default: Gun } = await import('gun');
+
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
