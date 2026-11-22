@@ -10,9 +10,13 @@ function inboxState(message = {}) {
   const subject = lower(message.subject);
   const preview = lower(message.preview);
   const content = `${subject} ${preview}`;
-  const bareStop = [subject, preview].some(part => /^(?:please[,\s]+)?stop[.!?\s]*$/i.test(part));
-  const explicitOptOut = /\bunsubscribe\b|\bremove me\b|\bdo not contact\b|\bdon'?t contact\b|\bstop\s+(?:contacting|emailing|messaging|texting|sending|mailing)\b/.test(content);
-  if (bareStop || explicitOptOut) return 'suppressed';
+  const standaloneOptOut = [subject, preview].some(part =>
+    /^(?:please[,\s]+)?(?:stop|unsubscribe)[.!?\s]*$/.test(part));
+  // The word "unsubscribe" also appears in legitimate implementation work
+  // ("add an unsubscribe link"). Suppress only a direct request to leave,
+  // never a feature discussion in an otherwise linked buyer reply.
+  const explicitOptOut = /\bunsubscribe\s+(?:me|us|my\s+(?:email|address)|this\s+(?:email|address)|from\s+(?:your|the)\s+(?:list|newsletter|mailing list))\b|\b(?:i|we)\s+(?:want|wish|need|would like)\s+to\s+unsubscribe\b|\bremove me\b|\bdo not contact\b|\bdon'?t contact\b|\bstop\s+(?:contacting|emailing|messaging|texting|sending|mailing)\b/.test(content);
+  if (standaloneOptOut || explicitOptOut) return 'suppressed';
   // Keep the sender available for delivery-agent classification.
   const deliverySignal = `${message.from || ''} ${content}`.toLowerCase();
   if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(deliverySignal)) return 'bounced';
