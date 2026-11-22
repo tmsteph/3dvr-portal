@@ -33,6 +33,40 @@ test('inbox message-id projection is replay-safe for replies and bounces', () =>
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+
+test('unattributed opt-out cannot suppress another buyer, but a matching sender can', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-optout-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, { name: 'Buyer', contact: 'buyer@test.example' }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'optout:v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'optout:e' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'optout:s' });
+
+    for (const fromEmail of ['attacker@test.example', '']) {
+      const result = projectInboxMessage(db, {
+        prospectEmail: 'buyer@test.example', fromEmail,
+        messageId: `fake-stop-${fromEmail || 'unknown'}`, subject: 'Unsubscribe'
+      });
+      assert.equal(result.matched, false);
+      assert.match(result.reason, /manual review/);
+      assert.equal(getState(), 'sent', 'a nonmatching or missing sender cannot change buyer state');
+    }
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 0);
+
+    const real = { prospectEmail: 'buyer@test.example', fromEmail: 'buyer@test.example',
+      messageId: 'real-stop', preview: 'Please stop contacting me' };
+    const first = projectInboxMessage(db, real);
+    assert.equal(first.matched, true);
+    assert.equal(first.prospect.state, 'suppressed');
+    assert.equal(projectInboxMessage(db, real).replayed, true);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type='inbox_suppressed'").get().n, 1);
+    function getState() {
+      return db.prepare('SELECT state FROM prospects WHERE id=?').get(buyer.id).state;
+    }
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('inbox projection bridges legacy mailto contact identities', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-mailto-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
