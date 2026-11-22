@@ -1,3 +1,4 @@
+import { installCopyRedaction } from './copy-redaction.js';
 import { createOperatorTaskTracker } from './background-tracking.js';
 import { prepareOperatorChat } from './chat-preparation.js';
 import './home-busy-state.js';
@@ -78,7 +79,7 @@ function atLatest(){return log.scrollHeight-log.scrollTop-log.clientHeight<48}
 function updateLatest(){latest.hidden=!history.length||atLatest()}
 function scrollLatest(behavior='auto'){log.scrollTo({top:log.scrollHeight,behavior});updateLatest()}
 function followLatest(){requestAnimationFrame(()=>{scrollLatest();setTimeout(()=>{if(atLatest())scrollLatest()},100)})}
-function conversationAsText(){return history.map(item=>{const lines=[`${item.role==='user'?'You':'Operator'}: ${item.content||''}`];if(item.actionUrl)lines.push(`Open ${item.actionLabel||'workspace'}: ${new URL(item.actionUrl,window.location.href).href}`);return lines.join('\n')}).join('\n\n')}
+function conversationAsText(includeActionUrls=true){return history.map(item=>{const lines=[`${item.role==='user'?'You':'Operator'}: ${item.content||''}`];if(includeActionUrls&&item.actionUrl)lines.push(`Open ${item.actionLabel||'workspace'}: ${new URL(item.actionUrl,window.location.href).href}`);return lines.join('\n')}).join('\n\n')}
 let copyResetTimer=0;
 async function copyConversation(){
   if(!history.length){status.textContent='Nothing to copy yet';return}
@@ -208,7 +209,18 @@ input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey
 document.querySelector('.quick-prompts').addEventListener('click',event=>{const button=event.target.closest('[data-prompt]');if(!button)return;input.value=button.dataset.prompt;form.requestSubmit()});
 log.addEventListener('click',event=>{const suggestion=event.target.closest('[data-suggestion]');if(suggestion){input.value=suggestion.dataset.suggestion;form.requestSubmit();return}const branch=event.target.closest('[data-branch-from]');if(branch){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),branch.dataset.branchFrom);refreshHistory();save();status.textContent='Branch point selected · your next message starts a new branch';input.focus();return}const switcher=event.target.closest('[data-switch-node]');if(switcher?.dataset.switchNode){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),switcher.dataset.switchNode,{followDescendants:true});refreshHistory();save();status.textContent='Switched branch';}});
 if(copyButton)copyButton.onclick=()=>{void copyConversation()};
-document.querySelector('.copy-close')?.addEventListener('click',()=>copyDialog?.close());
+copyDialog?.querySelector('.copy-close')?.addEventListener('click',()=>copyDialog?.close());
+installCopyRedaction({
+  button: document.querySelector('#preview-redacted-copy'),
+  dialog: document.querySelector('#redacted-copy-dialog'),
+  field: document.querySelector('#redacted-copy-text'),
+  summary: document.querySelector('#redacted-copy-summary'),
+  copy: document.querySelector('#copy-redacted-preview'),
+  close: document.querySelector('#close-redacted-copy'),
+  getText: () => conversationAsText(false),
+  getClipboard: () => navigator.clipboard,
+  report: message => { status.textContent = message; },
+});
 document.querySelector('#clear-chat').onclick=()=>{store.conversations=store.conversations.filter(item=>item.messages.length);store.activeId=makeId();refreshHistory();save();closeHistory();closeTree();input.value='';input.focus()};
 showHistory.onclick=openHistory;
 document.querySelector('#close-history').onclick=()=>{closeHistory();showHistory.focus()};
