@@ -25,7 +25,11 @@ db.exec('PRAGMA busy_timeout=5000');
 try {
   db.exec('BEGIN IMMEDIATE');
   const owner = '3dvr-managed';
-  let row = db.prepare('SELECT status,record_json FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  let row = db.prepare('SELECT status,record_json,source FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  // An existing row is only a signed Operator receipt if it originated from
+  // the authenticated HTTP transport. Never claim a legacy/imported row as
+  // this signer's completed work, even when its ID and task text collide.
+  if (row && row.source !== 'operator-http') throw Error('Task source conflict');
   if (input.action === 'enqueue') {
     if (row) {
       const saved = JSON.parse(row.record_json);
