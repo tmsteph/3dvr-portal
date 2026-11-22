@@ -31,6 +31,29 @@ test('revenue CRM retains the public source and clears stale follow-up on suppre
     'a projected reply must not erase a human-scheduled CRM follow-up');
 });
 
+test('ambiguous send failure stays a reviewable lead rather than a lost sale', () => {
+  const prospect = {
+    id: 'synthetic-ambiguous', name: 'Synthetic Buyer',
+    contact: 'uncertain@example.test', source_url: 'https://example.test/request',
+    state: 'failed', campaign_id: 'research',
+    created_at: '2026-11-21T20:00:00Z'
+  };
+  const event = {
+    id: 'failure-event', type: 'delivery_failed', from_state: 'eligible',
+    to_state: 'failed', created_at: '2026-11-21T20:01:00Z'
+  };
+  const record = recordFor(prospect, event, '2026-11-21T20:02:00Z');
+  assert.equal(record.canonicalState, 'failed');
+  assert.equal(record.status, 'Lead', 'a transport error cannot prove customer loss');
+  assert.match(record.nextBestAction, /Manual delivery reconciliation required/);
+  assert.match(record.nextBestAction, /do not retry or follow up automatically/);
+  assert.equal(record.nextFollowUp, undefined, 'keep any human-scheduled review');
+  assert.equal(record.lastPaymentAmountCents, undefined);
+  const genuinelyBounced = recordFor({ ...prospect, state: 'bounced' }, event, '2026-11-21T20:03:00Z');
+  assert.equal(genuinelyBounced.status, 'Lost', 'an attributable bounce remains lost');
+  assert.equal(genuinelyBounced.nextFollowUp, '', 'a bounce clears stale outreach reminders');
+});
+
 test('CRM projection retries a timeout and completes idempotently', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-projection-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
