@@ -72,6 +72,58 @@ test('a closed CSV lead is not proof of a won or paid customer', () => {
   assert.doesNotMatch(record.status + ' ' + record.pilotStatus, /Won|Customer|Paid/);
 });
 
+test('ambiguous failed delivery stays a review lead and never schedules automatic follow-up', () => {
+  const buyer = {
+    name: 'Synthetic Ambiguous Buyer',
+    link: 'https://example.test/ambiguous',
+    contact: 'ambiguous@example.test',
+    status: 'failed',
+    date: '2026-11-22',
+  };
+  const direct = buildCrmRecord(buyer, { now: '2026-11-22T14:00:00Z' });
+  assert.equal(direct.status, 'Lead', 'failed acknowledgement is not a lost buyer');
+  assert.equal(direct.lastContacted, '', 'failed acknowledgement cannot prove delivery');
+  assert.match(direct.nextBestAction, /Manual delivery reconciliation required/);
+  assert.match(direct.nextBestAction, /do not retry or follow up automatically/);
+
+  const failedLog = {
+    name: buyer.name, site: buyer.link, contact: buyer.contact,
+    status: 'failed', kind: 'email',
+    timestamp: '2026-11-22T14:01:00Z',
+    messageId: 'ambiguous-unconfirmed-send',
+    nextFollowUp: '2026-11-23',
+  };
+  const failedOnly = buildCrmSyncPayload({
+    leads: [buyer], outreach: [failedLog], includeAll: true,
+    now: '2026-11-22T14:03:00Z',
+  });
+  assert.equal(failedOnly.records.length, 1);
+  assert.equal(failedOnly.records[0].status, 'Lead');
+  assert.equal(failedOnly.records[0].lastContacted, '');
+  assert.equal(failedOnly.records[0].nextFollowUp, '',
+    'a failed imported send must not create a CRM follow-up');
+  const failedTouch = failedOnly.touches.find(touch => touch.touchType === 'outreach-failed');
+  assert.ok(failedTouch, 'keep failure evidence for human reconciliation');
+  assert.equal(failedTouch.nextFollowUp, '', 'failed touch cannot schedule a retry');
+  assert.equal(failedOnly.touches.filter(touch => touch.touchType === 'outreach-sent').length, 0);
+
+  // A later ambiguous failure must also cancel a stale follow-up inherited
+  // from a previously acknowledged send, without erasing that real send.
+  const mixed = buildCrmSyncPayload({
+    leads: [{ ...buyer, status: 'contacted' }],
+    outreach: [
+      { ...failedLog, status: 'sent', messageId: 'earlier-acknowledged-send',
+        timestamp: '2026-11-22T12:00:00Z', nextFollowUp: '2026-11-25' },
+      failedLog,
+    ],
+    includeAll: true, now: '2026-11-22T14:03:00Z',
+  });
+  assert.equal(mixed.records[0].status, 'Warm - Follow-up');
+  assert.equal(mixed.records[0].lastContacted, '2026-11-22');
+  assert.equal(mixed.records[0].nextFollowUp, '');
+  assert.equal(mixed.touches.filter(touch => touch.touchType === 'outreach-sent').length, 1);
+});
+
 test('historical outreach must not reopen a manually closed lead', () => {
   const lead = {
     name: 'Synthetic Closed Lead',
