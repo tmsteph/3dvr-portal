@@ -59,7 +59,7 @@ function emailForContact(contact) {
   if (typeof contact !== 'string') return '';
   const raw = contact.trim();
   const candidate = /^mailto:/i.test(raw) ? raw.slice(7).split('?')[0] : raw;
-  return /^[^\\s@/:?#<>]+@[^\\s@/:?#<>]+\\.[^\\s@/:?#<>]+$/.test(candidate) ? candidate : '';
+  return /^[^\s@/:?#<>]+@[^\s@/:?#<>]+\.[^\s@/:?#<>]+$/.test(candidate) ? candidate : '';
 }
 
 function recordFor(prospect, event, now) {
