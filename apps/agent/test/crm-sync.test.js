@@ -197,6 +197,7 @@ test('buildCrmSyncPayload creates records and stable touch log entries', () => {
       kind: 'email',
       status: 'sent',
       name: 'Finest City Home and Loans',
+      contact: 'mailto:team@loans.example', // Match by a verified route, not an ambiguous name.
       route: 'email',
       subject: 'Question for Finest City Home and Loans',
     },
