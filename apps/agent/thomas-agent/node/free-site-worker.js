@@ -159,23 +159,22 @@ function requestFingerprint(request) {
   return `${normalizeEmail(request.from)}|${topic}|${shortHash(body)}`;
 }
 
-function ensureState() {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  if (!fs.existsSync(STATE_FILE)) {
+function ensureState(stateFile = STATE_FILE) {
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+  if (!fs.existsSync(stateFile)) {
     const state = { version: 1, bootstrapAt: new Date().toISOString(), messages: {} };
-    fs.writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
+    fs.writeFileSync(stateFile, `${JSON.stringify(state, null, 2)}\n`, { flag: 'wx' });
     return state;
   }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    return {
-      version: 1,
-      bootstrapAt: parsed.bootstrapAt || new Date().toISOString(),
-      messages: parsed.messages && typeof parsed.messages === 'object' ? parsed.messages : {},
-    };
-  } catch {
-    return { version: 1, bootstrapAt: new Date().toISOString(), messages: {} };
+  // Never silently discard fulfillment history: the next scan could publish
+  // or email a request whose previous outcome is unknown.
+  const parsed = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  if (!parsed || parsed.version !== 1 ||
+      typeof parsed.bootstrapAt !== 'string' || !Number.isFinite(Date.parse(parsed.bootstrapAt)) ||
+      !parsed.messages || typeof parsed.messages !== 'object' || Array.isArray(parsed.messages)) {
+    throw new Error('Invalid free-site fulfillment state; manual reconciliation required.');
   }
+  return parsed;
 }
 
 function saveState(state) {
@@ -603,6 +602,7 @@ async function runOnce() {
 }
 
 module.exports = {
+  ensureState,
   buildFallbackHtml,
   cleanBody,
   junkReason,
