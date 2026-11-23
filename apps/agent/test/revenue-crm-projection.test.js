@@ -155,6 +155,12 @@ test('ambiguous send failure stays a reviewable lead rather than a lost sale', (
   assert.equal(claimedBounce.nextFollowUp, '', 'a claimed bounce still blocks outreach reminders');
   assert.match(claimedBounce.lastSignal, /Bounce status unverified by authenticated provider event/);
   assert.match(claimedBounce.nextBestAction, /Do not contact, retry or mark lost/);
+  const linkedBounce = recordFor({ ...prospect, state: 'bounced' },
+    { ...event, type: 'inbox_bounced' }, '2026-11-21T20:04:00Z',
+    { acknowledgedDelivery: true });
+  assert.equal(linkedBounce.status, 'Lost', 'a correlated inbox bounce with acknowledged outbound remains lost');
+  assert.equal(linkedBounce.nextFollowUp, '');
+  assert.doesNotMatch(linkedBounce.lastSignal, /Bounce status unverified/);
 });
 
 test('state-only bounce cannot create a lost CRM conversion in the canonical outbox', async () => {
