@@ -426,6 +426,23 @@ async function sendLiveReply(mailAuth, request, siteUrl) {
   });
 }
 
+// Persist the uncertainty boundary before invoking SMTP. A crash or error
+// after this point may mean the provider accepted the message. Never replay
+// automatically; an operator must reconcile the sent mailbox and ledger.
+async function sendReplyWithCheckpoint({ state, key, siteUrl, send, persist = saveState }) {
+  if (state.messages[key]?.status === 'reply_pending') {
+    throw new Error('Free-site reply outcome requires manual reconciliation.');
+  }
+  state.messages[key] = {
+    ...(state.messages[key] || {}),
+    status: 'reply_pending',
+    siteUrl,
+    replyAttemptedAt: new Date().toISOString(),
+  };
+  persist(state);
+  await send();
+}
+
 async function markSeen(mailAuth, uid) {
   const client = new ImapFlow({
     host: IMAP_HOST,
@@ -446,7 +463,7 @@ async function markSeen(mailAuth, uid) {
 
 async function completeExisting({ state, key, mailAuth, request, siteUrl }) {
   if (!(await verifyLive(siteUrl))) return { pending: true, siteUrl };
-  if (!request.seen) await sendLiveReply(mailAuth, request, siteUrl);
+  if (!request.seen) await sendReplyWithCheckpoint({ state, key, siteUrl, send: () => sendLiveReply(mailAuth, request, siteUrl) });
   await markSeen(mailAuth, request.uid);
   state.messages[key] = {
     ...(state.messages[key] || {}),
@@ -462,7 +479,7 @@ async function completeExisting({ state, key, mailAuth, request, siteUrl }) {
 async function processRequest({ request, state, mailAuth }) {
   const key = request.messageId || `uid-${request.uid}`;
   const existingState = state.messages[key];
-  if (existingState?.status === 'processed') return { skipped: true };
+  if (existingState?.status === 'processed' || existingState?.status === 'reply_pending') return { skipped: true };
   const junk = junkReason(request);
   if (junk) {
     // No site, no reply, no upgrade pitch: record the reason so a human can
@@ -489,7 +506,7 @@ async function processRequest({ request, state, mailAuth }) {
     if (!(await verifyLive(existingState.siteUrl))) {
       return { pending: true, siteUrl: existingState.siteUrl };
     }
-    await sendLiveReply(mailAuth, request, existingState.siteUrl);
+    await sendReplyWithCheckpoint({ state, key, siteUrl: existingState.siteUrl, send: () => sendLiveReply(mailAuth, request, existingState.siteUrl) });
     await markSeen(mailAuth, request.uid);
     state.messages[key] = { ...existingState, status: 'processed', completedAt: new Date().toISOString() };
     saveState(state);
@@ -553,7 +570,7 @@ async function processRequest({ request, state, mailAuth }) {
       return { pending: true, siteUrl, prUrl };
     }
 
-    await sendLiveReply(mailAuth, request, siteUrl);
+    await sendReplyWithCheckpoint({ state, key, siteUrl, send: () => sendLiveReply(mailAuth, request, siteUrl) });
     await markSeen(mailAuth, request.uid);
     state.messages[key] = { ...state.messages[key], status: 'processed', completedAt: new Date().toISOString() };
     saveState(state);
@@ -574,6 +591,10 @@ async function runOnce() {
   for (const request of requests) {
     const key = request.messageId || `uid-${request.uid}`;
     if (state.messages[key]?.status === 'processed') continue;
+    if (state.messages[key]?.status === 'reply_pending') {
+      console.warn('[free-site-worker] quarantined reply requires manual reconciliation');
+      continue;
+    }
     // The same request submitted repeatedly in one window (the 2026-11-10
     // junk arrived three times in ten seconds, each with a fresh message
     // id) is fulfilled once; later copies are recorded as duplicates.
@@ -594,7 +615,7 @@ async function runOnce() {
       const previous = state.messages[key] || {};
       state.messages[key] = {
         ...previous,
-        status: previous.status === 'publishing' ? 'publishing' : 'failed',
+        status: ['publishing', 'reply_pending'].includes(previous.status) ? previous.status : 'failed',
         error: String(error.message || error).slice(0, 500),
         failedAt: new Date().toISOString(),
       };
@@ -608,6 +629,7 @@ async function runOnce() {
 
 module.exports = {
   ensureState,
+  sendReplyWithCheckpoint,
   buildFallbackHtml,
   cleanBody,
   junkReason,
