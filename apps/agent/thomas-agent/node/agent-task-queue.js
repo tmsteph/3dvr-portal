@@ -590,7 +590,8 @@ async function runWorkerOnce(options = {}) {
       maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
-  await syncTerminalResults(options);
+  // A slow terminal relay read must not hold up the private execution queue.
+  // Reconcile terminal copies only after runnable work gets its turn.
   await importLegacyGunTasks(options);
   const tasks = await listTasks(options);
   const now = options.now || Date.now();
@@ -605,6 +606,7 @@ async function runWorkerOnce(options = {}) {
     if (!record || (record.status !== 'queued' && !recoverable)) continue;
     results.push({ id: record.id, result: await runQueuedTask(record, options) });
   }
+  await syncTerminalResults(options);
   return results;
 }
 
