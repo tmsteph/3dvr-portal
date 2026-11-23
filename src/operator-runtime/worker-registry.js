@@ -71,6 +71,9 @@ export function touchWorkerHeartbeat(worker, options = {}) {
 
 export function workerCanRun(worker, workItem) {
   if (!worker || !workItem) return false;
+  // Scheduling must not replay completed, failed, blocked, or approval-held work.
+  // Only explicitly queueable work items may be considered for a worker lease.
+  if (!['queued', 'ready'].includes(workItem.state)) return false;
   if (worker.status !== 'idle' && worker.status !== 'busy') return false;
   if (workerIsStale(worker)) return false;
   if (worker.activeCount >= worker.maxConcurrent) return false;
