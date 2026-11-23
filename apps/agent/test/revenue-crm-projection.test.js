@@ -527,11 +527,11 @@ test('bounded CRM projection does not starve fresh leads behind quarantined fail
   }
 });
 
-test('CRM projection preserves the legacy stable record identity while waiting quietly after contact', () => {
+test('CRM projection preserves the legacy stable record identity without inventing a contact receipt', () => {
   const record = recordFor({ id: 'uuid', name: 'Acme', contact: 'mailto:info@acme.test', source_url: 'https://acme.test', state: 'sent', campaign_id: '', created_at: '2026-01-01T00:00:00Z' }, { id: 'event' }, '2026-01-02T00:00:00Z');
   assert.equal(record.id, 'agent-lead-info-acme-test');
-  assert.equal(record.status, 'Warm - Waiting');
-  assert.equal(record.nextBestAction, 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.');
+  assert.equal(record.status, 'Lead');
+  assert.match(record.nextBestAction, /Reconcile manually/);
   assert.equal(record.canonicalState, 'sent');
 });
 
@@ -556,7 +556,7 @@ test('CRM never marks a paid customer from caller-shaped payment records without
       payload_json: JSON.stringify({ payment })
     };
     const record = recordFor(prospect, event, '2026-11-19T02:00:00Z');
-    assert.equal(record.status, 'Warm - Discovery');
+    assert.equal(record.status, 'Lead');
     assert.equal(record.lastPaymentAmountCents, undefined);
     assert.equal(record.stripePaymentIntentId, undefined);
     assert.doesNotMatch(record.nextBestAction, /Activate the customer/);
@@ -575,24 +575,24 @@ test('CRM refuses false paid-customer projections from quotes, pending or invali
   });
   const projected = (type, value) => recordFor(prospect, event(type, value), '2026-11-17T01:00:00Z');
   const quote = projected('proposal_quoted', payment);
-  assert.equal(quote.status, 'Warm - Discovery');
+  assert.equal(quote.status, 'Lead');
   assert.equal(quote.lastPaymentAmountCents, undefined);
   assert.equal(projected('payment_succeeded', {
     status: 'succeeded', amount_cents: 25000, currency: 'usd'
-  }).status, 'Warm - Discovery', 'status and amount without a provider payment reference are not proof of payment');
+  }).status, 'Lead', 'status and amount without a provider payment reference are not proof of payment');
   assert.equal(projected('payment_succeeded', {
     ...payment, payment_intent_id: '   '
-  }).status, 'Warm - Discovery', 'a blank payment reference cannot mark a customer as paid');
+  }).status, 'Lead', 'a blank payment reference cannot mark a customer as paid');
   const withTransactionReference = projected('payment_succeeded', {
     ...payment, payment_intent_id: undefined, transaction_id: 'txn_synthetic'
   });
-  assert.equal(withTransactionReference.status, 'Warm - Discovery', 'an unauthenticated non-Stripe transaction ID is not payment proof');
-  assert.equal(projected('payment_succeeded', { ...payment, status: 'pending' }).status, 'Warm - Discovery');
-  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 0 }).status, 'Warm - Discovery');
-  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: -1 }).status, 'Warm - Discovery');
-  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 5.5 }).status, 'Warm - Discovery');
-  assert.equal(projected('payment_succeeded', { ...payment, currency: '' }).status, 'Warm - Discovery');
-  assert.equal(projected('payment_succeeded', { status: 'succeeded', plan: 'starter', payment_intent_id: 'pi_unverified' }).status, 'Warm - Discovery');
+  assert.equal(withTransactionReference.status, 'Lead', 'an unauthenticated non-Stripe transaction ID is not payment proof');
+  assert.equal(projected('payment_succeeded', { ...payment, status: 'pending' }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 0 }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: -1 }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 5.5 }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, currency: '' }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { status: 'succeeded', plan: 'starter', payment_intent_id: 'pi_unverified' }).status, 'Lead');
 });
 
 test('remote projection roots do not initialize a local radata store', () => {
