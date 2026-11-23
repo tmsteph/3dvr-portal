@@ -43,6 +43,32 @@ test('explicit verification produces a verified receipt', () => {
   assert.equal(receipt.workerId, 'worker-a');
 });
 
+test('unattributed signed Operator terminal states never masquerade as verified action receipts', () => {
+  for (const status of ['completed', 'done', 'success', 'succeeded']) {
+    const receipt = actionReceiptFromRuntimeRecord({
+      id: 'operator-http-private-task',
+      status,
+      verificationStatus: 'verified',
+      resultSummary: 'Unattributed claim of success.'
+    }, { kind: 'operator_runtime' });
+    assert.equal(receipt.status, 'running');
+    assert.equal(receipt.terminal, false);
+    assert.equal(receipt.verified, false);
+    assert.equal(receipt.verificationStatus, 'unknown');
+    assert.equal(receipt.workerId, '');
+    assert.match(receipt.resultSummary, /missing worker identity/);
+    assert.equal(receipt.metadata.originalQueueStatus, status);
+  }
+  const sourceOnly = actionReceiptFromRuntimeRecord({
+    id: 'legacy-task',
+    source: 'operator-http',
+    status: 'completed',
+    verificationStatus: 'verified'
+  });
+  assert.equal(sourceOnly.verified, false);
+  assert.equal(sourceOnly.status, 'running');
+});
+
 test('runtime statuses collapse into the shared action vocabulary', () => {
   assert.equal(normalizeActionReceiptStatus('queued'), 'queued');
   assert.equal(normalizeActionReceiptStatus('running'), 'running');
@@ -86,8 +112,22 @@ test('private HTTP task updates retain one account-scoped receipt without any pu
     assert.equal(publicWrites,0);
     assert.equal(saved.length,1);
     assert.equal(saved[0].id,complete.id);
-    assert.equal(saved[0].status,'succeeded');
-    assert.equal(saved[0].resultSummary,'private answer');
+    assert.equal(saved[0].status,'running');
+    assert.equal(saved[0].verificationStatus,'unknown');
+    assert.equal(saved[0].verified,false);
+    assert.match(saved[0].resultSummary,/missing worker identity/);
+    assert.equal(saved[0].metadata.originalQueueStatus,'completed');
+    const attributed=persistBackgroundActionUpdate(background,{record:{
+      id:'operator-http-server-identity',status:'completed',workerDeviceId:'private-worker-a',
+      verificationStatus:'verified',resultSummary:'verified private answer'
+    }});
+    const afterWorker=loadOperatorActionReceipts();
+    assert.equal(afterWorker.length,1);
+    assert.equal(afterWorker[0].id,attributed.id);
+    assert.equal(afterWorker[0].status,'succeeded');
+    assert.equal(afterWorker[0].verified,true);
+    assert.equal(afterWorker[0].workerId,'private-worker-a');
+    assert.equal(afterWorker[0].resultSummary,'verified private answer');
     values.set('userPubKey','different-owner');
     assert.deepEqual(loadOperatorActionReceipts(),[]);
     assert.equal(values.has('3dvr.operator.actionReceipts.v1'),false);
