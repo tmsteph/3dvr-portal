@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureState, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
+const { ensureState, sendReplyWithCheckpoint, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
 
 const FORM_BOILERPLATE = [
   'I want a free live one-page website on a 3DVR-hosted address.',
@@ -123,4 +123,30 @@ test('corrupt or incomplete fulfillment state fails closed without replacing his
     assert.throws(() => ensureState(stateFile));
     assert.equal(fs.readFileSync(stateFile, 'utf8'), content);
   }
+});
+
+test('SMTP failure after possible acceptance quarantines the request across restart', async () => {
+  const state = { messages: { fake: { status: 'publishing', prUrl: 'fake-pr' } } };
+  let durable;
+  let sends = 0;
+  const persist = (value) => { durable = JSON.parse(JSON.stringify(value)); };
+  const send = async () => {
+    assert.equal(durable.messages.fake.status, 'reply_pending');
+    sends += 1;
+    throw new Error('connection lost after possible acceptance');
+  };
+  await assert.rejects(sendReplyWithCheckpoint({ state, key: 'fake', siteUrl: 'https://example.com/', send, persist }), /connection lost/);
+  assert.equal(durable.messages.fake.prUrl, 'fake-pr');
+  await assert.rejects(sendReplyWithCheckpoint({ state: durable, key: 'fake', siteUrl: 'https://example.com/', send, persist }), /manual reconciliation/);
+  assert.equal(sends, 1);
+});
+
+test('failure to persist the pre-send checkpoint prevents SMTP invocation', async () => {
+  let sends = 0;
+  await assert.rejects(sendReplyWithCheckpoint({
+    state: { messages: {} }, key: 'fake', siteUrl: 'https://example.com/',
+    send: async () => { sends += 1; },
+    persist: () => { throw new Error('disk write failed'); },
+  }), /disk write failed/);
+  assert.equal(sends, 0);
 });
