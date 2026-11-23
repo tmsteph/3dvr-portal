@@ -151,7 +151,33 @@ test('long SQLite work renews an expired initial claim against a competing worke
   assert.equal((await readTask('slow-task', options)).status, 'completed');
 });
 
-test('an expired claim is recovered after a worker process restart', async (t) => {
+test('an expired intrinsic health claim is safely recovered after a worker restart', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    workerCapabilities: 'node',
+    deviceId: 'replacement-worker',
+    now: now + 100,
+  });
+  await enqueueTask('health probe', {
+    ...options, now, id: 'restart-health', backend: 'health', riskClass: 'read_only',
+  });
+  assert.ok(sqliteQueue.claimTask('restart-health', 'dead-process-token', 'dead-worker', now + 10, now, options));
+
+  let externalExecutions = 0;
+  const outcomes = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => {
+      externalExecutions += 1;
+      throw new Error('intrinsic health probe must not invoke model executor');
+    },
+  });
+  assert.equal(outcomes.length, 1);
+  assert.equal(externalExecutions, 0);
+  assert.equal((await readTask('restart-health', options)).status, 'completed');
+});
+
+test('expired model claims require manual reconciliation, never automatic side-effect replay', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -159,27 +185,27 @@ test('an expired claim is recovered after a worker process restart', async (t) =
     deviceId: 'replacement-worker',
     now: now + 100,
   });
-  await enqueueTask('recover me', {
-    ...options,
-    now,
-    id: 'restart-task',
-    backend: 'openai',
-    requiredCapabilities: 'openai',
+  await enqueueTask('may have already sent a message', {
+    ...options, now, id: 'uncertain-restart-task', backend: 'openai', riskClass: 'draft',
   });
-  assert.ok(sqliteQueue.claimTask('restart-task', 'dead-process-token', 'dead-worker', now + 10, now, options));
-
-  let executions = 0;
-  await runWorkerOnce({
-    ...options,
-    runAgentTaskImpl: async () => {
-      executions += 1;
-      return { ok: true, result: { stdout: 'recovered' } };
-    },
-  });
-
-  assert.equal(executions, 1);
-  assert.equal((await readTask('restart-task', options)).status, 'completed');
+  assert.ok(sqliteQueue.claimTask('uncertain-restart-task', 'dead-process-token', 'dead-worker',
+    now + 10, now, options));
+  let externalExecutions = 0;
+  const runAgentTaskImpl = async () => {
+    externalExecutions++;
+    throw new Error('uncertain task must not replay');
+  };
+  const outcomes = await runWorkerOnce({ ...options, runAgentTaskImpl });
+  assert.deepEqual(outcomes, []);
+  const stale = await readTask('uncertain-restart-task', options);
+  assert.equal(stale.status, 'running');
+  assert.equal(stale.workerDeviceId, 'dead-worker');
+  const directAttempt = await runQueuedTask(stale, { ...options, runAgentTaskImpl });
+  assert.equal(directAttempt.skipped, true);
+  assert.match(directAttempt.reason, /manual reconciliation/);
+  assert.equal(externalExecutions, 0);
 });
+
 
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
   const rootNode = fakeRoot();
