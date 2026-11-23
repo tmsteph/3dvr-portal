@@ -470,6 +470,16 @@ test('signed Operator task is actually claimed and completed by the private SQLi
     assert.equal(completed.data.record.startedAt, persisted.startedAt);
     assert.equal(completed.data.record.completedAt, persisted.completedAt,
       'signed status must expose the actual worker completion timestamp, not an inferred update time');
+    const admitted = JSON.parse(row.record_json);
+    assert.equal(persisted.operatorRequestDigest, admitted.operatorRequestDigest,
+      'terminal write must preserve the signed request digest');
+    assert.equal(persisted.runtimeWorkItemJson, admitted.runtimeWorkItemJson,
+      'terminal write must preserve signed title metadata');
+    const completedRetry = await request(handler, enqueue);
+    assert.equal(completedRetry.statusCode, 202, 'exact signed retry returns existing terminal receipt');
+    assert.equal(completedRetry.data.record.status, 'completed');
+    const changedTitle = await request(handler, { ...enqueue, title: enqueue.title + ' changed' });
+    assert.equal(changedTitle.statusCode, 503, 'changed signed title must not reuse completed receipt');
     assert.equal(completed.data.record.resultSummary, '42 (synthetic executor)');
     assert.equal(completed.data.record.resultText, '42 (synthetic executor)');
     assert.equal(await runPrivateWorkerOnce(isolatedWorkerQueue), 0,
