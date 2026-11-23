@@ -35,12 +35,14 @@ jobs:
           cache: npm
           cache-dependency-path: apps/agent/package-lock.json
       - run: npm ci
-      - run: npm audit --omit=dev
       - name: Prepare Operator planner dependency
         run: |
           npm --prefix ../../operator-core/operator-core ci --ignore-scripts
           npm --prefix ../../operator-core/operator-core run build
       - run: npm test
+      # Keep the production-dependency security gate mandatory, but run
+      # regression tests first so a vulnerability cannot conceal test results.
+      - run: npm audit --omit=dev
 
   deploy-digitalocean-worker:
     name: Deploy DigitalOcean agent worker
