@@ -100,11 +100,44 @@ async function resolveImapAuth() {
   };
 }
 
-function makeProcessor() {
+function makeProcessor({
+  runInbox = runInboxCycle,
+  runFreeSite = runLocalFreeSiteWorker,
+  dispatchFallback = dispatchFreeSiteFastLane,
+  debounceMs = EVENT_DEBOUNCE_MS,
+} = {}) {
   let running = false;
   let pending = false;
   let pendingReason = 'event';
   let timer = null;
+  let freeSiteRunning = false;
+
+  // Free-site generation may wait on a deployment CLI indefinitely. It must
+  // never hold the independent business-inbox processor hostage. Only one
+  // free-site worker may run at a time; do not replay an uncertain in-flight
+  // fulfillment job or dispatch a fallback merely because it is slow.
+  const startFreeSite = (reason) => {
+    if (freeSiteRunning) {
+      console.log('[inbox-monitor-loop] free-site worker still running; skipping overlapping invocation');
+      return;
+    }
+    freeSiteRunning = true;
+    Promise.resolve()
+      .then(() => runFreeSite(reason))
+      .then(
+        (result) => (result?.ok ? undefined : dispatchFallback(reason)),
+        (error) => {
+          console.error(`[inbox-monitor-loop] free-site worker failed: ${error.message || error}`);
+          return dispatchFallback(reason);
+        }
+      )
+      .catch((error) => {
+        console.error(`[inbox-monitor-loop] free-site fallback failed: ${error.message || error}`);
+      })
+      .finally(() => {
+        freeSiteRunning = false;
+      });
+  };
 
   const drain = async () => {
     if (running) {
@@ -116,11 +149,10 @@ function makeProcessor() {
       do {
         pending = false;
         const reason = pendingReason;
-        const freeSite = await runLocalFreeSiteWorker(reason);
-        if (!freeSite.ok) {
-          await dispatchFreeSiteFastLane(reason);
-        }
-        await runInboxCycle(reason);
+        // Inbox always gets its chance, even when a previous free-site
+        // fulfillment is still running. Do not await that second lane.
+        await runInbox(reason);
+        startFreeSite(reason);
       } while (pending);
     } finally {
       running = false;
@@ -136,7 +168,7 @@ function makeProcessor() {
       drain().catch((error) => {
         console.error(`[inbox-monitor-loop] processor error: ${error.message || error}`);
       });
-    }, Math.max(0, Number.isFinite(EVENT_DEBOUNCE_MS) ? EVENT_DEBOUNCE_MS : 750));
+    }, Math.max(0, Number.isFinite(debounceMs) ? debounceMs : 750));
   };
 }
 
@@ -211,7 +243,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message || error);
-  process.exit(1);
-});
+module.exports = { makeProcessor };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message || error);
+    process.exit(1);
+  });
+}
