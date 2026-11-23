@@ -168,7 +168,12 @@ function ensureState(stateFile = STATE_FILE) {
   }
   // Never silently discard fulfillment history: the next scan could publish
   // or email a request whose previous outcome is unknown.
-  const parsed = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  } catch {
+    throw new Error('Unreadable free-site fulfillment state; manual reconciliation required.');
+  }
   if (!parsed || parsed.version !== 1 ||
       typeof parsed.bootstrapAt !== 'string' || !Number.isFinite(Date.parse(parsed.bootstrapAt)) ||
       !parsed.messages || typeof parsed.messages !== 'object' || Array.isArray(parsed.messages)) {
