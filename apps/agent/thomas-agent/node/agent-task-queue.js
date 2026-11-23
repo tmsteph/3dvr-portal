@@ -503,6 +503,15 @@ async function mirrorTerminalTask(record, options = {}) {
   if (!['completed', 'failed', 'skipped'].includes(record.status)) return false;
   const remote = await readTask(record.id, { ...options, queueStore: 'gun' });
   if (remote && timestamp(remote) > timestamp(record)) return false;
+  // An already-mirrored terminal record is immutable for this timestamp.
+  // Rewriting it on every worker poll amplified relay traffic and could
+  // delay local SQLite queue execution when the terminal backlog grew.
+  // Still repair missing or same-timestamp divergent remote records.
+  if (remote && timestamp(remote) === timestamp(record)
+    && remote.status === record.status
+    && normalizeText(remote.workerDeviceId) === normalizeText(record.workerDeviceId)
+    && normalizeText(remote.resultSummary) === normalizeText(record.resultSummary)
+    && normalizeText(remote.error) === normalizeText(record.error)) return false;
   await updateGunTask(record.id, record, options);
   return true;
 }
