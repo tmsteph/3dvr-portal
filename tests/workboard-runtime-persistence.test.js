@@ -134,7 +134,7 @@ test('Workboard does not claim signed Operator completion without a worker ident
     ...signedComplete, workerDeviceId: 'ci-private-worker'
   });
   assert.equal(attributed.status, 'done');
-  assert.equal(attributed.verificationStatus, 'not_started');
+  assert.equal(attributed.verificationStatus, 'pending', 'existing verification metadata is preserved');
   assert.equal(attributed.resultSummary, signedComplete.resultSummary);
 
   const legacy = normalizeQueueRecordForWorkboard({
