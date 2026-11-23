@@ -72,9 +72,13 @@ function recordFor(prospect, event, now, { acknowledgedDelivery = false } = {}) 
     && (prospect.state === 'sent' && event.type === 'delivery_acknowledged'
       || prospect.state === 'replied' && event.type === 'inbox_replied');
   const unverifiedContact = ['sent', 'replied'].includes(prospect.state) && !verifiedContact;
-  const crmStatus = paymentReceipt ? 'Paid Customer' : unverifiedContact ? 'Lead' : ({
+  // A generic ledger caller can label a lead bounced without a provider
+  // callback. Until a trusted bounce adapter exists, never convert that
+  // unverified label into a lost deal in the Operator sales funnel.
+  const unverifiedBounce = prospect.state === 'bounced';
+  const crmStatus = paymentReceipt ? 'Paid Customer' : (unverifiedContact || unverifiedBounce) ? 'Lead' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
-    sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
+    sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lead',
     // A failed or ambiguous send is not evidence that the buyer was lost.
     // Some transports may have delivered before acknowledgement failed.
     failed: 'Lead', suppressed: 'Closed',
@@ -83,6 +87,8 @@ function recordFor(prospect, event, now, { acknowledgedDelivery = false } = {}) 
     ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
     : unverifiedContact
       ? 'Contact/reply status lacks a matched acknowledged delivery event. Reconcile manually; do not send or schedule a follow-up automatically.'
+      : unverifiedBounce
+        ? 'Bounce status lacks an authenticated provider receipt. Do not contact, retry or mark lost until a human reconciles the provider event.'
     : ({
       sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
       replied: 'Continue discovery from the customer reply.',
@@ -109,6 +115,7 @@ function recordFor(prospect, event, now, { acknowledgedDelivery = false } = {}) 
     lastSignal: paymentSignal || [
       `Canonical revenue state: ${prospect.state}`,
       unverifiedContact ? 'Contact/reply unverified by acknowledged delivery event' : '',
+      unverifiedBounce ? 'Bounce status unverified by authenticated provider event' : '',
       prospect.source_url ? `Source: ${prospect.source_url}` : '',
     ].filter(Boolean).join(' | '),
     // Only blocked/no-follow-up states clear obsolete reminders. Preserve a
