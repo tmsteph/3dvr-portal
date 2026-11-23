@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
   createWorker,
+  findEligibleWorkers,
   touchWorkerHeartbeat,
   workerIsStale
 } from '../src/operator-runtime/worker-registry.js';
@@ -62,6 +63,30 @@ test('worker heartbeats expose stale workers without breaking legacy workers', (
   const refreshed = touchWorkerHeartbeat(stale, { at: '2026-09-17T18:00:00.000Z' });
   assert.equal(workerIsStale(refreshed, { now: NOW }), false);
   assert.equal(refreshed.updatedAt, '2026-09-17T18:00:00.000Z');
+});
+
+test('future-dated worker heartbeats cannot retain an expired worker indefinitely', () => {
+  const future = createWorker({
+    id: 'future-worker',
+    name: 'Future Worker',
+    capabilities: ['crm-read'],
+    lastHeartbeatAt: new Date(NOW + 60 * 60_000).toISOString()
+  });
+  assert.equal(workerIsStale(future, { now: NOW }), true);
+
+  const slightSkew = createWorker({
+    id: 'slight-skew',
+    name: 'Skewed Worker',
+    lastHeartbeatAt: new Date(NOW + 30_000).toISOString()
+  });
+  assert.equal(workerIsStale(slightSkew, { now: NOW }), false);
+
+  const futureRelativeToCurrentTime = {
+    ...future,
+    lastHeartbeatAt: new Date(Date.now() + 60 * 60_000).toISOString()
+  };
+  const item = { state: 'ready', risk: 'low', requiredCapabilities: ['crm-read'] };
+  assert.deepEqual(findEligibleWorkers([futureRelativeToCurrentTime], item), []);
 });
 
 test('host telemetry probe emits scheduler-ready JSON on Linux', () => {
