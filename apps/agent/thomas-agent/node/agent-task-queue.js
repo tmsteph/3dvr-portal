@@ -357,7 +357,23 @@ async function recordTaskLifeEvent(record, options = {}) {
   }
 }
 
+// An expired lease is NOT proof that the previous worker did nothing. A model,
+// shell or workspace task may have completed side effects before crashing or
+// losing its receipt. Only the intrinsic no-side-effect health probe is safe
+// to reclaim automatically; everything else stays running for reconciliation.
+function safeExpiredHealthClaim(record, options = {}, now = options.now ?? Date.now()) {
+  return queueStore(options) === 'sqlite'
+    && record?.status === 'running'
+    && normalizeText(record.backend).toLowerCase() === 'health'
+    && Number.isFinite(record.claimExpiresAt)
+    && record.claimExpiresAt <= now;
+}
+
 async function runQueuedTask(record, options = {}) {
+  if (record?.status !== 'queued' && !safeExpiredHealthClaim(record, options)) {
+    return { ok: false, skipped: true,
+      reason: 'non-queued task requires manual reconciliation before retry' };
+  }
   const runnable = canWorkerRunTask(record, options);
   if (!runnable.ok) {
     return { ok: false, skipped: true, reason: runnable.reason };
@@ -579,16 +595,13 @@ async function runWorkerOnce(options = {}) {
   const tasks = await listTasks(options);
   const now = options.now || Date.now();
   const queued = tasks
-    .filter(task => task.status === 'queued'
-      || (queueStore(options) === 'sqlite' && task.status === 'running' && task.claimExpiresAt <= now))
+    .filter(task => task.status === 'queued' || safeExpiredHealthClaim(task, options, now))
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
     const record = await readTask(summary.id, options);
-    const recoverable = queueStore(options) === 'sqlite'
-      && record?.status === 'running'
-      && record.claimExpiresAt <= now;
+    const recoverable = safeExpiredHealthClaim(record, options, now);
     if (!record || (record.status !== 'queued' && !recoverable)) continue;
     results.push({ id: record.id, result: await runQueuedTask(record, options) });
   }
