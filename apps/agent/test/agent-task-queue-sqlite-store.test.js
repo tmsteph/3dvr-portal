@@ -319,6 +319,43 @@ test('SQLite terminal mirroring skips identical relay copies but repairs diverge
   assert.equal((await readTask('mirror-once', gunOptions)).resultSummary, first.resultSummary);
 });
 
+test('SQLite executes ready tasks before scanning old terminal relay copies', async (t) => {
+  const events = [];
+  class TrackingGunNode extends FakeGunNode {
+    get(key) { return new TrackingGunNode(this.store, [...this.path, key]); }
+    once(callback) {
+      if (this.path.join('/').endsWith('/old-terminal')) events.push('old-terminal-read');
+      return super.once(callback);
+    }
+  }
+  const rootNode = new TrackingGunNode(new Map());
+  const options = await queueOptions(t, {
+    rootNode,
+    workerCapabilities: 'openai',
+    runAgentTaskImpl: async () => {
+      events.push('local-execution');
+      return { ok: true, result: { stdout: 'done before relay scan' } };
+    },
+  });
+  sqliteQueue.writeTask({
+    id: 'old-terminal',
+    task: 'previously completed work',
+    backend: 'openai',
+    status: 'completed',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:01:00.000Z',
+  }, options);
+  await enqueueTask('ready private work', { ...options, id: 'ready-task', backend: 'openai' });
+
+  const results = await runWorkerOnce(options);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, 'ready-task');
+  assert.equal((await readTask('ready-task', options)).status, 'completed');
+  assert.ok(events.includes('old-terminal-read'), 'terminal sync still runs after execution');
+  assert.ok(events.indexOf('local-execution') < events.indexOf('old-terminal-read'),
+    'a long terminal-sync scan must not starve queued local execution');
+});
+
 test('GUN-only import does not load node:sqlite', () => {
   const queueModule = path.join(__dirname, '..', 'thomas-agent', 'node', 'agent-task-queue.js');
   const script = `
