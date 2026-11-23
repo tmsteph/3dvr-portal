@@ -517,7 +517,9 @@ test('signed Operator task is actually claimed and completed by the private SQLi
           runAgentTaskImpl: async args => {
             crmExecutions++;
             assert.equal(record.id, prospectTaskId);
-            assert.equal(args.at(-1), prospectRequest.text);
+            assert.equal(args.at(-1), record.task);
+            assert.ok(record.task.startsWith('Operator delegated task: ' + prospectRequest.text));
+            assert.match(record.task, /Do not send messages, spend money/);
             const ledger = openLedger({ filePath: ledgerFile });
             try {
               const lead = createProspect(ledger, {
