@@ -224,11 +224,66 @@ test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) 
     runAgentTaskImpl: async () => ({ ok: true, result: { stdout: 'legacy done' } }),
   });
 
-  const results = await runWorkerOnce(options);
+  // The private queue gets first priority; compatibility imports are
+  // visible to the worker on its next pass, not ahead of private work.
+  const initial = await runWorkerOnce(options);
+  assert.equal(initial.length, 0);
+  assert.equal((await readTask('legacy/GUN:id', options)).status, 'queued');
 
+  const results = await runWorkerOnce(options);
   assert.equal(results.length, 1);
   assert.equal((await readTask('legacy/GUN:id', gunOptions)).status, 'completed');
   assert.match((await readTask('legacy/GUN:id', options)).resultSummary, /legacy done/);
+});
+
+test('private SQLite work completes despite a timed-out legacy relay read', async (t) => {
+  const rootNode = fakeRoot();
+  const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
+  await enqueueTask('unreachable legacy item', {
+    ...gunOptions, id: 'legacy-timeout', backend: 'openai',
+  });
+  const events = [];
+  class UnresponsiveGunNode extends FakeGunNode {
+    get(key) { return new UnresponsiveGunNode(this.store, [...this.path, key]); }
+    once(callback) {
+      if (this.path.join('/').endsWith('/legacy-timeout')) {
+        events.push('legacy-read');
+        return; // Simulate an unreachable Gun task payload.
+      }
+      return super.once(callback);
+    }
+  }
+  const options = await queueOptions(t, {
+    ...gunOptions,
+    rootNode: new UnresponsiveGunNode(rootNode.store),
+    timeoutMs: 10,
+    workerCapabilities: 'openai',
+    runAgentTaskImpl: async () => {
+      events.push('private-execution');
+      return { ok: true, result: { stdout: 'private task finished' } };
+    },
+  });
+  await enqueueTask('ready private work', {
+    ...options, id: 'private-before-legacy', backend: 'openai',
+  });
+  const warnings = [];
+  const originalWarn = console.warn;
+  // The worker reports a compatibility failure but keeps its private queue alive.
+  console.warn = (message) => { warnings.push(message); };
+  let results;
+  try {
+    results = await runWorkerOnce(options);
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, 'private-before-legacy');
+  assert.equal((await readTask('private-before-legacy', options)).status, 'completed');
+  assert.deepEqual(events, ['private-execution', 'legacy-read']);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /legacy queue import failed: Task relay read timed out/);
+  assert.equal((await readTask('legacy-timeout', options)), null);
 });
 
 test('newer GUN requeue replaces stale terminal import without being overwritten', async (t) => {
