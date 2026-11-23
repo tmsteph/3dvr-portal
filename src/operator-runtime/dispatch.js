@@ -30,6 +30,15 @@ try {
   // the authenticated HTTP transport. Never claim a legacy/imported row as
   // this signer's completed work, even when its ID and task text collide.
   if (row && row.source !== 'operator-http') throw Error('Task source conflict');
+  // A terminal status without a worker identity is not evidence that a
+  // private worker actually ran. Refuse both status and enqueue retries rather
+  // than turning a legacy/partial row into a signed completion receipt.
+  if (row && row.status === 'completed') {
+    const completed = JSON.parse(row.record_json);
+    if (typeof completed.workerDeviceId !== 'string' || !completed.workerDeviceId.trim()) {
+      throw Error('Unattributed task completion');
+    }
+  }
   if (input.action === 'enqueue') {
     if (row) {
       const saved = JSON.parse(row.record_json);
