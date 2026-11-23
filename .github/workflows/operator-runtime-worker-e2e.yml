@@ -1,7 +1,16 @@
 name: Operator runtime worker E2E
 
+# Contract tests only. No live admission, signing secrets, or worker execution
+# in GitHub Actions. A real isolated canary requires separate authorization.
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'operator/delegate-task.js'
+      - 'src/operator-runtime/**'
+      - 'scripts/operator-runtime-worker-e2e.mjs'
+      - 'tests/operator-runtime-worker-e2e-ack.test.mjs'
+      - '.github/workflows/operator-runtime-worker-e2e.yml'
   push:
     branches:
       - main
@@ -9,24 +18,22 @@ on:
       - 'operator/delegate-task.js'
       - 'src/operator-runtime/**'
       - 'scripts/operator-runtime-worker-e2e.mjs'
+      - 'tests/operator-runtime-worker-e2e-ack.test.mjs'
       - '.github/workflows/operator-runtime-worker-e2e.yml'
 
 permissions:
   contents: read
 
 jobs:
-  runtime-worker:
-    # Legacy direct-Gun admission is unsafe; no event may run it.
-    if: ${{ false }}
+  signed-canary-contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Enqueue task and wait for managed worker
-        run: node scripts/operator-runtime-worker-e2e.mjs
+      - run: npm ci --ignore-scripts
+      - name: Verify signed canary contract with synthetic transport only
+        run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs
