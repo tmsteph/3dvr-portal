@@ -31,7 +31,7 @@ const instrumented = source.replace(
 // This independent in-memory queue spy exercises the actual put() boundary.
 // No Gun package, relay socket, task store, or worker is initialized.
 const queueInstrumented = source.replace(
-  /^const \\{ default: Gun \\} = await import\\('gun'\\);$/m,
+  /^const \{ default: Gun \} = await import\('gun'\);$/m,
   "const Gun = () => { const node = { get() { return this; }, on() { return this; }, put() { throw new Error('MOCK_QUEUE_PUT_ATTEMPT'); } }; return node; };"
 );
 assert.notEqual(queueInstrumented, source, 'expected queue transport interception');
