@@ -286,7 +286,10 @@ function buildLeadTouch(lead, record, options = {}) {
     crmRecordId: record.id,
     contactId: '',
     contactName: record.name,
-    type: status === 'contacted' ? 'message' : 'note',
+    // Imported CSV status is a historical assertion, not a provider send
+    // receipt. Keep it as a note; only outbound-log evidence may create
+    // a message touch. This avoids inflating Operator CRM send activity.
+    type: 'note',
     channel: routeFromContact(lead) || 'site',
     summary: `3dvr-agent lead synced as ${status}.`,
     outcome: record.nextBestAction,
