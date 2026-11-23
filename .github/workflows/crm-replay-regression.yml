@@ -1,0 +1,21 @@
+name: CRM replay regression (draft)
+on:
+  pull_request:
+    paths:
+      - 'tests/campaign-crm-bridge.test.js'
+      - 'src/money-printer/campaignCrmBridge.js'
+      - '.github/workflows/crm-replay-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synthetic CRM replay test (expected red until fixed)
+        run: node --test tests/campaign-crm-bridge.test.js
