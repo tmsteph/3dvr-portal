@@ -111,6 +111,7 @@ function makeProcessor({
   let pendingReason = 'event';
   let timer = null;
   let freeSiteRunning = false;
+  let pendingFreeSiteReason = null;
 
   // Free-site generation may wait on a deployment CLI indefinitely. It must
   // never hold the independent business-inbox processor hostage. Only one
@@ -118,14 +119,23 @@ function makeProcessor({
   // fulfillment job or dispatch a fallback merely because it is slow.
   const startFreeSite = (reason) => {
     if (freeSiteRunning) {
-      console.log('[inbox-monitor-loop] free-site worker still running; skipping overlapping invocation');
+      pendingFreeSiteReason = reason;
+      console.log('[inbox-monitor-loop] free-site worker still running; coalescing a later scan');
       return;
     }
     freeSiteRunning = true;
+    pendingFreeSiteReason = null;
+    let completedSuccessfully = false;
     Promise.resolve()
       .then(() => runFreeSite(reason))
       .then(
-        (result) => (result?.ok ? undefined : dispatchFallback(reason)),
+        (result) => {
+          if (result?.ok) {
+            completedSuccessfully = true;
+            return;
+          }
+          return dispatchFallback(reason);
+        },
         (error) => {
           console.error(`[inbox-monitor-loop] free-site worker failed: ${error.message || error}`);
           return dispatchFallback(reason);
@@ -136,6 +146,12 @@ function makeProcessor({
       })
       .finally(() => {
         freeSiteRunning = false;
+        // A successful scan may have taken its mailbox snapshot before a new
+        // request arrived. Rescan once, but never automatically replay a
+        // failed/uncertain job or race the remote fallback we just dispatched.
+        if (completedSuccessfully && pendingFreeSiteReason !== null) {
+          startFreeSite(pendingFreeSiteReason);
+        }
       });
   };
 
@@ -172,7 +188,7 @@ function makeProcessor({
   };
 }
 
-async function watchConnection() {
+async function watchConnection(processInbox) {
   const { user, auth } = await resolveImapAuth();
   const client = new ImapFlow({
     host: DEFAULT_IMAP_HOST,
@@ -183,7 +199,6 @@ async function watchConnection() {
     maxIdleTime: Number.isFinite(MAX_IDLE_TIME_MS) ? MAX_IDLE_TIME_MS : 4 * 60 * 1000,
   });
 
-  const processInbox = makeProcessor();
   let closed = false;
   let lastCount = 0;
 
@@ -228,10 +243,13 @@ async function watchConnection() {
 }
 
 async function main() {
+  // Retain the process-wide worker guard across IMAP reconnects. A disconnected
+  // IMAP session does not imply that its fulfillment child has stopped.
+  const processInbox = makeProcessor();
   let backoffMs = RECONNECT_MIN_MS;
   while (true) {
     try {
-      await watchConnection();
+      await watchConnection(processInbox);
       backoffMs = RECONNECT_MIN_MS;
     } catch (error) {
       console.error(`[inbox-monitor-loop] connection failed: ${error.message || error}`);
