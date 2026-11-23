@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   runtime-worker:
+    # Legacy direct-Gun admission is unsafe; no event may run it.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
