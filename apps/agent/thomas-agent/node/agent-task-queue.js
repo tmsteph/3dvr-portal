@@ -151,9 +151,18 @@ function normalizeTaskRecord(record = {}) {
     status: normalizeText(record.status) || 'queued',
     createdAt: normalizeText(record.createdAt) || nowIso(),
     updatedAt: normalizeText(record.updatedAt) || nowIso(),
+    // Claim and terminal timestamps are worker evidence, not the generic
+    // update time. Retain them through terminal normalization; never invent
+    // historical timestamps for records that lack them.
+    ...(record.startedAt ? { startedAt: normalizeText(record.startedAt) } : {}),
+    ...(record.completedAt ? { completedAt: normalizeText(record.completedAt) } : {}),
     requestedBy: normalizeText(record.requestedBy) || 'cli',
     resultSummary: normalizeText(record.resultSummary),
     ...(String(record.id || '').startsWith('operator-http-') ? {
+      // Preserve the immutable signed command identity for completed-task
+      // retries. This private record is never mirrored to the Gun relay.
+      ...(record.operatorRequestDigest ? { operatorRequestDigest: record.operatorRequestDigest } : {}),
+      ...(record.runtimeWorkItemJson ? { runtimeWorkItemJson: record.runtimeWorkItemJson } : {}),
       resultText: String(record.resultText || '').slice(0, 24000),
       resultSummaryTruncated: record.resultSummaryTruncated === true,
       resultTruncated: record.resultTruncated === true,
