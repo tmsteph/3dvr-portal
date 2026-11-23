@@ -321,3 +321,33 @@ test('outbound revenue stages reject non-send evidence before claiming external 
     assert.equal(next.evidence.length, 1, 'a correctly typed synthetic send receipt still advances');
   }
 });
+
+
+test('revenue follow-up dates must be absolute and valid; closed leads cannot retain reminders', () => {
+  for (const invalid of ['tomorrow', '2026-11-23', '2026-11-23T18:00:00', '2026-02-30T18:00:00Z', 42]) {
+    assert.throws(() => createRevenueLeadWorkItem({
+      id: 'bad-reminder', nextFollowUpAt: invalid
+    }), /nextFollowUpAt/, String(invalid));
+  }
+
+  const waiting = createRevenueLeadWorkItem({
+    id: 'valid-reminder', stage: 'waiting_reply', state: 'waiting_external',
+    nextFollowUpAt: '2026-11-23T18:00:00Z'
+  });
+  assert.throws(() => advanceRevenueLead(waiting, 'follow_up_due', {
+    now: '2026-11-24T18:00:00Z', nextFollowUpAt: 'next week'
+  }), /nextFollowUpAt/);
+  assert.equal(waiting.metadata.nextFollowUpAt, '2026-11-23T18:00:00Z',
+    'invalid update must not mutate the source lead');
+
+  const rescheduled = advanceRevenueLead(waiting, 'follow_up_due', {
+    now: '2026-11-24T18:00:00Z', nextFollowUpAt: '2026-11-25T10:00:00-08:00'
+  });
+  assert.equal(rescheduled.metadata.nextFollowUpAt, '2026-11-25T10:00:00-08:00');
+
+  const closed = createRevenueLeadWorkItem({
+    id: 'closed-reminder', stage: 'lost',
+    nextFollowUpAt: '2026-11-25T18:00:00Z'
+  });
+  assert.equal(closed.metadata.nextFollowUpAt, null);
+});
