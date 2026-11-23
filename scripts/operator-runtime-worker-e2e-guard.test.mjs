@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const target = fileURLToPath(new URL('./operator-runtime-worker-e2e.mjs', import.meta.url));
 const spyTarget = fileURLToPath(new URL('./.operator-runtime-worker-e2e-transport-spy.mjs', import.meta.url));
+const queueSpyTarget = fileURLToPath(new URL('./.operator-runtime-worker-e2e-queue-spy.mjs', import.meta.url));
 const source = readFileSync(target, 'utf8');
 // Literal loopback peers are not sufficient if Gun can discover or join
 // additional remote peers. Enforce explicit off switches in the queue-writing
@@ -27,6 +28,13 @@ const instrumented = source.replace(
   /^const \{ default: Gun \} = await import\('gun'\);$/m,
   "const Gun = (() => { throw new Error('NETWORK_TRANSPORT_IMPORTED'); })();"
 );
+// This independent in-memory queue spy exercises the actual put() boundary.
+// No Gun package, relay socket, task store, or worker is initialized.
+const queueInstrumented = source.replace(
+  /^const \\{ default: Gun \\} = await import\\('gun'\\);$/m,
+  "const Gun = () => { const node = { get() { return this; }, on() { return this; }, put() { throw new Error('MOCK_QUEUE_PUT_ATTEMPT'); } }; return node; };"
+);
+assert.notEqual(queueInstrumented, source, 'expected queue transport interception');
 // Fail closed if a future workflow edit makes the legacy direct-Gun job runnable
 // on a PR, push, or manual dispatch. This is a static write-free safety check.
 const workflow = readFileSync(new URL('../.github/workflows/operator-runtime-worker-e2e.yml', import.meta.url), 'utf8');
@@ -66,6 +74,7 @@ const cases = [
 
 writeFileSync(spyTarget, instrumented, { flag: 'wx' });
 try {
+  writeFileSync(queueSpyTarget, queueInstrumented, { flag: 'wx' });
   for (const testCase of cases) {
     const env = {
       ...process.env,
@@ -80,6 +89,42 @@ try {
     assert.doesNotMatch(result.stdout, /E2E_ENQUEUE_ATTEMPTED=true|E2E_WRITE_RESULTS=|E2E_ENQUEUE_ACKNOWLEDGED=true/, testCase.name + ': must reject before writes');
     console.log('PASS ' + testCase.name + ' (transport not imported)');
   }
+  // Independent guard: every rejected peer must also fail before the queue's
+  // actual put() boundary. The in-memory stub never opens a network transport.
+  for (const testCase of cases) {
+    const result = spawnSync(process.execPath, [queueSpyTarget], {
+      env: {
+        ...process.env,
+        THREEDVR_GUN_PEERS: testCase.peers,
+        THREEDVR_GUN_RELAY: testCase.legacyRelay || '',
+        OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION: testCase.allowProduction || 'false'
+      },
+      encoding: 'utf8',
+      timeout: 15000
+    });
+    assert.equal(result.status, 1, testCase.name + ': queue spy expected rejection');
+    assert.match(result.stderr, new RegExp(testCase.expected), testCase.name);
+    assert.doesNotMatch(result.stderr, /MOCK_QUEUE_PUT_ATTEMPT/,
+      testCase.name + ': queue put() must not be attempted');
+  }
+  console.log('PASS all rejected relay cases before instrumented queue put()');
+
+  const queueControl = spawnSync(process.execPath, [queueSpyTarget], {
+    env: {
+      ...process.env,
+      THREEDVR_GUN_PEERS: 'http://127.0.0.1:8765/gun',
+      THREEDVR_GUN_RELAY: '',
+      OPERATOR_RUNTIME_E2E_ALLOW_PRODUCTION: 'false'
+    },
+    encoding: 'utf8',
+    timeout: 15000
+  });
+  assert.equal(queueControl.status, 1, 'isolated relay must reach mocked queue put()');
+  assert.match(queueControl.stderr, /MOCK_QUEUE_PUT_ATTEMPT/,
+    'positive control demonstrates the spy actually intercepts a queue write attempt');
+  assert.doesNotMatch(queueControl.stdout, /E2E_ENQUEUE_ACKNOWLEDGED=true/);
+  console.log('PASS isolated relay reaches in-memory queue put() spy (zero network writes)');
+
   // Positive control: prove that an isolated relay reaches the spy.
   // Gun construction is mocked to throw before any network or queue write.
   const control = spawnSync(process.execPath, [spyTarget], {
@@ -114,4 +159,5 @@ try {
   console.log('PASS IPv6 loopback reaches transport import spy (no network/queue writes)');
 } finally {
   unlinkSync(spyTarget);
+  try { unlinkSync(queueSpyTarget); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
