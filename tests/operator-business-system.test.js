@@ -280,11 +280,17 @@ test('revenue follow-ups cannot become due early or without a prior reminder', (
     now, nextFollowUpAt: '2026-11-19T18:00:00.000Z'
   }), /previously scheduled reminder/, 'a new date cannot retroactively create a due reminder');
 
-  const invalidSchedule = createRevenueLeadWorkItem({
+  // Invalid schedules are now rejected before they ever enter the queue;
+  // an already persisted legacy corrupt reminder still cannot become due.
+  assert.throws(() => createRevenueLeadWorkItem({
     id: 'followup-invalid', stage: 'waiting_reply', state: 'waiting_external',
     nextFollowUpAt: 'not-a-date'
+  }), /nextFollowUpAt/);
+  const legacyInvalidSchedule = createRevenueLeadWorkItem({
+    id: 'legacy-followup-invalid', stage: 'waiting_reply', state: 'waiting_external'
   });
-  assert.throws(() => advanceRevenueLead(invalidSchedule, 'follow_up_due', { now }), /previously scheduled reminder/);
+  legacyInvalidSchedule.metadata.nextFollowUpAt = 'not-a-date';
+  assert.throws(() => advanceRevenueLead(legacyInvalidSchedule, 'follow_up_due', { now }), /previously scheduled reminder/);
 
   const scheduled = createRevenueLeadWorkItem({
     id: 'followup-early', stage: 'waiting_reply', state: 'waiting_external',
