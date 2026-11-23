@@ -752,3 +752,36 @@ test('mailto compose-hint normalization deduplicates buyers without treating pro
   }, { now: '2026-11-23T01:01:00Z' });
   assert.equal(publicProfile.email, '', 'a URL containing @ cannot become a CRM email');
 });
+
+test('CSV contact-status assertions cannot masquerade as sent-message CRM touches', () => {
+  const lead = {
+    name: 'Synthetic Unverified Contact',
+    contact: 'hello@unverified.example.test',
+    link: 'https://unverified.example.test',
+    status: 'contacted',
+    date: '2026-11-22'
+  };
+  const withoutSend = buildCrmSyncPayload({
+    leads: [lead], outreach: [], now: '2026-11-23T12:00:00Z', includeAll: true
+  });
+  assert.equal(withoutSend.records.length, 1);
+  assert.equal(withoutSend.touches.length, 1);
+  assert.equal(withoutSend.touches[0].type, 'note',
+    'a CSV label cannot count as a provider-delivered message');
+  assert.equal(withoutSend.touches.filter(touch => touch.type === 'message').length, 0);
+
+  const withLog = buildCrmSyncPayload({
+    leads: [lead],
+    outreach: [{
+      name: lead.name, contact: lead.contact, status: 'sent', kind: 'email',
+      deliveryStatus: 'sent', messageId: 'synthetic-provider-ack-1',
+      timestamp: '2026-11-22T12:00:00Z'
+    }],
+    now: '2026-11-23T12:00:00Z', includeAll: true
+  });
+  assert.equal(withLog.touches.length, 2);
+  assert.equal(withLog.touches.filter(touch => touch.type === 'note').length, 1,
+    'source CSV remains a note even after an outbound-log event exists');
+  assert.equal(withLog.touches.filter(touch => touch.type === 'message').length, 1);
+  assert.equal(withLog.touches.filter(touch => touch.touchType === 'outreach-sent').length, 1);
+});
