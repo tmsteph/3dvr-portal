@@ -33,6 +33,10 @@ npm run dev
 
 Run the checks with `npm test` (portal), `npm run test:agent` (agent), `npm run test:computing` (computing), or `npm run test:all` for everything.
 
+## Organize your private files
+
+On Linux or macOS, run `python3 scripts/init-private-workspace.py ~/Life` from this checkout. Choose a destination outside Git under an existing parent directory. The command creates owner-only `Personal/`, `Family/`, `3DVR/Clients/`, and `Archive/` folders. Reruns preserve files. If it encounters a permissions or path conflict, it stops and reports the problem. Folders already created stay in place.
+
 ## Where the build is
 
 Operator is the active focus. The safety core (policy, approvals, receipts) is merged, along with the model router and the planner. In progress now: persistent memory, a tool bridge (files, mail, calendar, browser), an approval UI, and speed work. The execution layer lives in [`apps/agent`](apps/agent/README.md), the shared safety core in [`operator-core`](operator-core/README.md), and the Android control plane in [`apps/companion`](apps/companion/README.md).
