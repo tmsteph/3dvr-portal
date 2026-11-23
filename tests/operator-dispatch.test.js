@@ -463,6 +463,13 @@ test('signed Operator task is actually claimed and completed by the private SQLi
     assert.equal(completed.statusCode, 200);
     assert.equal(completed.data.record.status, 'completed');
     assert.equal(completed.data.record.workerDeviceId, 'ci-isolated-private-worker');
+    const persisted = JSON.parse(db.prepare('SELECT record_json FROM tasks WHERE id=?').get(id).record_json);
+    assert.ok(Number.isFinite(Date.parse(persisted.startedAt)), 'worker persisted start time');
+    assert.ok(Number.isFinite(Date.parse(persisted.completedAt)), 'worker persisted completion time');
+    assert.ok(Date.parse(persisted.completedAt) >= Date.parse(persisted.startedAt));
+    assert.equal(completed.data.record.startedAt, persisted.startedAt);
+    assert.equal(completed.data.record.completedAt, persisted.completedAt,
+      'signed status must expose the actual worker completion timestamp, not an inferred update time');
     assert.equal(completed.data.record.resultSummary, '42 (synthetic executor)');
     assert.equal(completed.data.record.resultText, '42 (synthetic executor)');
     assert.equal(await runPrivateWorkerOnce(isolatedWorkerQueue), 0,
