@@ -37,6 +37,23 @@ function normalizeRelationship(value) {
   return ['fresh', 'known', 'unknown'].includes(value) ? value : 'unknown';
 }
 
+// Follow-up dates are durable workflow instructions, not arbitrary CRM notes.
+// Reject ambiguous local dates, invalid calendar days and non-date values
+// before they can enter a queue or create phantom overdue reminders.
+function checkedFollowUpAt(value) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string'
+    || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/.test(value)
+    || !Number.isFinite(Date.parse(value))) {
+    throw new TypeError('nextFollowUpAt requires a timezone-qualified ISO timestamp');
+  }
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) {
+    throw new TypeError('nextFollowUpAt is not a real calendar date');
+  }
+  return value;
+}
+
 export function getOutboundDecision({
   relationship = 'unknown',
   channel = 'email',
@@ -115,7 +132,7 @@ export function createRevenueLeadWorkItem(input = {}) {
       leadName: leadName || null,
       relationship: normalizeRelationship(input.relationship),
       campaign: input.campaign || null,
-      nextFollowUpAt: input.nextFollowUpAt || null
+      nextFollowUpAt: stage === 'lost' ? null : checkedFollowUpAt(input.nextFollowUpAt)
     }
   });
 }
@@ -201,7 +218,7 @@ export function advanceRevenueLead(item, event, options = {}) {
   const nextFollowUpAt = ['won', 'lost'].includes(nextStage)
     ? null
     : Object.hasOwn(options, 'nextFollowUpAt')
-      ? options.nextFollowUpAt
+      ? checkedFollowUpAt(options.nextFollowUpAt)
       : ['reply_received', 'follow_up_due', 'follow_up_sent'].includes(event)
         ? null
         : item.metadata?.nextFollowUpAt ?? null;
