@@ -31,6 +31,36 @@ test('revenue CRM retains the public source and clears stale follow-up on suppre
     'a projected reply must not erase a human-scheduled CRM follow-up');
 });
 
+test('legacy imported send and reply labels do not become verified warm CRM leads', () => {
+  const prospect = {
+    id: 'historical-signal', name: 'Historical Buyer',
+    contact: 'buyer@example.test', source_url: 'https://example.test/old-lead',
+    state: 'sent', campaign_id: 'legacy', created_at: '2026-01-01T00:00:00Z'
+  };
+  const event = {
+    id: 'historical-import', type: 'legacy_import',
+    from_state: 'prospect', to_state: 'sent', created_at: '2026-01-02T00:00:00Z'
+  };
+  for (const state of ['sent', 'replied']) {
+    const record = recordFor({ ...prospect, state }, { ...event, to_state: state },
+      '2026-11-22T20:00:00Z');
+    assert.equal(record.canonicalState, state, 'preserve original import for reconciliation');
+    assert.equal(record.status, 'Lead', 'unverified history cannot count as contacted or warm');
+    assert.equal(record.nextFollowUp, '', 'an imported claim must never preserve an automatic reminder');
+    assert.match(record.lastSignal, /Legacy contact\/reply unverified by provider receipt/);
+    assert.match(record.nextBestAction, /Reconcile manually; do not send or schedule a follow-up/);
+    assert.equal(record.lastPaymentAmountCents, undefined);
+  }
+  const actualSend = recordFor(prospect, { ...event, type: 'delivery_acknowledged' },
+    '2026-11-22T20:00:00Z');
+  assert.equal(actualSend.status, 'Warm - Waiting',
+    'existing attributed send classifications stay unchanged');
+  const suppression = recordFor({ ...prospect, state: 'suppressed' },
+    { ...event, to_state: 'suppressed' }, '2026-11-22T20:00:00Z');
+  assert.equal(suppression.status, 'Closed', 'never loosen historical opt-out safety');
+  assert.equal(suppression.nextFollowUp, '');
+});
+
 test('CRM projection does not turn profile URLs or social handles into email addresses', () => {
   const prospect = {
     id: 'synthetic-public-profile', name: 'Public Profile Buyer',
