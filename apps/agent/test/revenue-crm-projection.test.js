@@ -150,9 +150,45 @@ test('ambiguous send failure stays a reviewable lead rather than a lost sale', (
   assert.match(record.nextBestAction, /do not retry or follow up automatically/);
   assert.equal(record.nextFollowUp, undefined, 'keep any human-scheduled review');
   assert.equal(record.lastPaymentAmountCents, undefined);
-  const genuinelyBounced = recordFor({ ...prospect, state: 'bounced' }, event, '2026-11-21T20:03:00Z');
-  assert.equal(genuinelyBounced.status, 'Lost', 'an attributable bounce remains lost');
-  assert.equal(genuinelyBounced.nextFollowUp, '', 'a bounce clears stale outreach reminders');
+  const claimedBounce = recordFor({ ...prospect, state: 'bounced' }, event, '2026-11-21T20:03:00Z');
+  assert.equal(claimedBounce.status, 'Lead', 'unverified bounce labels must not count as lost deals');
+  assert.equal(claimedBounce.nextFollowUp, '', 'a claimed bounce still blocks outreach reminders');
+  assert.match(claimedBounce.lastSignal, /Bounce status unverified by authenticated provider event/);
+  assert.match(claimedBounce.nextBestAction, /Do not contact, retry or mark lost/);
+});
+
+test('state-only bounce cannot create a lost CRM conversion in the canonical outbox', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-bounce-integrity-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, {
+      name: 'Synthetic Bounce Buyer', contact: 'bounce-synthetic@example.test',
+      sourceUrl: 'https://example.test/source'
+    }).prospect;
+    for (const state of ['verified', 'eligible', 'sent', 'bounced']) {
+      transitionProspect(db, {
+        prospectId: buyer.id, toState: state, type: 'state_transition',
+        idempotencyKey: `synthetic-bounce-${state}`
+      });
+    }
+    const projected = [];
+    for (let i = 0; i < 4; i += 1) {
+      const result = await projectPendingCrm(db, {
+        write: async payload => {
+          projected.push(payload.records[0]);
+          return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+        }
+      });
+      assert.equal(result.succeeded, 1);
+    }
+    const final = projected.at(-1);
+    assert.equal(final.canonicalState, 'bounced', 'preserve canonical history for review');
+    assert.equal(final.status, 'Lead', 'a bounce label with no provider evidence is not a lost sale');
+    assert.equal(final.nextFollowUp, '', 'no automatic contact after a claimed bounce');
+    assert.match(final.lastSignal, /Bounce status unverified by authenticated provider event/);
+    assert.match(final.nextBestAction, /reconciles the provider event/);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
 test('CRM projection retries a timeout and completes idempotently', async () => {
