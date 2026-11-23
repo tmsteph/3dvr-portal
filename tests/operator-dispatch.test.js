@@ -487,6 +487,103 @@ test('signed Operator task is actually claimed and completed by the private SQLi
     assert.equal(syntheticExecutions, 1, 'model executor is invoked only once');
     assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 1);
 
+    // Join the two previously separate acceptance fixtures. The actual signed
+    // dispatch and private worker now invoke the actual revenue-ledger/outbox
+    // orchestration from a deterministic executor stub. The CRM adapter remains
+    // a local SQLite test double, not the production Gun relay.
+    const { openLedger, createProspect, transitionProspect, pendingProjections } =
+      require('../apps/agent/thomas-agent/node/revenue-ledger.js');
+    const { projectPendingCrm } = require('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
+    const provenance = 'signed-crm-canary-20261123';
+    const sourceUrl = 'https://example.test/' + provenance;
+    const prospectRequest = { action: 'enqueue', requestId: provenance,
+      text: 'Record synthetic research only: ' + sourceUrl + '. No outreach or external changes.',
+      title: 'Synthetic CRM research acceptance' };
+    const ledgerFile = join(dir, 'revenue-ledger-fixture.sqlite');
+    const crmFile = join(dir, 'crm-readback-fixture.sqlite');
+    const crmDb = new DatabaseSync(crmFile);
+    crmDb.exec('CREATE TABLE records(id TEXT PRIMARY KEY, json TEXT NOT NULL); CREATE TABLE touches(id TEXT PRIMARY KEY, json TEXT NOT NULL);');
+    let projectionWrites = 0;
+    let crmExecutions = 0;
+    let expectedEventId;
+    try {
+      const prospectAccepted = await request(handler, prospectRequest);
+      assert.equal(prospectAccepted.statusCode, 202);
+      const prospectTaskId = prospectAccepted.data.record.id;
+      const crmWorkerQueue = {
+        ...isolatedWorkerQueue,
+        runQueuedTask: (record, options) => workerQueue.runQueuedTask(record, {
+          ...options, ...workerOptions,
+          runAgentTaskImpl: async args => {
+            crmExecutions++;
+            assert.equal(record.id, prospectTaskId);
+            assert.equal(args.at(-1), prospectRequest.text);
+            const ledger = openLedger({ filePath: ledgerFile });
+            try {
+              const lead = createProspect(ledger, {
+                name: 'Synthetic buyer', sourceUrl, campaignId: 'no-send-acceptance'
+              }).prospect;
+              const transition = {
+                prospectId: lead.id, toState: 'verified', type: 'research_verified',
+                idempotencyKey: provenance, payload: { sourceUrl, operatorTaskId: record.id }
+              };
+              expectedEventId = transitionProspect(ledger, transition).event.id;
+              const write = async ({ records, touches }) => {
+                projectionWrites++;
+                for (const [table, rows] of [['records', records], ['touches', touches]]) {
+                  const put = crmDb.prepare('INSERT INTO ' + table + ' VALUES (?,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json');
+                  for (const item of rows) put.run(item.id, JSON.stringify(item));
+                }
+                return { records: records.length, touches: touches.length, errors: [] };
+              };
+              const projected = await projectPendingCrm(ledger, { isolated: true, write });
+              assert.equal(projected.succeeded, 1);
+              assert.equal(projected.failed, 0);
+              assert.equal(transitionProspect(ledger, transition).replayed, true);
+              assert.equal((await projectPendingCrm(ledger, { isolated: true, write })).attempted, 0);
+              assert.equal(pendingProjections(ledger).length, 0);
+              assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+              return { ok: true, result: { stdout: JSON.stringify({ provenance, eventId: expectedEventId, crm: 'sqlite-fixture', sends: 0 }) } };
+            } finally { ledger.close(); }
+          },
+        }),
+      };
+      assert.equal(await runPrivateWorkerOnce(crmWorkerQueue), 1);
+      const done = await request(handler, { action: 'status', requestId: provenance });
+      assert.equal(done.statusCode, 200);
+      assert.equal(done.data.record.status, 'completed');
+      assert.equal(done.data.record.workerDeviceId, workerOptions.deviceId);
+      assert.ok(Number.isFinite(Date.parse(done.data.record.completedAt)));
+      assert.deepEqual(JSON.parse(done.data.record.resultText), {
+        provenance, eventId: expectedEventId, crm: 'sqlite-fixture', sends: 0
+      });
+      assert.equal((await request(handler, prospectRequest)).data.record.status, 'completed');
+      assert.equal(await runPrivateWorkerOnce(crmWorkerQueue), 0);
+      assert.equal(crmExecutions, 1);
+      assert.equal(projectionWrites, 1);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE id=?').get(prospectTaskId).n, 1);
+    } finally { crmDb.close(); }
+    // Independently reopen the scratch CRM store after the writer closes.
+    // Do not infer durable state solely from the executor's success receipt.
+    const crmReader = new DatabaseSync(crmFile, { readOnly: true });
+    try {
+      const records = crmReader.prepare('SELECT json FROM records').all();
+      const touches = crmReader.prepare('SELECT json FROM touches').all();
+      assert.equal(records.length, 1);
+      assert.equal(touches.length, 1);
+      const saved = JSON.parse(records[0].json);
+      const touch = JSON.parse(touches[0].json);
+      assert.equal(saved.sourceUrl, sourceUrl);
+      assert.equal(saved.canonicalEventId, expectedEventId);
+      assert.equal(saved.canonicalState, 'verified');
+      assert.equal(saved.status, 'Lead');
+      assert.equal(saved.email, '');
+      assert.equal(saved.nextFollowUp, undefined);
+      assert.equal(saved.lastPaymentAmountCents, undefined);
+      assert.equal(touch.crmRecordId, saved.id);
+      assert.equal(touch.touchType, 'research_verified');
+    } finally { crmReader.close(); }
+
   } finally {
     db.close();
     await rm(dir, { recursive: true, force: true });
