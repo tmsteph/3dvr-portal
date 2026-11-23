@@ -710,3 +710,45 @@ test('colliding legacy CRM slugs quarantine different buyer identities and their
   assert.equal(payload.touches.length, 1, 'no colliding buyer can acquire the other buyer\'s touch history');
   assert.equal(payload.records[0].status, 'Lead', 'unrelated buyer can still be imported');
 });
+
+
+test('mailto compose-hint normalization deduplicates buyers without treating profile URLs as email', () => {
+  assert.equal(normalizeEmail('mailto:Buyer+trial@Example.test?subject=Hello&body=Draft'),
+    'buyer+trial@example.test', 'compose metadata cannot become an email address');
+  assert.equal(normalizeEmail('buyer+trial@example.test'), 'buyer+trial@example.test');
+  assert.equal(normalizeEmail('buyer@example.test?subject=Hello'), '',
+    'a raw address with query parameters is not a valid recipient');
+  for (const profile of [
+    'https://buyer@example.test/profile',
+    'https://buyer@example.test/path?topic=hello',
+    'user@example.test/path',
+    'https://@example.test/profile'
+  ]) {
+    assert.equal(normalizeEmail(profile), '', 'public profile URLs are not deliverable email: ' + profile);
+  }
+
+  const buyer = {
+    name: 'Synthetic Compose Buyer', link: 'https://example.test/request',
+    contact: 'mailto:buyer+trial@example.test?subject=Hello',
+    status: 'new', date: '2026-11-22'
+  };
+  const payload = buildCrmSyncPayload({
+    leads: [buyer, { ...buyer, contact: 'Buyer+trial@Example.test', date: '2026-11-23' }],
+    outreach: [{
+      name: buyer.name, contact: 'mailto:buyer+trial@example.test?body=Unsent',
+      status: 'draft', kind: 'email', timestamp: '2026-11-23T01:00:00Z'
+    }],
+    includeAll: true, now: '2026-11-23T01:01:00Z'
+  });
+  assert.equal(payload.records.length, 1, 'one buyer with mailto and plain email is one CRM identity');
+  assert.equal(payload.records[0].email, 'buyer+trial@example.test');
+  assert.equal(payload.records[0].status, 'Lead', 'an unsent draft cannot imply contact');
+  assert.equal(payload.touches.length, 2, 'deduplicated buyer plus one attributable unsent draft');
+  assert.equal(payload.touches.filter(t => t.touchType === 'outreach-sent').length, 0);
+
+  const publicProfile = buildCrmRecord({
+    name: 'Public Profile', link: 'https://example.test/profile',
+    contact: 'https://member@example.test/profile', status: 'new'
+  }, { now: '2026-11-23T01:01:00Z' });
+  assert.equal(publicProfile.email, '', 'a URL containing @ cannot become a CRM email');
+});
