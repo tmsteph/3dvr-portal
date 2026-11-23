@@ -23,6 +23,11 @@ concurrency:
 
 jobs:
   fulfill:
+    # The self-hosted inbox worker owns fulfillment. The Actions cache is not
+    # a shared claim or delivery ledger; even manual/dispatch runs must not
+    # publish or send mail until an approved, reconciled ownership handoff.
+    # Keep this job definition for review, but fail closed on every trigger.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
