@@ -62,13 +62,17 @@ function emailForContact(contact) {
   return /^[^\s@/:?#<>]+@[^\s@/:?#<>]+\.[^\s@/:?#<>]+$/.test(candidate) ? candidate : '';
 }
 
-function recordFor(prospect, event, now) {
+function recordFor(prospect, event, now, { acknowledgedDelivery = false } = {}) {
   const paymentReceipt = paymentReceiptFor(event);
-  // Legacy CSV/NDJSON statuses are historical claims, not provider-attributed
-  // send or reply receipts. Do not count these as contacted/warm leads.
-  const unverifiedLegacyContact = event.type === 'legacy_import'
-    && ['sent', 'replied'].includes(prospect.state);
-  const crmStatus = paymentReceipt ? 'Paid Customer' : unverifiedLegacyContact ? 'Lead' : ({
+  // A current "sent" or "replied" label alone cannot prove a customer was
+  // contacted. Confirm an acknowledged delivery attempt in this prospect's
+  // ledger AND the corresponding event kind before projecting a warm lead.
+  // The ledger receipt is still not cryptographic provider verification.
+  const verifiedContact = acknowledgedDelivery === true
+    && (prospect.state === 'sent' && event.type === 'delivery_acknowledged'
+      || prospect.state === 'replied' && event.type === 'inbox_replied');
+  const unverifiedContact = ['sent', 'replied'].includes(prospect.state) && !verifiedContact;
+  const crmStatus = paymentReceipt ? 'Paid Customer' : unverifiedContact ? 'Lead' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
     sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     // A failed or ambiguous send is not evidence that the buyer was lost.
@@ -77,8 +81,8 @@ function recordFor(prospect, event, now) {
   }[prospect.state] || 'Lead');
   const nextBestAction = paymentReceipt
     ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
-    : unverifiedLegacyContact
-      ? 'Historical import claims prior contact without a provider receipt. Reconcile manually; do not send or schedule a follow-up automatically.'
+    : unverifiedContact
+      ? 'Contact/reply status lacks a matched acknowledged delivery event. Reconcile manually; do not send or schedule a follow-up automatically.'
     : ({
       sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
       replied: 'Continue discovery from the customer reply.',
@@ -104,12 +108,12 @@ function recordFor(prospect, event, now) {
     sourceUrl: prospect.source_url || '',
     lastSignal: paymentSignal || [
       `Canonical revenue state: ${prospect.state}`,
-      unverifiedLegacyContact ? 'Legacy contact/reply unverified by provider receipt' : '',
+      unverifiedContact ? 'Contact/reply unverified by acknowledged delivery event' : '',
       prospect.source_url ? `Source: ${prospect.source_url}` : '',
     ].filter(Boolean).join(' | '),
     // Only blocked/no-follow-up states clear obsolete reminders. Preserve a
     // human-scheduled discovery follow-up on an open/replied CRM record.
-    ...(['sent', 'bounced', 'suppressed'].includes(prospect.state) || unverifiedLegacyContact
+    ...(['sent', 'bounced', 'suppressed'].includes(prospect.state) || unverifiedContact
       ? { nextFollowUp: '' } : {}),
     nextBestAction,
     created: prospect.created_at,
@@ -202,8 +206,13 @@ async function projectPendingCrm(db, options = {}) {
         throw new Error('CRM projection ID collision across distinct prospects; manual reconciliation required');
       }
       const now = new Date().toISOString();
+      // This is a local canonical-ledger check, not a remote/provider receipt.
+      // Missing/failed/ambiguous attempts must not inflate the warm funnel.
+      const acknowledgedDelivery = Boolean(db.prepare(`SELECT 1 FROM delivery_attempts
+        WHERE prospect_id = ? AND status = 'acknowledged'
+          AND message_id != '' AND transport != '' LIMIT 1`).get(prospect.id));
       const payload = {
-        records: [recordFor(prospect, event, now)],
+        records: [recordFor(prospect, event, now, { acknowledgedDelivery })],
         touches: [touchFor(prospect, event, now)],
       };
       const response = await write(payload, writeOptions);
