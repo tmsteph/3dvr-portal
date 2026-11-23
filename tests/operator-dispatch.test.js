@@ -118,9 +118,21 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.notEqual(digestConflict.status,0,'same task and title but different signed command must be rejected');
     assert.match(digestConflict.stderr,/Task identity conflict/);
     assert.equal(db.prepare('SELECT count(*) n FROM tasks WHERE id=?').get(digestRecord.id).n,1);
+    // A legacy or partially-written terminal row must not be represented as
+    // a verified worker completion. Both signed status and enqueue replay fail.
+    db.prepare('UPDATE tasks SET status=? WHERE id=?').run('completed',record.id);
+    const unattributedStatus = invoke({action:'status',id:record.id,prefix:input.prefix});
+    assert.notEqual(unattributedStatus.status,0);
+    assert.match(unattributedStatus.stderr,/Unattributed task completion/);
+    const unattributedRetry = invoke(input);
+    assert.notEqual(unattributedRetry.status,0);
+    assert.match(unattributedRetry.stderr,/Unattributed task completion/);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks WHERE id=?').get(record.id).n,1);
+
     const fullText = 'complete output '.repeat(500);
     db.prepare('UPDATE tasks SET status=?,record_json=? WHERE id=?').run('completed', JSON.stringify({
-      ...record, resultSummary: fullText.slice(0,2000), resultText: fullText,
+      ...record, workerDeviceId: 'synthetic-attributed-worker',
+      resultSummary: fullText.slice(0,2000), resultText: fullText,
       resultSummaryTruncated: true, resultTruncated: false
     }), record.id);
     const saved = JSON.parse(invoke({action:'status',id:record.id,prefix:input.prefix}).stdout).record;
