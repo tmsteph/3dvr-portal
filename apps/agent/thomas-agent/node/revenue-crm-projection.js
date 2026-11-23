@@ -72,13 +72,16 @@ function recordFor(prospect, event, now, { acknowledgedDelivery = false } = {}) 
     && (prospect.state === 'sent' && event.type === 'delivery_acknowledged'
       || prospect.state === 'replied' && event.type === 'inbox_replied');
   const unverifiedContact = ['sent', 'replied'].includes(prospect.state) && !verifiedContact;
-  // A generic ledger caller can label a lead bounced without a provider
-  // callback. Until a trusted bounce adapter exists, never convert that
-  // unverified label into a lost deal in the Operator sales funnel.
-  const unverifiedBounce = prospect.state === 'bounced';
+  // A generic ledger caller can label a lead bounced without a delivery
+  // notice. Only the correlated inbox bounce event plus a same-lead delivery
+  // acknowledgement may classify it as Lost. The inbox adapter validates
+  // provider/thread linkage; this projection does not authenticate providers.
+  const verifiedBounce = prospect.state === 'bounced' && event.type === 'inbox_bounced'
+    && acknowledgedDelivery === true;
+  const unverifiedBounce = prospect.state === 'bounced' && !verifiedBounce;
   const crmStatus = paymentReceipt ? 'Paid Customer' : (unverifiedContact || unverifiedBounce) ? 'Lead' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
-    sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lead',
+    sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     // A failed or ambiguous send is not evidence that the buyer was lost.
     // Some transports may have delivered before acknowledgement failed.
     failed: 'Lead', suppressed: 'Closed',
