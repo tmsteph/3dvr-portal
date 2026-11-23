@@ -260,6 +260,39 @@ test('native SQLite terminal tasks mirror to GUN without exposing active states'
   assert.equal((await readTask('native-task', gunOptions)).status, 'completed');
 });
 
+
+test('SQLite terminal mirroring skips identical relay copies but repairs divergent records', async (t) => {
+  const rootNode = fakeRoot();
+  const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
+  const options = await queueOptions(t, {
+    ...gunOptions,
+    queueStore: 'sqlite',
+    workerCapabilities: 'openai',
+    runAgentTaskImpl: async () => ({ ok: true, result: { stdout: 'mirrored once' } }),
+  });
+  await enqueueTask('safe local task', { ...options, id: 'mirror-once', backend: 'openai' });
+  await runWorkerOnce(options);
+  const first = await readTask('mirror-once', gunOptions);
+  assert.equal(first.status, 'completed');
+
+  let queueWrites = 0;
+  const originalSet = rootNode.store.set.bind(rootNode.store);
+  rootNode.store.set = (key, value) => {
+    if (String(key).includes('/taskQueue/')) queueWrites += 1;
+    return originalSet(key, value);
+  };
+  await runWorkerOnce(options);
+  assert.equal(queueWrites, 0, 'a second poll must not resend an unchanged terminal record');
+
+  // An equal-timestamp but divergent relay copy must still be repaired, not
+  // mistaken for a previously mirrored terminal result.
+  const remotePath = `${gunOptions.ownerAlias}/taskQueue/tasks/mirror-once`;
+  originalSet(remotePath, { ...first, resultSummary: 'stale relay result' });
+  await runWorkerOnce(options);
+  assert.equal(queueWrites, 2, 'repair the task record and latest summary once');
+  assert.equal((await readTask('mirror-once', gunOptions)).resultSummary, first.resultSummary);
+});
+
 test('GUN-only import does not load node:sqlite', () => {
   const queueModule = path.join(__dirname, '..', 'thomas-agent', 'node', 'agent-task-queue.js');
   const script = `
