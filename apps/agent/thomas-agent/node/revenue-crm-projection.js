@@ -64,7 +64,11 @@ function emailForContact(contact) {
 
 function recordFor(prospect, event, now) {
   const paymentReceipt = paymentReceiptFor(event);
-  const crmStatus = paymentReceipt ? 'Paid Customer' : ({
+  // Legacy CSV/NDJSON statuses are historical claims, not provider-attributed
+  // send or reply receipts. Do not count these as contacted/warm leads.
+  const unverifiedLegacyContact = event.type === 'legacy_import'
+    && ['sent', 'replied'].includes(prospect.state);
+  const crmStatus = paymentReceipt ? 'Paid Customer' : unverifiedLegacyContact ? 'Lead' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
     sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     // A failed or ambiguous send is not evidence that the buyer was lost.
@@ -73,6 +77,8 @@ function recordFor(prospect, event, now) {
   }[prospect.state] || 'Lead');
   const nextBestAction = paymentReceipt
     ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
+    : unverifiedLegacyContact
+      ? 'Historical import claims prior contact without a provider receipt. Reconcile manually; do not send or schedule a follow-up automatically.'
     : ({
       sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
       replied: 'Continue discovery from the customer reply.',
@@ -98,11 +104,13 @@ function recordFor(prospect, event, now) {
     sourceUrl: prospect.source_url || '',
     lastSignal: paymentSignal || [
       `Canonical revenue state: ${prospect.state}`,
+      unverifiedLegacyContact ? 'Legacy contact/reply unverified by provider receipt' : '',
       prospect.source_url ? `Source: ${prospect.source_url}` : '',
     ].filter(Boolean).join(' | '),
     // Only blocked/no-follow-up states clear obsolete reminders. Preserve a
     // human-scheduled discovery follow-up on an open/replied CRM record.
-    ...(['sent', 'bounced', 'suppressed'].includes(prospect.state) ? { nextFollowUp: '' } : {}),
+    ...(['sent', 'bounced', 'suppressed'].includes(prospect.state) || unverifiedLegacyContact
+      ? { nextFollowUp: '' } : {}),
     nextBestAction,
     created: prospect.created_at,
     updated: now,
