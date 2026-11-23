@@ -55,7 +55,10 @@ export function workerIsStale(worker, options = {}) {
   const staleAfterMs = Number.isFinite(options.staleAfterMs) && options.staleAfterMs > 0
     ? options.staleAfterMs
     : 5 * 60_000;
-  return now - heartbeat > staleAfterMs;
+  // A clock error or forged future timestamp must not keep a missing worker
+  // eligible indefinitely. Permit ordinary small host-to-host clock skew.
+  const futureSkewToleranceMs = 60_000;
+  return now - heartbeat > staleAfterMs || heartbeat - now > futureSkewToleranceMs;
 }
 
 export function touchWorkerHeartbeat(worker, options = {}) {
