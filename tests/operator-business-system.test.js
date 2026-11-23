@@ -57,6 +57,37 @@ test('worker registry selects only workers with capacity and capabilities', () =
   assert.deepEqual(findEligibleWorkers(workers, item).map(worker => worker.id), ['research-1']);
 });
 
+test('worker registry never schedules non-queueable work for a second execution', () => {
+  const worker = createWorker({
+    id: 'read-worker',
+    name: 'Read Worker',
+    class: 'read',
+    capabilities: ['crm-read']
+  });
+  for (const state of ['running', 'waiting_human', 'waiting_external',
+    'blocked', 'verifying', 'done', 'failed', 'cancelled']) {
+    const item = createWorkItem({
+      id: `synthetic-${state}`,
+      title: 'Synthetic CRM task',
+      domain: 'revenue',
+      state,
+      requiredCapabilities: ['crm-read']
+    });
+    assert.deepEqual(findEligibleWorkers([worker], item), [], `${state} work must not be leased again`);
+  }
+  for (const state of ['queued', 'ready']) {
+    const item = createWorkItem({
+      id: `synthetic-${state}`,
+      title: 'Synthetic CRM task',
+      domain: 'revenue',
+      state,
+      requiredCapabilities: ['crm-read']
+    });
+    assert.deepEqual(findEligibleWorkers([worker], item).map(item => item.id),
+      ['read-worker'], `${state} work remains eligible`);
+  }
+});
+
 test('worker registry refuses only explicitly blocked kernel-policy work', () => {
   const worker = createWorker({
     id: 'action-1',
