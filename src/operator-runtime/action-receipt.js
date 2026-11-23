@@ -98,6 +98,14 @@ export function createActionReceipt(input = {}) {
 
 export function actionReceiptFromRuntimeRecord(record = {}, context = {}) {
   const actionId = text(context.actionId || record.id || record.requestId, 240);
+  const rawStatus = record.status || record.state || record.runtimeState || context.status || 'queued';
+  // The private signed Operator queue only proves completion when the actual
+  // worker has attributed it. A stale/legacy terminal label is not a receipt,
+  // even when an old sidecar claims "verified".
+  const privateOperator = record.source === 'operator-http' || /^operator-http[:-]/.test(actionId);
+  const terminalSuccess = ['completed', 'complete', 'done', 'success', 'succeeded']
+    .includes(text(rawStatus, 80).toLowerCase());
+  const missingWorker = privateOperator && terminalSuccess && !text(record.workerDeviceId, 240);
   return createActionReceipt({
     actionId,
     kind: context.kind || record.kind,
@@ -106,12 +114,14 @@ export function actionReceiptFromRuntimeRecord(record = {}, context = {}) {
     intent: context.intent || record.intent || record.task || '',
     domain: context.domain || record.domain || 'operator',
     workflow: context.workflow || record.workflow || context.kind || '',
-    status: record.status || record.state || record.runtimeState || context.status || 'queued',
-    verificationStatus: record.verificationStatus || record.runtimeVerificationStatus || context.verificationStatus,
+    status: missingWorker ? 'verifying' : rawStatus,
+    verificationStatus: missingWorker ? 'unknown' : record.verificationStatus || record.runtimeVerificationStatus || context.verificationStatus,
     actor: record.requestedBy || context.actor,
-    workerId: record.workerDeviceId || context.workerId,
+    workerId: missingWorker ? '' : record.workerDeviceId || context.workerId,
     workerLane: record.workerLane || context.workerLane,
-    resultSummary: record.resultSummary || context.resultSummary,
+    resultSummary: missingWorker
+      ? 'Unverified Operator completion: missing worker identity; manual reconciliation required.'
+      : record.resultSummary || context.resultSummary,
     error: record.error || context.error,
     url: context.url || record.url,
     evidence: record.evidence || context.evidence || [],
@@ -123,7 +133,8 @@ export function actionReceiptFromRuntimeRecord(record = {}, context = {}) {
       ...(context.metadata || {}),
       runtimeVersion: record.runtimeVersion || '',
       riskClass: record.riskClass || '',
-      approvalStatus: record.approvalStatus || ''
+      approvalStatus: record.approvalStatus || '',
+      ...(missingWorker ? { originalQueueStatus: text(rawStatus, 80) } : {})
     }
   });
 }
