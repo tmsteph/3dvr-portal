@@ -55,6 +55,17 @@ function resultSummary(result) {
   return '';
 }
 
+// A worker-supplied status string alone is not a verified signed Operator
+// completion. Keep unattributed legacy/partial rows out of Workboard's Done
+// lane while preserving the underlying queue record for reconciliation.
+function missingOperatorWorkerAttribution(record = {}) {
+  const status = text(record.status, 80).toLowerCase().replace(/[\\s-]+/g, '_');
+  const signedOperatorRecord = record.source === 'operator-http'
+    || text(record.id, 240).startsWith('operator-http-');
+  return signedOperatorRecord && ['completed', 'complete', 'done', 'success', 'succeeded'].includes(status)
+    && !text(record.workerDeviceId, 200);
+}
+
 function checkpointStatus(checkpoint) {
   if (!checkpoint) return 'not_required';
   if (typeof checkpoint === 'string') return text(checkpoint, 80) || 'required';
@@ -74,6 +85,7 @@ export function queueStatusFromWorkItemState(state = 'queued') {
 }
 
 export function workItemStateFromQueueRecord(record = {}) {
+  if (missingOperatorWorkerAttribution(record)) return 'verifying';
   const status = text(record.status, 80).toLowerCase().replace(/[\s-]+/g, '_');
   if (status && status !== 'queued') return QUEUE_STATUS_TO_STATE[status] || text(record.runtimeState, 80) || 'queued';
   return text(record.runtimeState, 80) || QUEUE_STATUS_TO_STATE[status] || 'queued';
@@ -189,12 +201,14 @@ export function queueRecordToWorkItem(record = {}) {
     id: text(record.id, 240) || source.id,
     state: workItemStateFromQueueRecord(record),
     updatedAt: text(record.updatedAt, 80) || source.updatedAt,
-    result: record.resultSummary || source.result || null,
+    result: missingOperatorWorkerAttribution(record) ? null : record.resultSummary || source.result || null,
     metadata: {
       ...(source.metadata || {}),
       queueStatus: text(record.status, 80),
       workerLane: text(record.workerLane, 120) || source.metadata?.workerLane || '',
-      verificationStatus: text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
+      verificationStatus: missingOperatorWorkerAttribution(record)
+        ? 'missing_worker_attribution'
+        : text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
       humanCheckpointStatus: text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required',
       evidenceCount: Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0,
       workerDeviceId: text(record.workerDeviceId, 200)
@@ -222,6 +236,8 @@ export function normalizeQueueRecordForWorkboard(record = {}) {
     runtimeVersion: text(record.runtimeVersion, 80),
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
-    resultSummary: text(record.resultSummary, 2000) || resultSummary(item.result)
+    resultSummary: missingOperatorWorkerAttribution(record)
+      ? 'Completion is unverified: no worker identity; manual reconciliation required.'
+      : text(record.resultSummary, 2000) || resultSummary(item.result)
   };
 }
