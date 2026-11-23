@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
+const { ensureState, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
 
 const FORM_BOILERPLATE = [
   'I want a free live one-page website on a 3DVR-hosted address.',
@@ -97,4 +97,30 @@ test('free-site request email trusts Reply-To only for the configured mailbox', 
     from: [{ address: mailbox }],
     replyTo: [],
   }, mailbox), '');
+});
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+test('fulfillment state initializes once and preserves completed requests', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'free-site-state-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const stateFile = path.join(dir, 'state.json');
+  const initial = ensureState(stateFile);
+  assert.equal(initial.version, 1);
+  initial.messages['fake-request'] = { status: 'processed' };
+  fs.writeFileSync(stateFile, JSON.stringify(initial));
+  assert.deepEqual(ensureState(stateFile), initial);
+});
+
+test('corrupt or incomplete fulfillment state fails closed without replacing history', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'free-site-state-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const stateFile = path.join(dir, 'state.json');
+  for (const content of ['{truncated', '{}', '{"version":1,"bootstrapAt":"2026-11-23T00:00:00Z","messages":[]}']) {
+    fs.writeFileSync(stateFile, content);
+    assert.throws(() => ensureState(stateFile));
+    assert.equal(fs.readFileSync(stateFile, 'utf8'), content);
+  }
 });
