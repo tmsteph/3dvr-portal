@@ -25,7 +25,7 @@ test('revenue CRM retains the public source and clears stale follow-up on suppre
   assert.match(projected.nextBestAction, /Do not contact/);
   assert.equal(projected.lastPaymentAmountCents, undefined, 'no payment without provider verification');
   const activeDiscovery = recordFor({ ...prospect, state: 'replied' },
-    { ...event, to_state: 'replied', type: 'reply_received' }, '2026-11-21T20:03:00Z');
+    { ...event, to_state: 'replied', type: 'inbox_replied' }, '2026-11-21T20:03:00Z', { acknowledgedDelivery: true });
   assert.equal(activeDiscovery.status, 'Warm - Discovery');
   assert.equal(activeDiscovery.nextFollowUp, undefined,
     'a projected reply must not erase a human-scheduled CRM follow-up');
@@ -47,18 +47,65 @@ test('legacy imported send and reply labels do not become verified warm CRM lead
     assert.equal(record.canonicalState, state, 'preserve original import for reconciliation');
     assert.equal(record.status, 'Lead', 'unverified history cannot count as contacted or warm');
     assert.equal(record.nextFollowUp, '', 'an imported claim must never preserve an automatic reminder');
-    assert.match(record.lastSignal, /Legacy contact\/reply unverified by provider receipt/);
+    assert.match(record.lastSignal, /Contact\/reply unverified by acknowledged delivery event/);
     assert.match(record.nextBestAction, /Reconcile manually; do not send or schedule a follow-up/);
     assert.equal(record.lastPaymentAmountCents, undefined);
   }
   const actualSend = recordFor(prospect, { ...event, type: 'delivery_acknowledged' },
-    '2026-11-22T20:00:00Z');
+    '2026-11-22T20:00:00Z', { acknowledgedDelivery: true });
   assert.equal(actualSend.status, 'Warm - Waiting',
     'existing attributed send classifications stay unchanged');
   const suppression = recordFor({ ...prospect, state: 'suppressed' },
     { ...event, to_state: 'suppressed' }, '2026-11-22T20:00:00Z');
   assert.equal(suppression.status, 'Closed', 'never loosen historical opt-out safety');
   assert.equal(suppression.nextFollowUp, '');
+});
+
+test('CRM warm status requires a matching acknowledged delivery even when an event claims contact', async () => {
+  const prospect = {
+    id: 'unverified-current-contact', name: 'Synthetic Contact',
+    contact: 'unverified@example.test', source_url: 'https://example.test/lead',
+    state: 'sent', campaign_id: 'synthetic', created_at: '2026-11-22T18:00:00Z'
+  };
+  const sent = { id: 'claimed-send', type: 'delivery_acknowledged', to_state: 'sent' };
+  const replied = { id: 'claimed-reply', type: 'inbox_replied', to_state: 'replied' };
+  for (const [state, event] of [['sent', sent], ['replied', replied]]) {
+    const withoutAttempt = recordFor({ ...prospect, state }, event, '2026-11-22T18:01:00Z');
+    assert.equal(withoutAttempt.status, 'Lead', 'a label and claimed event cannot verify contact');
+    assert.equal(withoutAttempt.nextFollowUp, '', 'unverified contact cannot be auto-followed');
+    assert.match(withoutAttempt.nextBestAction, /Reconcile manually/);
+    const wrongEvent = recordFor({ ...prospect, state }, { ...event, type: 'state_transition' },
+      '2026-11-22T18:01:00Z', { acknowledgedDelivery: true });
+    assert.equal(wrongEvent.status, 'Lead', 'an unrelated ledger event is not an attributable contact');
+  }
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-contact-integrity-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, {
+      name: 'Synthetic No-Receipt Buyer', contact: 'no-receipt@example.test'
+    }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'no-receipt-v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'no-receipt-e' });
+    // The generic ledger API can record this label without a verified provider
+    // acknowledgement. It must not become a warm lead in the projected CRM.
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'no-receipt-s' });
+    const emitted = [];
+    for (let i = 0; i < 3; i += 1) {
+      const result = await projectPendingCrm(db, {
+        write: async payload => {
+          emitted.push(payload.records[0]);
+          return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+        }
+      });
+      assert.equal(result.succeeded, 1);
+    }
+    assert.equal(emitted.length, 3);
+    assert.equal(emitted.at(-1).canonicalState, 'sent');
+    assert.equal(emitted.at(-1).status, 'Lead');
+    assert.equal(emitted.at(-1).nextFollowUp, '');
+    assert.equal(pendingProjections(db).length, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
 test('CRM projection does not turn profile URLs or social handles into email addresses', () => {
