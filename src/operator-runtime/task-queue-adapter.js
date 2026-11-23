@@ -59,7 +59,7 @@ function resultSummary(result) {
 // completion. Keep unattributed legacy/partial rows out of Workboard's Done
 // lane while preserving the underlying queue record for reconciliation.
 function missingOperatorWorkerAttribution(record = {}) {
-  const status = text(record.status, 80).toLowerCase().replace(/[\\s-]+/g, '_');
+  const status = text(record.status, 80).toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
   const signedOperatorRecord = record.source === 'operator-http'
     || text(record.id, 240).startsWith('operator-http-');
   return signedOperatorRecord && ['completed', 'complete', 'done', 'success', 'succeeded'].includes(status)
