@@ -3,7 +3,16 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { normalizeOperatorResult } from '../src/operator/api.js';
-import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
+import { buildOperatorDelegatedTask, operatorTaskUrl, requestedOperatorTask } from '../operator/delegate-task.js';
+
+test('task links use only validated server request IDs', () => {
+  const id = 'task-1234567890';
+  assert.equal(operatorTaskUrl(`operator-http:${id}`), `/operator/?task=${id}`);
+  assert.equal(requestedOperatorTask(`?task=${id}`), id);
+  assert.equal(operatorTaskUrl(`operator-http:${id}&extra=1`), '');
+  assert.equal(operatorTaskUrl(`operator-work:${id}`), '');
+  assert.equal(requestedOperatorTask('?task=%2F%2Fother-site'), '');
+});
 
 test('Operator normalizes generic delegated tasks', () => {
   const result = normalizeOperatorResult({

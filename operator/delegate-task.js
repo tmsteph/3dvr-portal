@@ -10,6 +10,7 @@ const DEFAULT_PEERS = [
   'wss://portal.3dvr.tech/gun-relay'
 ];
 const TASK_WATCH_TIMEOUT_MS = 5 * 60 * 1000;
+const TASK_REQUEST_ID = /^[a-zA-Z0-9_-]{12,100}$/;
 const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'skipped', 'cancelled', 'canceled', 'blocked', 'review']);
 
 function normalizeText(value = '', max = 4000) {
@@ -18,6 +19,16 @@ function normalizeText(value = '', max = 4000) {
 
 function makeId(prefix) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+}
+
+export function operatorTaskUrl(taskId = '') {
+  const requestId = /^operator-http:(.+)$/.exec(taskId)?.[1] || '';
+  return TASK_REQUEST_ID.test(requestId) ? `/operator/?task=${requestId}` : '';
+}
+
+export function requestedOperatorTask(search = '') {
+  const requestId = new URLSearchParams(search).get('task') || '';
+  return TASK_REQUEST_ID.test(requestId) ? requestId : '';
 }
 
 function taskStatus(record = {}) {
@@ -158,7 +169,11 @@ export function buildOperatorDelegatedTask(action = {}, options = {}) {
 
 async function taskRequest(action, requestId, extra = {}) {
   const proof = await createSignedPortalProof('operator-runtime-task', action, {requestId,...extra});
-  if (!proof) throw new Error('Sign in with your owner account before delegating work.');
+  if (!proof) {
+    const error = new Error('Sign in with the account that submitted this task.');
+    error.status = 401;
+    throw error;
+  }
   const response = await fetch('/api/operator-task', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({action,requestId,...extra,...proof}), signal:AbortSignal.timeout(25000)
@@ -172,6 +187,11 @@ async function taskRequest(action, requestId, extra = {}) {
   return result;
 }
 
+export async function readOperatorTask(requestId) {
+  const { record } = await taskRequest('status', requestId);
+  return record;
+}
+
 function watchConfirmedTask(requestId, options = {}) {
   let stopped = false;
   let timer;
@@ -181,11 +201,11 @@ function watchConfirmedTask(requestId, options = {}) {
   const poll = async () => {
     if (stopped) return;
     try {
-      const result = await taskRequest('status', requestId);
+      const record = await readOperatorTask(requestId);
       if (stopped) return;
       failures = 0;
-      options.onUpdate?.({...result.record, id:`operator-http:${requestId}`});
-      if (isOperatorTaskTerminal(result.record)) return stop();
+      options.onUpdate?.({...record, id:`operator-http:${requestId}`});
+      if (isOperatorTaskTerminal(record)) return stop();
     } catch (error) {
       if (stopped) return;
       failures += 1;
@@ -221,6 +241,7 @@ export async function queueOperatorTask(action = {}) {
     // same request identity; never re-enqueue or silently fall back to Gun.
     message = 'Checking delivery. I will look up this task before any retry.';
   }
-  return {taskId:`operator-http:${requestId}`,estimateMs:120000,confirmed,message,
-    url:'',label:'Operator task'};
+  const taskId = `operator-http:${requestId}`;
+  return {taskId,estimateMs:120000,confirmed,message,
+    url:operatorTaskUrl(taskId),label:'Operator task'};
 }

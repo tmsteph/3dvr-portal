@@ -65,6 +65,15 @@
       <small>Continuing from</small>
       <a id="operator-context-link" href="/"></a>
     </section>
+    <section id="operator-task" hidden aria-labelledby="operator-task-title">
+      <h2 id="operator-task-title">Task status</h2>
+      <p id="operator-task-status" role="status"></p>
+      <pre id="operator-task-result" hidden></pre>
+      <div class="operator-task-actions">
+        <button id="operator-task-refresh" type="button">Refresh</button>
+        <a id="operator-task-sign-in" hidden href="/sign-in.html" data-operator-external="true">Sign in</a>
+      </div>
+    </section>
     <aside id="conversation-history" hidden aria-label="Past conversations">
       <div><h2>Conversations</h2><button id="close-history" type="button" aria-label="Close past conversations">×</button></div>
       <small id="operator-sync" role="status">Checking history…</small>
