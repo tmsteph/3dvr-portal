@@ -590,9 +590,9 @@ async function runWorkerOnce(options = {}) {
       maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
-  // A slow terminal relay read must not hold up the private execution queue.
-  // Reconcile terminal copies only after runnable work gets its turn.
-  await importLegacyGunTasks(options);
+  // Run already-persisted private work before any best-effort legacy Gun
+  // reads. A stalled relay must not starve Operator's authenticated queue.
+  // Newly imported legacy tasks become eligible on the following poll.
   const tasks = await listTasks(options);
   const now = options.now || Date.now();
   const queued = tasks
@@ -605,6 +605,14 @@ async function runWorkerOnce(options = {}) {
     const recoverable = safeExpiredHealthClaim(record, options, now);
     if (!record || (record.status !== 'queued' && !recoverable)) continue;
     results.push({ id: record.id, result: await runQueuedTask(record, options) });
+  }
+  // Legacy import is a compatibility read, not a prerequisite for the
+  // private worker. An unavailable relay must not terminate the worker loop
+  // after private tasks have completed.
+  try {
+    await importLegacyGunTasks(options);
+  } catch (error) {
+    console.warn(`[agent-worker] legacy queue import failed: ${error?.message || String(error)}`);
   }
   await syncTerminalResults(options);
   return results;
