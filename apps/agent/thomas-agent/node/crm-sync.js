@@ -32,8 +32,11 @@ function slugify(input) {
 }
 
 function normalizeEmail(value) {
-  const text = normalizeText(value).replace(/^mailto:/i, '').trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? text : '';
+  const raw = normalizeText(value).toLowerCase();
+  // A mailto query is compose metadata, not part of the recipient. A regular
+  // profile URL with "@" must never be mistaken for a deliverable email.
+  const text = raw.startsWith('mailto:') ? raw.slice(7).split('?')[0] : raw;
+  return /^[^\s@/:?#<>]+@[^\s@/:?#<>]+\.[^\s@/:?#<>]+$/.test(text) ? text : '';
 }
 
 function normalizePhone(value) {
