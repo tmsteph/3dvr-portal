@@ -196,7 +196,9 @@ test('ask-send applies a bounded free-page experiment variant without changing l
       THREEDVR_OUTREACH_POSTAL_ADDRESS: '123 Main St, San Diego, CA 92101',
     });
 
-    assert.match(stdout, /Would you like to take a look\?/i);
+    assert.match(stdout, /I can prepare a free homepage concept for Variant Studio/i);
+    assert.match(stdout, /Would you like me to prepare one\?/i);
+    assert.doesNotMatch(stdout, /I made a free homepage|Here is a free homepage|Would you like to take a look\?/i);
     assert.match(stdout, /Route: email/);
     assert.match(stdout, /Postal address: 123 Main St/);
   } finally {
