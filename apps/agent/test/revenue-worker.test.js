@@ -442,3 +442,36 @@ test('worker persists preflight failures instead of stranding running triggers',
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('worker rejects malformed delivery quotas before reading candidate or ledger', async () => {
+  const names = ['THREEDVR_REVENUE_DELIVERY_ENABLED', 'THREEDVR_REVENUE_DAILY_SEND_LIMIT',
+    'THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT', 'THREEDVR_REVENUE_CANDIDATE_FILE'];
+  const original = names.map(name => process.env[name]);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-invalid-quota-'));
+  const candidateFile = path.join(tmp, 'invalid.json');
+  fs.writeFileSync(candidateFile, '{invalid-json');
+  process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
+  process.env.THREEDVR_REVENUE_CANDIDATE_FILE = candidateFile;
+  const neverReadDb = { prepare() { throw new Error('ledger read before quota guard'); } };
+  try {
+    for (const key of names.slice(1, 3)) {
+      for (const value of ['bogus', '2oops', '', ' ', '-1', '1.5', '1e3', '9007199254740992']) {
+        process.env.THREEDVR_REVENUE_DAILY_SEND_LIMIT = '1';
+        process.env.THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT = '10';
+        process.env[key] = value;
+        const result = await deliverCandidate(neverReadDb, {
+          send: async () => { throw new Error('sender called before quota guard'); },
+        });
+        assert.equal(result.attempted, 0);
+        assert.equal(result.sends, 0);
+        assert.equal(result.disabled, true);
+        assert.match(result.error, /nonnegative safe integers/);
+      }
+    }
+  } finally {
+    names.forEach((name, i) => {
+      if (original[i] === undefined) delete process.env[name]; else process.env[name] = original[i];
+    });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
