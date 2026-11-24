@@ -147,7 +147,7 @@ Thomas`;
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
       ? `Hi ${name} team,\n\nI'm Thomas in San Diego. ${hasPreview ? `Here is a free homepage concept for ${name}.` : `I can prepare a free homepage concept for ${name}.`}${previewLine}\n\n${hasPreview ? 'Would you like to take a look?' : 'Would you like me to prepare one?'}\n\nThomas`
-      : `Hi ${name} team,\n\nI'm Thomas in San Diego. ${hasPreview ? `Here is a free homepage concept for ${name}.` : `I can prepare a free homepage concept for ${name}.`}${previewLine}\n\n${hasPreview ? 'Would you like to take a look?' : 'Would you like me to prepare one?'}\n\nThomas`;
+      : `Hi ${name} team,\n\nI'm Thomas in San Diego. ${hasPreview ? `Here is a free homepage concept for ${name}.` : `I can prepare a free homepage concept for ${name} focused on what you do and how customers can reach you.`}${previewLine}\n\n${hasPreview ? 'Would this be useful?' : 'Would a concept like that be useful?'}\n\nThomas`;
     return {
       source: variant === 'b' ? 'template-free-page-b' : 'template-free-page',
       text: finalizeCommercialOutreach(body),
