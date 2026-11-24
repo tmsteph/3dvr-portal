@@ -251,8 +251,9 @@ export function queueRecordToWorkItem(record = {}) {
   // The worker queue's approval gate takes precedence over a stale sidecar.
   // This is display metadata, not a signed outbound authorization receipt.
   const queueApproval = text(record.approvalStatus, 80).toLowerCase();
-  const humanCheckpointStatus = ['required', 'approved'].includes(queueApproval)
-    ? queueApproval
+  const recognizedQueueApprovals = ['required', 'approved', 'not_required', 'denied', 'rejected', 'pending', 'expired', 'revoked'];
+  const humanCheckpointStatus = queueApproval
+    ? (recognizedQueueApprovals.includes(queueApproval) ? queueApproval : 'required')
     : (text(record.humanCheckpointStatus, 80) || source.metadata?.humanCheckpointStatus || 'not_required');
 
   return createWorkItem({
