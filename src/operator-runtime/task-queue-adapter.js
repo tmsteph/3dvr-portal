@@ -73,7 +73,7 @@ export function queueStatusFromWorkItemState(state = 'queued') {
   return STATE_TO_QUEUE_STATUS[state] || 'queued';
 }
 
-export function workItemStateFromQueueRecord(record = {}) {
+function authoritativeQueueState(record = {}) {
   const status = text(record.status, 80).toLowerCase().replace(/[\s-]+/g, '_');
   if (status === 'queued') {
     // The worker queue is authoritative: a stale runtime sidecar must not
@@ -90,6 +90,20 @@ export function workItemStateFromQueueRecord(record = {}) {
   // Missing queue status is not a worker receipt. A sidecar alone must
   // never turn a partial/legacy latest record into a completed task.
   return 'blocked';
+}
+
+// Signed Operator completions need a worker identity and a current result.
+// Reuse the receipt guard from the outbound-approval draft (#3453), while
+// retaining this branch's stricter queue status authority. Presence is not
+// cryptographic proof; it only prevents partial receipts from appearing Done.
+function missingSignedCompletionReceipt(record = {}) {
+  const signed = record.source === 'operator-http' || text(record.id, 240).startsWith('operator-http-');
+  return signed && authoritativeQueueState(record) === 'done'
+    && (!text(record.workerDeviceId, 200) || !text(record.resultSummary, 2000));
+}
+
+export function workItemStateFromQueueRecord(record = {}) {
+  return missingSignedCompletionReceipt(record) ? 'verifying' : authoritativeQueueState(record);
 }
 
 // Gun map keys are the queue's routing identity. A value advertising a
@@ -255,7 +269,9 @@ export function queueRecordToWorkItem(record = {}) {
       ...(staleTerminalSidecar ? {} : (source.metadata || {})),
       queueStatus: text(record.status, 80),
       workerLane: text(record.workerLane, 120) || source.metadata?.workerLane || '',
-      verificationStatus: text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
+      verificationStatus: missingSignedCompletionReceipt(record)
+        ? 'missing_worker_receipt'
+        : text(record.verificationStatus, 80) || source.metadata?.verificationStatus || 'not_started',
       humanCheckpointStatus,
       evidenceCount: staleTerminalSidecar ? 0 : (Number.parseInt(record.evidenceCount || source.evidence?.length || 0, 10) || 0),
       workerDeviceId: unclaimed ? '' : text(record.workerDeviceId, 200)
