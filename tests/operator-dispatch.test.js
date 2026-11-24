@@ -498,31 +498,47 @@ test('signed Operator task is actually claimed and completed by the private SQLi
     const crmModule = require.resolve('../apps/agent/thomas-agent/node/crm-sync.js');
     const childOpts = { cwd: dir, env: { HOME: dir, PATH: process.env.PATH || '',
       THREEDVR_GUN_PORTAL_ROOT: 'isolated-signed-crm-test' } };
-    const relay = spawn(process.execPath, ['-e', `
-      const http = require('node:http');
-      const gunFactory = require(process.argv[1]);
-      const server = http.createServer(gunFactory.serve);
-      gunFactory({ web: server, peers: [], file: 'signed-scratch-relay', axe: false, multicast: false, stats: false });
-      server.listen(0, '127.0.0.1', () => {
-        if (server.address().address !== '127.0.0.1') process.exit(2);
-        console.log('RELAY_READY:' + server.address().port);
-      });
-    `, gunModule], { ...childOpts, stdio: ['ignore', 'pipe', 'pipe'] });
-    let relayOutput = '', relayError = '';
-    relay.stderr.on('data', chunk => { relayError += chunk; });
-    try {
-      const port = await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
-        relay.once('error', error => { clearTimeout(timer); reject(error); });
-        relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
-        relay.stdout.on('data', chunk => {
-          relayOutput += chunk;
-          const match = /RELAY_READY:(\d+)/.exec(relayOutput);
-          if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+    const startRelay = async () => {
+      const relay = spawn(process.execPath, ['-e', `
+        const http = require('node:http');
+        const gunFactory = require(process.argv[1]);
+        const server = http.createServer(gunFactory.serve);
+        gunFactory({ web: server, peers: [], file: 'signed-scratch-relay', axe: false, multicast: false, stats: false });
+        server.listen(0, '127.0.0.1', () => {
+          if (server.address().address !== '127.0.0.1') process.exit(2);
+          console.log('RELAY_READY:' + server.address().port);
         });
-      });
-      assert.ok(port > 0 && port <= 65535);
-      const relayUrl = 'http://127.0.0.1:' + port + '/gun';
+      `, gunModule], { ...childOpts, stdio: ['ignore', 'pipe', 'pipe'] });
+        let relayOutput = '', relayError = '';
+        relay.stderr.on('data', chunk => { relayError += chunk; });
+        try {
+          const port = await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
+          relay.once('error', error => { clearTimeout(timer); reject(error); });
+          relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
+          relay.stdout.on('data', chunk => {
+            relayOutput += chunk;
+            const match = /RELAY_READY:(\d+)/.exec(relayOutput);
+            if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+          });
+        });
+        assert.ok(port > 0 && port <= 65535);
+        return { relay, url: 'http://127.0.0.1:' + port + '/gun' };
+      } catch (error) {
+        await stopRelay(relay);
+        throw error;
+      }
+    };
+    const stopRelay = async relay => {
+      if (relay.exitCode === null && relay.signalCode === null && relay.pid) {
+        const exited = once(relay, 'exit');
+        relay.kill('SIGKILL');
+        await exited;
+      }
+    };
+    let activeRelay = await startRelay();
+    try {
+      const relayUrl = activeRelay.url;
       const runChild = (code, args, timeout) => {
         const result = spawnSync(process.execPath, ['-e', code, ...args], {
           ...childOpts, encoding: 'utf8', timeout, maxBuffer: 1024 * 1024
@@ -599,7 +615,7 @@ test('signed Operator task is actually claimed and completed by the private SQLi
       assert.equal(crmExecutions, 1);
       assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE id=?').get(prospectTaskId).n, 1);
       // Fresh process, no local storage, reads the actual relay after writer exit.
-      const { record: saved, touch } = runChild(`
+      const readCrm = url => runChild(`
         const gunFactory = require(process.argv[1]);
         const [url, id, eventId] = process.argv.slice(2);
         const gun = gunFactory({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
@@ -619,7 +635,8 @@ test('signed Operator task is actually claimed and completed by the private SQLi
         ]).then(([record, touch]) => {
           process.stdout.write('CRM_RESULT:' + JSON.stringify({ record, touch }) + '\\n', () => process.exit(0));
         }).catch(error => { console.error(error); process.exit(1); });
-      `, [gunModule, relayUrl, written.id, written.eventId], 12000);
+      `, [gunModule, url, written.id, written.eventId], 12000);
+      const { record: saved, touch } = readCrm(relayUrl);
       assert.equal(saved.id, written.id);
       assert.equal(saved.sourceUrl, sourceUrl);
       assert.equal(saved.canonicalEventId, written.eventId);
@@ -631,17 +648,21 @@ test('signed Operator task is actually claimed and completed by the private SQLi
       assert.equal(touch.id, 'revenue-event-' + written.eventId);
       assert.equal(touch.crmRecordId, saved.id);
       assert.equal(touch.touchType, 'research_verified');
+      // Acknowledgement plus a live reader could still be served from memory.
+      // Kill the isolated relay and start a fresh process with the same scratch
+      // Radisk path; no writer is running and the new reader has no cache.
+      await stopRelay(activeRelay.relay);
+      activeRelay = await startRelay();
+      const recovered = readCrm(activeRelay.url);
+      assert.deepEqual(recovered.record, saved, 'CRM record survives isolated relay restart');
+      assert.deepEqual(recovered.touch, touch, 'CRM event survives isolated relay restart');
       const readLedger = new DatabaseSync(ledgerFile, { readOnly: true });
       try {
         assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 1);
         assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
       } finally { readLedger.close(); }
     } finally {
-      if (relay.exitCode === null && relay.signalCode === null && relay.pid) {
-        const exited = once(relay, 'exit');
-        relay.kill('SIGKILL');
-        await exited;
-      }
+      await stopRelay(activeRelay.relay);
     }
 
   } finally {
