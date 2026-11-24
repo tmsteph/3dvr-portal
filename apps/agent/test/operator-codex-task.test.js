@@ -5,7 +5,7 @@ const { PassThrough } = require('node:stream');
 const { runOperatorCodexTask } = require('../thomas-agent/node/operator-codex-task');
 
 const record = { id: 'operator-http-test-receipt', backend: 'codex', unsafe: false, task: 'Synthetic arithmetic only' };
-function transport(payload, code = 0) {
+function transport(payload, code = 0, chunks = null) {
   let calls = 0;
   const spawn = (command, args) => {
     calls++;
@@ -19,7 +19,8 @@ function transport(payload, code = 0) {
     child.stderr = new PassThrough();
     child.kill = () => {};
     child.stdin.on('finish', () => {
-      child.stdout.write(JSON.stringify(payload));
+      if (chunks) for (const chunk of chunks) child.stdout.write(chunk);
+      else child.stdout.write(JSON.stringify(payload));
       child.emit('close', code);
     });
     return child;
@@ -58,4 +59,26 @@ test('explicit native failure and nonzero SSH exit are never successful receipts
   const disconnected = transport({ ok: true, session: record.id, engine: 'Codex', reply: '42' }, 1);
   await assert.rejects(runOperatorCodexTask(record, disconnected), /interrupted/);
   assert.equal(disconnected.calls(), 1);
+});
+
+test('native escaped multilingual receipts retain valid replies within the decoded limit', async () => {
+  const reply = '界'.repeat(40000);
+  const wire = JSON.stringify({ ok: true, session: record.id, engine: 'Codex', reply })
+    .replace(/[^\x00-\x7f]/g, char => '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0'));
+  assert.ok(Buffer.byteLength(wire) > 200000);
+  assert.equal(Buffer.byteLength(reply), 120000);
+  const io = transport(null, 0, [wire.slice(0, 100000), wire.slice(100000)]);
+  assert.equal((await runOperatorCodexTask(record, io)).result.stdout, reply);
+  assert.equal(io.calls(), 1);
+});
+
+test('native transport preserves split UTF-8 and rejects oversized wire output', async () => {
+  const reply = 'A界B';
+  const wire = Buffer.from(JSON.stringify({ ok: true, session: record.id, engine: 'Codex', reply }));
+  const split = wire.indexOf(Buffer.from('界')) + 1;
+  const io = transport(null, 0, [wire.subarray(0, split), wire.subarray(split)]);
+  assert.equal((await runOperatorCodexTask(record, io)).result.stdout, reply);
+  const oversized = transport(null, 0, [Buffer.alloc(724097, 32), wire]);
+  await assert.rejects(runOperatorCodexTask(record, oversized), /interrupted/);
+  assert.equal(oversized.calls(), 1);
 });
