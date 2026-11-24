@@ -919,9 +919,9 @@ test('real loopback Gun projection is independently readable after the writer ex
   const opts = { cwd: tmp, env };
   const relay = spawn(process.execPath, ['-e', `
     const http = require('node:http');
-    const Gun = require(process.argv[1]);
-    const server = http.createServer(Gun.serve);
-    Gun({ web: server, peers: [], file: 'scratch-relay', axe: false, multicast: false, stats: false });
+    const gunFactory = require(process.argv[1]);
+    const server = http.createServer(gunFactory.serve);
+    gunFactory({ web: server, peers: [], file: 'scratch-relay', axe: false, multicast: false, stats: false });
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
       if (address.address !== '127.0.0.1') process.exit(2);
@@ -981,9 +981,9 @@ test('real loopback Gun projection is independently readable after the writer ex
       })().catch(error => { console.error(error); process.exit(1); });
     `, [ledgerModule, projectionModule, crmModule, url], 20000);
     const read = runChild(`
-      const Gun = require(process.argv[1]);
+      const gunFactory = require(process.argv[1]);
       const [url, id, eventId] = process.argv.slice(2);
-      const gun = Gun({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
+      const gun = gunFactory({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
       function read(node, field, expected) {
         return new Promise((resolve, reject) => {
           const timer = setTimeout(() => reject(new Error('independent CRM read timed out: ' + field)), 8000);
