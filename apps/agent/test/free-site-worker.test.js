@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureState, sendReplyWithCheckpoint, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
+const { ensureState, withFulfillmentLock, sendReplyWithCheckpoint, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
 
 const FORM_BOILERPLATE = [
   'I want a free live one-page website on a 3DVR-hosted address.',
@@ -149,4 +149,35 @@ test('failure to persist the pre-send checkpoint prevents SMTP invocation', asyn
     persist: () => { throw new Error('disk write failed'); },
   }), /disk write failed/);
   assert.equal(sends, 0);
+});
+
+test('separate fulfillment invocations cannot enter the same local ledger concurrently', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'free-site-lock-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'state.json');
+  let release;
+  const blocked = new Promise((resolve) => { release = resolve; });
+  const active = withFulfillmentLock(file, () => blocked);
+  let calls = 0;
+  try {
+    await assert.rejects(withFulfillmentLock(file, () => { calls += 1; }), /lock held/);
+    assert.equal(calls, 0);
+  } finally {
+    release();
+    await active;
+  }
+  await withFulfillmentLock(file, () => { calls += 1; });
+  assert.equal(calls, 1);
+});
+
+test('abandoned fulfillment lock fails closed; ordinary errors release the claim', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'free-site-lock-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'state.json');
+  fs.mkdirSync(file + '.lock');
+  await assert.rejects(withFulfillmentLock(file, () => assert.fail('must not run')), /reconciliation/);
+  assert.ok(fs.existsSync(file + '.lock'));
+  fs.rmdirSync(file + '.lock');
+  await assert.rejects(withFulfillmentLock(file, async () => { throw new Error('fake failure'); }), /fake failure/);
+  assert.equal(fs.existsSync(file + '.lock'), false);
 });
