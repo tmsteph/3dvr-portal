@@ -93,10 +93,11 @@ function commandExists(filePath) {
 function buildTemplateOutreachDraft(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
   const offerProfile = currentOfferProfile();
-  const previewLine = normalizeText(lead.previewUrl)
+  const hasPreview = Boolean(normalizeText(lead.previewUrl));
+  const previewLine = hasPreview
     ? offerProfile === 'av-operator'
       ? `\n\nMy work:\n${normalizeText(lead.previewUrl)}`
-      : `\n\nI made a sample page:\n${normalizeText(lead.previewUrl)}`
+      : `\n\nSample page:\n${normalizeText(lead.previewUrl)}`
     : '';
   if (offerProfile === 'business-sites') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
@@ -105,7 +106,7 @@ function buildTemplateOutreachDraft(lead = {}) {
       ? variant === 'b'
         ? `Hi ${name} team,
 
-I'm Thomas with 3dvr.tech in San Diego. I made a focused one-page concept for ${name}.${previewLine}
+I'm Thomas with 3dvr.tech in San Diego. ${hasPreview ? `Here is a focused one-page concept for ${name}.` : `I can prepare a focused one-page concept for ${name}.`}${previewLine}
 
 I can make one focused website upgrade for $99 one time, and you keep your current hosting.
 
@@ -114,7 +115,7 @@ Want me to send the short upgrade checklist?
 Thomas`
         : `Hi ${name} team,
 
-I'm Thomas with 3dvr.tech in San Diego. I made a one-page version of your customer path so the next step is clearer.${previewLine}
+I'm Thomas with 3dvr.tech in San Diego. ${hasPreview ? 'Here is a one-page concept for your customer path.' : 'I can help make the next step clearer for your customers.'}${previewLine}
 
 I can make one focused website upgrade for $99 one time. You keep your current hosting.
 
@@ -124,7 +125,7 @@ Thomas`
       : variant === 'b'
         ? `Hi ${name} team,
 
-I'm Thomas with 3dvr.tech in San Diego. I made a focused one-page site concept for ${name} built around one action: call, book, or request a quote.${previewLine}
+I'm Thomas with 3dvr.tech in San Diego. ${hasPreview ? 'Here is a focused one-page site concept built around one action: call, book, or request a quote.' : 'I can prepare a focused one-page site built around one action: call, book, or request a quote.'}${previewLine}
 
 I can put it live within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.
 
@@ -133,7 +134,7 @@ Want the 5-item launch checklist?
 Thomas`
         : `Hi ${name} team,
 
-I'm Thomas with 3dvr.tech in San Diego. I made a one-page version of your customer path so people can quickly understand what you do and take one clear next step.${previewLine}
+I'm Thomas with 3dvr.tech in San Diego. ${hasPreview ? 'Here is a one-page concept for your customer path.' : 'I can help people understand what you do and take one clear next step.'}${previewLine}
 
 If you want it live, I can launch it within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.
 
@@ -145,8 +146,8 @@ Thomas`;
   if (offerProfile === 'free-page') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
-      ? `Hi ${name} team,\n\nI'm Thomas in San Diego. I made a free homepage concept for ${name}. It shows what you do, why customers should trust you, and the easiest next step.${previewLine}\n\nWould you like to take a look?\n\nThomas`
-      : `Hi ${name} team,\n\nI'm Thomas in San Diego. I made a free homepage concept for ${name}. It shows what you do and how customers can reach you.${previewLine}\n\nWould you like to take a look?\n\nThomas`;
+      ? `Hi ${name} team,\n\nI'm Thomas in San Diego. ${hasPreview ? `Here is a free homepage concept for ${name}.` : `I can prepare a free homepage concept for ${name}.`}${previewLine}\n\n${hasPreview ? 'Would you like to take a look?' : 'Would you like me to prepare one?'}\n\nThomas`
+      : `Hi ${name} team,\n\nI'm Thomas in San Diego. ${hasPreview ? `Here is a free homepage concept for ${name}.` : `I can prepare a free homepage concept for ${name}.`}${previewLine}\n\n${hasPreview ? 'Would you like to take a look?' : 'Would you like me to prepare one?'}\n\nThomas`;
     return {
       source: variant === 'b' ? 'template-free-page-b' : 'template-free-page',
       text: finalizeCommercialOutreach(body),
