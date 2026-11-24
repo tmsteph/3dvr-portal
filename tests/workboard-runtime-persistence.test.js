@@ -7,6 +7,7 @@ import {
   normalizeQueueRecordForWorkboard,
   queueRecordForMapKey,
   queueRecordToWorkItem,
+  queueStatusFromWorkItemState,
   workItemStateFromQueueRecord,
   workItemToAgentQueueRecord,
   workItemToQueueSummary
@@ -617,4 +618,21 @@ test('explicit queue approval vetoes cannot inherit an approved checkpoint', () 
     assert.equal(normalizeQueueRecordForWorkboard(record).humanCheckpointStatus, expected, approvalStatus);
     assert.equal(record.approvalStatus, approvalStatus, 'display must not mutate authorization');
   }
+});
+
+test('malformed prototype-key queue states cannot crash Workboard normalization', () => {
+  const base = sampleWorkItem();
+  for (const status of ['constructor', '__proto__', 'CONSTRUCTOR', 'unknown']) {
+    const record = { id: base.id, task: base.intent, status, runtimeState: 'done', resultSummary: 'Old paid result' };
+    assert.equal(workItemStateFromQueueRecord(record), 'blocked', status);
+    const display = normalizeQueueRecordForWorkboard(record);
+    assert.equal(display.status, 'blocked', status);
+    assert.equal(display.resultSummary, '', status);
+  }
+  for (const state of ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'unknown']) {
+    assert.equal(queueStatusFromWorkItemState(state), 'queued', state);
+  }
+  assert.equal(queueStatusFromWorkItemState('ready'), 'queued');
+  assert.equal(queueStatusFromWorkItemState('done'), 'completed');
+  assert.equal(normalizeQueueRecordForWorkboard({ id: base.id, task: base.intent, status: 'running' }).status, 'running');
 });
