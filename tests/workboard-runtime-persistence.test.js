@@ -601,3 +601,20 @@ test('signed completion requires current worker identity and result without revi
   const legacy = { ...base, id: 'legacy-synthetic', resultSummary: 'Legacy result' };
   assert.equal(normalizeQueueRecordForWorkboard(legacy).status, 'done');
 });
+
+test('explicit queue approval vetoes cannot inherit an approved checkpoint', () => {
+  const lead = sampleWorkItem();
+  const stale = workItemToRuntimeSidecar(lead, { humanCheckpointStatus: 'approved' });
+  for (const [approvalStatus, expected] of [
+    ['denied', 'denied'], ['expired', 'expired'], ['pending', 'pending'],
+    ['rejected', 'rejected'], ['revoked', 'revoked'], ['unknown', 'required'],
+    ['not_required', 'not_required'], ['required', 'required'], [' APPROVED ', 'approved']
+  ]) {
+    const record = mergeQueueRuntimeRecord({
+      id: lead.id, task: lead.intent, status: 'review', approvalStatus
+    }, stale);
+    assert.equal(queueRecordToWorkItem(record).metadata.humanCheckpointStatus, expected, approvalStatus);
+    assert.equal(normalizeQueueRecordForWorkboard(record).humanCheckpointStatus, expected, approvalStatus);
+    assert.equal(record.approvalStatus, approvalStatus, 'display must not mutate authorization');
+  }
+});
