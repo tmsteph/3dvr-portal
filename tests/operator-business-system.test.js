@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createWorkItem, transitionWorkItem } from '../src/operator-runtime/work-item.js';
+import { workItemStateFromQueueRecord, queueRecordToWorkItem, normalizeQueueRecordForWorkboard } from '../src/operator-runtime/task-queue-adapter.js';
 import { createWorker, findEligibleWorkers } from '../src/operator-runtime/worker-registry.js';
 import {
   BUSINESS_ROLES,
@@ -387,4 +388,23 @@ test('revenue follow-up dates must be absolute and valid; closed leads cannot re
     nextFollowUpAt: '2026-11-25T18:00:00Z'
   });
   assert.equal(closed.metadata.nextFollowUpAt, null);
+});
+
+test('signed queue completion via runtime-state fallback still requires worker attribution', () => {
+  for (const status of ['queued', '', 'unknown', undefined, 'completed']) {
+    const record = { id: 'operator-http-synthetic', task: 'Synthetic prospect research',
+      status, runtimeState: 'done', resultSummary: 'Claimed completion' };
+    assert.equal(workItemStateFromQueueRecord(record), 'verifying');
+    const item = queueRecordToWorkItem(record);
+    assert.equal(item.state, 'verifying');
+    assert.equal(item.result, null);
+    assert.equal(item.metadata.verificationStatus, 'missing_worker_attribution');
+    const board = normalizeQueueRecordForWorkboard(record);
+    assert.equal(board.status, 'verifying');
+    assert.match(board.resultSummary, /no worker identity/);
+    assert.equal(workItemStateFromQueueRecord({ ...record, workerDeviceId: 'synthetic-worker' }), 'done');
+  }
+  assert.equal(workItemStateFromQueueRecord({ id: 'legacy-task', status: 'completed' }), 'done');
+  assert.equal(workItemStateFromQueueRecord({ id: 'operator-http-synthetic', status: 'running', runtimeState: 'done' }), 'running');
+  assert.equal(workItemStateFromQueueRecord({ id: 'legacy-task', source: 'operator-http', runtimeState: 'done' }), 'verifying');
 });
