@@ -24,7 +24,19 @@ async function runOperatorCodexTask(record, options = {}) {
       try {
         if(code !== 0 || Buffer.byteLength(output)>200000) throw Error('transport');
         const result=JSON.parse(output);
-        resolve({ok:result.ok === true,backend:'codex',result:result.ok ? {stdout:result.reply} : {stderr:result.error || 'Codex did not complete.'}});
+        // A successful SSH exit is not a model completion receipt. Bind the
+        // native response to this exact task and require a real final reply.
+        if (result?.ok === true) {
+          if (result.session !== record.id || result.engine !== 'Codex'
+            || typeof result.reply !== 'string' || !result.reply.trim()
+            || Buffer.byteLength(result.reply) > 120000) throw Error('invalid completion receipt');
+          resolve({ok:true,backend:'codex',result:{stdout:result.reply}});
+        } else if (result?.ok === false) {
+          resolve({ok:false,backend:'codex',result:{stderr:typeof result.error === 'string'
+            && result.error.trim() ? result.error : 'Codex did not complete.'}});
+        } else {
+          throw Error('invalid completion receipt');
+        }
       } catch {reject(new Error('Codex connection interrupted; check the saved task before retrying.'));}
     });
     child.stdin.on('error', () => {});
