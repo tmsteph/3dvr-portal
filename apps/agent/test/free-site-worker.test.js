@@ -181,3 +181,55 @@ test('abandoned fulfillment lock fails closed; ordinary errors release the claim
   await assert.rejects(withFulfillmentLock(file, async () => { throw new Error('fake failure'); }), /fake failure/);
   assert.equal(fs.existsSync(file + '.lock'), false);
 });
+
+test('independent process cannot enter a held ledger and a killed owner leaves the claim quarantined', { timeout: 15000 }, async (t) => {
+  const { spawn, spawnSync } = require('node:child_process');
+  const { once } = require('node:events');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'free-site-process-lock-test-'));
+  const file = path.join(dir, 'state.json');
+  const worker = require.resolve('../thomas-agent/node/free-site-worker');
+  const ownerCode = `
+    const { withFulfillmentLock } = require(process.argv[1]);
+    withFulfillmentLock(process.argv[2], () => new Promise(() => {
+      process.send('held');
+      setInterval(() => {}, 1000);
+    })).catch(() => process.exit(2));
+  `;
+  const contenderCode = `
+    const { withFulfillmentLock } = require(process.argv[1]);
+    withFulfillmentLock(process.argv[2], () => { process.exitCode = 3; })
+      .catch(error => { process.exitCode = /lock held/.test(error.message) ? 0 : 4; });
+  `;
+  const owner = spawn(process.execPath, ['-e', ownerCode, worker, file], {
+    stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+  });
+  const exited = once(owner, 'exit');
+  t.after(async () => {
+    if (owner.exitCode === null && owner.signalCode === null) owner.kill('SIGKILL');
+    await exited;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const ready = await Promise.race([
+    once(owner, 'message').then(([message]) => message),
+    exited.then(() => 'exited before acquiring lock'),
+  ]);
+  assert.equal(ready, 'held');
+  const contend = () => spawnSync(process.execPath, ['-e', contenderCode, worker, file], {
+    encoding: 'utf8', timeout: 5000,
+  });
+  const overlapping = contend();
+  assert.equal(overlapping.error, undefined);
+  assert.equal(overlapping.status, 0, 'other process must fail closed while owner is active');
+  assert.equal(owner.kill('SIGKILL'), true);
+  const [, signal] = await exited;
+  assert.equal(signal, 'SIGKILL');
+  assert.ok(fs.existsSync(file + '.lock'), 'abrupt owner death must preserve uncertainty');
+  const afterCrash = contend();
+  assert.equal(afterCrash.error, undefined);
+  assert.equal(afterCrash.status, 0, 'other process must not steal abandoned claim');
+  // Only the synthetic fixture is reconciled here; no live ledger is used.
+  fs.rmdirSync(file + '.lock');
+  let calls = 0;
+  await withFulfillmentLock(file, () => { calls += 1; });
+  assert.equal(calls, 1);
+});
