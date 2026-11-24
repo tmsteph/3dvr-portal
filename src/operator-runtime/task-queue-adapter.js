@@ -59,10 +59,9 @@ function resultSummary(result) {
 // completion. Keep unattributed legacy/partial rows out of Workboard's Done
 // lane while preserving the underlying queue record for reconciliation.
 function missingOperatorWorkerAttribution(record = {}) {
-  const status = text(record.status, 80).toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
   const signedOperatorRecord = record.source === 'operator-http'
     || text(record.id, 240).startsWith('operator-http-');
-  return signedOperatorRecord && ['completed', 'complete', 'done', 'success', 'succeeded'].includes(status)
+  return signedOperatorRecord && resolvedQueueState(record) === 'done'
     && !text(record.workerDeviceId, 200);
 }
 
@@ -84,11 +83,17 @@ export function queueStatusFromWorkItemState(state = 'queued') {
   return STATE_TO_QUEUE_STATUS[state] || 'queued';
 }
 
-export function workItemStateFromQueueRecord(record = {}) {
-  if (missingOperatorWorkerAttribution(record)) return 'verifying';
+// Resolve the effective state once. A partial queue row can fall back to
+// runtimeState, so checking only the raw status would miss a Done record.
+function resolvedQueueState(record = {}) {
   const status = text(record.status, 80).toLowerCase().replace(/[\s-]+/g, '_');
   if (status && status !== 'queued') return QUEUE_STATUS_TO_STATE[status] || text(record.runtimeState, 80) || 'queued';
   return text(record.runtimeState, 80) || QUEUE_STATUS_TO_STATE[status] || 'queued';
+}
+
+export function workItemStateFromQueueRecord(record = {}) {
+  if (missingOperatorWorkerAttribution(record)) return 'verifying';
+  return resolvedQueueState(record);
 }
 
 export function workItemToAgentQueueRecord(input = {}, overrides = {}) {
