@@ -64,27 +64,42 @@ function parseRecord(row) {
 }
 
 function writeTask(record, options = {}) {
+  const id = String(record.id);
+  const source = options.queueSource || 'sqlite';
+  const signedHttp = id.startsWith('operator-http-');
+  // Generic CLI/relay writers must not create or replace signed HTTP work.
+  // Signed records are admitted once; claimTask/finishTask own their lifecycle.
+  if (signedHttp && source !== 'operator-http') {
+    throw new Error('Signed HTTP task requires signed queue provenance.');
+  }
   return withDatabase(options, (db) => {
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_alias, id) DO UPDATE SET
         status = excluded.status,
         updated_at = excluded.updated_at,
         record_json = excluded.record_json
+      WHERE tasks.source <> 'operator-http' AND excluded.source <> 'operator-http'
     `).run(
       ownerAlias(options),
-      String(record.id),
+      id,
       String(record.status),
       String(record.updatedAt),
       JSON.stringify(record),
-      options.queueSource || 'sqlite',
+      source,
     );
+    if (signedHttp && result.changes !== 1) {
+      throw new Error('Signed HTTP task already exists; use its claim lifecycle.');
+    }
     return record;
   });
 }
 
 function importTask(record, options = {}) {
+  // Public relay data must not even reserve an ID in the signed HTTP namespace.
+  // Otherwise a legacy import can squat on an ID and block a future signed task.
+  if (String(record.id).startsWith('operator-http-')) return false;
   return withDatabase(options, (db) => {
     const result = db.prepare(`
       INSERT INTO tasks
@@ -97,7 +112,12 @@ function importTask(record, options = {}) {
         source = 'gun',
         claim_token = NULL,
         claim_expires_at = NULL
-      WHERE (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
+      -- Legacy relay imports must never replace an admitted private HTTP task.
+      WHERE tasks.source <> 'operator-http'
+        -- An expired running claim may already have produced side effects.
+        -- A newer public relay snapshot must never requeue it implicitly.
+        AND tasks.status <> 'running'
+        AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
         AND excluded.updated_at > tasks.updated_at
     `).run(
       ownerAlias(options),
@@ -150,16 +170,32 @@ function listTasks(options = {}) {
   `).all(ownerAlias(options)).map(parseRecord));
 }
 
+// An expired running claim may have already caused side effects. Never replay it
+// automatically; leave it for explicit review and reauthorization.
 function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {}) {
+  // Selection-only filtering is insufficient: enforce a supervised canary pin
+  // at the atomic claim boundary, including direct queue/worker callers.
+  const canonicalScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID || '';
+  const legacyScope = process.env.THREEDVR_AGENT_ONLY_TASK_ID || '';
+  if (canonicalScope && legacyScope && canonicalScope !== legacyScope) return null;
+  const envScope = canonicalScope || legacyScope;
+  const onlyTaskId = options.onlyTaskId ?? envScope;
+  if (envScope && onlyTaskId !== envScope) return null;
+  if (onlyTaskId && String(id) !== onlyTaskId) return null;
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
       const row = db.prepare(`
         SELECT record_json, source, claim_expires_at FROM tasks
-        WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
-      `).get(ownerAlias(options), String(id), now);
+        WHERE owner_alias = ? AND id = ? AND status = 'queued'
+      `).get(ownerAlias(options), String(id));
       if (!row) {
+        db.exec('ROLLBACK');
+        return null;
+      }
+      // Recheck signed HTTP provenance inside the atomic claim. The worker's
+      // earlier listTasks() snapshot may be stale by the time it claims.
+      if (String(id).startsWith('operator-http-') && row.source !== 'operator-http') {
         db.exec('ROLLBACK');
         return null;
       }
@@ -188,8 +224,7 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
       const result = db.prepare(`
         UPDATE tasks SET status = 'running', updated_at = ?, record_json = ?,
           claim_token = ?, claim_expires_at = ?
-        WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
+        WHERE owner_alias = ? AND id = ? AND status = 'queued'
       `).run(
         updated.updatedAt,
         JSON.stringify(updated),
@@ -197,7 +232,6 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         expiresAt,
         ownerAlias(options),
         String(id),
-        now,
       );
       db.exec('COMMIT');
       return result.changes === 1 ? { ...updated, queueSource: row.source, claimToken } : null;

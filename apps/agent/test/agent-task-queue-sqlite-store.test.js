@@ -55,6 +55,42 @@ test('SQLite queue survives reopen and preserves exact owner and task identifier
   assert.equal((await readTask('a-b', options)).task, 'second');
 });
 
+test('generic SQLite writers cannot forge, replace, or replay signed HTTP queue rows', async (t) => {
+  const options = await queueOptions(t);
+  const now = '2026-10-30T00:00:00.000Z';
+  const signed = { id: 'operator-http-protected', task: 'read-only synthetic', status: 'queued', updatedAt: now };
+  assert.throws(() => sqliteQueue.writeTask(signed, options), /signed queue provenance/i);
+  assert.equal(sqliteQueue.readTask(signed.id, options), null);
+
+  sqliteQueue.writeTask(signed, { ...options, queueSource: 'operator-http' });
+  const replacement = { ...signed, task: 'unsafe replacement', status: 'queued', updatedAt: '2026-10-30T00:01:00.000Z' };
+  assert.throws(() => sqliteQueue.writeTask(replacement, options), /signed queue provenance/i);
+  assert.throws(() => sqliteQueue.writeTask(replacement, { ...options, queueSource: 'operator-http' }), /already exists/i);
+  await assert.rejects(enqueueTask('replayed by generic CLI', { ...options, id: signed.id }), /signed queue provenance/i);
+  const saved = sqliteQueue.readTask(signed.id, options);
+  assert.equal(saved.task, signed.task);
+  assert.equal(saved.status, 'queued');
+  assert.equal(saved.queueSource, 'operator-http');
+  // A newer public-relay import must not rewrite the private prompt, result, or provenance.
+  assert.equal(sqliteQueue.importTask({ ...replacement, updatedAt: '2026-10-30T00:02:00.000Z' }, options), false);
+  const afterImport = sqliteQueue.readTask(signed.id, options);
+  assert.equal(afterImport.task, signed.task);
+  assert.equal(afterImport.status, 'queued');
+  assert.equal(afterImport.queueSource, 'operator-http');
+
+  const collision = { ...signed, id: 'operator-http-legacy-collision' };
+  // A public import cannot squat on an as-yet-unallocated signed ID.
+  assert.equal(sqliteQueue.importTask(collision, options), false);
+  assert.equal(sqliteQueue.readTask(collision.id, options), null);
+  sqliteQueue.writeTask(collision, { ...options, queueSource: 'operator-http' });
+  assert.equal(sqliteQueue.readTask(collision.id, options).queueSource, 'operator-http');
+
+  const ordinary = { ...signed, id: 'ordinary-task' };
+  sqliteQueue.writeTask(ordinary, options);
+  sqliteQueue.writeTask({ ...ordinary, task: 'ordinary update' }, options);
+  assert.equal(sqliteQueue.readTask(ordinary.id, options).task, 'ordinary update');
+});
+
 test('concurrent workers atomically claim a SQLite task only once', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -114,7 +150,7 @@ test('long SQLite work renews an expired initial claim against a competing worke
   assert.equal((await readTask('slow-task', options)).status, 'completed');
 });
 
-test('an expired claim is recovered after a worker process restart', async (t) => {
+test('an expired claim is held for review and never replayed after a worker restart', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -140,8 +176,34 @@ test('an expired claim is recovered after a worker process restart', async (t) =
     },
   });
 
-  assert.equal(executions, 1);
-  assert.equal((await readTask('restart-task', options)).status, 'completed');
+  assert.equal(executions, 0);
+  assert.equal((await readTask('restart-task', options)).status, 'running');
+  assert.equal(sqliteQueue.claimTask('restart-task', 'new-token', 'replacement-worker', now + 1000, now + 100, options), null);
+});
+
+test('newer GUN imports cannot replay expired running SQLite work', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.parse('2026-10-29T00:00:00.000Z');
+  const task = {
+    id: 'legacy-expired-claim',
+    task: 'synthetic task with uncertain side effects',
+    status: 'queued',
+    backend: 'openai',
+    updatedAt: new Date(now).toISOString(),
+  };
+  sqliteQueue.writeTask(task, options);
+  assert.ok(sqliteQueue.claimTask(task.id, 'original-claim', 'worker-a', now + 1000, now, options));
+  const replay = {
+    ...task,
+    task: 'relay requests an unsafe replay',
+    status: 'queued',
+    updatedAt: new Date(now + 5000).toISOString(),
+  };
+  assert.equal(sqliteQueue.importTask(replay, { ...options, now: now + 5000 }), false);
+  const saved = sqliteQueue.readTask(task.id, options);
+  assert.equal(saved.status, 'running');
+  assert.equal(saved.task, task.task);
+  assert.equal(sqliteQueue.claimTask(task.id, 'replacement-claim', 'worker-b', now + 60000, now + 5000, options), null);
 });
 
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
@@ -263,7 +325,7 @@ test('signed HTTP tasks keep prompts and results out of the public relay and mem
     recordLifeEventImpl:async () => {lifeEvents++;}
   });
   const id='operator-http-private-test';
-  await enqueueTask('private prompt', {...options,id,backend:'codex'});
+  await enqueueTask('private prompt', {...options,id,backend:'codex',queueSource:'operator-http'});
   await runWorkerOnce(options);
   assert.equal((await readTask(id,options)).status,'completed');
   assert.equal(await readTask(id,gunOptions),null);
@@ -280,9 +342,9 @@ test('private Operator tasks reserve one shared executor across queue loops and 
   const now = Date.now();
   const one = { id: 'operator-http-owner-a-first', status: 'queued', updatedAt: new Date(now).toISOString() };
   const two = { ...one, id: 'operator-http-owner-b-second' };
-  sqliteQueue.writeTask(one, options);
+  sqliteQueue.writeTask(one, {...options,queueSource:'operator-http'});
   const other = { ...options, ownerAlias: 'other-owner' };
-  sqliteQueue.writeTask(two, other);
+  sqliteQueue.writeTask(two, {...other,queueSource:'operator-http'});
   const first = sqliteQueue.claimTask(one.id, 'claim-one', 'worker-a', now + 60000, now, options);
   assert.ok(first);
   assert.equal(sqliteQueue.claimTask(two.id, 'claim-two', 'worker-b', now + 60000, now, other), null);
@@ -291,14 +353,16 @@ test('private Operator tasks reserve one shared executor across queue loops and 
   assert.ok(sqliteQueue.claimTask(two.id, 'claim-two', 'worker-b', now + 60000, now, other));
 });
 
-test('private executor admission releases expired claims and leaves unrelated task admission unchanged', async (t) => {
+test('private executor allows a new task after lease expiry without replaying the old claim', async (t) => {
   const options = await queueOptions(t);
   const now = Date.now();
   const a = { id: 'operator-http-first', status: 'queued', updatedAt: new Date(now).toISOString() };
   const b = { ...a, id: 'operator-http-second' };
   const ordinary = { ...a, id: 'ordinary-task' };
-  for (const record of [a, b, ordinary]) sqliteQueue.writeTask(record, options);
+  for (const record of [a, b, ordinary]) sqliteQueue.writeTask(record, record.id.startsWith('operator-http-') ? {...options,queueSource:'operator-http'} : options);
   assert.ok(sqliteQueue.claimTask(a.id, 'a', 'worker', now + 10, now, options));
   assert.ok(sqliteQueue.claimTask(ordinary.id, 'ordinary', 'worker', now + 60000, now, options));
   assert.ok(sqliteQueue.claimTask(b.id, 'b', 'worker', now + 60000, now + 11, options));
+  assert.equal(sqliteQueue.claimTask(a.id, 'retry-a', 'worker', now + 60000, now + 11, options), null);
+  assert.equal(sqliteQueue.readTask(a.id, options).status, 'running');
 });

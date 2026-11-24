@@ -532,19 +532,15 @@ async function runWorkerOnce(options = {}) {
   await syncTerminalResults(options);
   await importLegacyGunTasks(options);
   const tasks = await listTasks(options);
-  const now = options.now || Date.now();
   const queued = tasks
-    .filter(task => task.status === 'queued'
-      || (queueStore(options) === 'sqlite' && task.status === 'running' && task.claimExpiresAt <= now))
+    .filter(task => task.status === 'queued')
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
     const record = await readTask(summary.id, options);
-    const recoverable = queueStore(options) === 'sqlite'
-      && record?.status === 'running'
-      && record.claimExpiresAt <= now;
-    if (!record || (record.status !== 'queued' && !recoverable)) continue;
+    // Expired running work may have produced side effects; never replay it.
+    if (!record || record.status !== 'queued') continue;
     results.push({ id: record.id, result: await runQueuedTask(record, options) });
   }
   return results;
