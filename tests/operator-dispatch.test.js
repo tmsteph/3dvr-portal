@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -377,11 +378,11 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
   }
 });
 
-test('signed Operator task is actually claimed and completed by the private SQLite worker (executor stub only)', async () => {
+test('signed Operator task is actually claimed and completed by the private SQLite worker (executor stub only)', { timeout: 90000 }, async () => {
   // Unlike the mocked dispatch tests, this calls the unchanged REMOTE_QUEUE_SCRIPT
   // through a local Bash/Node process and reads its temporary SQLite DB directly.
   // This exercises a real private worker claim with a stubbed model executor;
-  // it does NOT prove hosted Codex execution or any independent CRM persistence.
+  // it does NOT prove hosted Codex execution or production CRM persistence.
   const dir = await mkdtemp(join(tmpdir(), 'operator-signed-sqlite-'));
   const dbPath = join(dir, 'isolated-queue.sqlite');
   const db = new DatabaseSync(dbPath);
@@ -487,26 +488,59 @@ test('signed Operator task is actually claimed and completed by the private SQLi
     assert.equal(syntheticExecutions, 1, 'model executor is invoked only once');
     assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 1);
 
-    // Join the two previously separate acceptance fixtures. The actual signed
-    // dispatch and private worker now invoke the actual revenue-ledger/outbox
-    // orchestration from a deterministic executor stub. The CRM adapter remains
-    // a local SQLite test double, not the production Gun relay.
-    const { openLedger, createProspect, transitionProspect, pendingProjections } =
-      require('../apps/agent/thomas-agent/node/revenue-ledger.js');
-    const { projectPendingCrm } = require('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
-    const provenance = 'signed-crm-canary-20261123';
-    const sourceUrl = 'https://example.test/' + provenance;
-    const prospectRequest = { action: 'enqueue', requestId: provenance,
-      text: 'Record synthetic research only: ' + sourceUrl + '. No outreach or external changes.',
-      title: 'Synthetic CRM research acceptance' };
-    const ledgerFile = join(dir, 'revenue-ledger-fixture.sqlite');
-    const crmFile = join(dir, 'crm-readback-fixture.sqlite');
-    const crmDb = new DatabaseSync(crmFile);
-    crmDb.exec('CREATE TABLE records(id TEXT PRIMARY KEY, json TEXT NOT NULL); CREATE TABLE touches(id TEXT PRIMARY KEY, json TEXT NOT NULL);');
-    let projectionWrites = 0;
-    let crmExecutions = 0;
-    let expectedEventId;
+    // Joined #3774 acceptance: real signed dispatch/SQLite worker plus real
+    // loopback Gun projection. Model execution is still a deterministic stub.
+    // Relay, projection and reader each have a stripped environment and scratch
+    // cwd; the isolated projection refuses non-loopback endpoints.
+    const gunModule = require.resolve('gun');
+    const ledgerModule = require.resolve('../apps/agent/thomas-agent/node/revenue-ledger.js');
+    const projectionModule = require.resolve('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
+    const crmModule = require.resolve('../apps/agent/thomas-agent/node/crm-sync.js');
+    const childOpts = { cwd: dir, env: { HOME: dir, PATH: process.env.PATH || '',
+      THREEDVR_GUN_PORTAL_ROOT: 'isolated-signed-crm-test' } };
+    const relay = spawn(process.execPath, ['-e', `
+      const http = require('node:http');
+      const gunFactory = require(process.argv[1]);
+      const server = http.createServer(gunFactory.serve);
+      gunFactory({ web: server, peers: [], file: 'signed-scratch-relay', axe: false, multicast: false, stats: false });
+      server.listen(0, '127.0.0.1', () => {
+        if (server.address().address !== '127.0.0.1') process.exit(2);
+        console.log('RELAY_READY:' + server.address().port);
+      });
+    `, gunModule], { ...childOpts, stdio: ['ignore', 'pipe', 'pipe'] });
+    let relayOutput = '', relayError = '';
+    relay.stderr.on('data', chunk => { relayError += chunk; });
     try {
+      const port = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
+        relay.once('error', error => { clearTimeout(timer); reject(error); });
+        relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
+        relay.stdout.on('data', chunk => {
+          relayOutput += chunk;
+          const match = /RELAY_READY:(\d+)/.exec(relayOutput);
+          if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+        });
+      });
+      assert.ok(port > 0 && port <= 65535);
+      const relayUrl = 'http://127.0.0.1:' + port + '/gun';
+      const runChild = (code, args, timeout) => {
+        const result = spawnSync(process.execPath, ['-e', code, ...args], {
+          ...childOpts, encoding: 'utf8', timeout, maxBuffer: 1024 * 1024
+        });
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, (result.stderr || '') + '\n' + (result.stdout || ''));
+        const line = result.stdout.split(/\r?\n/).find(item => item.startsWith('CRM_RESULT:'));
+        assert.ok(line, 'child must return explicit evidence: ' + result.stdout);
+        return JSON.parse(line.slice('CRM_RESULT:'.length));
+      };
+      const provenance = 'signed-crm-canary-20261123';
+      const sourceUrl = 'https://example.test/' + provenance;
+      const prospectRequest = { action: 'enqueue', requestId: provenance,
+        text: 'Record synthetic research only: ' + sourceUrl + '. No outreach or external changes.',
+        title: 'Synthetic CRM research acceptance' };
+      const ledgerFile = join(dir, 'revenue-ledger-fixture.sqlite');
+      let crmExecutions = 0;
+      let written;
       const prospectAccepted = await request(handler, prospectRequest);
       assert.equal(prospectAccepted.statusCode, 202);
       const prospectTaskId = prospectAccepted.data.record.id;
@@ -520,33 +554,34 @@ test('signed Operator task is actually claimed and completed by the private SQLi
             assert.equal(args.at(-1), record.task);
             assert.ok(record.task.startsWith('Operator delegated task: ' + prospectRequest.text));
             assert.match(record.task, /Do not send messages, spend money/);
-            const ledger = openLedger({ filePath: ledgerFile });
-            try {
-              const lead = createProspect(ledger, {
-                name: 'Synthetic buyer', sourceUrl, campaignId: 'no-send-acceptance'
-              }).prospect;
-              const transition = {
-                prospectId: lead.id, toState: 'verified', type: 'research_verified',
-                idempotencyKey: provenance, payload: { sourceUrl, operatorTaskId: record.id }
-              };
-              expectedEventId = transitionProspect(ledger, transition).event.id;
-              const write = async ({ records, touches }) => {
-                projectionWrites++;
-                for (const [table, rows] of [['records', records], ['touches', touches]]) {
-                  const put = crmDb.prepare('INSERT INTO ' + table + ' VALUES (?,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json');
-                  for (const item of rows) put.run(item.id, JSON.stringify(item));
-                }
-                return { records: records.length, touches: touches.length, errors: [] };
-              };
-              const projected = await projectPendingCrm(ledger, { isolated: true, write });
-              assert.equal(projected.succeeded, 1);
-              assert.equal(projected.failed, 0);
-              assert.equal(transitionProspect(ledger, transition).replayed, true);
-              assert.equal((await projectPendingCrm(ledger, { isolated: true, write })).attempted, 0);
-              assert.equal(pendingProjections(ledger).length, 0);
-              assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
-              return { ok: true, result: { stdout: JSON.stringify({ provenance, eventId: expectedEventId, crm: 'sqlite-fixture', sends: 0 }) } };
-            } finally { ledger.close(); }
+            written = runChild(`
+              const assert = require('node:assert/strict');
+              const { openLedger, createProspect, transitionProspect, pendingProjections } = require(process.argv[1]);
+              const { projectPendingCrm } = require(process.argv[2]);
+              const { buildLeadId } = require(process.argv[3]);
+              const [filePath, relayUrl, sourceUrl, provenance, taskId] = process.argv.slice(4);
+              (async () => {
+                const ledger = openLedger({ filePath });
+                try {
+                  const lead = createProspect(ledger, {
+                    name: 'Synthetic buyer', sourceUrl, campaignId: 'no-send-acceptance'
+                  }).prospect;
+                  const transition = { prospectId: lead.id, toState: 'verified', type: 'research_verified',
+                    idempotencyKey: provenance, payload: { sourceUrl, operatorTaskId: taskId } };
+                  const event = transitionProspect(ledger, transition).event;
+                  const projected = await projectPendingCrm(ledger, { isolated: true, relayUrl });
+                  assert.equal(projected.succeeded, 1, JSON.stringify(projected));
+                  assert.equal(projected.failed, 0);
+                  assert.equal(transitionProspect(ledger, transition).replayed, true);
+                  assert.equal((await projectPendingCrm(ledger, { isolated: true, relayUrl })).attempted, 0);
+                  assert.equal(pendingProjections(ledger).length, 0);
+                  assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+                  const id = buildLeadId({ name: lead.name, contact: lead.contact, link: lead.source_url });
+                  process.stdout.write('CRM_RESULT:' + JSON.stringify({ id, eventId: event.id }) + '\\n', () => process.exit(0));
+                } finally { ledger.close(); }
+              })().catch(error => { console.error(error); process.exit(1); });
+            `, [ledgerModule, projectionModule, crmModule, ledgerFile, relayUrl, sourceUrl, provenance, record.id], 20000);
+            return { ok: true, result: { stdout: JSON.stringify({ provenance, eventId: written.eventId, crm: 'loopback-gun', sends: 0 }) } };
           },
         }),
       };
@@ -557,34 +592,57 @@ test('signed Operator task is actually claimed and completed by the private SQLi
       assert.equal(done.data.record.workerDeviceId, workerOptions.deviceId);
       assert.ok(Number.isFinite(Date.parse(done.data.record.completedAt)));
       assert.deepEqual(JSON.parse(done.data.record.resultText), {
-        provenance, eventId: expectedEventId, crm: 'sqlite-fixture', sends: 0
+        provenance, eventId: written.eventId, crm: 'loopback-gun', sends: 0
       });
       assert.equal((await request(handler, prospectRequest)).data.record.status, 'completed');
       assert.equal(await runPrivateWorkerOnce(crmWorkerQueue), 0);
       assert.equal(crmExecutions, 1);
-      assert.equal(projectionWrites, 1);
       assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE id=?').get(prospectTaskId).n, 1);
-    } finally { crmDb.close(); }
-    // Independently reopen the scratch CRM store after the writer closes.
-    // Do not infer durable state solely from the executor's success receipt.
-    const crmReader = new DatabaseSync(crmFile, { readOnly: true });
-    try {
-      const records = crmReader.prepare('SELECT json FROM records').all();
-      const touches = crmReader.prepare('SELECT json FROM touches').all();
-      assert.equal(records.length, 1);
-      assert.equal(touches.length, 1);
-      const saved = JSON.parse(records[0].json);
-      const touch = JSON.parse(touches[0].json);
+      // Fresh process, no local storage, reads the actual relay after writer exit.
+      const { record: saved, touch } = runChild(`
+        const gunFactory = require(process.argv[1]);
+        const [url, id, eventId] = process.argv.slice(2);
+        const gun = gunFactory({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
+        function read(node, field, expected) {
+          return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('independent CRM read timed out: ' + field)), 8000);
+            node.on(data => {
+              if (data && data[field] === expected) {
+                clearTimeout(timer); node.off(); resolve(data);
+              }
+            });
+          });
+        }
+        Promise.all([
+          read(gun.get('3dvr-crm').get(id), 'canonicalEventId', eventId),
+          read(gun.get('isolated-signed-crm-test').get('crm-touch-log').get('revenue-event-' + eventId), 'crmRecordId', id)
+        ]).then(([record, touch]) => {
+          process.stdout.write('CRM_RESULT:' + JSON.stringify({ record, touch }) + '\\n', () => process.exit(0));
+        }).catch(error => { console.error(error); process.exit(1); });
+      `, [gunModule, relayUrl, written.id, written.eventId], 12000);
+      assert.equal(saved.id, written.id);
       assert.equal(saved.sourceUrl, sourceUrl);
-      assert.equal(saved.canonicalEventId, expectedEventId);
+      assert.equal(saved.canonicalEventId, written.eventId);
       assert.equal(saved.canonicalState, 'verified');
       assert.equal(saved.status, 'Lead');
       assert.equal(saved.email, '');
       assert.equal(saved.nextFollowUp, undefined);
       assert.equal(saved.lastPaymentAmountCents, undefined);
+      assert.equal(touch.id, 'revenue-event-' + written.eventId);
       assert.equal(touch.crmRecordId, saved.id);
       assert.equal(touch.touchType, 'research_verified');
-    } finally { crmReader.close(); }
+      const readLedger = new DatabaseSync(ledgerFile, { readOnly: true });
+      try {
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 1);
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+      } finally { readLedger.close(); }
+    } finally {
+      if (relay.exitCode === null && relay.signalCode === null && relay.pid) {
+        const exited = once(relay, 'exit');
+        relay.kill('SIGKILL');
+        await exited;
+      }
+    }
 
   } finally {
     db.close();
