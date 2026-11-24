@@ -88,12 +88,25 @@ async function deliverCandidate(db, options = {}) {
   if (!enabled(process.env.THREEDVR_REVENUE_DELIVERY_ENABLED)) {
     return { attempted: 0, sends: 0, disabled: true };
   }
+  const parseLimit = (raw, fallback) => {
+    if (raw === undefined) return fallback;
+    const value = String(raw).trim();
+    if (!/^\d+$/.test(value)) return null;
+    const number = Number(value);
+    return Number.isSafeInteger(number) ? number : null;
+  };
+  const dailyLimit = parseLimit(process.env.THREEDVR_REVENUE_DAILY_SEND_LIMIT, 1);
+  const campaignLimit = parseLimit(process.env.THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT, 10);
+  // NaN comparisons are false, and parseInt silently accepts partial strings.
+  // Reject bad configuration before candidate parsing, ledger access or delivery.
+  if (dailyLimit === null || campaignLimit === null) {
+    return { attempted: 0, sends: 0, disabled: true,
+      reason: 'invalid revenue delivery quota', error: 'Revenue delivery quotas must be nonnegative safe integers' };
+  }
   const candidate = loadCandidate();
   if (!candidate) return { attempted: 0, sends: 0, reason: 'no candidate' };
   const startOfUtcDay = new Date();
   startOfUtcDay.setUTCHours(0, 0, 0, 0);
-  const dailyLimit = Number.parseInt(process.env.THREEDVR_REVENUE_DAILY_SEND_LIMIT || '1', 10);
-  const campaignLimit = Number.parseInt(process.env.THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT || '10', 10);
   const dailySent = acknowledgedDeliveryCount(db, { since: startOfUtcDay.toISOString() });
   const campaignSent = acknowledgedDeliveryCount(db, { since: '1970-01-01T00:00:00.000Z', campaignId: candidate.campaignId || 'market-research' });
   if (dailySent >= dailyLimit || campaignSent >= campaignLimit) {
