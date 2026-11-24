@@ -1,6 +1,7 @@
 import { queueCodeChange } from '../operator/forge.js';
-import { normalizeQueueRecordForWorkboard } from '../src/operator-runtime/task-queue-adapter.js';
+import { normalizeQueueRecordForWorkboard, queueRecordForMapKey } from '../src/operator-runtime/task-queue-adapter.js';
 import { mergeQueueRuntimeRecord } from '../src/operator-runtime/runtime-sidecar.js';
+import { laneFor, friendlyStatus } from '../src/operator-runtime/workboard-status.js';
 
 const ROOT = '3dvr-portal';
 const AGENT_OWNER_ALIAS = '3dvr-managed';
@@ -30,22 +31,12 @@ const filterCopy = {
   focus: ['FOCUS', 'Needs you + active work'],
   inbox: ['QUEUE', 'Waiting to start'],
   review: ['NEEDS YOU', 'Decisions and review'],
-  done: ['DONE', 'Recently completed'],
+  done: ['FINISHED', 'Completed, closed or cancelled'],
   all: ['ALL WORK', 'Everything in one place']
 };
 
 function clean(value = '', max = 500) {
   return String(value ?? '').trim().slice(0, max);
-}
-
-function laneFor(status = '', kind = '') {
-  const normalized = clean(status, 80).toLowerCase().replace(/[\s-]+/g, '_');
-  if (kind === 'github-pr') return ['closed', 'merged'].includes(normalized) ? 'done' : 'review';
-  if (kind === 'github-issue') return normalized === 'closed' ? 'done' : 'inbox';
-  if (['done', 'completed', 'complete', 'merged', 'closed', 'success', 'succeeded', 'cancelled', 'canceled'].includes(normalized)) return 'done';
-  if (['review', 'ready_for_review', 'awaiting_review', 'needs_review', 'waiting_human', 'blocked', 'failed', 'error', 'skipped'].includes(normalized)) return 'review';
-  if (['working', 'running', 'in_progress', 'executing', 'claimed', 'processing', 'waiting_external', 'verifying'].includes(normalized)) return 'working';
-  return 'inbox';
 }
 
 function recordUrl(kind, id) {
@@ -77,20 +68,6 @@ function kindLabel(kind) {
   if (kind === 'github-issue') return 'Issue';
   if (kind === 'agent-task') return 'Runtime task';
   return 'Agent task';
-}
-
-function friendlyStatus(item, lane) {
-  const normalized = clean(item.record.status || 'open', 80).toLowerCase().replace(/[\s-]+/g, '_');
-  if (normalized === 'waiting_external') return 'waiting outside';
-  if (normalized === 'verifying') return 'verifying';
-  if (lane === 'review') {
-    if (normalized === 'waiting_human') return 'needs you';
-    if (['failed', 'error', 'blocked', 'skipped'].includes(normalized)) return normalized.replaceAll('_', ' ');
-    return 'needs review';
-  }
-  if (lane === 'working') return 'working';
-  if (lane === 'done') return normalized === 'merged' ? 'merged' : 'done';
-  return 'queued';
 }
 
 function sortedItems() {
@@ -191,8 +168,8 @@ function updateEmptyState(filter) {
     title.textContent = 'You are all caught up.';
     copy.textContent = 'No decisions are waiting on you.';
   } else if (filter === 'done') {
-    title.textContent = 'No completed work yet.';
-    copy.textContent = 'Finished work will collect here.';
+    title.textContent = 'No finished work yet.';
+    copy.textContent = 'Terminal work will collect here with its actual outcome.';
   } else {
     title.textContent = 'No work to show.';
     copy.textContent = 'Queue something above to get moving.';
@@ -251,8 +228,16 @@ function syncAgentQueueItem(id) {
     render();
     return;
   }
+  // Reject a value filed under another task's map key, rather than
+  // showing its prospect/CRM context under the wrong task.
+  const keyedLatest = queueRecordForMapKey(latest, id);
+  if (!keyedLatest) {
+    records.delete(key);
+    render();
+    return;
+  }
   const runtime = agentQueueRuntime.get(id) || {};
-  const merged = mergeQueueRuntimeRecord(latest, runtime);
+  const merged = mergeQueueRuntimeRecord(keyedLatest, runtime);
   records.set(key, {
     id,
     kind: 'agent-task',
