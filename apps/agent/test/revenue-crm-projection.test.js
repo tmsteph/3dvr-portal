@@ -902,3 +902,124 @@ test('isolated source-only lead persists in separate scratch CRM and independent
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('real loopback Gun projection is independently readable after the writer exits', { timeout: 45000 }, async () => {
+  // #3774 transport acceptance: isolated child processes, explicit loopback,
+  // scratch relay data, no inherited credentials or production configuration.
+  // This is real Gun transport, but not hosted model or hosted worker proof.
+  const { spawn, spawnSync } = require('node:child_process');
+  const { once } = require('node:events');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-real-crm-relay-'));
+  const gunModule = require.resolve('gun');
+  const ledgerModule = require.resolve('../thomas-agent/node/revenue-ledger');
+  const projectionModule = require.resolve('../thomas-agent/node/revenue-crm-projection');
+  const crmModule = require.resolve('../thomas-agent/node/crm-sync');
+  const env = { HOME: tmp, PATH: process.env.PATH || '', THREEDVR_GUN_PORTAL_ROOT: 'isolated-crm-test' };
+  const opts = { cwd: tmp, env };
+  const relay = spawn(process.execPath, ['-e', `
+    const http = require('node:http');
+    const Gun = require(process.argv[1]);
+    const server = http.createServer(Gun.serve);
+    Gun({ web: server, peers: [], file: 'scratch-relay', axe: false, multicast: false, stats: false });
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (address.address !== '127.0.0.1') process.exit(2);
+      console.log('RELAY_READY:' + address.port);
+    });
+  `, gunModule], { ...opts, stdio: ['ignore', 'pipe', 'pipe'] });
+  let relayOutput = '';
+  let relayError = '';
+  relay.stderr.on('data', chunk => { relayError += chunk; });
+  try {
+    const port = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
+      relay.once('error', error => { clearTimeout(timer); reject(error); });
+      relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
+      relay.stdout.on('data', chunk => {
+        relayOutput += chunk;
+        const match = /RELAY_READY:(\d+)/.exec(relayOutput);
+        if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+      });
+    });
+    assert.ok(port > 0 && port <= 65535);
+    const url = 'http://127.0.0.1:' + port + '/gun';
+    function runChild(code, args, timeout) {
+      const result = spawnSync(process.execPath, ['-e', code, ...args], {
+        ...opts, encoding: 'utf8', timeout, maxBuffer: 1024 * 1024,
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, (result.stderr || '') + '\n' + (result.stdout || ''));
+      const line = result.stdout.split(/\r?\n/).find(item => item.startsWith('CRM_RESULT:'));
+      assert.ok(line, 'child must return explicit evidence: ' + result.stdout);
+      return JSON.parse(line.slice('CRM_RESULT:'.length));
+    }
+    const written = runChild(`
+      const assert = require('node:assert/strict');
+      const { openLedger, createProspect, transitionProspect, pendingProjections } = require(process.argv[1]);
+      const { projectPendingCrm } = require(process.argv[2]);
+      const { buildLeadId } = require(process.argv[3]);
+      const url = process.argv[4];
+      const sourceUrl = 'https://example.test/real-loopback-provenance';
+      (async () => {
+        const db = openLedger({ filePath: 'scratch-ledger.sqlite' });
+        try {
+          const lead = createProspect(db, { name: 'Synthetic Real Relay Buyer', sourceUrl, campaignId: 'no-send-test' }).prospect;
+          const transition = { prospectId: lead.id, toState: 'verified', type: 'research_verified',
+            idempotencyKey: 'real-loopback-research', payload: { sourceUrl } };
+          const event = transitionProspect(db, transition).event;
+          const result = await projectPendingCrm(db, { isolated: true, relayUrl: url });
+          assert.equal(result.succeeded, 1, JSON.stringify(result));
+          assert.equal(result.failed, 0);
+          assert.equal(transitionProspect(db, transition).replayed, true);
+          assert.equal((await projectPendingCrm(db, { isolated: true, relayUrl: url })).attempted, 0);
+          assert.equal(pendingProjections(db).length, 0);
+          assert.equal(db.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+          const id = buildLeadId({ name: lead.name, contact: lead.contact, link: lead.source_url });
+          process.stdout.write('CRM_RESULT:' + JSON.stringify({ id, eventId: event.id, sourceUrl }) + '\\n', () => process.exit(0));
+        } finally { db.close(); }
+      })().catch(error => { console.error(error); process.exit(1); });
+    `, [ledgerModule, projectionModule, crmModule, url], 20000);
+    const read = runChild(`
+      const Gun = require(process.argv[1]);
+      const [url, id, eventId] = process.argv.slice(2);
+      const gun = Gun({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
+      function read(node, field, expected) {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('independent CRM read timed out: ' + field)), 8000);
+          node.on(data => {
+            if (data && data[field] === expected) {
+              clearTimeout(timer);
+              node.off();
+              resolve(data);
+            }
+          });
+        });
+      }
+      Promise.all([
+        read(gun.get('3dvr-crm').get(id), 'canonicalEventId', eventId),
+        read(gun.get('isolated-crm-test').get('crm-touch-log').get('revenue-event-' + eventId), 'crmRecordId', id)
+      ]).then(([record, touch]) => {
+        process.stdout.write('CRM_RESULT:' + JSON.stringify({ record, touch }) + '\\n', () => process.exit(0));
+      }).catch(error => { console.error(error); process.exit(1); });
+    `, [gunModule, url, written.id, written.eventId], 12000);
+    assert.equal(read.record.id, written.id);
+    assert.equal(read.record.sourceUrl, written.sourceUrl);
+    assert.equal(read.record.canonicalEventId, written.eventId);
+    assert.equal(read.record.canonicalState, 'verified');
+    assert.equal(read.record.status, 'Lead');
+    assert.equal(read.record.email, '');
+    assert.equal(read.record.nextFollowUp, undefined);
+    assert.equal(read.record.lastPaymentAmountCents, undefined);
+    assert.equal(read.touch.id, 'revenue-event-' + written.eventId);
+    assert.equal(read.touch.crmRecordId, written.id);
+    assert.equal(read.touch.touchType, 'research_verified');
+  } finally {
+    if (relay.exitCode === null && relay.signalCode === null) {
+      const exited = once(relay, 'exit');
+      relay.kill('SIGKILL');
+      await exited;
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
