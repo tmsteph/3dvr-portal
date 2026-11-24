@@ -16,9 +16,7 @@ const RECONNECT_MAX_MS = 60 * 1000;
 const EVENT_DEBOUNCE_MS = Number.parseInt(process.env.THREEDVR_INBOX_EVENT_DEBOUNCE_MS || '750', 10);
 const MAX_IDLE_TIME_MS = Number.parseInt(process.env.THREEDVR_INBOX_MAX_IDLE_TIME_MS || String(4 * 60 * 1000), 10);
 const LOCAL_FREE_SITE_ENABLED = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_FREE_SITE_LOCAL_WORKER || 'true').trim());
-const FREE_SITE_DISPATCH = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_FREE_SITE_WORKFLOW_DISPATCH || 'true').trim());
-const FREE_SITE_WORKFLOW = String(process.env.THREEDVR_FREE_SITE_WORKFLOW || 'free-site-fast-lane.yml').trim();
-const FREE_SITE_REPO = String(process.env.THREEDVR_FREE_SITE_REPO || 'tmsteph/3dvr-portal').trim();
+
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -58,18 +56,10 @@ async function runLocalFreeSiteWorker(reason) {
   return result;
 }
 
-async function dispatchFreeSiteFastLane(reason) {
-  if (!FREE_SITE_DISPATCH) return { ok: true, skipped: true };
-  console.log(`[inbox-monitor-loop] dispatching free-site fallback (${reason})`);
-  const result = await runCommand(
-    'gh',
-    ['workflow', 'run', FREE_SITE_WORKFLOW, '--repo', FREE_SITE_REPO, '--ref', 'main'],
-    'free-site workflow dispatch'
-  );
-  if (!result.ok) {
-    console.error('[inbox-monitor-loop] free-site fallback dispatch failed; the scheduled GitHub fallback remains available');
-  }
-  return result;
+// Separate Actions caches cannot safely reconcile the self-hosted ledger.
+// A failure is a local operational event, never a request to replay remotely.
+async function reportFreeSiteFailure(reason) {
+  console.error(`[inbox-monitor-loop] free-site fulfillment requires reconciliation (${reason}); remote fallback disabled`);
 }
 
 async function resolveImapAuth() {
@@ -103,7 +93,7 @@ async function resolveImapAuth() {
 function makeProcessor({
   runInbox = runInboxCycle,
   runFreeSite = runLocalFreeSiteWorker,
-  dispatchFallback = dispatchFreeSiteFastLane,
+  reportFailure = reportFreeSiteFailure,
   debounceMs = EVENT_DEBOUNCE_MS,
 } = {}) {
   let running = false;
@@ -134,21 +124,21 @@ function makeProcessor({
             completedSuccessfully = true;
             return;
           }
-          return dispatchFallback(reason);
+          return reportFailure(reason);
         },
         (error) => {
           console.error(`[inbox-monitor-loop] free-site worker failed: ${error.message || error}`);
-          return dispatchFallback(reason);
+          return reportFailure(reason);
         }
       )
       .catch((error) => {
-        console.error(`[inbox-monitor-loop] free-site fallback failed: ${error.message || error}`);
+        console.error(`[inbox-monitor-loop] free-site failure reporting failed: ${error.message || error}`);
       })
       .finally(() => {
         freeSiteRunning = false;
         // A successful scan may have taken its mailbox snapshot before a new
         // request arrived. Rescan once, but never automatically replay a
-        // failed/uncertain job or race the remote fallback we just dispatched.
+        // failed/uncertain job merely because another event arrived.
         if (completedSuccessfully && pendingFreeSiteReason !== null) {
           startFreeSite(pendingFreeSiteReason);
         }
