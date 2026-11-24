@@ -70,7 +70,7 @@ function riskClassFor(item, override) {
 }
 
 export function queueStatusFromWorkItemState(state = 'queued') {
-  return STATE_TO_QUEUE_STATUS[state] || 'queued';
+  return Object.hasOwn(STATE_TO_QUEUE_STATUS, state) ? STATE_TO_QUEUE_STATUS[state] : 'queued';
 }
 
 function authoritativeQueueState(record = {}) {
@@ -85,7 +85,7 @@ function authoritativeQueueState(record = {}) {
     // An unknown worker status is not a successful completion receipt.
     // Never fall back to a stale sidecar's done/running state for a queue
     // status we cannot interpret; mark it blocked for manual inspection.
-    return QUEUE_STATUS_TO_STATE[status] || 'blocked';
+    return Object.hasOwn(QUEUE_STATUS_TO_STATE, status) ? QUEUE_STATUS_TO_STATE[status] : 'blocked';
   }
   // Missing queue status is not a worker receipt. A sidecar alone must
   // never turn a partial/legacy latest record into a completed task.
