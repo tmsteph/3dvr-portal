@@ -581,7 +581,33 @@ async function processRequest({ request, state, mailAuth }) {
   }
 }
 
+// A single host can still have overlapping CLI/service invocations. Acquire
+// the claim before reading the ledger or contacting external services.
+// An abandoned lock is intentionally not stolen: a child deployment or SMTP
+// side effect may outlive the process. Reconcile before removing it manually.
+async function withFulfillmentLock(stateFile, work) {
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+  const lockDir = path.join(fs.realpathSync(path.dirname(stateFile)), path.basename(stateFile) + '.lock');
+  try {
+    fs.mkdirSync(lockDir);
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      throw new Error('Free-site fulfillment lock held; active or abandoned worker requires reconciliation.');
+    }
+    throw error;
+  }
+  try {
+    return await work();
+  } finally {
+    fs.rmdirSync(lockDir);
+  }
+}
+
 async function runOnce() {
+  return withFulfillmentLock(STATE_FILE, runLocked);
+}
+
+async function runLocked() {
   const state = ensureState();
   const mailAuth = await resolveMailAuth();
   const requests = await loadRecentRequests(mailAuth);
@@ -629,6 +655,7 @@ async function runOnce() {
 
 module.exports = {
   ensureState,
+  withFulfillmentLock,
   sendReplyWithCheckpoint,
   buildFallbackHtml,
   cleanBody,
