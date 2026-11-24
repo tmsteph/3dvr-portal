@@ -568,3 +568,36 @@ test('Workboard and Operator use the shared runtime persistence bridge', async (
   assert.match(docs, /Phase 1 — persist and see shared work/);
   assert.match(docs, /compatibility bridge, not the final private store/);
 });
+
+
+test('signed completion requires current worker identity and result without reviving stale sidecars', () => {
+  const base = { task: 'Qualify synthetic lead', status: 'completed', runtimeState: 'done' };
+  for (const identity of [{ id: 'operator-http-synthetic' }, { id: 'source-only-synthetic', source: 'operator-http' }]) {
+    for (const status of ['completed', 'success', 'done', 'succeeded']) {
+      for (const fields of [
+        { workerDeviceId: '', resultSummary: 'Old invoice paid' },
+        { workerDeviceId: 'worker-synthetic', resultSummary: '' },
+        { workerDeviceId: ' ', resultSummary: ' ' }
+      ]) {
+        const record = { ...base, ...identity, ...fields, status };
+        const item = queueRecordToWorkItem(record);
+        const display = normalizeQueueRecordForWorkboard(record);
+        assert.equal(item.state, 'verifying');
+        assert.equal(item.result, null);
+        assert.equal(display.status, 'verifying');
+        assert.equal(display.resultSummary, '');
+        assert.equal(display.verificationStatus, 'missing_worker_receipt');
+      }
+      const valid = { ...base, ...identity, status, workerDeviceId: 'worker-synthetic', resultSummary: 'Current worker result' };
+      assert.equal(normalizeQueueRecordForWorkboard(valid).status, 'done');
+      assert.equal(normalizeQueueRecordForWorkboard(valid).resultSummary, 'Current worker result');
+    }
+  }
+  for (const [status, expected] of [['queued', 'queued'], ['running', 'running'], ['unknown', 'blocked'], ['', 'blocked']]) {
+    const retry = { ...base, id: 'operator-http-synthetic', status, workerDeviceId: 'old-worker', resultSummary: 'Old result' };
+    assert.equal(normalizeQueueRecordForWorkboard(retry).status, expected);
+    assert.equal(normalizeQueueRecordForWorkboard(retry).resultSummary, '');
+  }
+  const legacy = { ...base, id: 'legacy-synthetic', resultSummary: 'Legacy result' };
+  assert.equal(normalizeQueueRecordForWorkboard(legacy).status, 'done');
+});
