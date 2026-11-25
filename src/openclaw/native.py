@@ -238,6 +238,17 @@ def main(request):
                          if line.startswith('MemAvailable:'))
         if available < 256 * 1024:
             return {'ok': False, 'error': 'Backup server needs more free memory. Try again later.'}
+    # Keep the primary Operator task lane from launching another model process
+    # on a memory-starved host. Match the existing scheduler memory reserve
+    # (resource-telemetry.js); status remains a configuration-only check.
+    if request.get('taskMode') is True and request.get('action') == 'chat' and not backup:
+        try:
+            available = next(int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines()
+                             if line.startswith('MemAvailable:'))
+        except (OSError, StopIteration, ValueError, IndexError):
+            return {'ok': False, 'error': 'Operator host memory headroom could not be verified.'}
+        if available < 1536 * 1024:
+            return {'ok': False, 'error': 'Operator host needs at least 1536 MiB available memory before inference.'}
     binary = find_binary()
     # Check configuration only; status never consumes a model turn or refreshes auth.
     auth = json.loads((HOME / 'auth.json').read_text())
