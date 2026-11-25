@@ -408,3 +408,23 @@ test('signed queue completion via runtime-state fallback still requires worker a
   assert.equal(workItemStateFromQueueRecord({ id: 'operator-http-synthetic', status: 'running', runtimeState: 'done' }), 'running');
   assert.equal(workItemStateFromQueueRecord({ id: 'legacy-task', source: 'operator-http', runtimeState: 'done' }), 'verifying');
 });
+
+test('persisted reminders and event clocks must be absolute valid calendar timestamps', () => {
+  const now = '2026-11-24T20:00:00Z';
+  const make = () => createRevenueLeadWorkItem({
+    id: 'legacy-absolute-followup', stage: 'waiting_reply', state: 'waiting_external',
+    nextFollowUpAt: '2026-11-24T12:00:00-05:00'
+  });
+  for (const invalid of ['2026-11-24', '2026-11-24T12:00:00', '2026-02-30T12:00:00Z', '', null]) {
+    const legacy = make();
+    legacy.metadata.nextFollowUpAt = invalid;
+    assert.throws(() => advanceRevenueLead(legacy, 'follow_up_due', { now }), /previously scheduled reminder/);
+    assert.equal(legacy.metadata.stage, 'waiting_reply');
+  }
+  for (const invalid of ['2026-11-25', '2026-11-25T20:00:00', '2026-11-31T20:00:00Z', '']) {
+    assert.throws(() => advanceRevenueLead(make(), 'follow_up_due', { now: invalid }), /previously scheduled reminder/);
+  }
+  const due = advanceRevenueLead(make(), 'follow_up_due', { now });
+  assert.equal(due.metadata.stage, 'follow_up');
+  assert.equal(due.metadata.nextFollowUpAt, null);
+});
