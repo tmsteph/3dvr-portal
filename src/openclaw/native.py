@@ -262,6 +262,30 @@ def main(request):
             return {'ok': False, 'error': 'Operator host memory headroom could not be verified.'}
         if available < 1536 * 1024:
             return {'ok': False, 'error': 'Operator host needs at least 1536 MiB available memory before inference.'}
+        # Free pages alone do not indicate a usable host: PSI measures time
+        # tasks spend stalled on memory. Conservative task-admission limits,
+        # not a claim that a passing host has adequate cgroup headroom.
+        try:
+            pressure = {}
+            for line in Path('/proc/pressure/memory').read_text().splitlines():
+                fields = line.split()
+                if not fields or fields[0] not in ('some', 'full'):
+                    continue
+                if fields[0] in pressure:
+                    raise ValueError('duplicate PSI category')
+                averages = [field[6:] for field in fields[1:] if field.startswith('avg10=')]
+                if len(averages) != 1:
+                    raise ValueError('missing or ambiguous PSI avg10')
+                value = float(averages[0])
+                if not 0 <= value <= 100:
+                    raise ValueError('invalid PSI percentage')
+                pressure[fields[0]] = value
+            if set(pressure) != {'some', 'full'}:
+                raise ValueError('missing PSI category')
+        except (OSError, ValueError):
+            return {'ok': False, 'error': 'Operator host memory pressure could not be verified.'}
+        if pressure['some'] >= 50 or pressure['full'] >= 10:
+            return {'ok': False, 'error': 'Operator host memory pressure is too high for inference.'}
     binary = find_binary()
     # Check configuration only; status never consumes a model turn or refreshes auth.
     auth = json.loads((HOME / 'auth.json').read_text())
