@@ -116,11 +116,50 @@ test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45
   try {
     const strafePage = await openWing(browser);
     const strafeStart = await state(strafePage);
+    // Observe browser frame cadence and delivered input without changing the
+    // simulation, input duration, or displacement assertion.
+    await strafePage.evaluate(() => {
+      const frames = [];
+      const input = [];
+      const start = performance.now();
+      const recordInput = event => {
+        if (event.code === 'KeyD') input.push({ type: event.type, ms: performance.now() - start });
+      };
+      window.addEventListener('keydown', recordInput, true);
+      window.addEventListener('keyup', recordInput, true);
+      let handle;
+      const sample = timestamp => {
+        frames.push(timestamp);
+        handle = requestAnimationFrame(sample);
+      };
+      handle = requestAnimationFrame(sample);
+      window.__finishStrafeTiming = () => {
+        cancelAnimationFrame(handle);
+        window.removeEventListener('keydown', recordInput, true);
+        window.removeEventListener('keyup', recordInput, true);
+        const elapsedMs = performance.now() - start;
+        const intervals = frames.slice(1).map((timestamp, index) => timestamp - frames[index]);
+        return {
+          elapsedMs,
+          frameCount: frames.length,
+          longestFrameMs: intervals.length ? Math.max(...intervals) : null,
+          observedCappedFrameMs: intervals.reduce((sum, ms) => sum + Math.min(ms, 50), 0),
+          input
+        };
+      };
+    });
     await strafePage.keyboard.down('KeyD');
     await strafePage.waitForTimeout(750);
     await strafePage.keyboard.up('KeyD');
     const strafed = await state(strafePage);
-    assert.ok(Math.abs(strafed.position.x-strafeStart.position.x) > .45, 'D should move the ship sideways');
+    const timing = await strafePage.evaluate(() => {
+      const result = window.__finishStrafeTiming();
+      delete window.__finishStrafeTiming;
+      return result;
+    });
+    // rAF cadence is an observer estimate, not the application's actual dt.
+    assert.ok(Math.abs(strafed.position.x-strafeStart.position.x) > .45,
+      `D should move the ship sideways: ${JSON.stringify({ timing, before: strafeStart, after: strafed })}`);
     await strafePage.close();
 
     const risePage = await openWing(browser);
