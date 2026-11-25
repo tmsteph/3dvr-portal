@@ -378,7 +378,7 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
   }
 });
 
-test('signed Operator private worker and restarted loopback CRM preserve exact provenance (executor stub only)', { timeout: 90000 }, async () => {
+test('signed Operator private worker result imports through candidate adapter and survives CRM restart (executor stub only)', { timeout: 90000 }, async () => {
   // Unlike the mocked dispatch tests, this calls the unchanged REMOTE_QUEUE_SCRIPT
   // through a local Bash/Node process and reads its temporary SQLite DB directly.
   // This exercises a real private worker claim with a stubbed model executor;
@@ -494,6 +494,7 @@ test('signed Operator private worker and restarted loopback CRM preserve exact p
     // cwd; the isolated projection refuses non-loopback endpoints.
     const gunModule = require.resolve('gun');
     const ledgerModule = require.resolve('../apps/agent/thomas-agent/node/revenue-ledger.js');
+    const candidateModule = require.resolve('../apps/agent/thomas-agent/node/revenue-operator-candidate.js');
     const projectionModule = require.resolve('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
     const crmModule = require.resolve('../apps/agent/thomas-agent/node/crm-sync.js');
     const childOpts = { cwd: dir, env: { HOME: dir, PATH: process.env.PATH || '',
@@ -556,10 +557,13 @@ test('signed Operator private worker and restarted loopback CRM preserve exact p
         title: 'Synthetic CRM research acceptance' };
       const ledgerFile = join(dir, 'revenue-ledger-fixture.sqlite');
       let crmExecutions = 0;
-      let written;
+      const candidate = { name: 'Synthetic buyer', sourceUrl, summary: 'Synthetic public listing for research-only acceptance' };
+      const sourceEvidence = { name: 'Synthetic buyer', url: sourceUrl, evidence: 'Independent synthetic listing fixture' };
       const prospectAccepted = await request(handler, prospectRequest);
       assert.equal(prospectAccepted.statusCode, 202);
       const prospectTaskId = prospectAccepted.data.record.id;
+      const admission = JSON.parse(db.prepare('SELECT record_json FROM tasks WHERE id=?').get(prospectTaskId).record_json);
+      const expected = { taskId: prospectTaskId, requestDigest: admission.operatorRequestDigest, requestedAt: admission.createdAt };
       const crmWorkerQueue = {
         ...isolatedWorkerQueue,
         runQueuedTask: (record, options) => workerQueue.runQueuedTask(record, {
@@ -570,34 +574,7 @@ test('signed Operator private worker and restarted loopback CRM preserve exact p
             assert.equal(args.at(-1), record.task);
             assert.ok(record.task.startsWith('Operator delegated task: ' + prospectRequest.text));
             assert.match(record.task, /Do not send messages, spend money/);
-            written = runChild(`
-              const assert = require('node:assert/strict');
-              const { openLedger, createProspect, transitionProspect, pendingProjections } = require(process.argv[1]);
-              const { projectPendingCrm } = require(process.argv[2]);
-              const { buildLeadId } = require(process.argv[3]);
-              const [filePath, relayUrl, sourceUrl, provenance, taskId] = process.argv.slice(4);
-              (async () => {
-                const ledger = openLedger({ filePath });
-                try {
-                  const lead = createProspect(ledger, {
-                    name: 'Synthetic buyer', sourceUrl, campaignId: 'no-send-acceptance'
-                  }).prospect;
-                  const transition = { prospectId: lead.id, toState: 'verified', type: 'research_verified',
-                    idempotencyKey: provenance, payload: { sourceUrl, operatorTaskId: taskId } };
-                  const event = transitionProspect(ledger, transition).event;
-                  const projected = await projectPendingCrm(ledger, { isolated: true, relayUrl });
-                  assert.equal(projected.succeeded, 1, JSON.stringify(projected));
-                  assert.equal(projected.failed, 0);
-                  assert.equal(transitionProspect(ledger, transition).replayed, true);
-                  assert.equal((await projectPendingCrm(ledger, { isolated: true, relayUrl })).attempted, 0);
-                  assert.equal(pendingProjections(ledger).length, 0);
-                  assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
-                  const id = buildLeadId({ name: lead.name, contact: lead.contact, link: lead.source_url });
-                  process.stdout.write('CRM_RESULT:' + JSON.stringify({ id, eventId: event.id }) + '\\n', () => process.exit(0));
-                } finally { ledger.close(); }
-              })().catch(error => { console.error(error); process.exit(1); });
-            `, [ledgerModule, projectionModule, crmModule, ledgerFile, relayUrl, sourceUrl, provenance, record.id], 20000);
-            return { ok: true, result: { stdout: JSON.stringify({ provenance, eventId: written.eventId, crm: 'loopback-gun', sends: 0 }) } };
+            return { ok: true, result: { stdout: JSON.stringify(candidate) } };
           },
         }),
       };
@@ -607,13 +584,51 @@ test('signed Operator private worker and restarted loopback CRM preserve exact p
       assert.equal(done.data.record.status, 'completed');
       assert.equal(done.data.record.workerDeviceId, workerOptions.deviceId);
       assert.ok(Number.isFinite(Date.parse(done.data.record.completedAt)));
-      assert.deepEqual(JSON.parse(done.data.record.resultText), {
-        provenance, eventId: written.eventId, crm: 'loopback-gun', sends: 0
-      });
+      assert.deepEqual(JSON.parse(done.data.record.resultText), candidate);
       assert.equal((await request(handler, prospectRequest)).data.record.status, 'completed');
       assert.equal(await runPrivateWorkerOnce(crmWorkerQueue), 0);
       assert.equal(crmExecutions, 1);
       assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE id=?').get(prospectTaskId).n, 1);
+      // Revenue authority imports a completed durable row, not a model-authored
+      // receipt. The worker above never opens a CRM or ledger connection.
+      const written = runChild(`
+        const assert = require('node:assert/strict');
+        const { DatabaseSync } = require('node:sqlite');
+        const { openLedger, pendingProjections } = require(process.argv[1]);
+        const { recordOperatorCandidate } = require(process.argv[2]);
+        const { projectPendingCrm } = require(process.argv[3]);
+        const { buildLeadId } = require(process.argv[4]);
+        const [filePath, relayUrl, queuePath, expectedJson, evidenceJson] = process.argv.slice(5);
+        (async () => {
+          const expected = JSON.parse(expectedJson);
+          const verifiedSource = JSON.parse(evidenceJson);
+          const queue = new DatabaseSync(queuePath, { readOnly: true });
+          let row;
+          try {
+            const persisted = queue.prepare('SELECT source, status, record_json FROM tasks WHERE owner_alias = ? AND id = ?')
+              .get('3dvr-managed', expected.taskId);
+            row = { source: persisted.source, status: persisted.status, record: JSON.parse(persisted.record_json) };
+          } finally { queue.close(); }
+          const ledger = openLedger({ filePath });
+          try {
+            const input = { row, expected, verifiedSource };
+            const first = recordOperatorCandidate(ledger, input);
+            const lead = first.prospect;
+            const event = first.event;
+            assert.equal(lead.state, 'verified');
+            const projected = await projectPendingCrm(ledger, { isolated: true, relayUrl });
+            assert.equal(projected.succeeded, 1, JSON.stringify(projected));
+            assert.equal(projected.failed, 0);
+            assert.equal(recordOperatorCandidate(ledger, input).replayed, true);
+            assert.equal((await projectPendingCrm(ledger, { isolated: true, relayUrl })).attempted, 0);
+            assert.equal(pendingProjections(ledger).length, 0);
+            assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+            const id = buildLeadId({ name: lead.name, contact: lead.contact, link: lead.source_url });
+            process.stdout.write('CRM_RESULT:' + JSON.stringify({ id, eventId: event.id }) + '\\n', () => process.exit(0));
+          } finally { ledger.close(); }
+        })().catch(error => { console.error(error); process.exit(1); });
+      `, [ledgerModule, candidateModule, projectionModule, crmModule, ledgerFile, relayUrl,
+        dbPath, JSON.stringify(expected), JSON.stringify(sourceEvidence)], 20000);
       // Fresh process, no local storage, reads the actual relay after writer exit.
       const readCrm = url => runChild(`
         const gunFactory = require(process.argv[1]);
@@ -647,7 +662,7 @@ test('signed Operator private worker and restarted loopback CRM preserve exact p
       assert.equal(saved.lastPaymentAmountCents, undefined);
       assert.equal(touch.id, 'revenue-event-' + written.eventId);
       assert.equal(touch.crmRecordId, saved.id);
-      assert.equal(touch.touchType, 'research_verified');
+      assert.equal(touch.touchType, 'operator_candidate_verified');
       // Acknowledgement plus a live reader could still be served from memory.
       // Kill the isolated relay and start a fresh process with the same scratch
       // Radisk path; no writer is running and the new reader has no cache.
@@ -669,8 +684,10 @@ test('signed Operator private worker and restarted loopback CRM preserve exact p
           WHERE e.id = ?`).get(recovered.record.canonicalEventId);
         assert.ok(persistedEvent, 'independent CRM event must join to its durable ledger event');
         assert.equal(persistedEvent.id, written.eventId);
-        assert.equal(persistedEvent.idempotency_key, provenance);
-        assert.deepEqual(JSON.parse(persistedEvent.payload_json), { sourceUrl, operatorTaskId: prospectTaskId });
+        assert.equal(persistedEvent.idempotency_key, 'operator-candidate:' + prospectTaskId);
+        assert.deepEqual(JSON.parse(persistedEvent.payload_json), { taskId: prospectTaskId,
+          requestDigest: expected.requestDigest, sourceUrl, name: candidate.name,
+          summary: candidate.summary, evidence: sourceEvidence.evidence });
         assert.equal(persistedEvent.source_url, sourceUrl);
         assert.equal(persistedEvent.state, 'verified');
         assert.equal(persistedEvent.projection_status, 'succeeded');
