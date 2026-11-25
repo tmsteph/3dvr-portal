@@ -335,6 +335,7 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
     assert.equal(status.statusCode, 200);
     assert.equal(status.data.record.id, accepted.data.record.id);
     assert.equal(status.data.record.status, 'queued', 'no worker completion is simulated or claimed');
+    assert.equal(status.data.record.operatorRequestDigest, seen[0].record.operatorRequestDigest);
 
     // Model a separately committed worker result without launching a worker:
     // the owner-signed status reader must expose attribution and a retry must
@@ -358,6 +359,7 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
     assert.equal(completed.statusCode, 200);
     assert.equal(completed.data.record.status, 'completed');
     assert.equal(completed.data.record.workerDeviceId, syntheticWorkerId);
+    assert.equal(completed.data.record.operatorRequestDigest, seen[0].record.operatorRequestDigest);
     assert.equal(completed.data.record.resultText, '42');
 
     const completedRetry = await request(handler, item);
