@@ -47,6 +47,9 @@ test('rejects forged completion, changed task, invalid chronology and model life
     const mutations = [
       x => { x.row.source = 'legacy'; },
       x => { x.row.record.workerDeviceId = ''; },
+      x => { x.row.record.workerDeviceId = ' \t\n '; },
+      x => { x.row.record.workerDeviceId = 42; },
+      x => { x.row.record.error = 'worker failed'; },
       x => { x.row.record.resultTruncated = true; },
       x => { x.row.record.operatorRequestDigest = 'c'.repeat(64); },
       x => { x.row.record.completedAt = '2025-01-01T00:00:00Z'; },
