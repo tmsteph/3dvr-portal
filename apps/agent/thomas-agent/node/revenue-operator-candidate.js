@@ -33,7 +33,7 @@ function recordOperatorCandidate(db, { row, expected, verifiedSource } = {}) {
       || record.id !== expected?.taskId
       || !/^[a-f0-9]{64}$/.test(record.operatorRequestDigest || '')
       || record.operatorRequestDigest !== expected?.requestDigest
-      || !record.workerDeviceId || typeof record.workerDeviceId !== 'string') {
+      || typeof record.workerDeviceId !== 'string' || !record.workerDeviceId.trim()) {
     throw new Error('Unverified private task completion');
   }
   const start = Date.parse(record.startedAt);
