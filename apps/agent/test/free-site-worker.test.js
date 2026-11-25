@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureState, withFulfillmentLock, sendReplyWithCheckpoint, verifyLive, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
+const { ensureState, withFulfillmentLock, sendReplyWithCheckpoint, verifyLive, resolvePublicBase, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
 
 const FORM_BOILERPLATE = [
   'I want a free live one-page website on a 3DVR-hosted address.',
@@ -308,4 +308,12 @@ test('live verification rejects redirects, unrelated effective URLs, and non-HTM
     assert.equal(result, expected, label);
     assert.deepEqual(calls, [{ url: siteUrl, options: { redirect: 'manual' } }], label);
   }
+});
+
+
+test('new fulfillment URLs use the canonical marketing hostname without overriding explicit configuration', () => {
+  assert.equal(resolvePublicBase(undefined), 'https://www.3dvr.tech/free-sites');
+  assert.equal(resolvePublicBase(''), 'https://www.3dvr.tech/free-sites');
+  assert.equal(resolvePublicBase('https://example.com/free-sites///'), 'https://example.com/free-sites');
+  assert.equal(resolvePublicBase('https://3dvr.tech/free-sites'), 'https://3dvr.tech/free-sites');
 });
