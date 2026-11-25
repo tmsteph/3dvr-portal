@@ -15,9 +15,13 @@ const baseEnv = {
   OPERATOR_RUNTIME_E2E_TIMEOUT_MS: '1000'
 };
 const expectedTaskIdPrefix = `operator-http-${createHash('sha256').update(pair.pub).digest('hex').slice(0,24)}-`;
+const expectedRequestDigest = createHash('sha256').update(JSON.stringify({
+  text: 'What is 6 multiplied by 7? Respond with only the integer answer, without explanation. Do not access networks, files, accounts, or external services; do not make changes.',
+  title: 'Signed Operator execution canary'
+})).digest('hex');
 const receipt = { id: `${expectedTaskIdPrefix}operator-e2e-12345678123412341234123456789012`,
   status: 'completed', startedAt: '2026-10-27T12:00:00Z',
-  completedAt: '2026-10-27T12:00:01Z', workerDeviceId: 'synthetic-worker', resultText: '42' };
+  completedAt: '2026-10-27T12:00:01Z', workerDeviceId: 'synthetic-worker', operatorRequestDigest: expectedRequestDigest, resultText: '42' };
 
 function fakeResponse(status, result) {
   return { status, json: async () => result };
@@ -43,6 +47,7 @@ function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
     requests.push({action:body.action, requestId:body.requestId});
     if (body.action === 'enqueue') {
       admissionSeen = true;
+      assert.equal(createHash('sha256').update(JSON.stringify({text: body.text, title: body.title})).digest('hex'), expectedRequestDigest);
       assert.doesNotMatch(body.text, /\b42\b/, 'canary prompt must not supply the expected answer');
       return admission;
     }
@@ -222,6 +227,14 @@ test('completed canaries with blank attribution, errors or truncated results can
   ]) {
     const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:{...receipt,...patch}})]});
     await assert.rejects(probe.run(), /durable, attributable/);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
+test('missing or mismatched exact command digest cannot pass even with the expected answer', async () => {
+  for (const digest of [undefined, '', 'a'.repeat(64)]) {
+    const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:{...receipt,operatorRequestDigest:digest}})]});
+    await assert.rejects(probe.run(), /exact signed command digest/);
     assert.ok(!probe.logs.includes('E2E_PASS=true'));
   }
 });
