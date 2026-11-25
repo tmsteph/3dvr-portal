@@ -597,6 +597,16 @@ async function withFulfillmentLock(stateFile, work) {
     throw error;
   }
   try {
+    // A file alias can select a different lock name for the same ledger.
+    // Atomic state replacement also makes symlink/hardlink semantics unsafe.
+    // Parent-directory aliases are handled by the canonical lock directory.
+    let info;
+    try { info = fs.lstatSync(stateFile); } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    if (info && (!info.isFile() || info.nlink !== 1)) {
+      throw new Error('Unsupported fulfillment ledger alias or file type; manual reconciliation required.');
+    }
     return await work();
   } finally {
     fs.rmdirSync(lockDir);
