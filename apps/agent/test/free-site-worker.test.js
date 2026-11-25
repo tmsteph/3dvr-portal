@@ -233,3 +233,46 @@ test('independent process cannot enter a held ledger and a killed owner leaves t
   await withFulfillmentLock(file, () => { calls += 1; });
   assert.equal(calls, 1);
 });
+
+test('ledger file aliases and non-regular paths fail closed without invoking fulfillment', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'free-site-alias-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'state.json');
+  const symlink = path.join(dir, 'symlink.json');
+  const dangling = path.join(dir, 'dangling.json');
+  const hardlink = path.join(dir, 'hardlink.json');
+  const directory = path.join(dir, 'directory.json');
+  const parent = path.join(dir, 'parent');
+  fs.writeFileSync(file, '{}');
+  fs.symlinkSync(file, symlink);
+  fs.symlinkSync(path.join(dir, 'missing'), dangling);
+  fs.mkdirSync(directory);
+  fs.symlinkSync(dir, parent, 'dir');
+  let calls = 0;
+  const work = () => { calls += 1; };
+  for (const alias of [symlink, dangling, directory]) {
+    await assert.rejects(withFulfillmentLock(alias, work), /Unsupported fulfillment ledger/);
+    assert.equal(fs.existsSync(alias + '.lock'), false);
+  }
+  fs.linkSync(file, hardlink);
+  for (const alias of [file, hardlink]) {
+    await assert.rejects(withFulfillmentLock(alias, work), /Unsupported fulfillment ledger/);
+    assert.equal(fs.existsSync(alias + '.lock'), false);
+  }
+  assert.equal(calls, 0);
+  assert.equal(fs.readFileSync(file, 'utf8'), '{}');
+  fs.unlinkSync(hardlink);
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  const owner = withFulfillmentLock(file, () => held);
+  try {
+    await assert.rejects(withFulfillmentLock(path.join(parent, 'state.json'), work), /lock held/);
+  } finally {
+    release();
+    await owner;
+  }
+  assert.equal(calls, 0);
+  await withFulfillmentLock(file, work);
+  await withFulfillmentLock(path.join(dir, 'new.json'), work);
+  assert.equal(calls, 2);
+});
