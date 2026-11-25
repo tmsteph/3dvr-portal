@@ -66,6 +66,7 @@ export async function runOperatorRuntimeE2E({
     title: 'Signed Operator execution canary',
     text: 'What is 6 multiplied by 7? Respond with only the integer answer, without explanation. Do not access networks, files, accounts, or external services; do not make changes.'
   };
+  const expectedRequestDigest = createHash('sha256').update(JSON.stringify({text: task.text, title: task.title})).digest('hex');
   const timeoutMs = Math.min(240000, Math.max(1000, Number(env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS) || 120000));
   const pollMs = 2000;
   const states = [];
@@ -152,6 +153,9 @@ export async function runOperatorRuntimeE2E({
       Date.parse(lastRecord.completedAt) > now() + receiptClockSkewMs) {
     throw new Error('Task completion receipt is outside the fresh admission time window.');
   }
+  if (lastRecord.operatorRequestDigest !== expectedRequestDigest) {
+    throw new Error('Task completion receipt does not match the exact signed command digest.');
+  }
   // The test checks both worker attribution and the actual requested answer.
   const answer = String(lastRecord.resultText || lastRecord.resultSummary || '').trim();
   if (answer !== '42') {
@@ -159,7 +163,7 @@ export async function runOperatorRuntimeE2E({
   }
   log(`E2E_RECEIPT=${JSON.stringify({ requestId, status: lastRecord.status,
     startedAt: lastRecord.startedAt, completedAt: lastRecord.completedAt,
-    workerDeviceId: lastRecord.workerDeviceId, hasResult: true })}`);
+    workerDeviceId: lastRecord.workerDeviceId, requestDigest: expectedRequestDigest, hasResult: true })}`);
   // This canary verifies signed runtime execution only. CRM projection uses a
   // separate write/read path and must have its own exact-ID persistence receipt.
   // Keep the legacy pass marker for existing CI consumers, but make the scope
