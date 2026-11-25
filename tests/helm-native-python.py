@@ -250,6 +250,29 @@ class NativeTests(unittest.TestCase):
                 self.assertEqual(native.main({'action': 'status', 'engine': 'codex', 'toolsEnabled': True})['profile'], 'native-agent')
                 self.assertEqual(native.main({'action': 'status', 'engine': 'codex'})['profile'], 'native-chat')
 
+    def test_operator_primary_memory_guard_refuses_before_binary_or_client(self):
+        request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
+        for info in ['MemAvailable: 524288 kB', 'MemAvailable: invalid kB', 'MemTotal: 8192 kB']:
+            with self.subTest(info=info), patch.object(native.Path, 'read_text', return_value=info), \
+                 patch.object(native, 'find_binary') as binary, patch.object(native, 'Client') as client:
+                result = native.main(request)
+                self.assertFalse(result['ok'])
+                self.assertIn('memory', result['error'])
+                binary.assert_not_called()
+                client.assert_not_called()
+        with patch.object(native.Path, 'read_text', side_effect=OSError('unavailable')), \
+             patch.object(native, 'find_binary') as binary:
+            self.assertFalse(native.main(request)['ok'])
+            binary.assert_not_called()
+
+    def test_operator_primary_memory_guard_allows_existing_preflight_at_reserve(self):
+        request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
+        with patch.object(native.Path, 'read_text', return_value='MemAvailable: 1572864 kB'), \
+             patch.object(native, 'find_binary', side_effect=RuntimeError('binary probe reached')) as binary:
+            with self.assertRaisesRegex(RuntimeError, 'binary probe reached'):
+                native.main(request)
+            binary.assert_called_once()
+
     def test_status_never_starts_inference_and_expiry_prevents_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
