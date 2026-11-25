@@ -213,3 +213,15 @@ test('public, missing or malformed transport targets cannot send a signed reques
     assert.equal(probe.requests.length, 0);
   }
 });
+
+test('completed canaries with blank attribution, errors or truncated results cannot pass', async () => {
+  for (const patch of [
+    {workerDeviceId:'   '}, {workerDeviceId:123},
+    {error:'worker failed'}, {resultTruncated:true},
+    {resultSummaryTruncated:true}
+  ]) {
+    const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:{...receipt,...patch}})]});
+    await assert.rejects(probe.run(), /durable, attributable/);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
