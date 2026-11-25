@@ -378,7 +378,7 @@ test('signed Operator HTTP path persists one task in an isolated SQLite queue wi
   }
 });
 
-test('signed Operator task is actually claimed and completed by the private SQLite worker (executor stub only)', { timeout: 90000 }, async () => {
+test('signed Operator private worker and restarted loopback CRM preserve exact provenance (executor stub only)', { timeout: 90000 }, async () => {
   // Unlike the mocked dispatch tests, this calls the unchanged REMOTE_QUEUE_SCRIPT
   // through a local Bash/Node process and reads its temporary SQLite DB directly.
   // This exercises a real private worker claim with a stubbed model executor;
@@ -660,6 +660,22 @@ test('signed Operator task is actually claimed and completed by the private SQLi
       try {
         assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 1);
         assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+        // Independently join the persisted CRM event back to this exact signed
+        // worker task and provenance key. Do not publish private task IDs to Gun.
+        const persistedEvent = readLedger.prepare(`SELECT e.id, e.idempotency_key, e.payload_json,
+          p.source_url, p.state, o.status AS projection_status
+          FROM revenue_events e JOIN prospects p ON p.id = e.prospect_id
+          JOIN projection_outbox o ON o.event_id = e.id AND o.prospect_id = p.id
+          WHERE e.id = ?`).get(recovered.record.canonicalEventId);
+        assert.ok(persistedEvent, 'independent CRM event must join to its durable ledger event');
+        assert.equal(persistedEvent.id, written.eventId);
+        assert.equal(persistedEvent.idempotency_key, provenance);
+        assert.deepEqual(JSON.parse(persistedEvent.payload_json), { sourceUrl, operatorTaskId: prospectTaskId });
+        assert.equal(persistedEvent.source_url, sourceUrl);
+        assert.equal(persistedEvent.state, 'verified');
+        assert.equal(persistedEvent.projection_status, 'succeeded');
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 1);
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM projection_outbox').get().n, 1);
       } finally { readLedger.close(); }
     } finally {
       await stopRelay(activeRelay.relay);
