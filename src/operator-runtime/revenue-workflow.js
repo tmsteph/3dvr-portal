@@ -149,11 +149,17 @@ export function advanceRevenueLead(item, event, options = {}) {
   // already scheduled reminder that has actually reached its due time.
   // Callers that supply a test clock must be trusted by their event adapter.
   if (event === 'follow_up_due') {
-    const scheduledAt = item.metadata?.nextFollowUpAt;
-    const observedAt = options.now ?? new Date().toISOString();
-    if (typeof scheduledAt !== 'string' || !Number.isFinite(Date.parse(scheduledAt))
-      || typeof observedAt !== 'string' || !Number.isFinite(Date.parse(observedAt))
-      || Date.parse(scheduledAt) > Date.parse(observedAt)) {
+    let scheduledAt, observedAt;
+    try {
+      // Persisted legacy records and injected clocks need the same absolute
+      // calendar validation as new reminders; Date.parse alone accepts local
+      // dates and silently normalizes some impossible calendar dates.
+      scheduledAt = checkedFollowUpAt(item.metadata?.nextFollowUpAt);
+      observedAt = checkedFollowUpAt(options.now ?? new Date().toISOString());
+    } catch {
+      throw new TypeError('follow_up_due requires a previously scheduled reminder at or before now');
+    }
+    if (!scheduledAt || !observedAt || Date.parse(scheduledAt) > Date.parse(observedAt)) {
       throw new TypeError('follow_up_due requires a previously scheduled reminder at or before now');
     }
   }
