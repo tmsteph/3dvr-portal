@@ -387,16 +387,23 @@ function siteExists(webDir, slug) {
   return fs.existsSync(path.join(webDir, 'free-sites', slug, 'index.html'));
 }
 
-async function verifyLive(siteUrl) {
-  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
+async function verifyLive(siteUrl, { fetchImpl = fetch, attempts = VERIFY_ATTEMPTS, delayMs = VERIFY_DELAY_MS } = {}) {
+  const expectedUrl = new URL(siteUrl).href;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const response = await fetch(siteUrl, { redirect: 'follow' });
-      const text = await response.text();
-      if (response.ok && /<html/i.test(text)) return true;
+      // A redirect to an HTML fallback is not proof this site's URL is live.
+      const response = await fetchImpl(expectedUrl, { redirect: 'manual' });
+      if (response.status === 200 && !response.redirected && response.url === expectedUrl
+          && /^text\/html(?:\s*;|$)/i.test(response.headers.get('content-type') || '')) {
+        const text = await response.text();
+        if (/<html/i.test(text)) return true;
+      } else {
+        await response.body?.cancel();
+      }
     } catch {
       // Deployment may still be propagating.
     }
-    await new Promise((resolve) => setTimeout(resolve, VERIFY_DELAY_MS));
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
   return false;
 }
@@ -667,6 +674,7 @@ module.exports = {
   ensureState,
   withFulfillmentLock,
   sendReplyWithCheckpoint,
+  verifyLive,
   buildFallbackHtml,
   cleanBody,
   junkReason,

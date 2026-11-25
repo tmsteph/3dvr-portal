@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureState, withFulfillmentLock, sendReplyWithCheckpoint, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
+const { ensureState, withFulfillmentLock, sendReplyWithCheckpoint, verifyLive, topicFromRequest, slugify, resolveRequestEmail, junkReason, requestFingerprint } = require('../thomas-agent/node/free-site-worker');
 
 const FORM_BOILERPLATE = [
   'I want a free live one-page website on a 3DVR-hosted address.',
@@ -275,4 +275,37 @@ test('ledger file aliases and non-regular paths fail closed without invoking ful
   await withFulfillmentLock(file, work);
   await withFulfillmentLock(path.join(dir, 'new.json'), work);
   assert.equal(calls, 2);
+});
+
+test('live verification rejects redirects, unrelated effective URLs, and non-HTML responses', async () => {
+  const siteUrl = 'https://example.com/free-sites/synthetic/';
+  const base = { status: 200, redirected: false, url: siteUrl, type: 'text/html; charset=utf-8', html: '<html>synthetic</html>' };
+  const cases = [
+    ['direct HTML', {}, true],
+    ['redirect', { status: 307 }, false],
+    ['wrong effective URL', { url: 'https://example.com/' }, false],
+    ['followed redirect', { redirected: true }, false],
+    ['missing page', { status: 404 }, false],
+    ['non-HTML media type', { type: 'text/plain' }, false],
+    ['non-HTML body', { html: 'not a page' }, false],
+  ];
+  for (const [label, override, expected] of cases) {
+    const value = { ...base, ...override };
+    const calls = [];
+    const result = await verifyLive(siteUrl, {
+      attempts: 1,
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        return {
+          status: value.status,
+          redirected: value.redirected,
+          url: value.url,
+          headers: new Headers({ 'content-type': value.type }),
+          text: async () => value.html,
+        };
+      },
+    });
+    assert.equal(result, expected, label);
+    assert.deepEqual(calls, [{ url: siteUrl, options: { redirect: 'manual' } }], label);
+  }
 });
