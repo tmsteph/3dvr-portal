@@ -162,6 +162,8 @@ class NativeTests(unittest.TestCase):
             def read(path, *args, **kwargs):
                 if str(path) == '/proc/meminfo':
                     return 'MemAvailable: 2097152 kB'
+                if str(path) == '/proc/pressure/memory':
+                    return 'some avg10=0.10 avg60=0.10 avg300=0.10 total=10\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0'
                 return original_read(path, *args, **kwargs)
             with patch.object(native, 'HOME', home), patch.object(native, 'STATE', home / 'helm'), \
                  patch.object(native.Path, 'read_text', read), \
@@ -321,11 +323,32 @@ class NativeTests(unittest.TestCase):
 
     def test_operator_primary_memory_guard_allows_existing_preflight_at_reserve(self):
         request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
-        with patch.object(native.Path, 'read_text', return_value='MemAvailable: 1572864 kB'), \
+        with patch.object(native.Path, 'read_text', side_effect=['MemAvailable: 1572864 kB',\n                 'some avg10=0.10 avg60=0.10 avg300=0.10 total=10\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0']), \
              patch.object(native, 'find_binary', side_effect=RuntimeError('binary probe reached')) as binary:
             with self.assertRaisesRegex(RuntimeError, 'binary probe reached'):
                 native.main(request)
             binary.assert_called_once()
+
+    def test_operator_memory_pressure_refuses_before_binary_or_client(self):
+        request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
+        for psi in [
+            'some avg10=95.65\nfull avg10=65.95',
+            'some avg10=50.00\nfull avg10=0.00',
+            'some avg10=20.00\nfull avg10=10.00',
+            'some avg10=1.00',
+            'some avg10=nan\nfull avg10=0.00',
+            'some avg10=0.00\nfull avg10=-1.00',
+            'some avg10=0.00\nfull avg10=101.00',
+            OSError('pressure unavailable')
+        ]:
+            with self.subTest(psi=psi), patch.object(native.Path, 'read_text',
+                    side_effect=['MemAvailable: 2271752 kB', psi]), \
+                 patch.object(native, 'find_binary') as binary, patch.object(native, 'Client') as client:
+                result = native.main(request)
+                self.assertFalse(result['ok'])
+                self.assertIn('memory pressure', result['error'])
+                binary.assert_not_called()
+                client.assert_not_called()
 
     def test_status_never_starts_inference_and_expiry_prevents_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:
