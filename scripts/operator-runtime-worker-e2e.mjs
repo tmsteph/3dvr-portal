@@ -143,7 +143,8 @@ export async function runOperatorRuntimeE2E({
       !Number.isFinite(Date.parse(lastRecord.startedAt)) ||
       !Number.isFinite(Date.parse(lastRecord.completedAt)) ||
       Date.parse(lastRecord.completedAt) < Date.parse(lastRecord.startedAt) ||
-      !lastRecord.workerDeviceId ||
+      typeof lastRecord.workerDeviceId !== 'string' || !lastRecord.workerDeviceId.trim() ||
+      lastRecord.error || lastRecord.resultTruncated === true || lastRecord.resultSummaryTruncated === true ||
       !(lastRecord.resultText || lastRecord.resultSummary)) {
     throw new Error('Task completed without a durable, attributable execution receipt.');
   }
