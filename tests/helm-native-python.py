@@ -123,6 +123,60 @@ class NativeTests(unittest.TestCase):
                 native.run_turn(Events([event('item/started', item={'type': kind})]),
                                 'thread-one', {'message': 'test', 'taskMode': True}, lambda _: None)
 
+    def test_signed_canary_disables_search_and_rejects_search_events(self):
+        request = {'taskMode': True, 'session': 'operator-http-' + 'a' * 24 +
+                   '-operator-e2e-123456789012', 'message': 'test'}
+        self.assertTrue(native.is_operator_canary(request))
+        self.assertFalse(native.is_operator_canary({**request, 'taskMode': False}))
+        self.assertFalse(native.is_operator_canary({**request, 'session': 'operator-http-research'}))
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(native, 'HOME', Path(directory)):
+                args = native.command('/codex', task_mode=True, tools=True, canary=True)
+                self.assertIn('web_search="disabled"', args)
+                self.assertNotIn('web_search="live"', args)
+                self.assertIn('shell_tool', args)
+                self.assertIn('web_search="live"', native.command('/codex', True))
+        for method in ['item/started', 'item/completed']:
+            with self.assertRaisesRegex(RuntimeError, 'Web search unavailable'):
+                native.run_turn(Events([event(method, item={'type': 'webSearch'})]),
+                                'thread-one', request, lambda _: None)
+
+    def test_signed_canary_launches_no_search_and_refuses_native_session_reuse(self):
+        calls = []
+        class Client:
+            def __init__(self, args, *_):
+                calls.append(args)
+            def rpc(self, method, params):
+                calls.append((method, params))
+                return {'thread': {'id': 'canary-thread'}}
+            def send(self, *_):
+                pass
+            def close(self):
+                pass
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / 'auth.json').write_text(json.dumps({'auth_mode': 'chatgpt'}))
+            request = {'action': 'chat', 'taskMode': True, 'session': 'operator-http-' +
+                       'a' * 24 + '-operator-e2e-123456789012', 'message': 'test'}
+            original_read = Path.read_text
+            def read(path, *args, **kwargs):
+                if str(path) == '/proc/meminfo':
+                    return 'MemAvailable: 2097152 kB'
+                return original_read(path, *args, **kwargs)
+            with patch.object(native, 'HOME', home), patch.object(native, 'STATE', home / 'helm'), \
+                 patch.object(native.Path, 'read_text', read), \
+                 patch.object(native, 'find_binary', return_value='/codex'), \
+                 patch.object(native, 'Client', Client), patch.object(native, 'run_turn', return_value='42') as run:
+                self.assertTrue(native.main(request)['ok'])
+                self.assertIn('web_search="disabled"', calls[0])
+                self.assertIn('shell_tool', calls[0])
+                self.assertEqual(calls[2][0], 'thread/start')
+                self.assertIn('No search', calls[2][1]['developerInstructions'])
+                result = native.main(request)
+                self.assertFalse(result['ok'])
+                self.assertIn('fresh native session', result['error'])
+                self.assertEqual(run.call_count, 1)
+
     def test_installed_binary_remains_discoverable_without_a_running_gateway(self):
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / 'codex'
