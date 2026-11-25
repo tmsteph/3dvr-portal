@@ -27,7 +27,8 @@ function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
   statuses = [fakeResponse(200, {ok:true, record:receipt})] } = {}) {
   const requests = [];
   const logs = [];
-  let clock = 0;
+  // Keep the injected admission clock on the same epoch as the receipt fixtures.
+  let clock = Date.parse(receipt.startedAt);
   let statusIndex = 0;
   let admissionSeen = false;
   const fetchImpl = async (_url, options) => {
