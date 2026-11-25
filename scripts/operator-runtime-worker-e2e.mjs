@@ -93,6 +93,9 @@ export async function runOperatorRuntimeE2E({
     throw new Error('Canary ID is already used or freshness cannot be verified; no enqueue attempted.');
   }
   log('E2E_PRECHECK=missing');
+  // Bound the receipt to this admission attempt, allowing only small clock skew.
+  const admissionStartedAt = now();
+  const receiptClockSkewMs = 5000;
   let admission;
   try { admission = await request(task); }
   catch { log('E2E_ADMISSION=uncertain'); }
@@ -143,6 +146,10 @@ export async function runOperatorRuntimeE2E({
       !lastRecord.workerDeviceId ||
       !(lastRecord.resultText || lastRecord.resultSummary)) {
     throw new Error('Task completed without a durable, attributable execution receipt.');
+  }
+  if (Date.parse(lastRecord.startedAt) < admissionStartedAt - receiptClockSkewMs ||
+      Date.parse(lastRecord.completedAt) > now() + receiptClockSkewMs) {
+    throw new Error('Task completion receipt is outside the fresh admission time window.');
   }
   // The test checks both worker attribution and the actual requested answer.
   const answer = String(lastRecord.resultText || lastRecord.resultSummary || '').trim();

@@ -131,6 +131,19 @@ test('missing timestamps or worker attribution cannot pass', async () => {
   }
 });
 
+test('stale or future completion timestamps cannot pass a fresh signed admission', async () => {
+  for (const record of [
+    {...receipt, startedAt:'2026-10-26T12:00:00Z', completedAt:'2026-10-26T12:00:01Z'},
+    {...receipt, startedAt:'2026-10-27T12:00:06Z', completedAt:'2026-10-27T12:00:07Z'},
+    {...receipt, startedAt:'2026-10-27T12:00:00Z', completedAt:'2026-10-27T12:01:00Z'}
+  ]) {
+    const probe = simulate({statuses:[fakeResponse(200,{ok:true,record})]});
+    await assert.rejects(probe.run(), /fresh admission time window/);
+    assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue','status']);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
 test('mismatched task ID or request ID cannot count as completed execution', async () => {
   for (const response of [
     fakeResponse(200, {ok:true, record:{...receipt,id:'operator-http-unrelated'}}),
