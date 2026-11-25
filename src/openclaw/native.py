@@ -72,7 +72,18 @@ AGENT_INSTRUCTIONS = ('You are Helm\'s agent, working for its owner tmsteph in h
     'Out of scope: sending messages or email, purchases or payments, account or credential changes, and anything on other machines.')
 
 
-def command(binary, task_mode=False, tools=False):
+def is_operator_canary(request):
+    # The existing signed E2E request ID reserves this task namespace. Do not
+    # infer no-search permission from natural-language prompt content.
+    return request.get('taskMode') is True and re.fullmatch(
+        r'operator-http-[a-f0-9]{24}-operator-e2e-[A-Za-z0-9_-]{12,80}',
+        str(request.get('session', ''))) is not None
+
+
+def command(binary, task_mode=False, tools=False, canary=False):
+    if canary:
+        tools = False
+        task_mode = False
     if tools:
         # Agent posture: the shell tool stays enabled and web search is live.
         args = [binary, 'app-server', '-c', 'web_search="live"']
@@ -202,6 +213,8 @@ def run_turn(client, thread_id, request, on_delta, on_activity=None, model=MODEL
                 raise ValueError('Reply limit')
             if text:
                 on_delta(text)
+        elif method in ['item/started', 'item/completed'] and is_operator_canary(request) and params.get('item', {}).get('type') == 'webSearch':
+            raise RuntimeError('Web search unavailable in Operator canary')
         elif method == 'item/started':
             kind = params.get('item', {}).get('type')
             # Tool items are expected in agent posture. MCP calls stay refused
@@ -274,6 +287,9 @@ def main(request):
         workspace = STATE / 'workspace'
         workspace.mkdir(mode=0o700, exist_ok=True)
         task_mode = request.get('taskMode') is True
+        canary = is_operator_canary(request)
+        if canary and state.get('threadId'):
+            return {'ok': False, 'error': 'Operator canary requires a fresh native session.'}
         tools = tools_enabled(request)
         if tools:
             # The agent's whole world is a dedicated clean clone of the portal
@@ -284,7 +300,7 @@ def main(request):
             if not (worktree / '.git').exists():
                 return {'ok': False, 'error': 'Helm agent worktree is not set up on this server. See the deployment step in helm/README.md.'}
             workspace = worktree
-        client = Client(command(binary, task_mode, tools), str(workspace), time.monotonic() + (280 if tools else 85))
+        client = Client(command(binary, task_mode, tools, canary), str(workspace), time.monotonic() + (280 if tools else 85))
         try:
             client.rpc('initialize', {'clientInfo': {'name': '3dvr_helm', 'version': '0.1.0'}})
             client.send('initialized', {}, False)
@@ -304,6 +320,9 @@ def main(request):
                         'Use web search when current evidence is needed and return sources. '
                         'Shell, MCP, file changes, messaging, purchases and deployment are unavailable. '
                         'Return the completed result; state any unavailable capability honestly.')
+                if canary:
+                    params['developerInstructions'] = ('Complete only the isolated arithmetic canary. '
+                        'No search, tools or external actions are available. Return only the requested answer.')
                 if tools:
                     params['developerInstructions'] = AGENT_INSTRUCTIONS
                 result = client.rpc('thread/start', params)
