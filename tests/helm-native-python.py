@@ -323,7 +323,8 @@ class NativeTests(unittest.TestCase):
 
     def test_operator_primary_memory_guard_allows_existing_preflight_at_reserve(self):
         request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
-        with patch.object(native.Path, 'read_text', side_effect=['MemAvailable: 1572864 kB',\n                 'some avg10=0.10 avg60=0.10 avg300=0.10 total=10\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0']), \
+        with patch.object(native.Path, 'read_text', side_effect=['MemAvailable: 1572864 kB',
+                 'some avg10=0.10 avg60=0.10 avg300=0.10 total=10\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0']), \
              patch.object(native, 'find_binary', side_effect=RuntimeError('binary probe reached')) as binary:
             with self.assertRaisesRegex(RuntimeError, 'binary probe reached'):
                 native.main(request)
