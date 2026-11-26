@@ -140,3 +140,33 @@ test('test and ambiguous Stripe modes never dispatch fulfillment', async () => {
   }
   assert.equal(buildFulfillmentOrder(checkoutEvent({ livemode: false, payment_status: 'no_payment_required', amount_total: 0 })), null);
 });
+
+test('missing or malformed event and session identities never dispatch', async () => {
+  for (const invalid of [undefined, '', 'unknown', 'evt bad', 'cs_']) {
+    for (const event of [{ ...checkoutEvent(), id: invalid }, checkoutEvent({ id: invalid })]) {
+      let calls = 0;
+      const result = await dispatchPaidCheckout(event, { config: { GITHUB_TOKEN: 'test' }, fetchImpl: async () => { calls++; throw new Error('Unexpected network'); } });
+      assert.equal(result.order, null);
+      assert.equal(result.ticket.status, 'skipped');
+      assert.equal(calls, 0);
+    }
+  }
+});
+
+test('incomplete or malformed issue lookup cannot trigger fulfillment creation', async () => {
+  for (const payload of [{ incomplete_results: true, items: [] }, {}, { items: null }]) {
+    const calls = [];
+    const result = await dispatchPaidCheckout(checkoutEvent(), {
+      config: { GITHUB_TOKEN: 'test' },
+      fetchImpl: async (url, options = {}) => {
+        calls.push({ url, options });
+        return { ok: true, json: async () => payload };
+      }
+    });
+    assert.equal(result.ticket.status, 'error');
+    assert.match(result.ticket.reason, /lookup incomplete/);
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].url.includes('/search/issues'));
+    assert.notEqual(calls[0].options.method, 'POST');
+  }
+});
