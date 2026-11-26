@@ -12,6 +12,7 @@ const baseEnv = {
   OPERATOR_RUNTIME_E2E_SEA_PAIR: JSON.stringify(pair),
   OPERATOR_RUNTIME_E2E_OWNER_PUB: pair.pub,
   OPERATOR_RUNTIME_E2E_REQUEST_ID: 'operator-e2e-12345678123412341234123456789012',
+  OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID: 'synthetic-worker',
   OPERATOR_RUNTIME_E2E_TIMEOUT_MS: '1000'
 };
 const expectedTaskIdPrefix = `operator-http-${createHash('sha256').update(pair.pub).digest('hex').slice(0,24)}-`;
@@ -235,6 +236,25 @@ test('missing or mismatched exact command digest cannot pass even with the expec
   for (const digest of [undefined, '', 'a'.repeat(64)]) {
     const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:{...receipt,operatorRequestDigest:digest}})]});
     await assert.rejects(probe.run(), /exact signed command digest/);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
+
+test('missing or noncanonical expected worker ID refuses admission before network requests', async () => {
+  for (const id of [undefined, '', '   ', ' synthetic-worker', 'synthetic-worker ', 123]) {
+    const probe = simulate({env:{...baseEnv, OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID:id}});
+    await assert.rejects(probe.run(), /Explicit expected isolated worker device ID/);
+    assert.equal(probe.requests.length, 0);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
+test('wrong worker cannot pass even with the correct task, digest and answer', async () => {
+  for (const workerDeviceId of ['different-worker', 'synthetic-worker ', 'Synthetic-worker']) {
+    const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:{...receipt,workerDeviceId}})]});
+    await assert.rejects(probe.run(), /expected isolated worker device ID/);
+    assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue','status']);
     assert.ok(!probe.logs.includes('E2E_PASS=true'));
   }
 });

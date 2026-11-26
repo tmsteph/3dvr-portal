@@ -47,6 +47,11 @@ export async function runOperatorRuntimeE2E({
       Number(target.split(':').at(-1)) > 65535) {
     throw new Error('Explicit isolated loopback URL required; no public portal fallback.');
   }
+  const expectedWorkerDeviceId = env.OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID;
+  if (typeof expectedWorkerDeviceId !== 'string' || !expectedWorkerDeviceId ||
+      expectedWorkerDeviceId.trim() !== expectedWorkerDeviceId) {
+    throw new Error('Explicit expected isolated worker device ID required before admission.');
+  }
   const encodedPair = env.OPERATOR_RUNTIME_E2E_SEA_PAIR || '';
   const expectedPub = env.OPERATOR_RUNTIME_E2E_OWNER_PUB || '';
   if (!encodedPair || !expectedPub) throw new Error('Signed owner identity is not configured.');
@@ -152,6 +157,11 @@ export async function runOperatorRuntimeE2E({
   if (Date.parse(lastRecord.startedAt) < admissionStartedAt - receiptClockSkewMs ||
       Date.parse(lastRecord.completedAt) > now() + receiptClockSkewMs) {
     throw new Error('Task completion receipt is outside the fresh admission time window.');
+  }
+  // This matches the preselected worker identifier, not an independent worker
+  // signature. The operator must still verify the isolated worker ledger.
+  if (lastRecord.workerDeviceId !== expectedWorkerDeviceId) {
+    throw new Error('Task completion receipt does not match the expected isolated worker device ID.');
   }
   if (lastRecord.operatorRequestDigest !== expectedRequestDigest) {
     throw new Error('Task completion receipt does not match the exact signed command digest.');
