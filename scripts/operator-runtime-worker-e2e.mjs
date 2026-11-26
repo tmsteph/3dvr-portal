@@ -13,13 +13,18 @@ export function planOperatorRuntimeE2E({ env = process.env } = {}) {
   const pub = String(env.OPERATOR_RUNTIME_E2E_OWNER_PUB || '');
   if (!pub) throw new Error('Signed owner public identity is not configured.');
   const expectedTaskId = `operator-http-${createHash('sha256').update(pub).digest('hex').slice(0,24)}-${requestId}`;
-  return { requestId, expectedTaskId };
+  const mode = env.OPERATOR_RUNTIME_E2E_MODE || 'arithmetic';
+  if (!['arithmetic', 'synthetic-prospect'].includes(mode)) {
+    throw new Error('Unsupported Operator E2E mode.');
+  }
+  return { requestId, expectedTaskId, mode };
 }
 
 export function prepareOperatorRuntimeE2E({ env = process.env, log = console.log } = {}) {
   const plan = planOperatorRuntimeE2E({ env });
   log(`E2E_TASK_REQUEST_ID=${plan.requestId}`);
   log(`E2E_EXPECTED_TASK_ID=${plan.expectedTaskId}`);
+  log(`E2E_MODE=${plan.mode}`);
   log('E2E_PREPARE_ONLY=true');
   log('E2E_NETWORK_REQUESTS=0');
   return plan;
@@ -65,11 +70,20 @@ export async function runOperatorRuntimeE2E({
   if (selfCheck?.scope !== probe.scope || selfCheck?.pub !== pair.pub) {
     throw new Error('Signed owner identity failed self-check.');
   }
-  const { requestId, expectedTaskId } = planOperatorRuntimeE2E({ env });
+  const { requestId, expectedTaskId, mode } = planOperatorRuntimeE2E({ env });
+  // Fixed, unique synthetic evidence only; no arbitrary prompt, live listing,
+  // network access, or customer data can enter this acceptance mode.
+  const fixture = mode === 'synthetic-prospect' ? {
+    name: 'Synthetic buyer ' + requestId,
+    sourceUrl: 'https://example.com/operator-canary/' + requestId,
+    summary: 'Synthetic request for workflow reliability review'
+  } : null;
   const task = {
     action: 'enqueue', requestId,
-    title: 'Signed Operator execution canary',
-    text: 'What is 6 multiplied by 7? Respond with only the integer answer, without explanation. Do not access networks, files, accounts, or external services; do not make changes.'
+    title: fixture ? 'Signed synthetic prospect canary' : 'Signed Operator execution canary',
+    text: fixture
+      ? 'From this fictional listing, extract a JSON object with exactly name, sourceUrl, summary (all strings). Buyer: ' + fixture.name + '. Listing URL: ' + fixture.sourceUrl + '. Request: ' + fixture.summary + '. Return only JSON. Do not access networks, files, accounts, or external services; do not make changes or contact anyone.'
+      : 'What is 6 multiplied by 7? Respond with only the integer answer, without explanation. Do not access networks, files, accounts, or external services; do not make changes.'
   };
   const expectedRequestDigest = createHash('sha256').update(JSON.stringify({text: task.text, title: task.title})).digest('hex');
   const timeoutMs = Math.min(240000, Math.max(1000, Number(env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS) || 120000));
@@ -168,7 +182,17 @@ export async function runOperatorRuntimeE2E({
   }
   // The test checks both worker attribution and the actual requested answer.
   const answer = String(lastRecord.resultText || lastRecord.resultSummary || '').trim();
-  if (answer !== '42') {
+  if (fixture) {
+    // The private revenue importer requires full resultText, not a summary.
+    let extracted;
+    try { extracted = JSON.parse(lastRecord.resultText); } catch { /* reject below */ }
+    if (!extracted || typeof extracted !== 'object' || Array.isArray(extracted) ||
+        Object.keys(extracted).sort().join(',') !== 'name,sourceUrl,summary' ||
+        Object.keys(fixture).some(key => extracted[key] !== fixture[key]) ||
+        lastRecord.resultTruncated !== false) {
+      throw new Error('Signed task receipt did not contain the exact synthetic prospect.');
+    }
+  } else if (answer !== '42') {
     throw new Error('Signed task receipt did not contain the expected canary answer.');
   }
   log(`E2E_RECEIPT=${JSON.stringify({ requestId, status: lastRecord.status,
@@ -180,8 +204,14 @@ export async function runOperatorRuntimeE2E({
   // explicit so a green worker test cannot be reported as CRM acceptance.
   log('E2E_PASS=true');
   log('E2E_SCOPE=signed_runtime_only');
+  log(`E2E_MODE=${mode}`);
   log('E2E_CRM_READBACK=not_tested');
-  return { requestId, states, receipt: lastRecord };
+  return { requestId, states, receipt: lastRecord, mode,
+    ...(fixture ? { candidateExpectation: {
+      taskId: expectedTaskId, requestDigest: expectedRequestDigest,
+      workerDeviceId: expectedWorkerDeviceId, requestedAt: new Date(admissionStartedAt).toISOString()
+    }, syntheticSource: { name: fixture.name, url: fixture.sourceUrl,
+      evidence: 'Fixed synthetic fixture; not a genuine prospect or a public-source verification' } } : {}) };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
