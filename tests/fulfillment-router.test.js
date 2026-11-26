@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import {
   buildFulfillmentOrder,
   chooseFulfillmentLane,
-  createOrFindFulfillmentIssue
+  createOrFindFulfillmentIssue,
+  dispatchPaidCheckout
 } from '../src/money/fulfillment-router.js';
 
 function checkoutEvent(overrides = {}) {
   return {
-    id: 'evt_auto_1',
+    id: 'evt_auto_1', livemode: true,
     type: 'checkout.session.completed',
     data: { object: {
-      id: 'cs_auto_1', mode: 'payment', payment_status: 'paid',
+      id: 'cs_auto_1', livemode: true, mode: 'payment', payment_status: 'paid',
       amount_total: 29900, currency: 'usd', payment_link: 'plink_auto',
       customer_details: { email: 'private@example.com' },
       metadata: { offer: 'automation-quick-win', source: 'autobusiness' },
@@ -124,4 +125,18 @@ test('explicit free checkout may fulfill but is not represented as paid revenue'
   assert.doesNotMatch(order.privateSummary, /^Paid Auto Business/);
   assert.equal(buildFulfillmentOrder(checkoutEvent({ payment_status: 'no_payment_required' })), null);
   assert.equal(buildFulfillmentOrder({ ...event, type: 'checkout.session.async_payment_succeeded' }), null);
+});
+
+test('test and ambiguous Stripe modes never dispatch fulfillment', async () => {
+  for (const type of ['checkout.session.completed', 'checkout.session.async_payment_succeeded']) {
+    for (const [eventMode, sessionMode] of [[false, false], [false, true], [true, false], [undefined, true], [true, undefined], ['true', true]]) {
+      const event = { ...checkoutEvent({ livemode: sessionMode }), type, livemode: eventMode };
+      let calls = 0;
+      const result = await dispatchPaidCheckout(event, { config: { GITHUB_TOKEN: 'test' }, fetchImpl: async () => { calls++; throw new Error('Unexpected network'); } });
+      assert.equal(result.order, null);
+      assert.equal(result.ticket.status, 'skipped');
+      assert.equal(calls, 0);
+    }
+  }
+  assert.equal(buildFulfillmentOrder(checkoutEvent({ livemode: false, payment_status: 'no_payment_required', amount_total: 0 })), null);
 });
