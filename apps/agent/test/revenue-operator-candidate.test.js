@@ -15,7 +15,7 @@ function fixture(suffix = 'abcdefghijkl') {
       startedAt: '2026-01-01T00:01:00Z', completedAt: '2026-01-01T00:02:00Z',
       resultTruncated: false, resultText: JSON.stringify({ name, sourceUrl: url, summary: 'Synthetic workflow need' }),
     } },
-    expected: { taskId, requestDigest, requestedAt: '2026-01-01T00:00:00Z' },
+    expected: { taskId, requestDigest, workerDeviceId: 'synthetic-worker', requestedAt: '2026-01-01T00:00:00Z' },
     verifiedSource: { name, url, evidence: 'Synthetic listing verified by fixture' },
   };
 }
@@ -31,6 +31,7 @@ test('verified candidate binds private task to one event and one pending outbox 
     const first = recordOperatorCandidate(db, input);
     assert.equal(first.prospect.state, 'verified');
     assert.equal(JSON.parse(first.event.payload_json).taskId, input.expected.taskId);
+    assert.equal(JSON.parse(first.event.payload_json).workerDeviceId, input.expected.workerDeviceId);
     assert.deepEqual(counts(db), [1, 1, 1, 0]);
     assert.equal(recordOperatorCandidate(db, input).replayed, true);
     assert.deepEqual(counts(db), [1, 1, 1, 0]);
@@ -49,6 +50,10 @@ test('rejects forged completion, changed task, invalid chronology and model life
       x => { x.row.record.workerDeviceId = ''; },
       x => { x.row.record.workerDeviceId = ' \t\n '; },
       x => { x.row.record.workerDeviceId = 42; },
+      x => { x.row.record.workerDeviceId = 'other-worker'; },
+      x => { delete x.expected.workerDeviceId; },
+      x => { x.expected.workerDeviceId = ' '; },
+      x => { x.expected.workerDeviceId = 'synthetic-worker '; x.row.record.workerDeviceId = 'synthetic-worker '; },
       x => { x.row.record.error = 'worker failed'; },
       x => { x.row.record.resultTruncated = true; },
       x => { x.row.record.operatorRequestDigest = 'c'.repeat(64); },
