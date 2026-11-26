@@ -29,7 +29,7 @@ function fakeResponse(status, result) {
 }
 function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
   preflight = fakeResponse(404, {ok:false, missing:true}),
-  statuses = [fakeResponse(200, {ok:true, record:receipt})] } = {}) {
+  statuses = [fakeResponse(200, {ok:true, record:receipt})], expectedDigest = expectedRequestDigest } = {}) {
   const requests = [];
   const logs = [];
   // Keep the injected admission clock on the same epoch as the receipt fixtures.
@@ -48,7 +48,9 @@ function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
     requests.push({action:body.action, requestId:body.requestId});
     if (body.action === 'enqueue') {
       admissionSeen = true;
-      assert.equal(createHash('sha256').update(JSON.stringify({text: body.text, title: body.title})).digest('hex'), expectedRequestDigest);
+      assert.equal(signed.text, body.text);
+      assert.equal(signed.title, body.title);
+      assert.equal(createHash('sha256').update(JSON.stringify({text: body.text, title: body.title})).digest('hex'), expectedDigest);
       assert.doesNotMatch(body.text, /\b42\b/, 'canary prompt must not supply the expected answer');
       return admission;
     }
@@ -255,6 +257,56 @@ test('wrong worker cannot pass even with the correct task, digest and answer', a
     const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:{...receipt,workerDeviceId}})]});
     await assert.rejects(probe.run(), /expected isolated worker device ID/);
     assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue','status']);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
+
+test('unsupported canary mode fails before transport', async () => {
+  const probe = simulate({env:{...baseEnv, OPERATOR_RUNTIME_E2E_MODE:'arbitrary-prompt'}});
+  await assert.rejects(probe.run(), /Unsupported Operator E2E mode/);
+  assert.equal(probe.requests.length, 0);
+});
+
+const fixture = {
+  name: 'Synthetic buyer ' + baseEnv.OPERATOR_RUNTIME_E2E_REQUEST_ID,
+  sourceUrl: 'https://example.com/operator-canary/' + baseEnv.OPERATOR_RUNTIME_E2E_REQUEST_ID,
+  summary: 'Synthetic request for workflow reliability review'
+};
+const prospectDigest = createHash('sha256').update(JSON.stringify({
+  text: 'From this fictional listing, extract a JSON object with exactly name, sourceUrl, summary (all strings). Buyer: ' + fixture.name + '. Listing URL: ' + fixture.sourceUrl + '. Request: ' + fixture.summary + '. Return only JSON. Do not access networks, files, accounts, or external services; do not make changes or contact anyone.',
+  title: 'Signed synthetic prospect canary'
+})).digest('hex');
+const prospectEnv = {...baseEnv, OPERATOR_RUNTIME_E2E_MODE:'synthetic-prospect'};
+const prospectReceipt = {...receipt, operatorRequestDigest:prospectDigest,
+  resultText:JSON.stringify(fixture), resultTruncated:false};
+
+test('synthetic prospect canary returns exact importer expectations, not CRM evidence', async () => {
+  const probe = simulate({env:prospectEnv, expectedDigest:prospectDigest,
+    statuses:[fakeResponse(200,{ok:true,record:prospectReceipt})]});
+  const result = await probe.run();
+  assert.equal(result.mode,'synthetic-prospect');
+  assert.deepEqual(result.candidateExpectation, {
+    taskId:receipt.id, requestDigest:prospectDigest,
+    workerDeviceId:'synthetic-worker', requestedAt:receipt.startedAt.replace('Z','.000Z')
+  });
+  assert.equal(result.syntheticSource.url,fixture.sourceUrl);
+  assert.match(result.syntheticSource.evidence,/not a genuine prospect/);
+  assert.deepEqual(probe.requests.map(r=>r.action),['status','enqueue','status']);
+  assert.ok(probe.logs.includes('E2E_CRM_READBACK=not_tested'));
+});
+
+test('synthetic prospect rejects altered, extra, missing or truncated result fields', async () => {
+  for (const patch of [
+    {resultText:JSON.stringify({...fixture, sourceUrl:'https://example.com/other'})},
+    {resultText:JSON.stringify({...fixture, paid:true})},
+    {resultText:JSON.stringify({name:fixture.name, sourceUrl:fixture.sourceUrl})},
+    {resultText:'',resultSummary:JSON.stringify(fixture)},
+    {resultTruncated:undefined}
+  ]) {
+    const probe = simulate({env:prospectEnv, expectedDigest:prospectDigest,
+      statuses:[fakeResponse(200,{ok:true,record:{...prospectReceipt,...patch}})]});
+    await assert.rejects(probe.run(),/exact synthetic prospect/);
     assert.ok(!probe.logs.includes('E2E_PASS=true'));
   }
 });
