@@ -33,7 +33,9 @@ function recordOperatorCandidate(db, { row, expected, verifiedSource } = {}) {
       || record.id !== expected?.taskId
       || !/^[a-f0-9]{64}$/.test(record.operatorRequestDigest || '')
       || record.operatorRequestDigest !== expected?.requestDigest
-      || typeof record.workerDeviceId !== 'string' || !record.workerDeviceId.trim()) {
+      || typeof expected?.workerDeviceId !== 'string' || !expected.workerDeviceId
+      || expected.workerDeviceId.trim() !== expected.workerDeviceId
+      || record.workerDeviceId !== expected.workerDeviceId) {
     throw new Error('Unverified private task completion');
   }
   const start = Date.parse(record.startedAt);
@@ -61,6 +63,7 @@ function recordOperatorCandidate(db, { row, expected, verifiedSource } = {}) {
   const evidence = bounded(verifiedSource.evidence, 'source evidence', 2000);
   const idempotencyKey = 'operator-candidate:' + record.id;
   const payload = { taskId: record.id, requestDigest: record.operatorRequestDigest,
+    workerDeviceId: record.workerDeviceId,
     sourceUrl: url, name, summary, evidence };
   const prior = db.prepare('SELECT prospect_id FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
   const transition = prospectId => transitionProspect(db, { prospectId,
