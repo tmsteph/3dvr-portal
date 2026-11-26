@@ -48,6 +48,8 @@ function checklist(lane) {
 export function buildFulfillmentOrder(event = {}) {
   const session = event?.data?.object || {};
   if (!['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(clean(event.type))) return null;
+  // Sandbox and ambiguous-mode events must never enter the live fulfillment queue.
+  if (event.livemode !== true || session.livemode !== true) return null;
   if (!isAutoBusinessCheckout(session)) return null;
   const paymentStatus = lower(session.payment_status);
   // A signed Checkout event is not by itself proof of a positive payment.
