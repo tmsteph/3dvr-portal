@@ -689,7 +689,8 @@ test('signed Operator private worker result imports through candidate adapter an
         assert.equal(persistedEvent.id, written.eventId);
         assert.equal(persistedEvent.idempotency_key, 'operator-candidate:' + prospectTaskId);
         assert.deepEqual(JSON.parse(persistedEvent.payload_json), { taskId: prospectTaskId,
-          requestDigest: expected.requestDigest, sourceUrl, name: candidate.name,
+          requestDigest: expected.requestDigest, workerDeviceId: expected.workerDeviceId,
+          sourceUrl, name: candidate.name,
           summary: candidate.summary, evidence: sourceEvidence.evidence });
         assert.equal(persistedEvent.source_url, sourceUrl);
         assert.equal(persistedEvent.state, 'verified');
