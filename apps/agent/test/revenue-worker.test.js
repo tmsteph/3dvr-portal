@@ -475,3 +475,90 @@ test('worker rejects malformed delivery quotas before reading candidate or ledge
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('isolated worker imports exact private Operator queue row before no-send CRM projection', async () => {
+  const { writeTask } = require('../thomas-agent/node/task-queue-sqlite-store');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-operator-import-'));
+  const queueDb = path.join(tmp, 'queue.sqlite');
+  const ledgerFile = path.join(tmp, 'ledger.sqlite');
+  const ownerAlias = 'synthetic-owner';
+  const taskId = 'operator-http-' + 'a'.repeat(24) + '-abcdefghijkl';
+  const requestDigest = 'b'.repeat(64);
+  const workerDeviceId = 'synthetic-worker';
+  const sourceUrl = 'https://example.com/jobs/1';
+  const name = 'Synthetic buyer';
+  const env = ['THREEDVR_CRM_PROJECTION_ENABLED', 'THREEDVR_REVENUE_DELIVERY_ENABLED'];
+  const old = env.map(key => process.env[key]);
+  env.forEach(key => { process.env[key] = 'true'; });
+  let writes = 0;
+  let sends = 0;
+  try {
+    writeTask({ id: taskId, status: 'completed', backend: 'codex', unsafe: false,
+      operatorRequestDigest: requestDigest, workerDeviceId, resultTruncated: false,
+      startedAt: '2026-01-01T00:01:00Z', completedAt: '2026-01-01T00:02:00Z',
+      updatedAt: '2026-01-01T00:02:00Z',
+      resultText: JSON.stringify({ name, sourceUrl, summary: 'Synthetic workflow need' }),
+    }, { queueDb, ownerAlias, queueSource: 'operator-http' });
+    const queueBefore = fs.readFileSync(queueDb);
+    const options = {
+      isolated: true, ledgerFile,
+      operatorCandidate: { queueDb, ownerAlias,
+        expected: { taskId, requestDigest, workerDeviceId, requestedAt: '2026-01-01T00:00:00Z' },
+        verifiedSource: { name, url: sourceUrl, evidence: 'Independent synthetic fixture' },
+      },
+      send: async () => { sends++; throw new Error('unexpected send'); },
+      crm: { isolated: true, write: async payload => {
+        writes++;
+        assert.equal(payload.records[0].sourceUrl, sourceUrl);
+        assert.equal(payload.records[0].canonicalState, 'verified');
+        assert.equal(payload.records[0].status, 'Lead');
+        assert.equal(payload.touches[0].touchType, 'operator_candidate_verified');
+        assert.equal(JSON.stringify(payload).includes(taskId), false);
+        assert.equal(JSON.stringify(payload).includes(workerDeviceId), false);
+        return { records: 1, touches: 1, errors: [] };
+      } },
+    };
+    await assert.rejects(run('not-isolated', {
+      operatorCandidate: options.operatorCandidate,
+    }), /restricted to isolated/);
+    const wrong = await run('wrong-owner', { ...options, operatorCandidate: {
+      ...options.operatorCandidate, ownerAlias: 'wrong-owner',
+    } });
+    assert.equal(wrong.status, 'failed');
+    assert.match(JSON.parse(wrong.summary_json).error, /task not found/);
+    const forged = await run('wrong-digest', { ...options, operatorCandidate: {
+      ...options.operatorCandidate, expected: {
+        ...options.operatorCandidate.expected, requestDigest: 'c'.repeat(64),
+      },
+    } });
+    assert.equal(forged.status, 'failed');
+    assert.match(JSON.parse(forged.summary_json).error, /Unverified private task completion/);
+    assert.equal(writes, 0);
+    const result = await run('import-real-scratch-row', options);
+    assert.equal(result.status, 'succeeded');
+    const summary = JSON.parse(result.summary_json);
+    assert.equal(summary.delivery.sends, 0);
+    assert.equal(summary.crm.succeeded, 1);
+    assert.equal(summary.verification.hostedWorkerVerified, false);
+    assert.equal(summary.verification.independentCrmReadbackVerified, false);
+    assert.equal((await run('import-real-scratch-row', options)).replayed, true);
+    // A different trigger with the same signed task must not generate a new
+    // event or CRM write; no new acknowledgement means this run is incomplete.
+    const duplicate = await run('import-duplicate-task', options);
+    assert.equal(duplicate.status, 'failed');
+    assert.match(JSON.parse(duplicate.summary_json).error, /no acknowledged CRM projection/);
+    assert.equal(writes, 1);
+    assert.equal(sends, 0);
+    assert.deepEqual(fs.readFileSync(queueDb), queueBefore);
+    const db = openLedger({ filePath: ledgerFile });
+    try {
+      assert.deepEqual(['prospects', 'revenue_events', 'projection_outbox', 'delivery_attempts']
+        .map(table => db.prepare('SELECT COUNT(*) AS n FROM ' + table).get().n), [1, 1, 1, 0]);
+      assert.equal(JSON.parse(db.prepare('SELECT payload_json FROM revenue_events').get().payload_json).taskId, taskId);
+    } finally { db.close(); }
+  } finally {
+    env.forEach((key, i) => { if (old[i] === undefined) delete process.env[key]; else process.env[key] = old[i]; });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
