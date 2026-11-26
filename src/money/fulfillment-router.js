@@ -69,7 +69,9 @@ export function buildFulfillmentOrder(event = {}) {
   const route = chooseFulfillmentLane({ offer, fields, metadata });
   const eventId = clean(event.id);
   const sessionId = clean(session.id);
-  const marker = `3dvr-fulfillment:${eventId || sessionId}`;
+  // Both identities are required for eventual durable session reconciliation.
+  if (!/^evt_[A-Za-z0-9_]+$/.test(eventId) || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return null;
+  const marker = `3dvr-fulfillment:${eventId}`;
   const amount = money(amountCents, currency);
   const laneSteps = checklist(route.lane);
   const publicBody = [
@@ -118,7 +120,11 @@ export async function createOrFindFulfillmentIssue(order, { config = process.env
   if (!token || typeof fetchImpl !== 'function') return { status: 'private-queue-only', repository, reason: 'GitHub write token is not configured' };
   const query = encodeURIComponent(`repo:${repository} is:issue in:body \"${order.marker}\"`);
   const search = await githubJson(fetchImpl, `https://api.github.com/search/issues?q=${query}`, token);
-  const existing = Array.isArray(search.items) ? search.items[0] : null;
+  // A truncated or malformed search is not proof that an order is absent.
+  if (search.incomplete_results === true || !Array.isArray(search.items)) {
+    throw new Error('GitHub fulfillment lookup incomplete; reconcile before retry');
+  }
+  const existing = search.items[0];
   if (existing) return { status: 'existing', repository, issueNumber: existing.number, url: existing.html_url || '' };
   const created = await githubJson(fetchImpl, `https://api.github.com/repos/${repository}/issues`, token, {
     method: 'POST', body: JSON.stringify({ title: order.safeTitle, body: order.publicBody })
