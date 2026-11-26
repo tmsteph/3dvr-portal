@@ -91,3 +91,37 @@ test('GitHub task body contains no private checkout fields', async () => {
   assert.match(createdBody.body, /3dvr-fulfillment:evt_auto_1/);
   assert.doesNotMatch(createdBody.body, /private@example\.com|Automate lead follow-up/);
 });
+
+test('only explicit positive integer paid checkout is classified as paid', () => {
+  for (const type of ['checkout.session.completed', 'checkout.session.async_payment_succeeded']) {
+    for (const overrides of [
+      { payment_status: undefined },
+      { payment_status: 'unpaid' },
+      { amount_total: 0 },
+      { amount_total: -1 },
+      { amount_total: 1.5 },
+      { amount_total: '29900' },
+      { amount_total: null },
+      { currency: '' },
+      { currency: 'US dollars' }
+    ]) {
+      assert.equal(buildFulfillmentOrder({ ...checkoutEvent(overrides), type }), null);
+    }
+    const order = buildFulfillmentOrder({ ...checkoutEvent(), type });
+    assert.equal(order.paymentClass, 'paid');
+    assert.equal(order.amountCents, 29900);
+    assert.equal(order.currency, 'usd');
+  }
+});
+
+test('explicit free checkout may fulfill but is not represented as paid revenue', () => {
+  const event = checkoutEvent({ payment_status: 'no_payment_required', amount_total: 0 });
+  const order = buildFulfillmentOrder(event);
+  assert.equal(order.paymentClass, 'no-payment-required');
+  assert.equal(order.amountCents, 0);
+  assert.match(order.publicBody, /no customer revenue attributed/);
+  assert.doesNotMatch(order.publicBody, /## Paid fulfillment order/);
+  assert.doesNotMatch(order.privateSummary, /^Paid Auto Business/);
+  assert.equal(buildFulfillmentOrder(checkoutEvent({ payment_status: 'no_payment_required' })), null);
+  assert.equal(buildFulfillmentOrder({ ...event, type: 'checkout.session.async_payment_succeeded' }), null);
+});
