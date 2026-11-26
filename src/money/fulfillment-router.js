@@ -50,7 +50,16 @@ export function buildFulfillmentOrder(event = {}) {
   if (!['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(clean(event.type))) return null;
   if (!isAutoBusinessCheckout(session)) return null;
   const paymentStatus = lower(session.payment_status);
-  if (event.type === 'checkout.session.completed' && paymentStatus && !['paid', 'no_payment_required'].includes(paymentStatus)) return null;
+  // A signed Checkout event is not by itself proof of a positive payment.
+  // Explicit zero-cost completion can still be fulfilled, but never called paid.
+  const amountCents = session.amount_total;
+  const currency = lower(session.currency);
+  if (!Number.isSafeInteger(amountCents) || amountCents < 0 || !/^[a-z]{3}$/.test(currency)) return null;
+  const paid = paymentStatus === 'paid' && amountCents > 0;
+  const free = event.type === 'checkout.session.completed'
+    && paymentStatus === 'no_payment_required' && amountCents === 0;
+  if (!paid && !free) return null;
+  const paymentClass = paid ? 'paid' : 'no-payment-required';
 
   const metadata = session?.metadata && typeof session.metadata === 'object' ? session.metadata : {};
   const fields = readCheckoutFieldMap(session);
@@ -59,25 +68,25 @@ export function buildFulfillmentOrder(event = {}) {
   const eventId = clean(event.id);
   const sessionId = clean(session.id);
   const marker = `3dvr-fulfillment:${eventId || sessionId}`;
-  const amount = money(session.amount_total, session.currency);
+  const amount = money(amountCents, currency);
   const laneSteps = checklist(route.lane);
   const publicBody = [
-    `<!-- ${marker} -->`, '## Paid fulfillment order', '',
+    `<!-- ${marker} -->`, paid ? '## Paid fulfillment order' : '## No-payment-required fulfillment order', '',
     `- **Offer:** ${offer}`, `- **Amount:** ${amount}`,
     `- **Routing lane:** ${route.lane}`, `- **Why:** ${route.reason}`,
     `- **Stripe event:** ${eventId || 'unknown'}`, `- **Checkout session:** ${sessionId || 'unknown'}`,
     '', '> Customer identity and checkout intake stay private in Stripe/email.', '',
     '## Fulfillment checklist', ...laneSteps.map(item => `- [ ] ${item}`), '',
-    '## Close the loop', '- [ ] Customer received the result', '- [ ] Revenue, direct spend, and gross margin recorded',
+    '## Close the loop', '- [ ] Customer received the result', paid ? '- [ ] Revenue, direct spend, and gross margin recorded' : '- [ ] Direct spend recorded; no customer revenue attributed',
     '- [ ] Reusable automation/template extracted', '- [ ] Decide: kill, keep, or scale'
   ].join('\n');
   const customerEmail = lower(session.customer_details?.email || session.customer_email || metadata.billing_email);
   const intake = Object.entries(fields).map(([key, value]) => `${key}: ${value}`).join('\n');
-  const privateSummary = [`Paid Auto Business order: ${offer}`, `Route: ${route.lane} — ${route.reason}`,
+  const privateSummary = [`${paid ? 'Paid' : 'No-payment-required'} Auto Business order: ${offer}`, `Route: ${route.lane} — ${route.reason}`,
     `Amount: ${amount}`, `Stripe event: ${eventId || 'unknown'}`, `Checkout session: ${sessionId || 'unknown'}`,
     customerEmail ? `Email: ${customerEmail}` : '', intake ? `\nIntake:\n${intake}` : '', `\nNext: ${laneSteps[0]}`].filter(Boolean).join('\n');
   return {
-    marker, offer, lane: route.lane, routeReason: route.reason, amount,
+    marker, offer, lane: route.lane, routeReason: route.reason, amount, paymentClass, amountCents, currency,
     eventId, sessionId, customerEmail, fields, privateSummary,
     safeTitle: `[Fulfillment:${route.lane}] ${offer.replace(/[-_]+/g, ' ')} — ${amount}`,
     publicBody
