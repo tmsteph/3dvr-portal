@@ -565,7 +565,8 @@ test('signed Operator private worker result imports through candidate adapter an
       assert.equal(prospectAccepted.statusCode, 202);
       const prospectTaskId = prospectAccepted.data.record.id;
       const admission = JSON.parse(db.prepare('SELECT record_json FROM tasks WHERE id=?').get(prospectTaskId).record_json);
-      const expected = { taskId: prospectTaskId, requestDigest: admission.operatorRequestDigest, requestedAt: admission.createdAt };
+      const expected = { taskId: prospectTaskId, requestDigest: admission.operatorRequestDigest,
+        workerDeviceId: workerOptions.deviceId, requestedAt: admission.createdAt };
       const crmWorkerQueue = {
         ...isolatedWorkerQueue,
         runQueuedTask: (record, options) => workerQueue.runQueuedTask(record, {
