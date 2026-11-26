@@ -22,11 +22,18 @@ test('Ape Frequency live preview fits desktop and mobile with verified links', a
           motion: getComputedStyle(document.querySelector('.logo-slot'), '::before').animationName
         }));
         assert.ok(rendered.width <= width, 'no horizontal overflow at ' + width);
-        assert.deepEqual(rendered.images, [true, true]);
+        // The current design has one interactive wordmark, not two images.
+        assert.deepEqual(rendered.images, [true]);
+        assert.equal(await page.locator('#logo-slot img').getAttribute('src'), 'ape-frequency-wordmark-alpha.webp');
         assert.equal(rendered.motion, reduce ? 'none' : 'breathe');
         assert.equal(await page.getByRole('link', { name: 'YouTube' }).getAttribute('href'), 'https://www.youtube.com/@ApeFrequency');
         assert.equal(await page.getByRole('link', { name: 'TikTok' }).getAttribute('href'), 'https://www.tiktok.com/@ape.frequency');
         assert.equal(await page.getByRole('link', { name: 'Instagram' }).getAttribute('href'), 'https://www.instagram.com/apefrequency/');
+        await page.keyboard.press('Tab');
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'logo-slot');
+        const scoreBefore = Number(await page.locator('#score-n').textContent());
+        await page.keyboard.press('Enter');
+        assert.equal(Number(await page.locator('#score-n').textContent()), scoreBefore + 1);
         await page.keyboard.press('Tab');
         assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'YouTube');
       } finally {
