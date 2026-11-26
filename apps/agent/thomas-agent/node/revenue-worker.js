@@ -7,6 +7,8 @@ const { acknowledgedDeliveryCount, createProspect, getProspect, openLedger, reso
 const { deliverProspect } = require('./revenue-delivery');
 const { consumeInboxState } = require('./revenue-inbox-consumer');
 const { projectPendingCrm } = require('./revenue-crm-projection');
+const { recordOperatorCandidate } = require('./revenue-operator-candidate');
+const { DatabaseSync } = require('node:sqlite');
 
 const execFileAsync = promisify(execFile);
 
@@ -163,8 +165,32 @@ function resolveIsolatedLedgerFile(options = {}) {
   return resolved;
 }
 
+// Trusted server-side acceptance only: take the exact private queue row from
+// an explicitly selected scratch database, never a browser/model receipt.
+// Open read-only; unlike the normal queue store this does not initialize a DB.
+function importIsolatedOperatorCandidate(db, { queueDb, ownerAlias, expected, verifiedSource } = {}) {
+  if (typeof ownerAlias !== 'string' || !ownerAlias.trim() || ownerAlias.trim() !== ownerAlias
+      || typeof expected?.taskId !== 'string' || !expected.taskId) {
+    throw new Error('Isolated Operator candidate requires an explicit owner and task ID');
+  }
+  const file = resolveIsolatedLedgerFile({ ledgerFile: queueDb });
+  if (!fs.lstatSync(file).isFile()) throw new Error('Isolated Operator queue must be an existing regular file');
+  const queue = new DatabaseSync(file, { readOnly: true });
+  try {
+    const row = queue.prepare('SELECT source, status, record_json FROM tasks WHERE owner_alias = ? AND id = ?')
+      .get(ownerAlias, expected.taskId);
+    if (!row) throw new Error('Private Operator candidate task not found');
+    return recordOperatorCandidate(db, { row: {
+      source: row.source, status: row.status, record: JSON.parse(row.record_json),
+    }, expected, verifiedSource });
+  } finally { queue.close(); }
+}
+
 async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date.now()}`, options = {}) {
   const isolated = options.isolated === true || options.crm?.isolated === true;
+  if (options.operatorCandidate !== undefined && !isolated) {
+    throw new Error('Operator candidate import is restricted to isolated acceptance');
+  }
   const db = openLedger(isolated ? { filePath: resolveIsolatedLedgerFile(options) } : {});
   try {
     const started = startRun(db, { triggerId, releaseSha: releaseSha() });
@@ -176,6 +202,11 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
       inbox = isolated
         ? { scanned: 0, matched: 0, unmatched: 0, errors: [], skipped: true }
         : consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
+      if (options.operatorCandidate !== undefined) {
+        // The caller must independently verify the source and pin the signed
+        // request metadata. This path does not claim hosted execution/readback.
+        importIsolatedOperatorCandidate(db, options.operatorCandidate);
+      }
       delivery = await deliverCandidate(db, options);
       const projectionEnabled = enabled(process.env.THREEDVR_CRM_PROJECTION_ENABLED);
       crm = projectionEnabled
