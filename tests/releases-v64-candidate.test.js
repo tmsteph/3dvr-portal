@@ -12,7 +12,7 @@ describe('release catch-up through v0.0.64 candidate', () => {
     const release64 = await readFile(new URL('v0.0.64.html', releasesDir), 'utf8');
 
     assert.match(index, /<h2>Latest Recorded Stable Release<\/h2>[\s\S]*href="v0\.0\.63\.html">v0\.0\.63/);
-    assert.match(index, /<h2>Current Weekly Checkpoint — Validation Pending<\/h2>[\s\S]*href="v0\.0\.72\.html">v0\.0\.72/);
+    assert.match(index, /<h2>Current Weekly Checkpoint — Validation Pending<\/h2>[\s\S]*href="v0\.0\.73\.html">v0\.0\.73/);
     assert.match(release62, /href="v0\.0\.63\.html">Next release<\/a>/);
     assert.match(release63, /<h1>Release v0\.0\.63<\/h1>/);
     assert.match(release63, /Stable public milestone:<\/strong> Monday, September 21, 2026/);

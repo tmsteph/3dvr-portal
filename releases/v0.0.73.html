@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Weekly Checkpoint v0.0.73 (Week of November 23, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #8b5cf6; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-nav { display: flex; justify-content: space-between; gap: 16px; margin: 20px 0 40px; }
+    .release-nav a { text-decoration: none; font-weight: 600; }
+    li + li { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <p><a href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a href="v0.0.72.html">Previous checkpoint</a>
+    <span>Current checkpoint</span>
+  </nav>
+  <h1>Weekly Checkpoint v0.0.73</h1>
+  <div class="tag">Week of November 23, 2026</div>
+  <div class="section">
+    <h2>Release cadence</h2>
+    <p><strong>Current weekly checkpoint · validation pending</strong></p>
+    <p>Partial week, recorded November 26, 2026. Weeks use America/Los_Angeles, Monday through Sunday. This is development history, not a stable promotion or deployment record.</p>
+  </div>
+  <div class="section">
+    <h2>The story this week</h2>
+    <p>Small standalone experiments expand the Portal's creative interfaces.</p>
+    <ul>
+      <li><strong>Wizard Mode.</strong> A standalone playable interface with device-local intentions and keyboard and pointer controls was merged in <a href="https://github.com/tmsteph/3dvr-portal/pull/3889">#3889</a>. It does not yet connect to shared goals or agents.</li>
+      <li><strong>Inner Worlds.</strong> A lightweight procedural art prototype using Canvas 2D, optional sound, pause/exit and reduced-motion support was merged in <a href="https://github.com/tmsteph/3dvr-portal/pull/3903">#3903</a>, including a link from Sky Room. This is an experiment, not a finished shader engine.</li>
+    </ul>
+  </div>
+  <div class="section">
+    <h2>Validation status</h2>
+    <p>The linked merged PRs establish repository history. The Wizard Mode PR reports headless Chrome interaction checks at mobile viewport size; physical phone touch, microphone and landscape were not verified. Inner Worlds reports local Node lifecycle smoke tests; browser visual and mobile validation were not established by that record.</p>
+    <p>No independent deployment or end-to-end weekly acceptance was verified for this checkpoint. Stable promotion remains separate.</p>
+  </div>
+  <div class="section">
+    <h2>In short</h2>
+    <p>Wizard Mode and Inner Worlds expand the creative workbench. v0.0.73 is a development checkpoint, not a certified stable release.</p>
+  </div>
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
