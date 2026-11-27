@@ -713,14 +713,14 @@ test('signed Operator private worker result imports through candidate adapter an
   }
 });
 
-test('isolated local canary admits a real exact signed request and completes a scratch SQLite claim and survives CRM restart', { timeout: 90000 }, async () => {
+async function signedLocalCrmCanary(real = null) {
   const { createHash } = await import('node:crypto');
   const { createServer } = await import('node:http');
   const signer = await SEA.pair();
   const candidate = { name:'Synthetic local buyer', sourceUrl:'https://operator-canary.invalid/listing', summary:'Synthetic acceptance fixture' };
   const verifiedSource = { name:candidate.name, url:candidate.sourceUrl, evidence:'Independent synthetic source fixture' };
   const item = { ...enqueue, requestId: 'operator-e2e-local-admission-123',
-    text:'Return a synthetic prospect JSON for '+candidate.sourceUrl, title:'Synthetic local prospect' };
+    text:'Return exactly this synthetic prospect JSON object, with no markdown, extra fields or prose: '+JSON.stringify(candidate), title:'Synthetic local prospect' };
   const id = 'operator-http-' + createHash('sha256').update(signer.pub).digest('hex').slice(0, 24) + '-' + item.requestId;
   const digest = createHash('sha256').update(JSON.stringify({ text: item.text, title: item.title })).digest('hex');
   const cfg = {
@@ -737,7 +737,7 @@ test('isolated local canary admits a real exact signed request and completes a s
   const db = new DatabaseSync(dbPath);
   let calls = 0;
   let genericCalls = 0;
-  const model = createServer((req, res) => {
+  const model = real ? null : createServer((req, res) => {
     calls++;
     req.resume();
     req.on('end', () => res.end(JSON.stringify({model:'test-model', choices:[{
@@ -745,7 +745,7 @@ test('isolated local canary admits a real exact signed request and completes a s
     }]})));
   });
   try {
-    await new Promise(resolve => model.listen(0, '127.0.0.1', resolve));
+    if (model) await new Promise(resolve => model.listen(0, '127.0.0.1', resolve));
     db.exec("CREATE TABLE tasks(owner_alias TEXT NOT NULL,id TEXT NOT NULL,status TEXT NOT NULL,updated_at TEXT NOT NULL,record_json TEXT NOT NULL,source TEXT NOT NULL DEFAULT 'sqlite',claim_token TEXT,claim_expires_at INTEGER,PRIMARY KEY(owner_alias,id)) WITHOUT ROWID");
     // Test-only adaptation of the existing SSH transport: no real HOME,
     // production queue, credentials, SSH or Gun. Pin the scratch owner and DB.
@@ -800,8 +800,8 @@ test('isolated local canary admits a real exact signed request and completes a s
       runAgentTaskImpl:async () => {genericCalls++; throw Error('generic fallback forbidden');},
       localCanaryEnv:{...cfg, OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB:dbPath,
         OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS:owner, OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID:worker,
-        OPERATOR_RUNTIME_E2E_LOCAL_MODEL_URL:'http://127.0.0.1:'+model.address().port,
-        OPERATOR_RUNTIME_E2E_LOCAL_MODEL:'test-model'}
+        OPERATOR_RUNTIME_E2E_LOCAL_MODEL_URL:real?.url ?? ('http://127.0.0.1:'+model.address().port),
+        OPERATOR_RUNTIME_E2E_LOCAL_MODEL:real?.model ?? 'test-model'}
     };
     const outcome = await workerQueue.runQueuedTask(await workerQueue.readTask(id,options),options);
     assert.equal(outcome.ok,true);
@@ -821,7 +821,7 @@ test('isolated local canary admits a real exact signed request and completes a s
     } finally { independent.close(); }
     assert.equal((await request(handler,item,signer)).data.record.status,'completed');
     assert.equal((await workerQueue.runQueuedTask(await workerQueue.readTask(id,options),options)).skipped,true);
-    assert.equal(calls,1);
+    assert.equal(calls,real ? 0 : 1);
     assert.equal(genericCalls,0);
 
     const { openLedger } = require('../apps/agent/thomas-agent/node/revenue-ledger.js');
@@ -921,9 +921,31 @@ test('isolated local canary admits a real exact signed request and completes a s
       assert.equal(event.status,'succeeded');
       assert.equal(readLedger.prepare('SELECT count(*) n FROM revenue_events').get().n,1);
     } finally { readLedger.close(); }
+    if (real) console.log('OPERATOR_REAL_LOCAL_CANARY_VERIFIED:' + JSON.stringify({
+      taskId:id, requestDigest:digest, workerDeviceId:worker, model:real.model,
+      responseValidated:true, crmEventId:recoveredEventId, deliveryAttempts:0
+    }));
   } finally {
-    if (model.listening) await new Promise(resolve => model.close(resolve));
+    if (model?.listening) await new Promise(resolve => model.close(resolve));
     db.close();
     await rm(dir,{recursive:true,force:true});
   }
+}
+
+test('isolated local canary admits a real exact signed request and completes a scratch SQLite claim and survives CRM restart', { timeout: 90000 }, () => signedLocalCrmCanary());
+
+// Deliberately skipped in CI. An operator must authorize exactly one synthetic
+// inference and confirm capacity on the owned server before invoking this test
+// in a clean environment; ordinary test flags cannot enable real inference.
+test('explicit real local model signed CRM canary', {
+  timeout: 90000, skip: process.env.OPERATOR_REAL_LOCAL_CANARY_RUN !== '1'
+}, async () => {
+  assert.ok(!process.env.CI && !process.env.GITHUB_ACTIONS, 'real inference prohibited in CI');
+  assert.equal(process.env.OPERATOR_REAL_LOCAL_CANARY_CAPACITY_VERIFIED,'1');
+  const url = process.env.OPERATOR_REAL_LOCAL_CANARY_URL || '';
+  const model = process.env.OPERATOR_REAL_LOCAL_CANARY_MODEL || '';
+  assert.match(url,/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/);
+  assert.ok(Number(url.split(':').at(-1)) <= 65535);
+  assert.ok(model.length > 0 && model.length <= 512 && model.trim() === model);
+  await signedLocalCrmCanary({url,model});
 });
