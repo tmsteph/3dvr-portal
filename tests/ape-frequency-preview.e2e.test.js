@@ -18,13 +18,14 @@ test('Ape Frequency live preview fits desktop and mobile with verified links', a
         await page.getByRole('heading', { name: 'Ape Frequency', exact: true }).waitFor();
         const rendered = await page.evaluate(() => ({
           width: document.documentElement.scrollWidth,
-          images: [...document.images].map(image => image.complete && image.naturalWidth > 0),
+          images: [...document.images].map(image => ({
+            source: image.getAttribute('src'),
+            loaded: image.complete && image.naturalWidth > 0
+          })),
           motion: getComputedStyle(document.querySelector('.logo-slot'), '::before').animationName
         }));
         assert.ok(rendered.width <= width, 'no horizontal overflow at ' + width);
-        // The current design has one interactive wordmark, not two images.
-        assert.deepEqual(rendered.images, [true]);
-        assert.equal(await page.locator('#logo-slot img').getAttribute('src'), 'ape-frequency-wordmark-alpha.webp');
+        assert.deepEqual(rendered.images, [{ source: 'ape-frequency-wordmark-alpha.webp', loaded: true }]);
         assert.equal(rendered.motion, reduce ? 'none' : 'breathe');
         assert.equal(await page.getByRole('link', { name: 'YouTube' }).getAttribute('href'), 'https://www.youtube.com/@ApeFrequency');
         assert.equal(await page.getByRole('link', { name: 'TikTok' }).getAttribute('href'), 'https://www.tiktok.com/@ape.frequency');
