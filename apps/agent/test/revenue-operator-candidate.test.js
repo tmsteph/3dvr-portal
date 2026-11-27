@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { openLedger, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
-const { recordOperatorCandidate } = require('../thomas-agent/node/revenue-operator-candidate');
+const { recordOperatorCandidate, recordLocalCanaryCandidate } = require('../thomas-agent/node/revenue-operator-candidate');
 
 function fixture(suffix = 'abcdefghijkl') {
   const taskId = 'operator-http-' + 'a'.repeat(24) + '-' + suffix;
@@ -91,4 +91,54 @@ test('conflicting replay creates no orphan and later task never rewinds an advan
     assert.equal(recordOperatorCandidate(db, input).prospect.state, 'drafted');
     assert.deepEqual(counts(db), [1, 2, 2, 0]);
   } finally { db.close(); }
+});
+
+test('local canary rejects hard-linked queue or ledger without importing any rows', () => {
+  const fs = require('node:fs');
+  const { tmpdir } = require('node:os');
+  const { join } = require('node:path');
+  const { DatabaseSync } = require('node:sqlite');
+  for (const linked of ['queue.sqlite', 'ledger.sqlite', null]) {
+    const dir = fs.mkdtempSync(join(fs.realpathSync(tmpdir()), 'operator-local-signed-'));
+    let db;
+    try {
+      const queuePath = join(dir, 'queue.sqlite');
+      const ledgerPath = join(dir, 'ledger.sqlite');
+      const input = fixture('operator-e2e-abcdefghijkl');
+      input.row.record.backend = 'local-canary';
+      input.verifiedSource.url = 'https://operator-canary.invalid/listing';
+      input.row.record.resultText = JSON.stringify({
+        name: input.verifiedSource.name, sourceUrl: input.verifiedSource.url, summary: 'Synthetic fixture'
+      });
+      const queue = new DatabaseSync(queuePath);
+      try {
+        queue.exec('CREATE TABLE tasks (owner_alias TEXT, id TEXT, source TEXT, status TEXT, record_json TEXT)');
+        queue.prepare('INSERT INTO tasks VALUES (?, ?, ?, ?, ?)').run(
+          'operator-e2e-test', input.expected.taskId, input.row.source, input.row.status, JSON.stringify(input.row.record));
+      } finally { queue.close(); }
+      db = openLedger({ filePath: ledgerPath });
+      if (linked) fs.linkSync(join(dir, linked), join(dir, 'external-alias.sqlite'));
+      const args = { scratchDir: dir, expected: input.expected, verifiedSource: input.verifiedSource, env: {
+        OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: '1',
+        OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED: '1',
+        OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID: input.expected.taskId,
+        OPERATOR_RUNTIME_E2E_EXPECTED_REQUEST_DIGEST: input.expected.requestDigest,
+        OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID: input.expected.workerDeviceId,
+        OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS: 'operator-e2e-test',
+        OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB: queuePath
+      } };
+      if (linked) {
+        assert.throws(() => recordLocalCanaryCandidate(db, args), /unlinked regular scratch databases/);
+        assert.deepEqual(counts(db), [0, 0, 0, 0]);
+      } else {
+        assert.equal(recordLocalCanaryCandidate(db, args).prospect.state, 'verified');
+        assert.deepEqual(counts(db), [1, 1, 1, 0]);
+        assert.equal(recordLocalCanaryCandidate(db, args).replayed, true);
+        assert.deepEqual(counts(db), [1, 1, 1, 0]);
+      }
+    } finally {
+      db?.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
 });

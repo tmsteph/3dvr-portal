@@ -2,7 +2,7 @@
 // metadata: the caller must read the signed private queue row and obtain an
 // independent public-source verification. This module has no transport,
 // provider, outreach, or Gun side effects.
-const { realpathSync } = require('node:fs');
+const { realpathSync, lstatSync } = require('node:fs');
 const { join, dirname, basename } = require('node:path');
 const { tmpdir } = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
@@ -109,6 +109,14 @@ function recordLocalCanaryCandidate(db, { scratchDir, expected, verifiedSource, 
       || realpathSync(queuePath) !== queuePath || realpathSync(ledgerPath) !== ledgerPath
       || main?.file !== ledgerPath) {
     throw new Error('Local canary requires dedicated scratch databases');
+  }
+  // realpath alone does not detect hard links to a live database. Refuse
+  // linked or nonregular files before opening the queue or importing rows.
+  for (const file of [queuePath, ledgerPath]) {
+    const stat = lstatSync(file);
+    if (!stat.isFile() || stat.nlink !== 1) {
+      throw new Error('Local canary requires unlinked regular scratch databases');
+    }
   }
   const queue = new DatabaseSync(queuePath, { readOnly: true });
   try {
