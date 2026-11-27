@@ -712,7 +712,10 @@ test('isolated local canary admits a real exact signed request and completes a s
   const { createHash } = await import('node:crypto');
   const { createServer } = await import('node:http');
   const signer = await SEA.pair();
-  const item = { ...enqueue, requestId: 'operator-e2e-local-admission-123' };
+  const candidate = { name:'Synthetic local buyer', sourceUrl:'https://operator-canary.invalid/listing', summary:'Synthetic acceptance fixture' };
+  const verifiedSource = { name:candidate.name, url:candidate.sourceUrl, evidence:'Independent synthetic source fixture' };
+  const item = { ...enqueue, requestId: 'operator-e2e-local-admission-123',
+    text:'Return a synthetic prospect JSON for '+candidate.sourceUrl, title:'Synthetic local prospect' };
   const id = 'operator-http-' + createHash('sha256').update(signer.pub).digest('hex').slice(0, 24) + '-' + item.requestId;
   const digest = createHash('sha256').update(JSON.stringify({ text: item.text, title: item.title })).digest('hex');
   const cfg = {
@@ -733,7 +736,7 @@ test('isolated local canary admits a real exact signed request and completes a s
     calls++;
     req.resume();
     req.on('end', () => res.end(JSON.stringify({model:'test-model', choices:[{
-      finish_reason:'stop',message:{role:'assistant',content:'42'}
+      finish_reason:'stop',message:{role:'assistant',content:JSON.stringify(candidate)}
     }]})));
   });
   try {
@@ -802,7 +805,7 @@ test('isolated local canary admits a real exact signed request and completes a s
     assert.equal(done.data.record.status,'completed');
     assert.equal(done.data.record.workerDeviceId,worker);
     assert.equal(done.data.record.operatorRequestDigest,digest);
-    assert.equal(done.data.record.resultText,'42');
+    assert.deepEqual(JSON.parse(done.data.record.resultText),candidate);
     const independent = new DatabaseSync(dbPath,{readOnly:true});
     try {
       const saved = independent.prepare('SELECT * FROM tasks WHERE id=?').get(id);
@@ -815,6 +818,57 @@ test('isolated local canary admits a real exact signed request and completes a s
     assert.equal((await workerQueue.runQueuedTask(await workerQueue.readTask(id,options),options)).skipped,true);
     assert.equal(calls,1);
     assert.equal(genericCalls,0);
+
+    const { openLedger } = require('../apps/agent/thomas-agent/node/revenue-ledger.js');
+    const { recordOperatorCandidate, recordLocalCanaryCandidate } = require('../apps/agent/thomas-agent/node/revenue-operator-candidate.js');
+    const { projectPendingCrm } = require('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
+    const ledgerPath = join(dir,'ledger.sqlite');
+    const ledger = openLedger({ filePath:ledgerPath });
+    const expected = { taskId:id, requestDigest:digest, workerDeviceId:worker, requestedAt:admitted.createdAt };
+    const input = { scratchDir:dir, expected, verifiedSource, env:options.localCanaryEnv };
+    try {
+      const completed = db.prepare('SELECT source,status,record_json FROM tasks WHERE id=?').get(id);
+      assert.throws(() => recordOperatorCandidate(ledger,{ row:{source:completed.source,status:completed.status,
+        record:JSON.parse(completed.record_json)},expected,verifiedSource }), /Unverified private task completion/);
+      assert.throws(() => recordLocalCanaryCandidate(ledger,{...input,env:{...input.env,OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED:'0'}}), /not authorized/);
+      assert.throws(() => recordLocalCanaryCandidate(ledger,{...input,verifiedSource:{...verifiedSource,name:'Wrong name'}}), /verification mismatch/);
+      const other = openLedger({filePath:join(dir,'other.sqlite')});
+      try { assert.throws(() => recordLocalCanaryCandidate(other,input),/scratch databases/); } finally { other.close(); }
+      assert.equal(ledger.prepare('SELECT count(*) n FROM prospects').get().n,0);
+      const first = recordLocalCanaryCandidate(ledger,input);
+      assert.equal(first.prospect.state,'verified');
+      assert.equal(first.event.type,'operator_local_canary_verified');
+      assert.equal(JSON.parse(first.event.payload_json).backend,'local-canary');
+      assert.equal(recordLocalCanaryCandidate(ledger,input).replayed,true);
+      let writes = 0;
+      const write = async payload => {
+        writes++;
+        assert.equal(payload.records[0].status,'Lead');
+        assert.equal(payload.records[0].sourceUrl,candidate.sourceUrl);
+        assert.equal(payload.records[0].email,'');
+        assert.equal(payload.records[0].lastPaymentAmountCents,undefined);
+        assert.equal(payload.touches[0].touchType,'operator_local_canary_verified');
+        return { records:1,touches:1,errors:[] };
+      };
+      const blocked = await projectPendingCrm(ledger,{write});
+      assert.equal(blocked.failed,1);
+      assert.equal(writes,0);
+      assert.match(blocked.errors[0],/isolated CRM/);
+      const projected = await projectPendingCrm(ledger,{isolated:true,write});
+      assert.equal(projected.succeeded,1,JSON.stringify(projected));
+      assert.equal(writes,1);
+      assert.equal((await projectPendingCrm(ledger,{isolated:true,write})).attempted,0);
+    } finally { ledger.close(); }
+    const readLedger = new DatabaseSync(ledgerPath,{readOnly:true});
+    try {
+      assert.equal(readLedger.prepare('SELECT count(*) n FROM prospects').get().n,1);
+      assert.equal(readLedger.prepare('SELECT count(*) n FROM delivery_attempts').get().n,0);
+      const event = readLedger.prepare('SELECT e.payload_json,o.status FROM revenue_events e JOIN projection_outbox o ON o.event_id=e.id').get();
+      assert.equal(JSON.parse(event.payload_json).taskId,id);
+      assert.equal(JSON.parse(event.payload_json).backend,'local-canary');
+      assert.equal(event.status,'succeeded');
+      assert.equal(readLedger.prepare('SELECT count(*) n FROM revenue_events').get().n,1);
+    } finally { readLedger.close(); }
   } finally {
     if (model.listening) await new Promise(resolve => model.close(resolve));
     db.close();
