@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inner Worlds | 3DVR</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100svh; color: #e6eee9; background: #101720; font: 16px system-ui, sans-serif; display: grid; grid-template-rows: auto 1fr auto; }
+  header, footer { padding: 1rem clamp(1rem,5vw,3rem); display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; }
+  header { justify-content: space-between; }
+  a { color: #a6d9c7; }
+  h1 { margin: 0; font-size: 1.3rem; letter-spacing: .08em; }
+  main { position: relative; display: grid; place-items: center; min-height: 55vh; overflow: hidden; background: #131d2a; }
+  canvas { position: absolute; width: 100%; height: 100%; }
+  #intro { position: relative; background: #101720ed; padding: 2rem; margin: 1rem; border: 1px solid #47665e; border-radius: 1.5rem; max-width: 30rem; }
+  #intro[hidden] { display: none; }
+  button, select { background: #243b40; color: #f5faf7; border: 1px solid #698d83; border-radius: .6rem; padding: .65rem .9rem; font: inherit; }
+  button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid #c6f3be; outline-offset: 3px; }
+  label { display: flex; gap: .5rem; align-items: center; }
+  #status { margin-left: auto; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header><a href="/sky-room/">← Sky Room</a><h1>INNER WORLDS</h1><span>3DVR · generative art</span></header>
+<main>
+  <canvas id="world" aria-hidden="true"></canvas>
+  <section id="intro"><h2>A quiet journey inward</h2><p>Five minutes of unfolding geometric gardens. Abstract art, not a drug simulation. Motion and optional sound are under your control.</p><button id="start">Begin journey</button></section>
+</main>
+<footer>
+  <button id="pause" disabled>Pause</button><button id="exit" disabled>Exit</button>
+  <label><input id="still" type="checkbox"> Still mode</label>
+  <label>Palette <select id="palette"><option value="0">Jade</option><option value="1">Twilight</option><option value="2">Amber</option></select></label>
+  <label><input id="sound" type="checkbox" disabled> Ambient sound</label>
+  <span id="status" aria-live="off">Ready</span>
+</footer>
+<script>
+  const $ = id => document.getElementById(id);
+  const canvas = $('world'), ctx = canvas.getContext('2d');
+  const duration = 300;
+  let playing = false, active = false, elapsed = 0, last = 0, frame = 0, audio;
+  $('still').checked = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const palettes = [155, 255, 44];
+  function render() {
+    if (!ctx) return;
+    const w = canvas.width, h = canvas.height, radius = Math.hypot(w, h) * .56;
+    const time = $('still').checked ? 60 : elapsed;
+    const progress = time / duration, hue = palettes[Number($('palette').value)];
+    const bloom = Math.sin(Math.PI * progress);
+    ctx.fillStyle = '#131d2a'; ctx.fillRect(0, 0, w, h);
+    ctx.save(); ctx.translate(w / 2, h / 2);
+    for (let ring = 11; ring >= 1; ring--) {
+      const r = radius * ring / 11 * (.8 + .18 * bloom);
+      const petals = 6 + ring * 2;
+      ctx.strokeStyle = 'hsla(' + (hue + ring * 4) + ', 44%, 59%, ' + (.13 + bloom * .14) + ')';
+      ctx.lineWidth = Math.max(1, w / 900);
+      for (let i = 0; i < petals; i++) {
+        const a = i * Math.PI * 2 / petals + time * .008 * (ring % 2 ? 1 : -1);
+        ctx.save(); ctx.rotate(a);
+        ctx.beginPath(); ctx.ellipse(0, r * .5, r * .21, r * .44, .15, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+  function resize() {
+    const scale = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(canvas.clientWidth * scale));
+    canvas.height = Math.max(1, Math.round(canvas.clientHeight * scale));
+    render();
+  }
+  function updateStatus() {
+    const seconds = Math.max(0, Math.ceil(duration - elapsed));
+    $('status').textContent = active ? Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') + ' remaining' : 'Ready';
+  }
+  function tick(now) {
+    if (!playing) return;
+    elapsed = Math.min(duration, elapsed + Math.max(0, (now - last) / 1000)); last = now;
+    if (!$('still').checked) render();
+    const seconds = Math.ceil(duration - elapsed);
+    if (seconds !== tick.seconds) { tick.seconds = seconds; updateStatus(); }
+    if (elapsed >= duration) { stop(); $('status').textContent = 'Journey complete'; return; }
+    frame = requestAnimationFrame(tick);
+  }
+  function silence() {
+    if (audio) { audio.close().catch(() => {}); audio = undefined; }
+  }
+  async function enableSound() {
+    if (!playing || !$('sound').checked || audio) return;
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) { $('sound').checked = false; return; }
+    let local;
+    try { local = new Audio(); } catch { $('sound').checked = false; return; }
+    audio = local;
+    const gain = local.createGain(); gain.gain.value = .025; gain.connect(local.destination);
+    [110, 165, 220].forEach(freq => { const oscillator = local.createOscillator(); oscillator.frequency.value = freq; oscillator.connect(gain); oscillator.start(); });
+    try { await local.resume(); } catch { if (audio === local) { silence(); $('sound').checked = false; } }
+  }
+  function resume() {
+    playing = true; last = performance.now(); $('pause').textContent = 'Pause'; frame = requestAnimationFrame(tick); enableSound();
+  }
+  function pause() {
+    playing = false; cancelAnimationFrame(frame); silence(); $('pause').textContent = 'Resume';
+  }
+  function stop() {
+    pause(); active = false; elapsed = 0; $('intro').hidden = false; $('pause').disabled = true; $('exit').disabled = true; $('sound').disabled = true; $('sound').checked = false; updateStatus(); render();
+  }
+  $('start').onclick = () => { active = true; elapsed = 0; $('intro').hidden = true; $('pause').disabled = false; $('exit').disabled = false; $('sound').disabled = false; updateStatus(); render(); resume(); $('pause').focus(); };
+  $('pause').onclick = () => playing ? pause() : resume();
+  $('exit').onclick = () => { stop(); $('start').focus(); };
+  $('still').onchange = render;
+  $('palette').onchange = render;
+  $('sound').onchange = () => $('sound').checked ? enableSound() : silence();
+  document.addEventListener('visibilitychange', () => { if (document.hidden && playing) pause(); });
+  window.addEventListener('resize', resize);
+  window.addEventListener('pagehide', silence);
+  resize();
+</script>
+</body>
+</html>
