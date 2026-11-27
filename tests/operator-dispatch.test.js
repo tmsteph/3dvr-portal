@@ -16,6 +16,82 @@ const require = createRequire(import.meta.url);
 const { runOnce: runPrivateWorkerOnce } = require('../scripts/ops/operator-private-worker.cjs');
 const workerQueue = require('../apps/agent/thomas-agent/node/agent-task-queue.js');
 
+function isolatedCrmFixture(dir) {
+  const gunModule = require.resolve('gun');
+  const childOpts = { cwd: dir, env: { HOME: dir, PATH: process.env.PATH || '',
+    THREEDVR_GUN_PORTAL_ROOT: 'isolated-signed-crm-test' } };
+  const startRelay = async () => {
+    const relay = spawn(process.execPath, ['-e', `
+      const http = require('node:http');
+      const gunFactory = require(process.argv[1]);
+      const server = http.createServer(gunFactory.serve);
+      gunFactory({ web: server, peers: [], file: 'signed-scratch-relay', axe: false, multicast: false, stats: false });
+      server.listen(0, '127.0.0.1', () => {
+        if (server.address().address !== '127.0.0.1') process.exit(2);
+        console.log('RELAY_READY:' + server.address().port);
+      });
+    `, gunModule], { ...childOpts, stdio: ['ignore', 'pipe', 'pipe'] });
+      let relayOutput = '', relayError = '';
+      relay.stderr.on('data', chunk => { relayError += chunk; });
+      try {
+        const port = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
+        relay.once('error', error => { clearTimeout(timer); reject(error); });
+        relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
+        relay.stdout.on('data', chunk => {
+          relayOutput += chunk;
+          const match = /RELAY_READY:(\d+)/.exec(relayOutput);
+          if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+        });
+      });
+      assert.ok(port > 0 && port <= 65535);
+      return { relay, url: 'http://127.0.0.1:' + port + '/gun' };
+    } catch (error) {
+      await stopRelay(relay);
+      throw error;
+    }
+  };
+  const stopRelay = async relay => {
+    if (relay.exitCode === null && relay.signalCode === null && relay.pid) {
+      const exited = once(relay, 'exit');
+      relay.kill('SIGKILL');
+      await exited;
+    }
+  };
+  const runChild = (code, args, timeout) => {
+    const result = spawnSync(process.execPath, ['-e', code, ...args], {
+      ...childOpts, encoding: 'utf8', timeout, maxBuffer: 1024 * 1024
+    });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, (result.stderr || '') + '\n' + (result.stdout || ''));
+    const line = result.stdout.split(/\r?\n/).find(item => item.startsWith('CRM_RESULT:'));
+    assert.ok(line, 'child must return explicit evidence: ' + result.stdout);
+    return JSON.parse(line.slice('CRM_RESULT:'.length));
+  };
+  const readCrm = (url, written) => runChild(`
+    const gunFactory = require(process.argv[1]);
+    const [url, id, eventId] = process.argv.slice(2);
+    const gun = gunFactory({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
+    function read(node, field, expected) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('independent CRM read timed out: ' + field)), 8000);
+        node.on(data => {
+          if (data && data[field] === expected) {
+            clearTimeout(timer); node.off(); resolve(data);
+          }
+        });
+      });
+    }
+    Promise.all([
+      read(gun.get('3dvr-crm').get(id), 'canonicalEventId', eventId),
+      read(gun.get('isolated-signed-crm-test').get('crm-touch-log').get('revenue-event-' + eventId), 'crmRecordId', id)
+    ]).then(([record, touch]) => {
+      process.stdout.write('CRM_RESULT:' + JSON.stringify({ record, touch }) + '\\n', () => process.exit(0));
+    }).catch(error => { console.error(error); process.exit(1); });
+  `, [gunModule, url, written.id, written.eventId], 12000);
+  return {startRelay, stopRelay, runChild, readCrm};
+}
+
 const origin = 'https://operator.3dvr.tech';
 const pair = await SEA.pair();
 const config = {THREEDVR_OPERATOR_OWNER_BINDINGS:JSON.stringify({'tmsteph@3dvr':pair.pub})};
@@ -494,64 +570,14 @@ test('signed Operator private worker result imports through candidate adapter an
     // loopback Gun projection. Model execution is still a deterministic stub.
     // Relay, projection and reader each have a stripped environment and scratch
     // cwd; the isolated projection refuses non-loopback endpoints.
-    const gunModule = require.resolve('gun');
     const ledgerModule = require.resolve('../apps/agent/thomas-agent/node/revenue-ledger.js');
     const candidateModule = require.resolve('../apps/agent/thomas-agent/node/revenue-operator-candidate.js');
     const projectionModule = require.resolve('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
     const crmModule = require.resolve('../apps/agent/thomas-agent/node/crm-sync.js');
-    const childOpts = { cwd: dir, env: { HOME: dir, PATH: process.env.PATH || '',
-      THREEDVR_GUN_PORTAL_ROOT: 'isolated-signed-crm-test' } };
-    const startRelay = async () => {
-      const relay = spawn(process.execPath, ['-e', `
-        const http = require('node:http');
-        const gunFactory = require(process.argv[1]);
-        const server = http.createServer(gunFactory.serve);
-        gunFactory({ web: server, peers: [], file: 'signed-scratch-relay', axe: false, multicast: false, stats: false });
-        server.listen(0, '127.0.0.1', () => {
-          if (server.address().address !== '127.0.0.1') process.exit(2);
-          console.log('RELAY_READY:' + server.address().port);
-        });
-      `, gunModule], { ...childOpts, stdio: ['ignore', 'pipe', 'pipe'] });
-        let relayOutput = '', relayError = '';
-        relay.stderr.on('data', chunk => { relayError += chunk; });
-        try {
-          const port = await new Promise((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
-          relay.once('error', error => { clearTimeout(timer); reject(error); });
-          relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
-          relay.stdout.on('data', chunk => {
-            relayOutput += chunk;
-            const match = /RELAY_READY:(\d+)/.exec(relayOutput);
-            if (match) { clearTimeout(timer); resolve(Number(match[1])); }
-          });
-        });
-        assert.ok(port > 0 && port <= 65535);
-        return { relay, url: 'http://127.0.0.1:' + port + '/gun' };
-      } catch (error) {
-        await stopRelay(relay);
-        throw error;
-      }
-    };
-    const stopRelay = async relay => {
-      if (relay.exitCode === null && relay.signalCode === null && relay.pid) {
-        const exited = once(relay, 'exit');
-        relay.kill('SIGKILL');
-        await exited;
-      }
-    };
+    const {startRelay, stopRelay, runChild, readCrm} = isolatedCrmFixture(dir);
     let activeRelay = await startRelay();
     try {
       const relayUrl = activeRelay.url;
-      const runChild = (code, args, timeout) => {
-        const result = spawnSync(process.execPath, ['-e', code, ...args], {
-          ...childOpts, encoding: 'utf8', timeout, maxBuffer: 1024 * 1024
-        });
-        assert.ifError(result.error);
-        assert.equal(result.status, 0, (result.stderr || '') + '\n' + (result.stdout || ''));
-        const line = result.stdout.split(/\r?\n/).find(item => item.startsWith('CRM_RESULT:'));
-        assert.ok(line, 'child must return explicit evidence: ' + result.stdout);
-        return JSON.parse(line.slice('CRM_RESULT:'.length));
-      };
       const provenance = 'signed-crm-canary-20261123';
       const sourceUrl = 'https://example.test/' + provenance;
       const prospectRequest = { action: 'enqueue', requestId: provenance,
@@ -633,28 +659,7 @@ test('signed Operator private worker result imports through candidate adapter an
       `, [ledgerModule, candidateModule, projectionModule, crmModule, ledgerFile, relayUrl,
         dbPath, JSON.stringify(expected), JSON.stringify(sourceEvidence)], 20000);
       // Fresh process, no local storage, reads the actual relay after writer exit.
-      const readCrm = url => runChild(`
-        const gunFactory = require(process.argv[1]);
-        const [url, id, eventId] = process.argv.slice(2);
-        const gun = gunFactory({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
-        function read(node, field, expected) {
-          return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('independent CRM read timed out: ' + field)), 8000);
-            node.on(data => {
-              if (data && data[field] === expected) {
-                clearTimeout(timer); node.off(); resolve(data);
-              }
-            });
-          });
-        }
-        Promise.all([
-          read(gun.get('3dvr-crm').get(id), 'canonicalEventId', eventId),
-          read(gun.get('isolated-signed-crm-test').get('crm-touch-log').get('revenue-event-' + eventId), 'crmRecordId', id)
-        ]).then(([record, touch]) => {
-          process.stdout.write('CRM_RESULT:' + JSON.stringify({ record, touch }) + '\\n', () => process.exit(0));
-        }).catch(error => { console.error(error); process.exit(1); });
-      `, [gunModule, url, written.id, written.eventId], 12000);
-      const { record: saved, touch } = readCrm(relayUrl);
+      const { record: saved, touch } = readCrm(relayUrl, written);
       assert.equal(saved.id, written.id);
       assert.equal(saved.sourceUrl, sourceUrl);
       assert.equal(saved.canonicalEventId, written.eventId);
@@ -671,7 +676,7 @@ test('signed Operator private worker result imports through candidate adapter an
       // Radisk path; no writer is running and the new reader has no cache.
       await stopRelay(activeRelay.relay);
       activeRelay = await startRelay();
-      const recovered = readCrm(activeRelay.url);
+      const recovered = readCrm(activeRelay.url, written);
       assert.deepEqual(recovered.record, saved, 'CRM record survives isolated relay restart');
       assert.deepEqual(recovered.touch, touch, 'CRM event survives isolated relay restart');
       const readLedger = new DatabaseSync(ledgerFile, { readOnly: true });
@@ -708,7 +713,7 @@ test('signed Operator private worker result imports through candidate adapter an
   }
 });
 
-test('isolated local canary admits a real exact signed request and completes a scratch SQLite claim', { timeout: 20000 }, async () => {
+test('isolated local canary admits a real exact signed request and completes a scratch SQLite claim and survives CRM restart', { timeout: 90000 }, async () => {
   const { createHash } = await import('node:crypto');
   const { createServer } = await import('node:http');
   const signer = await SEA.pair();
@@ -854,16 +859,63 @@ test('isolated local canary admits a real exact signed request and completes a s
       assert.equal(blocked.failed,1);
       assert.equal(writes,0);
       assert.match(blocked.errors[0],/isolated CRM/);
-      const projected = await projectPendingCrm(ledger,{isolated:true,write});
-      assert.equal(projected.succeeded,1,JSON.stringify(projected));
-      assert.equal(writes,1);
-      assert.equal((await projectPendingCrm(ledger,{isolated:true,write})).attempted,0);
+      assert.equal(ledger.prepare('SELECT count(*) n FROM delivery_attempts').get().n,0);
     } finally { ledger.close(); }
+    // Real loopback Gun projection and independent post-restart readback.
+    // Reuse the signed Codex acceptance fixture, with a distinct scratch cwd.
+    const {startRelay, stopRelay, runChild, readCrm} = isolatedCrmFixture(dir);
+    let activeRelay = await startRelay();
+    let recoveredEventId;
+    try {
+      const written = runChild(`
+        const assert = require('node:assert/strict');
+        const { openLedger, pendingProjections } = require(process.argv[1]);
+        const { projectPendingCrm } = require(process.argv[2]);
+        const { buildLeadId } = require(process.argv[3]);
+        const [filePath, relayUrl] = process.argv.slice(4);
+        (async () => {
+          const ledger = openLedger({ filePath });
+          try {
+            const lead = ledger.prepare('SELECT * FROM prospects').get();
+            const event = ledger.prepare('SELECT * FROM revenue_events').get();
+            assert.equal(event.type, 'operator_local_canary_verified');
+            const projected = await projectPendingCrm(ledger, { isolated: true, relayUrl });
+            assert.equal(projected.succeeded, 1, JSON.stringify(projected));
+            assert.equal(projected.failed, 0);
+            assert.equal((await projectPendingCrm(ledger, { isolated: true, relayUrl })).attempted, 0);
+            assert.equal(pendingProjections(ledger).length, 0);
+            assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+            const id = buildLeadId({name:lead.name,contact:lead.contact,link:lead.source_url});
+            process.stdout.write('CRM_RESULT:' + JSON.stringify({id,eventId:event.id}) + '\\n', () => process.exit(0));
+          } finally { ledger.close(); }
+        })().catch(error => { console.error(error); process.exit(1); });
+      `, [require.resolve('../apps/agent/thomas-agent/node/revenue-ledger.js'),
+        require.resolve('../apps/agent/thomas-agent/node/revenue-crm-projection.js'),
+        require.resolve('../apps/agent/thomas-agent/node/crm-sync.js'),
+        ledgerPath, activeRelay.url], 20000);
+      const saved = readCrm(activeRelay.url, written);
+      assert.equal(saved.record.id,written.id);
+      assert.equal(saved.record.canonicalEventId,written.eventId);
+      assert.equal(saved.record.sourceUrl,candidate.sourceUrl);
+      assert.equal(saved.record.status,'Lead');
+      assert.equal(saved.record.canonicalState,'verified');
+      assert.equal(saved.record.email,'');
+      assert.equal(saved.record.nextFollowUp,undefined);
+      assert.equal(saved.record.lastPaymentAmountCents,undefined);
+      assert.equal(saved.touch.touchType,'operator_local_canary_verified');
+      assert.equal(saved.touch.crmRecordId,written.id);
+      await stopRelay(activeRelay.relay);
+      activeRelay = await startRelay();
+      const recovered = readCrm(activeRelay.url, written);
+      assert.deepEqual(recovered.record,saved.record);
+      assert.deepEqual(recovered.touch,saved.touch);
+      recoveredEventId = recovered.record.canonicalEventId;
+    } finally { await stopRelay(activeRelay.relay); }
     const readLedger = new DatabaseSync(ledgerPath,{readOnly:true});
     try {
       assert.equal(readLedger.prepare('SELECT count(*) n FROM prospects').get().n,1);
       assert.equal(readLedger.prepare('SELECT count(*) n FROM delivery_attempts').get().n,0);
-      const event = readLedger.prepare('SELECT e.payload_json,o.status FROM revenue_events e JOIN projection_outbox o ON o.event_id=e.id').get();
+      const event = readLedger.prepare('SELECT e.payload_json,o.status FROM revenue_events e JOIN projection_outbox o ON o.event_id=e.id WHERE e.id=?').get(recoveredEventId);
       assert.equal(JSON.parse(event.payload_json).taskId,id);
       assert.equal(JSON.parse(event.payload_json).backend,'local-canary');
       assert.equal(event.status,'succeeded');
