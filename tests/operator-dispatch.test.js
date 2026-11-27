@@ -707,3 +707,117 @@ test('signed Operator private worker result imports through candidate adapter an
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('isolated local canary admits a real exact signed request and completes a scratch SQLite claim', { timeout: 20000 }, async () => {
+  const { createHash } = await import('node:crypto');
+  const { createServer } = await import('node:http');
+  const signer = await SEA.pair();
+  const item = { ...enqueue, requestId: 'operator-e2e-local-admission-123' };
+  const id = 'operator-http-' + createHash('sha256').update(signer.pub).digest('hex').slice(0, 24) + '-' + item.requestId;
+  const digest = createHash('sha256').update(JSON.stringify({ text: item.text, title: item.title })).digest('hex');
+  const cfg = {
+    THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({ 'tmsteph@3dvr': signer.pub }),
+    OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: '1',
+    OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED: '1',
+    OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID: id,
+    OPERATOR_RUNTIME_E2E_EXPECTED_REQUEST_DIGEST: digest,
+  };
+  const dir = await mkdtemp(join(tmpdir(), 'operator-local-signed-'));
+  const dbPath = join(dir, 'queue.sqlite');
+  const owner = 'operator-e2e-test';
+  const worker = 'isolated-local-worker';
+  const db = new DatabaseSync(dbPath);
+  let calls = 0;
+  let genericCalls = 0;
+  const model = createServer((req, res) => {
+    calls++;
+    req.resume();
+    req.on('end', () => res.end(JSON.stringify({model:'test-model', choices:[{
+      finish_reason:'stop',message:{role:'assistant',content:'42'}
+    }]})));
+  });
+  try {
+    await new Promise(resolve => model.listen(0, '127.0.0.1', resolve));
+    db.exec("CREATE TABLE tasks(owner_alias TEXT NOT NULL,id TEXT NOT NULL,status TEXT NOT NULL,updated_at TEXT NOT NULL,record_json TEXT NOT NULL,source TEXT NOT NULL DEFAULT 'sqlite',claim_token TEXT,claim_expires_at INTEGER,PRIMARY KEY(owner_alias,id)) WITHOUT ROWID");
+    // Test-only adaptation of the existing SSH transport: no real HOME,
+    // production queue, credentials, SSH or Gun. Pin the scratch owner and DB.
+    const script = REMOTE_QUEUE_SCRIPT
+      .replace(/if \[ -f .*?fi\n/, '')
+      .replace('cd "$HOME/.3dvr/portal/apps/agent"', "cd '" + dir + "'")
+      .replace('/opt/node-v22/bin/node', process.execPath)
+      .replaceAll('3dvr-managed', owner)
+      .replace("capabilities.includes('codex')", "capabilities.includes('local-canary')");
+    let transportCalls = 0;
+    const run = async input => {
+      transportCalls++;
+      const proc = spawnSync('bash', ['-s', '--', Buffer.from(JSON.stringify(input)).toString('base64url')], {
+        input: script, encoding: 'utf8', timeout: 10000,
+        env: { HOME: dir, PATH: process.env.PATH || '', THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+          THREEDVR_AGENT_OWNER_ALIAS: owner, THREEDVR_AGENT_WORKER_CAPABILITIES: 'local-canary',
+          THREEDVR_AGENT_QUEUE_DB: dbPath }
+      });
+      assert.equal(proc.status, 0, proc.stderr);
+      return JSON.parse(proc.stdout);
+    };
+    assert.throws(() => createOperatorDispatchHandler({ config: cfg, localCanary: true }), /explicit isolated transport/);
+    assert.throws(() => createOperatorDispatchHandler({ config: cfg, run, localCanary: true, verify: async () => ({ok:true}) }), /explicit isolated transport/);
+    assert.throws(() => createOperatorDispatchHandler({ config: {...cfg, OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED:'0'}, run, localCanary: true }), /explicit isolated transport/);
+    let ordinaryBackend;
+    const ordinary = createOperatorDispatchHandler({config:cfg, run:async input => {
+      ordinaryBackend = input.record.backend;
+      return {ok:true};
+    }});
+    assert.equal((await request(ordinary, {...item, backend:'local-canary'}, signer)).statusCode, 202);
+    assert.equal(ordinaryBackend, 'codex', 'environment and request fields alone cannot select local canary');
+
+    const handler = createOperatorDispatchHandler({config:cfg, run, localCanary:true});
+    assert.equal((await request(handler,item,signer,{authProof:''})).statusCode,401);
+    assert.equal((await request(handler,item,await SEA.pair())).statusCode,403);
+    assert.equal((await request(handler,{...item,requestId:'operator-e2e-other-task-123'},signer)).statusCode,403);
+    assert.equal((await request(handler,{...item,text:item.text+' changed'},signer)).statusCode,403);
+    assert.equal(transportCalls,0);
+    assert.equal((await request(handler,{action:'status',requestId:item.requestId},signer)).statusCode,404);
+    const accepted = await request(handler,item,signer);
+    assert.equal(accepted.statusCode,202);
+    assert.equal(accepted.data.record.id,id);
+    const row = db.prepare('SELECT * FROM tasks WHERE id=?').get(id);
+    assert.equal(row.source,'operator-http');
+    const admitted = JSON.parse(row.record_json);
+    assert.equal(admitted.backend,'local-canary');
+    assert.equal(admitted.requiredCapabilities,'local-canary');
+    assert.equal(admitted.operatorRequestDigest,digest);
+    assert.equal((await request(handler,item,signer)).statusCode,202);
+    const options = { queueStore:'sqlite', queueDb:dbPath, ownerAlias:owner, gunSync:false,
+      deviceId:worker, workerCapabilities:'local-canary', workerRiskClasses:'draft,low', localCanary:true,
+      runAgentTaskImpl:async () => {genericCalls++; throw Error('generic fallback forbidden');},
+      localCanaryEnv:{...cfg, OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB:dbPath,
+        OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS:owner, OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID:worker,
+        OPERATOR_RUNTIME_E2E_LOCAL_MODEL_URL:'http://127.0.0.1:'+model.address().port,
+        OPERATOR_RUNTIME_E2E_LOCAL_MODEL:'test-model'}
+    };
+    const outcome = await workerQueue.runQueuedTask(await workerQueue.readTask(id,options),options);
+    assert.equal(outcome.ok,true);
+    const done = await request(handler,{action:'status',requestId:item.requestId},signer);
+    assert.equal(done.statusCode,200);
+    assert.equal(done.data.record.status,'completed');
+    assert.equal(done.data.record.workerDeviceId,worker);
+    assert.equal(done.data.record.operatorRequestDigest,digest);
+    assert.equal(done.data.record.resultText,'42');
+    const independent = new DatabaseSync(dbPath,{readOnly:true});
+    try {
+      const saved = independent.prepare('SELECT * FROM tasks WHERE id=?').get(id);
+      assert.equal(saved.status,'completed');
+      assert.equal(saved.source,'operator-http');
+      assert.equal(JSON.parse(saved.record_json).backend,'local-canary');
+      assert.equal(independent.prepare('SELECT count(*) n FROM tasks').get().n,1);
+    } finally { independent.close(); }
+    assert.equal((await request(handler,item,signer)).data.record.status,'completed');
+    assert.equal((await workerQueue.runQueuedTask(await workerQueue.readTask(id,options),options)).skipped,true);
+    assert.equal(calls,1);
+    assert.equal(genericCalls,0);
+  } finally {
+    if (model.listening) await new Promise(resolve => model.close(resolve));
+    db.close();
+    await rm(dir,{recursive:true,force:true});
+  }
+});
