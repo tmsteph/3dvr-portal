@@ -122,3 +122,25 @@ test('Operator watcher stops immediately on HTML authorization denial', { timeou
   assert.equal(result.status, 'blocked');
   assert.equal(calls, 1);
 });
+
+test('Operator watcher treats malformed successful receipts as failures without reporting progress', { timeout: 7000 }, async t => {
+  const records = [undefined, [], {status: ''}];
+  const updates = [];
+  const calls = [];
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask('malformed-receipt-test', {
+      onUpdate: record => {
+        updates.push(record);
+        if (record.status === 'blocked') resolve(record);
+      }
+    }, async (action, requestId) => {
+      calls.push([action, requestId]);
+      return {ok: true, record: records[calls.length - 1]};
+    });
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.match(result.error, /server state is not confirmed/);
+  assert.equal(updates.length, 1);
+  assert.deepEqual(calls, Array(3).fill(['status', 'malformed-receipt-test']));
+});
