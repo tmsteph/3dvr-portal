@@ -490,3 +490,59 @@ test('private executor admission releases expired claims and leaves unrelated ta
   assert.ok(sqliteQueue.claimTask(ordinary.id, 'ordinary', 'worker', now + 60000, now, options));
   assert.ok(sqliteQueue.claimTask(b.id, 'b', 'worker', now + 60000, now + 11, options));
 });
+
+
+test('reserved local canary executes only an exact private SQLite claim without generic fallback', async t => {
+  const { createServer } = require('node:http');
+  let calls = 0;
+  let genericCalls = 0;
+  const server = createServer((req, res) => {
+    calls++;
+    req.resume();
+    req.on('end', () => res.end(JSON.stringify({ model: 'test-model', choices: [{
+      finish_reason: 'stop', message: { role: 'assistant', content: '42' }
+    }] })));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const id = 'operator-http-' + 'a'.repeat(24) + '-operator-e2e-abcdefghijkl';
+  const digest = 'b'.repeat(64);
+  const options = await queueOptions(t, {
+    gunSync: false, ownerAlias: 'operator-e2e-test', workerCapabilities: 'local-canary,codex',
+    deviceId: 'isolated-worker', localCanary: true,
+    runAgentTaskImpl: async () => { genericCalls++; throw Error('must not use generic backend'); },
+  });
+  options.localCanaryEnv = {
+    OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: '1', OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED: '1',
+    OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID: id, OPERATOR_RUNTIME_E2E_EXPECTED_REQUEST_DIGEST: digest,
+    OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID: 'isolated-worker',
+    OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB: options.queueDb,
+    OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS: options.ownerAlias,
+    OPERATOR_RUNTIME_E2E_LOCAL_MODEL_URL: 'http://127.0.0.1:' + server.address().port,
+    OPERATOR_RUNTIME_E2E_LOCAL_MODEL: 'test-model',
+  };
+  const row = { id, task: 'Synthetic test', operatorRequestDigest: digest, backend: 'local-canary',
+    requiredCapabilities: 'local-canary', riskClass: 'draft', unsafe: false, approvalStatus: 'not_required',
+    status: 'queued', updatedAt: new Date().toISOString() };
+  sqliteQueue.writeTask(row, { ...options, queueSource: 'operator-http' });
+  for (const bad of [{localCanary: false}, {gunSync: true}, {queueStore: 'gun'},
+    {queueDb: options.queueDb + '.other'}, {ownerAlias: 'other'}]) {
+    const outcome = await runQueuedTask(row, { ...options, ...bad });
+    assert.equal(outcome.skipped, true);
+  }
+  assert.equal((await runQueuedTask({ ...row, backend: 'codex' }, options)).skipped, true);
+  await assert.rejects(runWorkerOnce(options), /exact single-task/);
+  assert.equal(calls, 0);
+  assert.equal((await readTask(id, options)).status, 'queued');
+  const outcome = await runQueuedTask(await readTask(id, options), options);
+  assert.equal(outcome.ok, true);
+  assert.equal(outcome.backend, 'local-canary');
+  const completed = await readTask(id, options);
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.backend, 'local-canary');
+  assert.equal(completed.workerDeviceId, 'isolated-worker');
+  assert.equal(completed.resultText, '42');
+  assert.equal((await runQueuedTask(completed, options)).skipped, true);
+  assert.equal(calls, 1);
+  assert.equal(genericCalls, 0);
+});
