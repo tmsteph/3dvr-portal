@@ -90,3 +90,26 @@ test('rejects malformed, partial, oversized, mismatched or tool-call responses',
       config => assert.rejects(runOperatorLocalCanary(record, { env: config })));
   }
 });
+
+
+test('absolute deadline destroys a silent request and never retries', async t => {
+  const { EventEmitter } = require('node:events');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0;
+  let destroys = 0;
+  const requestImpl = () => {
+    calls++;
+    const req = new EventEmitter();
+    req.end = () => {};
+    req.destroy = () => { destroys++; };
+    return req;
+  };
+  const pending = runOperatorLocalCanary(record, { env, requestImpl });
+  const rejected = assert.rejects(pending, /complete canary response/);
+  t.mock.timers.tick(29999);
+  assert.equal(destroys, 0);
+  t.mock.timers.tick(1);
+  await rejected;
+  assert.equal(calls, 1);
+  assert.equal(destroys, 1);
+});
