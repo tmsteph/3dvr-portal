@@ -32,6 +32,9 @@ test('Ape Frequency live preview fits desktop and mobile with verified links', a
         assert.equal(await page.getByRole('link', { name: 'Instagram' }).getAttribute('href'), 'https://www.instagram.com/apefrequency/');
         await page.keyboard.press('Tab');
         assert.equal(await page.evaluate(() => document.activeElement.id), 'logo-slot');
+        const scoreBefore = Number(await page.locator('#score-n').textContent());
+        await page.keyboard.press('Enter');
+        assert.equal(Number(await page.locator('#score-n').textContent()), scoreBefore + 1);
         await page.keyboard.press('Tab');
         assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'YouTube');
       } finally {
