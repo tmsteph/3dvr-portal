@@ -18,15 +18,20 @@ test('Ape Frequency live preview fits desktop and mobile with verified links', a
         await page.getByRole('heading', { name: 'Ape Frequency', exact: true }).waitFor();
         const rendered = await page.evaluate(() => ({
           width: document.documentElement.scrollWidth,
-          images: [...document.images].map(image => image.complete && image.naturalWidth > 0),
+          images: [...document.images].map(image => ({ src: image.getAttribute('src'), loaded: image.complete && image.naturalWidth > 0 })),
           motion: getComputedStyle(document.querySelector('.logo-slot'), '::before').animationName
         }));
         assert.ok(rendered.width <= width, 'no horizontal overflow at ' + width);
-        assert.deepEqual(rendered.images, [true, true]);
+        // The approved #3846 redesign removed the separate header image.
+        assert.deepEqual(rendered.images, [{ src: 'ape-frequency-wordmark-alpha.webp', loaded: true }]);
         assert.equal(rendered.motion, reduce ? 'none' : 'breathe');
         assert.equal(await page.getByRole('link', { name: 'YouTube' }).getAttribute('href'), 'https://www.youtube.com/@ApeFrequency');
         assert.equal(await page.getByRole('link', { name: 'TikTok' }).getAttribute('href'), 'https://www.tiktok.com/@ape.frequency');
         assert.equal(await page.getByRole('link', { name: 'Instagram' }).getAttribute('href'), 'https://www.instagram.com/apefrequency/');
+        assert.equal(await page.getByRole('link', { name: 'Twitch' }).getAttribute('href'), 'https://www.twitch.tv/apefrequency');
+        const logo = page.getByRole('button', { name: 'Ape Frequency logo. Press it.' });
+        await page.keyboard.press('Tab');
+        assert.equal(await logo.evaluate(element => document.activeElement === element), true, 'interactive logo is first keyboard stop');
         await page.keyboard.press('Tab');
         assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'YouTube');
       } finally {
