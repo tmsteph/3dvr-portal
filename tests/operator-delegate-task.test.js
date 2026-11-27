@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { normalizeOperatorResult } from '../src/operator/api.js';
-import { buildOperatorDelegatedTask, watchConfirmedTask } from '../operator/delegate-task.js';
+import { buildOperatorDelegatedTask, decodeOperatorTaskResponse, watchConfirmedTask } from '../operator/delegate-task.js';
 
 test('Operator normalizes generic delegated tasks', () => {
   const result = normalizeOperatorResult({
@@ -90,4 +90,35 @@ test('Operator watcher deadline does not claim an unconfirmed task was saved', {
   assert.equal(result.status, 'blocked');
   assert.match(result.error, /server state is not confirmed/);
   assert.match(result.error, /same task before submitting again/);
+});
+
+test('Operator task response preserves non-JSON HTTP errors', async () => {
+  for (const status of [401, 403, 404, 405, 422, 502]) {
+    await assert.rejects(
+      decodeOperatorTaskResponse(new Response('<html>proxy error</html>', { status })),
+      error => error.status === status && /unreadable/.test(error.message)
+    );
+  }
+  await assert.rejects(
+    decodeOperatorTaskResponse(new Response('null', { status: 200 })),
+    error => error.status === 200
+  );
+  await assert.rejects(
+    decodeOperatorTaskResponse(new Response('{"ok":"true"}', { status: 200 })),
+    error => error.status === 200
+  );
+  assert.deepEqual(await decodeOperatorTaskResponse(new Response('{"ok":true}')), { ok: true });
+});
+
+test('Operator watcher stops immediately on HTML authorization denial', { timeout: 1000 }, async t => {
+  let calls = 0;
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask('proxy-auth-test', { onUpdate: resolve }, async () => {
+      calls += 1;
+      return decodeOperatorTaskResponse(new Response('<html>Denied</html>', { status: 401 }));
+    });
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.equal(calls, 1);
 });
