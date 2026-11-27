@@ -209,6 +209,10 @@ async function projectPendingCrm(db, options = {}) {
       if (event.prospect_id !== prospect.id) {
         throw new Error('CRM projection prospect/event identity mismatch');
       }
+      // Synthetic local-model acceptance must never write to a normal CRM.
+      if (event.type === 'operator_local_canary_verified' && options.isolated !== true) {
+        throw new Error('Local canary projection requires isolated CRM');
+      }
       const crmId = buildLeadId({
         name: prospect.name, contact: prospect.contact, link: prospect.source_url
       });
