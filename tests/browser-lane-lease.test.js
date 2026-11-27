@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile, unlink, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -65,6 +65,40 @@ test('runtime exposes two action lanes plus protected identity and interactive l
     assert.match(status.stdout, /lane=action-2 state=leased owner=worker-action-2/);
     assert.match(status.stdout, /lane=identity state=leased owner=worker-identity/);
     assert.match(status.stdout, /lane=interactive state=leased owner=worker-interactive/);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('maintenance admission blocks new writers, permits completion, and never implies restart safety', async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), '3dvr-browser-maintenance-'));
+  try {
+    assert.equal(run(stateDir, ['aggregate-status']).status, 69);
+    assert.deepEqual(await readdir(stateDir), []);
+    const first = run(stateDir, ['acquire', 'general', 'private-owner', '60']);
+    assert.equal(first.status, 0, first.stderr);
+    const token = first.stdout.trim();
+    const marker = join(stateDir, '.maintenance');
+    await writeFile(marker, 'fixture only');
+    await writeFile(join(stateDir, 'encore.lease'), 'expired-owner\texpired-token\t1\n');
+    await writeFile(join(stateDir, 'messaging.lease'), 'malformed\n');
+    const before = run(stateDir, ['aggregate-status']);
+    assert.equal(before.status, 0, before.stderr);
+    assert.match(before.stdout, /writer_admission=closed live=1 expired=1 missing=5 invalid=1 readers=untracked restart_safe=unknown/);
+    assert.equal(before.stdout.includes(token), false);
+    assert.equal(before.stdout.includes('private-owner'), false);
+    assert.equal(await readFile(join(stateDir, 'encore.lease'), 'utf8'), 'expired-owner\texpired-token\t1\n');
+    assert.equal(await readFile(join(stateDir, 'messaging.lease'), 'utf8'), 'malformed\n');
+    for (const lane of ['general', 'interactive', 'identity', 'action-1']) {
+      const blocked = run(stateDir, ['acquire', lane, 'another', '60']);
+      assert.equal(blocked.status, 75, blocked.stderr);
+      assert.match(blocked.stderr, /maintenance/);
+    }
+    assert.equal(run(stateDir, ['renew', 'general', token, '120']).status, 0);
+    assert.equal(run(stateDir, ['release', 'general', token]).status, 0);
+    assert.match(run(stateDir, ['aggregate-status']).stdout, /live=0 .*restart_safe=unknown/);
+    await unlink(marker);
+    assert.equal(run(stateDir, ['acquire', 'interactive', 'another', '60']).status, 0);
   } finally {
     await rm(stateDir, { recursive: true, force: true });
   }
