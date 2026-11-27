@@ -297,8 +297,29 @@ function requiredWorkerCapabilities(record = {}) {
   return [...required];
 }
 
+// Reserved backend: only the exact scratch queue caller may opt in.
+function canUseLocalCanary(record, options) {
+  const env = options.localCanaryEnv;
+  return options.localCanary === true
+    && options.queueStore === 'sqlite' && options.gunSync === false
+    && typeof options.queueDb === 'string' && require('node:path').isAbsolute(options.queueDb)
+    && options.queueDb === env?.OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB
+    && typeof options.ownerAlias === 'string' && options.ownerAlias.startsWith('operator-e2e-')
+    && options.ownerAlias === env?.OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS
+    && env?.OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED === '1'
+    && env?.OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED === '1'
+    && record.id === env?.OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID
+    && /^operator-http-[a-f0-9]{24}-operator-e2e-[A-Za-z0-9_-]{12,80}$/.test(record.id || '')
+    && ['read_only', 'draft'].includes(record.riskClass)
+    && record.backend === 'local-canary' && record.unsafe === false;
+}
+
 function canWorkerRunTask(record = {}, options = {}) {
   const profile = workerProfile(options);
+  if ((options.localCanary === true || normalizeText(record.backend).toLowerCase() === 'local-canary')
+    && !canUseLocalCanary(record, options)) {
+    return { ok: false, reason: 'reserved local canary requires an explicit isolated queue', profile };
+  }
   const required = requiredWorkerCapabilities(record);
   const missingCapabilities = required.filter(capability => !profile.capabilities.includes(capability));
   if (missingCapabilities.length) {
@@ -461,6 +482,13 @@ async function runQueuedTask(record, options = {}) {
         backend: 'health',
         result: { stdout: '3dvr-worker-ok' },
       };
+    } else if (claimed.backend === 'local-canary') {
+      if (!canUseLocalCanary(claimed, options) || claimed.queueSource !== 'operator-http') {
+        throw new Error('Local canary requires a claimed private signed-admission row.');
+      }
+      result = await require('./operator-local-canary').runOperatorLocalCanary(claimed, {
+        env: options.localCanaryEnv,
+      });
     } else if (claimed.id?.startsWith('operator-http-') && !options.runAgentTaskImpl) {
       result = await require('./operator-codex-task').runOperatorCodexTask(claimed);
     } else {
@@ -585,6 +613,9 @@ function summarizeTaskResult(result = {}) {
 }
 
 async function runWorkerOnce(options = {}) {
+  // Normal worker polls write Gun heartbeats even when queue sync is off.
+  // The scratch caller must use an exact runQueuedTask call instead.
+  if (options.localCanary === true) throw new Error('Local canary requires exact single-task execution.');
   const profile = workerProfile(options);
   await writeHeartbeat('task-worker', {
     ...options,
