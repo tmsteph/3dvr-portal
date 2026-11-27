@@ -197,9 +197,15 @@ export function watchConfirmedTask(requestId, options = {}, request = taskReques
     try {
       const result = await request('status', requestId);
       if (stopped) return;
+      const record = result?.record;
+      // A successful HTTP envelope is not evidence of a task receipt.
+      if (!record || typeof record !== 'object' || Array.isArray(record)
+          || typeof record.status !== 'string' || !record.status.trim()) {
+        throw new Error('Task service returned no valid receipt; server state is not confirmed.');
+      }
       failures = 0;
-      options.onUpdate?.({...result.record, id:`operator-http:${requestId}`});
-      if (isOperatorTaskTerminal(result.record)) return stop();
+      options.onUpdate?.({...record, id:`operator-http:${requestId}`});
+      if (isOperatorTaskTerminal(record)) return stop();
     } catch (error) {
       if (stopped) return;
       // Admission may have committed after the response was lost. A missing
