@@ -163,9 +163,23 @@ async function taskRequest(action, requestId, extra = {}) {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({action,requestId,...extra,...proof}), signal:AbortSignal.timeout(25000)
   });
-  const result = await response.json();
-  if (!response.ok || !result.ok) {
-    const error = new Error(result.error || 'Task service unavailable.');
+  return decodeOperatorTaskResponse(response);
+}
+
+// Proxies may return HTML or an empty body instead of the API's JSON.
+// Preserve HTTP status so authorization errors fail closed and missing
+// receipts continue polling the original request identity.
+export async function decodeOperatorTaskResponse(response) {
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    const error = new Error('Task service returned an unreadable response.');
+    error.status = response.status;
+    throw error;
+  }
+  if (!response.ok || result?.ok !== true) {
+    const error = new Error(result?.error || 'Task service unavailable.');
     error.status = response.status;
     throw error;
   }
@@ -218,7 +232,7 @@ export async function queueOperatorTask(action = {}) {
     confirmed = true;
     message = 'The server saved your task for the Codex worker.';
   } catch (error) {
-    if ([400,401,403].includes(error.status) || /Sign in/.test(error.message)) throw error;
+    if ([400,401,403,405,422].includes(error.status) || /Sign in/.test(error.message)) throw error;
     // A missing HTTP response is not proof that the write failed. Poll the
     // same request identity; never re-enqueue or silently fall back to Gun.
     message = 'Checking delivery. I will look up this task before any retry.';
