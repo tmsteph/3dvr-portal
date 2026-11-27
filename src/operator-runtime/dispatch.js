@@ -101,6 +101,19 @@ export function runManagedQueue(input, options = {}) {
 
 export function createOperatorDispatchHandler(options = {}) {
   const config = options.config || process.env;
+  // Only an explicitly constructed scratch handler can admit the reserved
+  // local model backend. The normal API and managed SSH path stay Codex-only;
+  // neither request fields nor environment flags alone can select this lane.
+  const localCanary = options.localCanary === true;
+  const canaryId = config.OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID;
+  const canaryDigest = config.OPERATOR_RUNTIME_E2E_EXPECTED_REQUEST_DIGEST;
+  if (localCanary && (!options.config || typeof options.run !== 'function' || options.verify
+      || config.OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED !== '1'
+      || config.OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED !== '1'
+      || !/^operator-http-[a-f0-9]{24}-operator-e2e-[A-Za-z0-9_-]{12,80}$/.test(canaryId || '')
+      || !/^[a-f0-9]{64}$/.test(canaryDigest || ''))) {
+    throw new Error('Local canary admission requires an explicit isolated transport and exact request pin.');
+  }
   const run = options.run || (input => runManagedQueue(input, options));
   const verify = options.verify || verifySignedSeaPayload;
   const reply = (res, status, value) => {
@@ -161,13 +174,20 @@ export function createOperatorDispatchHandler(options = {}) {
     }
     const prefix = `operator-http-${createHash('sha256').update(auth.identity.pub).digest('hex').slice(0,24)}-`;
     const id = prefix + requestId;
+    if (localCanary && (!ownerAlias || id !== canaryId)) {
+      return reply(res, 403, {ok:false,error:'Task is outside the isolated canary pin.'});
+    }
     const input = {action,id,prefix};
     if (action === 'enqueue') {
       const built = buildOperatorDelegatedTask({text,title}, {id,tenantAlias:ownerAlias ? 'operator-owner' : adminAlias});
       // Persist the immutable signed command identity. Do not hash generated
       // work-item timestamps, which legitimately differ on an HTTP retry.
       const operatorRequestDigest = createHash('sha256').update(JSON.stringify({text,title})).digest('hex');
-      input.record = {...built.record, backend:'codex', requiredCapabilities:'codex', unsafe:false, operatorRequestDigest};
+      if (localCanary && operatorRequestDigest !== canaryDigest) {
+        return reply(res, 403, {ok:false,error:'Task is outside the isolated canary digest.'});
+      }
+      const backend = localCanary ? 'local-canary' : 'codex';
+      input.record = {...built.record, backend, requiredCapabilities:backend, unsafe:false, operatorRequestDigest};
     }
     try {
       const result = await run(input);
