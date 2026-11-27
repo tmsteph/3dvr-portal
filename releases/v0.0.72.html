@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Weekly Checkpoint v0.0.72 (Week of November 16, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #8b5cf6; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-nav { display: flex; justify-content: space-between; gap: 16px; margin: 20px 0 40px; }
+    .release-nav a { text-decoration: none; font-weight: 600; }
+    li + li { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <p><a href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a href="v0.0.71.html">Previous checkpoint</a>
+    <a href="v0.0.73.html">Next checkpoint</a>
+  </nav>
+  <h1>Weekly Checkpoint v0.0.72</h1>
+  <div class="tag">Week of November 16, 2026</div>
+  <div class="section">
+    <h2>Release cadence</h2>
+    <p><strong>Retrospective weekly checkpoint · validation not recorded</strong></p>
+    <p>Initially recorded November 19, 2026; retrospective context updated November 26. Weeks use America/Los_Angeles, Monday through Sunday.
+      These internal development notes follow the existing weekly version sequence; they do not record a stable promotion or a deployment.</p>
+  </div>
+  <div class="section">
+    <h2>The story this week</h2>
+    <p>Today, Sky Room and playful desktop experiments.</p>
+    <ul>
+      <li><strong>An everyday starting place.</strong> Today brought existing wellness and game destinations together around Sky Room; Sky Room gained an embedded scene and fullscreen refinements. See <a href="https://github.com/tmsteph/3dvr-portal/pull/3826">#3826</a>.</li>
+      <li><strong>A playable desktop.</strong> TommyOS gained Spark Garden and window controls, followed by startup layout work. See <a href="https://github.com/tmsteph/3dvr-portal/pull/3827">#3827</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/3829">#3829</a>.</li>
+      <li><strong>An experimental world shell.</strong> Horizon introduced an experimental playable world interface. This is not a claim of a complete VR operating system. See <a href="https://github.com/tmsteph/3dvr-portal/pull/3828">#3828</a>.</li>
+          <li><strong>Sign-in continuity.</strong> Bounded credential verification, explicit signup, Back navigation and verified legacy account handling were merged. See <a href="https://github.com/tmsteph/3dvr-portal/pull/3830">#3830</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/3859">#3859</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/3860">#3860</a>. This records source changes, not universal sign-in recovery.</li>
+    </ul>
+  </div>
+  <div class="section">
+    <h2>Validation status</h2>
+    <p>The linked changes establish repository history, not current runtime health. No complete weekly validation record is asserted here.
+      A merge, a working page shell, and a verified end-to-end workflow are different results. Stable promotion remains separate.</p>
+    <p>Verified spot checks on November 19: <a href="https://portal.3dvr.tech/today/">Today</a> loaded its local clock and activities;
+      <a href="https://portal.3dvr.tech/sky-room/">Sky Room</a> hid and restored the pointer in fullscreen;
+      <a href="https://portal.3dvr.tech/horizon/">Horizon</a> opened its embedded scene and returned to the world;
+      <a href="https://os.3dvr.tech/">TommyOS</a> opened Spark Garden and Terminal side by side at desktop width.
+      These checks do not certify the whole weekly build.</p>
+  </div>
+  <div class="section">
+    <h2>In short</h2>
+    <p>Today, Sky Room and playful desktop experiments. v0.0.72 is a development checkpoint, not a newly certified stable release.</p>
+  </div>
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

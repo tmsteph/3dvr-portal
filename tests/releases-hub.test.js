@@ -15,13 +15,13 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the weekly milestones through v0.0.60', async () => {
+  it('updates the release index with the weekly milestones through v0.0.73', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
-    assert.match(html, /Latest Release/);
-    assert.match(html, /<h2>Latest Release<\/h2>[\s\S]*href="v0\.0\.60\.html">v0\.0\.60/);
+    assert.match(html, /Latest Recorded Stable Release/);
+    assert.match(html, /<h2>Latest Recorded Stable Release<\/h2>[\s\S]*href="v0\.0\.63\.html">v0\.0\.63/);
     assert.match(html, /Week of August 24, 2026/);
     assert.match(html, /href="v0\.0\.59\.html">v0\.0\.59/);
     assert.match(html, /Week of August 17, 2026/);
@@ -252,3 +252,4 @@ describe('release hub backfill', () => {
     assert.match(release55, /pull\/1212/);
   });
 });
+
