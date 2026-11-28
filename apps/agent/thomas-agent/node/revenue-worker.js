@@ -90,6 +90,14 @@ async function deliverCandidate(db, options = {}) {
   if (!enabled(process.env.THREEDVR_REVENUE_DELIVERY_ENABLED)) {
     return { attempted: 0, sends: 0, disabled: true };
   }
+  // The built-in CLI sender intentionally refuses every non-probe send until
+  // message-specific approval is implemented. Do not reserve or mark a lead
+  // failed just to discover that refusal. Injected adapters retain the existing
+  // offline test seam; this is not an approved-send implementation.
+  if (typeof options.send !== 'function') {
+    return { attempted: 0, sends: 0, disabled: true,
+      reason: 'outbound delivery requires a verified message-specific approval adapter' };
+  }
   const parseLimit = (raw, fallback) => {
     if (raw === undefined) return fallback;
     const value = String(raw).trim();
@@ -122,7 +130,7 @@ async function deliverCandidate(db, options = {}) {
   const result = await deliverProspect(
     db,
     { prospectId: prepared.prospect.id, attemptId: candidate.attemptId },
-    () => (options.send || sendCandidate)(candidate),
+    () => options.send(candidate),
   );
   return {
     attempted: 1,
