@@ -78,7 +78,27 @@ function importCandidate(db, { row, expected, verifiedSource } = {}, local = fal
   // Check replay before creating any prospect so a conflicting result cannot
   // leave behind an orphan lead. The ledger validates the immutable payload.
   if (prior) return transition(prior.prospect_id);
-  const { prospect } = createProspect(db, { name, sourceUrl: url, campaignId: local ? 'operator-local-canary' : 'operator-research' });
+  // The independently checked exact listing URL, not an AI-generated name,
+  // identifies a listing in this narrow no-contact intake. Preserve legacy
+  // keys and reject ambiguity rather than silently merging historical rows.
+  // Serialize lookup and creation across SQLite writers; the ledger owns the
+  // separate state-transition transaction below. Do not rewrite URL paths or
+  // query strings: source-specific canonicalization belongs to the verifier.
+  const campaignId = local ? 'operator-local-canary' : 'operator-research';
+  let prospect;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const matches = db.prepare("SELECT * FROM prospects WHERE source_url = ? AND contact = '' AND campaign_id = ? LIMIT 2")
+      .all(url, campaignId);
+    if (matches.length > 1) throw new Error('Ambiguous existing listing identity');
+    prospect = matches[0] || createProspect(db, { name, sourceUrl: url, campaignId }).prospect;
+    // The legacy generic contact key folds URL case. Never attach evidence
+    // to a different listing or campaign on a legacy-key collision.
+    if (prospect.source_url !== url || prospect.campaign_id !== campaignId || prospect.contact !== '') {
+      throw new Error('Conflicting existing listing identity');
+    }
+    db.exec('COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
   if (prospect.state !== 'prospect') return { skipped: true, reason: 'existing prospect advanced', prospect };
   return transition(prospect.id);
 }
