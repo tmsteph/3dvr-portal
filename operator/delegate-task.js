@@ -186,6 +186,17 @@ export async function decodeOperatorTaskResponse(response) {
   return result;
 }
 
+function hasMatchingTaskReceipt(result, requestId) {
+  const record = result?.record;
+  return result?.ok === true && result.requestId === requestId
+    && !!record && typeof record === 'object' && !Array.isArray(record)
+    && typeof record.id === 'string'
+    && /^operator-http-[a-f0-9]{24}-/.test(record.id)
+    && record.id.slice(39) === requestId
+    && typeof record.status === 'string'
+    && ['queued', 'running', ...TERMINAL_TASK_STATUSES].includes(record.status);
+}
+
 export function watchConfirmedTask(requestId, options = {}, request = taskRequest) {
   let stopped = false;
   let timer;
@@ -199,8 +210,7 @@ export function watchConfirmedTask(requestId, options = {}, request = taskReques
       if (stopped) return;
       const record = result?.record;
       // A successful HTTP envelope is not evidence of a task receipt.
-      if (!record || typeof record !== 'object' || Array.isArray(record)
-          || typeof record.status !== 'string' || !record.status.trim()) {
+      if (!hasMatchingTaskReceipt(result, requestId)) {
         throw new Error('Task service returned no valid receipt; server state is not confirmed.');
       }
       failures = 0;
@@ -235,16 +245,9 @@ export async function queueOperatorTask(action = {}, request = taskRequest) {
   let message;
   try {
     const result = await request('enqueue', requestId, {text,title});
-    const record = result?.record;
     // An OK envelope alone is not a durable admission receipt. The server
     // echoes the request identity and returns the signer-scoped queue row.
-    if (result?.ok !== true || result.requestId !== requestId
-        || !record || typeof record !== 'object' || Array.isArray(record)
-        || typeof record.id !== 'string'
-        || !/^operator-http-[a-f0-9]{24}-/.test(record.id)
-        || record.id.slice(39) !== requestId
-        || typeof record.status !== 'string'
-        || !['queued', 'running', ...TERMINAL_TASK_STATUSES].includes(record.status)) {
+    if (!hasMatchingTaskReceipt(result, requestId)) {
       throw new Error('Task service returned no valid admission receipt; server state is not confirmed.');
     }
     confirmed = true;
