@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="canonical" href="https://apefrequency.com/">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Ape Frequency. Find the latest on YouTube, TikTok, and Instagram.">
+<meta name="description" content="Ape Frequency. Find the latest on YouTube, TikTok, Instagram, and Twitch.">
 <title>Ape Frequency | Site Preview</title>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -14,9 +14,12 @@
 <style>
 :root{font-family:Inter,Arial,sans-serif;color:#f7f7f8;background:#09090a;color-scheme:dark;--muted:#bcbcc3}
 *{box-sizing:border-box} body{margin:0;min-width:0;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(16px,4vw,56px);background:radial-gradient(ellipse at 50% 2%,#26262a 0%,#121214 43%,#09090a 74%)}
-main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:grid;grid-template-rows:auto 1fr auto auto;min-height:clamp(470px,73svh,740px);overflow:hidden;border:1px solid #bfbfc336;border-radius:clamp(20px,4vw,42px);background:linear-gradient(147deg,#252528,#121214 46%,#18181c);box-shadow:0 28px 85px #0009,inset 0 1px 0 #ffffff15}
+main{width:min(100%,1120px);position:relative;z-index:1}
+body::before{content:"";position:fixed;inset:-12%;z-index:0;background:radial-gradient(42% 38% at 22% 30%,#d8c08a40,transparent 70%),radial-gradient(38% 42% at 78% 22%,#6a5cff38,transparent 70%),radial-gradient(46% 40% at 68% 82%,#1f8a9e33,transparent 70%),radial-gradient(30% 30% at 30% 85%,#b0538a2e,transparent 70%);filter:blur(30px) saturate(150%);animation:aurora 26s ease-in-out infinite alternate;pointer-events:none}
+@keyframes aurora{from{transform:translate3d(-2%,-1%,0) scale(1)}to{transform:translate3d(2%,2%,0) scale(1.07)}}
+.shell{position:relative;isolation:isolate;display:grid;grid-template-rows:auto 1fr auto auto;min-height:clamp(470px,73svh,740px);overflow:hidden;border:1px solid #ffffff47;border-radius:clamp(20px,4vw,42px);background:linear-gradient(147deg,#ffffff21,#ffffff08 42%,#ffffff14);-webkit-backdrop-filter:blur(22px) saturate(165%);backdrop-filter:blur(22px) saturate(165%);box-shadow:0 28px 85px #000a,inset 0 1px 0 #ffffff59,inset 0 -1px 0 #ffffff14,inset 0 0 46px #ffffff09}
 .shell::before{content:"";position:absolute;z-index:-1;inset:0;background:repeating-linear-gradient(0deg,transparent 0 37px,#f5f5ff06 38px 39px),repeating-linear-gradient(90deg,transparent 0 37px,#f5f5ff06 38px 39px);mask-image:radial-gradient(ellipse at 46% 60%,#000,transparent 68%);pointer-events:none}
-.shell::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse 92% 82% at 50% 42%,transparent 54%,rgba(0,0,0,.16) 78%,rgba(0,0,0,.44) 100%)}
+.shell::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(180deg,#ffffff16,transparent 26%),radial-gradient(ellipse 92% 82% at 50% 42%,transparent 54%,rgba(0,0,0,.16) 78%,rgba(0,0,0,.44) 100%)}
 .bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:clamp(16px,3vw,34px);font-size:.68rem;font-weight:700;line-height:1.4;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 .led{width:7px;height:7px;display:inline-block;vertical-align:middle;border-radius:50%;background:#e5e5e9;margin-inline-end:.65em;box-shadow:0 0 10px #ffffff82}
 .hero{min-width:0;position:relative;display:grid;place-items:center;align-content:center;text-align:center;padding:0 14px;perspective:900px}
@@ -24,21 +27,21 @@ main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .logo-slot{position:relative;display:grid;place-items:center;width:min(100%,680px);cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;border-radius:14px}
 .logo-slot:focus-visible{outline:2px solid white;outline-offset:5px}
-.logo-slot::before{content:"";position:absolute;z-index:-1;width:85%;height:60%;background:radial-gradient(ellipse,#fff1,transparent 67%);pointer-events:none}
+.logo-slot::before{content:"";position:absolute;z-index:-1;width:85%;height:60%;background:radial-gradient(ellipse,#ffe9b824,transparent 67%);pointer-events:none}
 .logo-slot img{display:block;width:100%;height:auto;}
-.bottom{border-top:1px solid #ededff17;background:#10101270;backdrop-filter:blur(12px)}
+.bottom{border-top:1px solid #ffffff2b;background:linear-gradient(180deg,#ffffff17,#ffffff09);-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);box-shadow:inset 0 1px 0 #ffffff2e}
 .bottom span:last-child{text-align:right}.bottom a{color:inherit;text-underline-offset:.2em}.bottom a:focus-visible{outline:2px solid white;outline-offset:3px}
-.score{justify-self:center;margin-top:20px;padding:.55em 1.05em;border:1px solid #e5e5ef37;border-radius:999px;background:#2424289c;font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);opacity:0;transform:scale(.8);visibility:hidden;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35),visibility 0s linear .25s}
+.score{justify-self:center;margin-top:20px;padding:.55em 1.05em;border:1px solid #ffffff57;border-radius:999px;background:linear-gradient(180deg,#ffffff38,#ffffff14);-webkit-backdrop-filter:blur(14px) saturate(180%);backdrop-filter:blur(14px) saturate(180%);box-shadow:0 10px 28px #0006,inset 0 1px 0 #ffffff73,inset 0 -10px 18px #ffffff0d;font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#e9e9ee;opacity:0;transform:scale(.8);visibility:hidden;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35),visibility 0s linear .25s}
 .score.on{opacity:1;transform:scale(1);visibility:visible;transition:opacity .25s ease,transform .25s cubic-bezier(.22,.9,.28,1.35)}
 .score b{color:#fff;font-variant-numeric:tabular-nums;margin-inline-start:.45em}
 .lb-link{appearance:none;background:none;border:0;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:.2em}
 .lb-link:focus-visible{outline:2px solid white;outline-offset:3px}
-.lb{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:18px;background:#0a0a0cd9;backdrop-filter:blur(10px)}
+.lb{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:18px;background:#0a0a0cbf;-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%)}
 .lb[hidden]{display:none}
-.lb-sheet{width:min(100%,380px);max-height:100%;overflow:auto;border:1px solid #bfbfc336;border-radius:20px;background:linear-gradient(160deg,#26262a,#141416);padding:22px;box-shadow:0 24px 60px #000a;text-align:left}
+.lb-sheet{width:min(100%,380px);max-height:100%;overflow:auto;border:1px solid #ffffff4a;border-radius:20px;background:linear-gradient(160deg,#ffffff26,#ffffff0d);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);padding:22px;box-shadow:0 24px 60px #000a,inset 0 1px 0 #ffffff66,inset 0 0 34px #ffffff07;text-align:left}
 .lb-head{display:flex;justify-content:space-between;align-items:center}
 .lb-title{font-size:.8rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
-.lb-close{appearance:none;background:none;border:1px solid #e5e5ef37;border-radius:999px;color:inherit;width:32px;height:32px;font-size:1.05rem;line-height:1;cursor:pointer}
+.lb-close{appearance:none;background:linear-gradient(180deg,#ffffff2b,#ffffff12);border:1px solid #ffffff45;border-radius:999px;color:inherit;width:32px;height:32px;font-size:1.05rem;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 #ffffff55}
 .lb-close:focus-visible{outline:2px solid white;outline-offset:2px}
 .lb-list{list-style:none;margin:12px 0 0;padding:0}
 .lb-list li{display:flex;justify-content:space-between;gap:10px;padding:.5em .35em;border-bottom:1px solid #ededff12;font-variant-numeric:tabular-nums}
@@ -52,16 +55,16 @@ main{width:min(100%,1120px)} .shell{position:relative;isolation:isolate;display:
 .lb-form p{margin:0 0 10px;color:var(--muted);font-size:.88rem}
 .lb-form p b{color:#fff}
 .lb-row{display:flex;gap:8px}
-.lb-input{flex:1;min-width:0;background:#101012;border:1px solid #e5e5ef45;border-radius:10px;color:#fff;padding:.6em .8em;font:inherit;font-weight:700;letter-spacing:.3em;text-transform:uppercase}
+.lb-input{flex:1;min-width:0;background:#ffffff14;border:1px solid #ffffff40;border-radius:10px;color:#fff;padding:.6em .8em;font:inherit;font-weight:700;letter-spacing:.3em;text-transform:uppercase;box-shadow:inset 0 1px 0 #ffffff30,inset 0 2px 8px #00000038}
 .lb-input:focus-visible{outline:2px solid white;outline-offset:1px}
-.lb-save{appearance:none;border:1px solid #e5e5ef55;border-radius:10px;background:#2a2a2e;color:#fff;padding:.6em 1.1em;font:inherit;font-weight:700;cursor:pointer}
+.lb-save{appearance:none;border:1px solid #ffffff59;border-radius:10px;background:linear-gradient(180deg,#ffffff38,#ffffff16);color:#fff;padding:.6em 1.1em;font:inherit;font-weight:700;cursor:pointer;box-shadow:inset 0 1px 0 #ffffff66,0 6px 16px #0004}
 .lb-save:disabled{opacity:.45;cursor:default}
 .lb-msg{min-height:1.2em;margin-top:8px;font-size:.82rem;color:var(--muted)}
 nav:not([hidden]){display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:0 12px 24px}
-nav a{padding:.6em .85em;color:inherit;text-decoration:none;border:1px solid #e5e5ef55;border-radius:999px;background:#252529a0;font-size:.82rem;line-height:1.5;font-weight:700;transition:background-color .18s ease,border-color .18s ease,transform .12s ease} nav a:hover{border-color:#bebec1;background:#37373b} nav a:active{transform:scale(.95)}
+nav a{padding:.6em .85em;color:inherit;text-decoration:none;border:1px solid #ffffff4d;border-radius:999px;background:linear-gradient(180deg,#ffffff2e,#ffffff12);-webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);box-shadow:0 8px 22px #0005,inset 0 1px 0 #ffffff59,inset 0 -8px 14px #ffffff0a;font-size:.82rem;line-height:1.5;font-weight:700;transition:background-color .18s ease,border-color .18s ease,transform .12s ease} nav a:hover{border-color:#ffffff80;background:linear-gradient(180deg,#ffffff47,#ffffff1f)} nav a:active{transform:scale(.95)}
 nav a:focus-visible{outline:2px solid white;outline-offset:3px}
 @media(prefers-reduced-motion:no-preference){.logo-slot::before{animation:breathe 5s ease-in-out infinite alternate}@keyframes breathe{from{opacity:.34;transform:scale(.9)}to{opacity:.82;transform:scale(1.05)}}}
-@media(prefers-reduced-motion:reduce){nav a{transition:none}.score{transition:none}}
+@media(prefers-reduced-motion:reduce){nav a{transition:none}.score{transition:none}body::before{animation:none}}
 @media(max-width:370px){.bottom{letter-spacing:.09em;font-size:.63rem}.hero{padding-inline:8px}}
 </style>
 </head>
@@ -72,11 +75,12 @@ nav a:focus-visible{outline:2px solid white;outline-offset:3px}
 <div class="logo-slot" id="logo-slot" tabindex="0" role="button" aria-label="Ape Frequency logo. Press it."><h1 class="sr-only" id="title">Ape Frequency</h1><img src="ape-frequency-wordmark-alpha.webp" width="1600" height="1200" alt="" draggable="false"></div>
 </div>
 <nav aria-label="Ape Frequency social accounts">
-<a href="https://www.youtube.com/@ApeFrequency">YouTube</a>
-<a href="https://www.tiktok.com/@ape.frequency">TikTok</a>
-<a href="https://www.instagram.com/apefrequency/">Instagram</a>
+<a href="https://www.youtube.com/@ApeFrequency" target="_blank" rel="noopener noreferrer">YouTube</a>
+<a href="https://www.tiktok.com/@ape.frequency" target="_blank" rel="noopener noreferrer">TikTok</a>
+<a href="https://www.instagram.com/apefrequency/" target="_blank" rel="noopener noreferrer">Instagram</a>
+<a href="https://www.twitch.tv/apefrequency" target="_blank" rel="noopener noreferrer">Twitch</a>
 </nav>
-<footer class="bottom"><span><button class="lb-link" id="lb-open" type="button">Leaderboard</button></span><span><a href="https://apefrequency.com/">Current site</a></span></footer>
+<footer class="bottom"><span><button class="lb-link" id="lb-open" type="button">Leaderboard</button></span><span><a href="mailto:apefrequency@gmail.com">Contact</a> · <a href="https://apefrequency.com/">Current site</a></span></footer>
 <div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-labelledby="lb-title">
 <div class="lb-sheet">
 <div class="lb-head"><span class="lb-title" id="lb-title">Leaderboard</span><button class="lb-close" id="lb-close" type="button" aria-label="Close leaderboard">&times;</button></div>

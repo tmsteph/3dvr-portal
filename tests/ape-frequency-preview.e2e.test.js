@@ -18,17 +18,18 @@ test('Ape Frequency live preview fits desktop and mobile with verified links', a
         await page.getByRole('heading', { name: 'Ape Frequency', exact: true }).waitFor();
         const rendered = await page.evaluate(() => ({
           width: document.documentElement.scrollWidth,
-          images: [...document.images].map(image => image.complete && image.naturalWidth > 0),
+          images: [...document.images].map(image => ({
+            source: image.getAttribute('src'),
+            loaded: image.complete && image.naturalWidth > 0
+          })),
           motion: getComputedStyle(document.querySelector('.logo-slot'), '::before').animationName
         }));
         assert.ok(rendered.width <= width, 'no horizontal overflow at ' + width);
-        // The published single-wordmark layout intentionally has one image.
-        assert.deepEqual(rendered.images, [true], 'the transparent wordmark must load');
+        assert.deepEqual(rendered.images, [{ source: 'ape-frequency-wordmark-alpha.webp', loaded: true }]);
         assert.equal(rendered.motion, reduce ? 'none' : 'breathe');
         assert.equal(await page.getByRole('link', { name: 'YouTube' }).getAttribute('href'), 'https://www.youtube.com/@ApeFrequency');
         assert.equal(await page.getByRole('link', { name: 'TikTok' }).getAttribute('href'), 'https://www.tiktok.com/@ape.frequency');
         assert.equal(await page.getByRole('link', { name: 'Instagram' }).getAttribute('href'), 'https://www.instagram.com/apefrequency/');
-        // The interactive logo is keyboard-focusable before the social links.
         await page.keyboard.press('Tab');
         assert.equal(await page.evaluate(() => document.activeElement.id), 'logo-slot');
         await page.keyboard.press('Tab');

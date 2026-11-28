@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Helm · Wizard Mode</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #080c1c; color: #e9edff; font: 16px system-ui; overflow: hidden; }
+  header { position: fixed; top: 0; padding: 22px; z-index: 2; pointer-events: none; }
+  h1 { font-size: 24px; margin: 0 0 5px; } p { color: #b4bdd7; line-height: 1.5; }
+  header p { margin: 0; font-size: 13px; }
+  #viewport { height: 100dvh; perspective: 850px; overflow: hidden; background: radial-gradient(ellipse at 50% 35%,#233969,#080c1c 70%); }
+  #world { position: absolute; left: 50%; top: 46%; transform-style: preserve-3d; }
+  .floor { position: absolute; width: 2000px; height: 2000px; left: -1000px; top: -1000px; transform: translateY(170px) rotateX(90deg); background: repeating-linear-gradient(0deg,transparent 0 98px,#526b9340 99px 100px),repeating-linear-gradient(90deg,transparent 0 98px,#526b9340 99px 100px); border-radius: 50%; }
+  .island { position: absolute; left: -100px; top: -90px; width: 200px; min-height: 180px; border: 1px solid #9ed8ff70; border-radius: 26px; background: linear-gradient(145deg,#324b72ef,#14213bf0); box-shadow: 0 25px 70px #0008, inset 0 0 40px #78d9ff12; color: white; padding: 24px; cursor: pointer; font: inherit; text-align: left; }
+  .island strong { display: block; font-size: 23px; margin: 12px 0; } .island span { font-size: 13px; color: #c7d2eb; }
+  .island:focus-visible,button:focus-visible,a:focus-visible { outline: 3px solid #c7ff89; outline-offset: 4px; }
+  #hud { position: fixed; bottom: 0; width: 100%; padding: 18px; display: flex; align-items: end; gap: 15px; justify-content: space-between; background: linear-gradient(transparent,#080c1c 70%); }
+  #stick { width: 116px; height: 116px; border-radius: 50%; background: #19253ae8; border: 1px solid #839bc577; touch-action: none; flex-shrink: 0; position: relative; }
+  #knob { position: absolute; width: 48px; height: 48px; border-radius: 50%; background: #98e4ff; left: 33px; top: 33px; pointer-events: none; box-shadow: 0 0 25px #69cfff66; }
+  #controls { text-align: right; max-width: 210px; } button,a { -webkit-tap-highlight-color: transparent; }
+  .action { border: 1px solid #9dc9ef66; background: #253653; border-radius: 16px; padding: 14px 18px; color: white; font: inherit; cursor: pointer; min-height: 48px; }
+  #voice { background: #c5f994; color: #16230d; font-weight: 700; } #status { font-size: 12px; color: #b6c5de; min-height: 36px; }
+  dialog { background: #132139; color: white; border: 1px solid #7194bd; border-radius: 24px; padding: 24px; max-width: min(440px,92vw); }
+  dialog::backdrop { background: #020615aa; backdrop-filter: blur(8px); }
+  dialog h2 { margin-top: 0; } .choices { display: grid; gap: 10px; }
+  #draft { width: 100%; min-height: 90px; padding: 12px; background: #0b1425; border: 1px solid #7185a9; border-radius: 12px; color: white; font: inherit; }
+  .small { font-size: 12px; color: #a7bbdb; } #close { float: right; }
+  @media(prefers-reduced-motion:reduce) { * { scroll-behavior: auto; } }
+</style>
+<header><h1>✦ Helm / Wizard Mode</h1><p>Your home, at your command. · Interaction prototype</p></header>
+<main id="viewport" aria-label="Spatial home">
+  <div id="world">
+    <div class="floor"></div>
+    <button class="island" data-room="Create" style="transform:translate3d(-240px,0,-220px)">✧<strong>Create</strong><span>Shape your next idea</span></button>
+    <button class="island" data-room="Decide" style="transform:translate3d(0,0,0)">◈<strong>Decide</strong><span>Choose the next move</span></button>
+    <button class="island" data-room="Explore" style="transform:translate3d(240px,0,-220px)">⌘<strong>Explore</strong><span>Find a new direction</span></button>
+  </div>
+</main>
+<footer id="hud">
+  <div><div id="stick" role="group" aria-label="Movement joystick; keyboard users use arrow keys"><div id="knob"></div></div><div class="small">Steer · arrows / WASD</div></div>
+  <div id="controls"><button id="voice" class="action">✦ Speak a spell</button><p id="status" role="status">Tap a space to enter. Decisions stay on this device.</p><button id="home" class="action">Recenter</button></div>
+</footer>
+<dialog id="panel" aria-labelledby="roomTitle">
+  <button id="close" class="action" aria-label="Close">×</button><h2 id="roomTitle"></h2><p id="description"></p>
+  <div id="choices" class="choices"></div><p id="result" role="status"></p>
+  <label for="draft">Your intention</label><textarea id="draft" placeholder="What would you like to make happen?"></textarea>
+  <p class="small">Local draft only. No agent is connected in this prototype.</p><button id="save" class="action">Save intention</button>
+</dialog>
+<script>
+  const byId = id => document.getElementById(id);
+  const world = byId('world'), stick = byId('stick'), knob = byId('knob'), panel = byId('panel');
+  const rooms = {
+    Create: ['Make something worth keeping.', ['Sketch an idea', 'Build a prototype', 'Write a story']],
+    Decide: ['Choose what deserves your energy next.', ['Make something', 'Clear a blocker', 'Take a break']],
+    Explore: ['Follow your curiosity.', ['Imagine a world', 'Learn a skill', 'Find an opportunity']]
+  };
+  let x = 0, z = 0, axisX = 0, axisY = 0, last = 0, pointer = null;
+  const keys = new Set();
+  function render() { world.style.transform = `rotateX(-8deg) translate3d(${-x}px,0,${z}px)`; }
+  function openRoom(name) {
+    byId('roomTitle').textContent = name;
+    byId('description').textContent = rooms[name][0];
+    byId('result').textContent = '';
+    byId('choices').replaceChildren(...rooms[name][1].map(label => {
+      const button = document.createElement('button'); button.className = 'action'; button.textContent = label;
+      button.onclick = () => { byId('draft').value = label; byId('result').textContent = 'Selected. Add your intention below.'; };
+      return button;
+    }));
+    if (!panel.open) panel.showModal();
+  }
+  document.querySelectorAll('[data-room]').forEach(button => button.onclick = () => openRoom(button.dataset.room));
+  byId('close').onclick = () => panel.close();
+  byId('home').onclick = () => { x = 0; z = 0; render(); };
+  byId('save').onclick = () => {
+    try { localStorage.setItem('helm-wizard-intention-v1', byId('draft').value); byId('result').textContent = 'Intention saved on this device. Not sent to an agent.'; }
+    catch { byId('result').textContent = 'Storage unavailable. Keep this page open or copy your intention.'; }
+  };
+  try { byId('draft').value = localStorage.getItem('helm-wizard-intention-v1') || ''; } catch {}
+  function move(event) {
+    const rect = stick.getBoundingClientRect();
+    let dx = event.clientX - rect.left - rect.width / 2, dy = event.clientY - rect.top - rect.height / 2;
+    const scale = Math.max(1, Math.hypot(dx, dy) / 32); dx /= scale; dy /= scale;
+    axisX = dx / 32; axisY = dy / 32; knob.style.transform = `translate(${dx}px,${dy}px)`;
+  }
+  function release() { pointer = null; axisX = axisY = 0; knob.style.transform = ''; }
+  stick.onpointerdown = event => { pointer = event.pointerId; stick.setPointerCapture(pointer); move(event); };
+  stick.onpointermove = event => { if (event.pointerId === pointer) move(event); };
+  stick.onpointerup = stick.onpointercancel = stick.onlostpointercapture = release;
+  const movement = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','w','a','s','d'];
+  window.addEventListener('keydown', event => {
+    if (panel.open || !movement.includes(event.key)) return;
+    event.preventDefault(); keys.add(event.key);
+  });
+  window.addEventListener('keyup', event => keys.delete(event.key));
+  window.addEventListener('blur', () => { keys.clear(); release(); });
+  function tick(time) {
+    const dt = Math.min((time - last) / 1000, .05); last = time;
+    if (!panel.open) {
+      x = Math.max(-380, Math.min(380, x + (axisX + Number(keys.has('ArrowRight') || keys.has('d')) - Number(keys.has('ArrowLeft') || keys.has('a'))) * dt * 230));
+      z = Math.max(-380, Math.min(360, z + (-axisY + Number(keys.has('ArrowUp') || keys.has('w')) - Number(keys.has('ArrowDown') || keys.has('s'))) * dt * 230));
+      render();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (Speech) {
+    const speech = new Speech(); speech.lang = navigator.language || 'en-US';
+    let listening = false;
+    byId('voice').onclick = () => {
+      if (listening) { speech.stop(); return; }
+      try { speech.start(); } catch { byId('status').textContent = 'Voice could not start. Tap a space instead.'; }
+    };
+    speech.onstart = () => { listening = true; byId('voice').textContent = '■ Stop listening'; byId('status').textContent = 'Listening… try “create”, “decide”, or “explore”.'; };
+    speech.onend = () => { listening = false; byId('voice').textContent = '✦ Speak a spell'; };
+    speech.onerror = () => { byId('status').textContent = 'Voice unavailable or permission declined. Touch controls still work.'; };
+    speech.onresult = event => {
+      const text = event.results[0][0].transcript;
+      const room = Object.keys(rooms).find(name => text.toLowerCase().includes(name.toLowerCase())) || 'Create';
+      openRoom(room); byId('draft').value = text; byId('status').textContent = 'Spell captured as a draft. Not sent.';
+    };
+    byId('status').textContent = 'Voice uses your browser’s speech service. Tap a space to use touch only.';
+  } else {
+    byId('voice').textContent = '✦ Write a spell'; byId('voice').onclick = () => { openRoom('Create'); byId('draft').focus(); };
+    byId('status').textContent = 'Browser voice unavailable. Touch and keyboard are ready.';
+  }
+</script>
+</html>
