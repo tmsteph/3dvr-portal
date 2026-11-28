@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { normalizeOperatorResult } from '../src/operator/api.js';
-import { buildOperatorDelegatedTask, decodeOperatorTaskResponse, watchConfirmedTask } from '../operator/delegate-task.js';
+import { buildOperatorDelegatedTask, decodeOperatorTaskResponse, watchConfirmedTask, queueOperatorTask } from '../operator/delegate-task.js';
 
 test('Operator normalizes generic delegated tasks', () => {
   const result = normalizeOperatorResult({
@@ -143,4 +143,31 @@ test('Operator watcher treats malformed successful receipts as failures without 
   assert.match(result.error, /server state is not confirmed/);
   assert.equal(updates.length, 1);
   assert.deepEqual(calls, Array(3).fill(['status', 'malformed-receipt-test']));
+});
+
+test('Operator admission needs a matching durable receipt and never retries enqueue', async () => {
+  const valid = id => ({ok:true, requestId:id, record:{id:'operator-http-'+'a'.repeat(24)+'-'+id,status:'queued'}});
+  const malformed = [
+    id => ({ok:true,requestId:id}),
+    id => ({...valid(id),record:[]}),
+    id => ({...valid(id),requestId:'other-request'}),
+    id => ({...valid(id),record:{...valid(id).record,id:'operator-http-'+'a'.repeat(24)+'-other-request'}}),
+    id => ({...valid(id),record:{...valid(id).record,status:'unknown'}}),
+    id => ({...valid(id),record:{...valid(id).record,status:''}})
+  ];
+  for (const makeResponse of [...malformed,valid]) {
+    const calls = [];
+    const result = await queueOperatorTask({text:'Synthetic no-op'},async (action,id) => {
+      calls.push([action,id]);
+      return makeResponse(id);
+    });
+    assert.equal(calls.length,1);
+    assert.equal(calls[0][0],'enqueue');
+    assert.equal(result.taskId,'operator-http:'+calls[0][1]);
+    assert.equal(result.confirmed,makeResponse === valid);
+    assert.match(result.message,makeResponse === valid ? /server saved/ : /Checking delivery/);
+  }
+  await assert.rejects(queueOperatorTask({text:'Synthetic no-op'},async () => {
+    throw Object.assign(new Error('Forbidden'),{status:403});
+  }),/Forbidden/);
 });
