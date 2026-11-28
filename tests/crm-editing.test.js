@@ -336,3 +336,47 @@ describe('CRM Flow canonical revenue action boundary', () => {
     }
   });
 });
+
+describe('CRM main workspace canonical sales boundary', () => {
+  it('filters non-sales records and prevents shortcut writes, including after a prompt', async () => {
+    const {readFileSync}=await import('node:fs');
+    const {runInNewContext}=await import('node:vm');
+    const {isCanonicalRevenue,isClosedRevenue,canUseCrmSalesShortcuts}=await import('../crm/crm-editing.js').catch(()=>({}));
+    const source=readFileSync(new URL('../crm/app.js',import.meta.url),'utf8');
+    const fn=(name,next)=>source.slice(source.indexOf(name),source.indexOf(next,source.indexOf(name)));
+    const rows=[];
+    const canonical={recordType:'person',source:'3dvr-revenue-ledger',nextFollowUp:'2000-01-01',warmth:'hot'};
+    const records=[
+      {...canonical,id:'failed',canonicalState:'failed',status:'Lead'},
+      {...canonical,id:'suppressed',canonicalState:'suppressed',status:'Closed'},
+      {...canonical,id:'paid',canonicalState:'replied',status:'Paid Customer'},
+      {id:'closed',recordType:'person',status:'Closed',nextFollowUp:'2000-01-01'},
+      {id:'ordinary',recordType:'person',status:'Lead',nextFollowUp:'2000-01-01'}
+    ];
+    const index=Object.fromEntries(records.map(r=>[r.id,r]));
+    let prompts=0,writes=0,touches=0;
+    const ctx={SALES_STALE_DAYS:7,isCanonicalRevenue,isClosedRevenue,canUseCrmSalesShortcuts,sanitizeCrmRecord,
+      state:{board:{people:records,index}},crmIndex:index,elements:{},window:{alert(){}},
+      normalizeFollowUpInput:v=>v,comparePeopleByFollowUpThenName:()=>0,comparePeopleByRecencyThenName:()=>0,
+      resolveLeadWarmth:r=>r.warmth,hasOutreachDraft:()=>false,renderSalesMoveRows:(_,r)=>rows.push(r.map(x=>x.id).join(',')),
+      openTouchPrompt:async r=>{prompts++;if(r.id==='ordinary' && prompts===2){index.ordinary={...r,canonicalState:'suppressed'};return {touchType:'outreach-sent'};}return null;},
+      pruneRecordForType:r=>r,putCrmRecord:async()=>{writes++},appendTouchLogEntry:()=>{touches++},
+      normalizeTouchType:v=>v,getTouchTypeLabel:v=>v,deriveStatusFromTouch:()=> 'Lead',toActivityCount:()=>0,scoreManager:null,console
+    };
+    const api=runInNewContext([
+      fn('function needsReplyResponse','\nfunction '),
+      fn('function renderSalesMoves','function putCrmRecord'),
+      fn('async function logTouch','function buildDetailSummary'),
+      '({renderSalesMoves,logTouch,quickFollowUp})'
+    ].join('\n'),ctx);
+    api.renderSalesMoves();
+    assert.equal(rows[0],'ordinary','only ordinary record should enter sales follow-up queue');
+    for(const r of records.slice(0,4)){await api.logTouch(r.id);api.quickFollowUp(r.id);}
+    assert.equal(prompts,0);assert.equal(writes,0);assert.equal(touches,0);
+    await api.logTouch('ordinary');assert.equal(prompts,1);
+    await api.logTouch('ordinary');assert.equal(prompts,2);assert.equal(writes,0,'new suppression after prompt must veto write');
+    index.ordinary=records[4];api.quickFollowUp('ordinary');await new Promise(r=>setImmediate(r));
+    assert.equal(writes,1);assert.equal(touches,1);
+  });
+});
+

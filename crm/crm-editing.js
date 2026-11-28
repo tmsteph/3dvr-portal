@@ -559,3 +559,18 @@ if (typeof window !== 'undefined') {
     buildCrmRelationshipBoard,
   });
 }
+
+ // Shared boundary: the canonical revenue ledger owns commercial transitions.
+export function isCanonicalRevenue(record = {}) {
+  return record.source === '3dvr-revenue-ledger' || Boolean(record.canonicalState);
+}
+
+export function isClosedRevenue(record = {}) {
+  const status = String(record.status || '').trim().toLowerCase();
+  return ['won', 'lost', 'closed', 'paid customer'].includes(status)
+    || ['suppressed', 'bounced'].includes(String(record.canonicalState || '').trim().toLowerCase());
+}
+
+export function canUseCrmSalesShortcuts(record = {}) {
+  return !isClosedRevenue(record) && !isCanonicalRevenue(record);
+}

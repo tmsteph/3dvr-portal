@@ -4,6 +4,8 @@ import {
   buildCrmRelationshipBoard,
   normalizeCrmWarmth,
   sanitizeCrmRecord,
+  isClosedRevenue as isClosed,
+  isCanonicalRevenue,
 } from './crm-editing.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
@@ -112,17 +114,6 @@ function toActivityCount(value) {
 
 function resolveLeadWarmth(record = {}) {
   return normalizeCrmWarmth(record.warmth, record.status);
-}
-
-function isClosed(record = {}) {
-  const status = String(record.status || '').trim().toLowerCase();
-  return ['won', 'lost', 'closed', 'paid customer'].includes(status)
-    || ['suppressed', 'bounced'].includes(String(record.canonicalState || '').trim().toLowerCase());
-}
-
-// The ledger, not CRM Flow shortcuts, owns canonical commercial transitions.
-function isCanonicalRevenue(record = {}) {
-  return record.source === '3dvr-revenue-ledger' || Boolean(record.canonicalState);
 }
 
 function hasDueReview(record = {}) {
