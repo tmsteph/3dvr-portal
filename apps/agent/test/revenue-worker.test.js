@@ -562,3 +562,37 @@ test('isolated worker imports exact private Operator queue row before no-send CR
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('default worker preserves unsent candidates while message approval adapter is unavailable', async () => {
+  const names = ['THREEDVR_REVENUE_DELIVERY_ENABLED', 'THREEDVR_REVENUE_CANDIDATE_FILE',
+    'THREEDVR_REVENUE_DAILY_SEND_LIMIT', 'THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT'];
+  const previous = names.map(name => process.env[name]);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-approval-'));
+  const candidateFile = path.join(tmp, 'candidate.json');
+  process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
+  process.env.THREEDVR_REVENUE_CANDIDATE_FILE = candidateFile;
+  process.env.THREEDVR_REVENUE_DAILY_SEND_LIMIT = '1';
+  process.env.THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT = '10';
+  const db = openLedger({ filePath: ':memory:' });
+  try {
+    candidate(candidateFile);
+    const first = await deliverCandidate(db);
+    assert.equal(first.disabled, true);
+    assert.equal(first.attempted, 0);
+    assert.equal(first.sends, 0);
+    assert.match(first.reason, /message-specific approval/);
+    for (const table of ['prospects', 'revenue_events', 'delivery_attempts', 'projection_outbox']) {
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ' + table).get().n, 0);
+    }
+    // A blocked transport should return before even reading candidate or ledger.
+    fs.writeFileSync(candidateFile, '{invalid-json');
+    const neverReadDb = { prepare() { throw new Error('unexpected ledger access'); } };
+    assert.deepEqual(await deliverCandidate(neverReadDb), first);
+  } finally {
+    db.close();
+    names.forEach((name, i) => {
+      if (previous[i] === undefined) delete process.env[name]; else process.env[name] = previous[i];
+    });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
