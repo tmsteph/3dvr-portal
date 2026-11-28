@@ -19,6 +19,8 @@ concurrency:
 
 jobs:
   recover:
+    # Fail closed until the coordinated single-owner fulfillment handoff is approved.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
