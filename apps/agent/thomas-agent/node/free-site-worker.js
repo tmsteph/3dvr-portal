@@ -16,7 +16,12 @@ const IMAP_PORT = parseInteger(process.env.THREEDVR_INBOX_IMAP_PORT, 993);
 const IMAP_TLS = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_INBOX_IMAP_TLS || 'true').trim());
 const MAILBOX = String(process.env.THREEDVR_INBOX_MAILBOX || 'INBOX').trim() || 'INBOX';
 const WEB_REPO = process.env.THREEDVR_FREE_SITE_REPO || 'tmsteph/3dvr-web';
-const PUBLIC_BASE = String(process.env.THREEDVR_FREE_SITE_PUBLIC_BASE || 'https://3dvr.tech/free-sites').replace(/\/+$/, '');
+// The marketing apex redirects to www; the strict live verifier must not follow it.
+// Keep explicit overrides and persisted checkpoint URLs unchanged.
+function resolvePublicBase(value) {
+  return String(value || 'https://www.3dvr.tech/free-sites').replace(/\/+$/, '');
+}
+const PUBLIC_BASE = resolvePublicBase(process.env.THREEDVR_FREE_SITE_PUBLIC_BASE);
 const WEBSITE_UPGRADE_URL = String(process.env.THREEDVR_WEBSITE_UPGRADE_URL || 'https://buy.stripe.com/aFa6oH85M4lRfVtcMAc7u0j').trim();
 const GENERATOR_URL = process.env.THREEDVR_FREE_SITE_GENERATOR_URL || 'https://portal.3dvr.tech/api/openai-site';
 const LOOKBACK_HOURS = Math.max(1, parseInteger(process.env.THREEDVR_FREE_SITE_LOOKBACK_HOURS, 24));
@@ -159,23 +164,27 @@ function requestFingerprint(request) {
   return `${normalizeEmail(request.from)}|${topic}|${shortHash(body)}`;
 }
 
-function ensureState() {
-  fs.mkdirSync(STATE_DIR, { recursive: true });
-  if (!fs.existsSync(STATE_FILE)) {
+function ensureState(stateFile = STATE_FILE) {
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+  if (!fs.existsSync(stateFile)) {
     const state = { version: 1, bootstrapAt: new Date().toISOString(), messages: {} };
-    fs.writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
+    fs.writeFileSync(stateFile, `${JSON.stringify(state, null, 2)}\n`, { flag: 'wx' });
     return state;
   }
+  // Never silently discard fulfillment history: the next scan could publish
+  // or email a request whose previous outcome is unknown.
+  let parsed;
   try {
-    const parsed = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    return {
-      version: 1,
-      bootstrapAt: parsed.bootstrapAt || new Date().toISOString(),
-      messages: parsed.messages && typeof parsed.messages === 'object' ? parsed.messages : {},
-    };
+    parsed = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
   } catch {
-    return { version: 1, bootstrapAt: new Date().toISOString(), messages: {} };
+    throw new Error('Unreadable free-site fulfillment state; manual reconciliation required.');
   }
+  if (!parsed || parsed.version !== 1 ||
+      typeof parsed.bootstrapAt !== 'string' || !Number.isFinite(Date.parse(parsed.bootstrapAt)) ||
+      !parsed.messages || typeof parsed.messages !== 'object' || Array.isArray(parsed.messages)) {
+    throw new Error('Invalid free-site fulfillment state; manual reconciliation required.');
+  }
+  return parsed;
 }
 
 function saveState(state) {
@@ -383,16 +392,23 @@ function siteExists(webDir, slug) {
   return fs.existsSync(path.join(webDir, 'free-sites', slug, 'index.html'));
 }
 
-async function verifyLive(siteUrl) {
-  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
+async function verifyLive(siteUrl, { fetchImpl = fetch, attempts = VERIFY_ATTEMPTS, delayMs = VERIFY_DELAY_MS } = {}) {
+  const expectedUrl = new URL(siteUrl).href;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const response = await fetch(siteUrl, { redirect: 'follow' });
-      const text = await response.text();
-      if (response.ok && /<html/i.test(text)) return true;
+      // A redirect to an HTML fallback is not proof this site's URL is live.
+      const response = await fetchImpl(expectedUrl, { redirect: 'manual' });
+      if (response.status === 200 && !response.redirected && response.url === expectedUrl
+          && /^text\/html(?:\s*;|$)/i.test(response.headers.get('content-type') || '')) {
+        const text = await response.text();
+        if (/<html/i.test(text)) return true;
+      } else {
+        await response.body?.cancel();
+      }
     } catch {
       // Deployment may still be propagating.
     }
-    await new Promise((resolve) => setTimeout(resolve, VERIFY_DELAY_MS));
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
   return false;
 }
@@ -422,6 +438,23 @@ async function sendLiveReply(mailAuth, request, siteUrl) {
   });
 }
 
+// Persist the uncertainty boundary before invoking SMTP. A crash or error
+// after this point may mean the provider accepted the message. Never replay
+// automatically; an operator must reconcile the sent mailbox and ledger.
+async function sendReplyWithCheckpoint({ state, key, siteUrl, send, persist = saveState }) {
+  if (state.messages[key]?.status === 'reply_pending') {
+    throw new Error('Free-site reply outcome requires manual reconciliation.');
+  }
+  state.messages[key] = {
+    ...(state.messages[key] || {}),
+    status: 'reply_pending',
+    siteUrl,
+    replyAttemptedAt: new Date().toISOString(),
+  };
+  persist(state);
+  await send();
+}
+
 async function markSeen(mailAuth, uid) {
   const client = new ImapFlow({
     host: IMAP_HOST,
@@ -442,7 +475,7 @@ async function markSeen(mailAuth, uid) {
 
 async function completeExisting({ state, key, mailAuth, request, siteUrl }) {
   if (!(await verifyLive(siteUrl))) return { pending: true, siteUrl };
-  if (!request.seen) await sendLiveReply(mailAuth, request, siteUrl);
+  if (!request.seen) await sendReplyWithCheckpoint({ state, key, siteUrl, send: () => sendLiveReply(mailAuth, request, siteUrl) });
   await markSeen(mailAuth, request.uid);
   state.messages[key] = {
     ...(state.messages[key] || {}),
@@ -458,7 +491,7 @@ async function completeExisting({ state, key, mailAuth, request, siteUrl }) {
 async function processRequest({ request, state, mailAuth }) {
   const key = request.messageId || `uid-${request.uid}`;
   const existingState = state.messages[key];
-  if (existingState?.status === 'processed') return { skipped: true };
+  if (existingState?.status === 'processed' || existingState?.status === 'reply_pending') return { skipped: true };
   const junk = junkReason(request);
   if (junk) {
     // No site, no reply, no upgrade pitch: record the reason so a human can
@@ -485,7 +518,7 @@ async function processRequest({ request, state, mailAuth }) {
     if (!(await verifyLive(existingState.siteUrl))) {
       return { pending: true, siteUrl: existingState.siteUrl };
     }
-    await sendLiveReply(mailAuth, request, existingState.siteUrl);
+    await sendReplyWithCheckpoint({ state, key, siteUrl: existingState.siteUrl, send: () => sendLiveReply(mailAuth, request, existingState.siteUrl) });
     await markSeen(mailAuth, request.uid);
     state.messages[key] = { ...existingState, status: 'processed', completedAt: new Date().toISOString() };
     saveState(state);
@@ -549,7 +582,7 @@ async function processRequest({ request, state, mailAuth }) {
       return { pending: true, siteUrl, prUrl };
     }
 
-    await sendLiveReply(mailAuth, request, siteUrl);
+    await sendReplyWithCheckpoint({ state, key, siteUrl, send: () => sendLiveReply(mailAuth, request, siteUrl) });
     await markSeen(mailAuth, request.uid);
     state.messages[key] = { ...state.messages[key], status: 'processed', completedAt: new Date().toISOString() };
     saveState(state);
@@ -560,7 +593,43 @@ async function processRequest({ request, state, mailAuth }) {
   }
 }
 
+// A single host can still have overlapping CLI/service invocations. Acquire
+// the claim before reading the ledger or contacting external services.
+// An abandoned lock is intentionally not stolen: a child deployment or SMTP
+// side effect may outlive the process. Reconcile before removing it manually.
+async function withFulfillmentLock(stateFile, work) {
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+  const lockDir = path.join(fs.realpathSync(path.dirname(stateFile)), path.basename(stateFile) + '.lock');
+  try {
+    fs.mkdirSync(lockDir);
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      throw new Error('Free-site fulfillment lock held; active or abandoned worker requires reconciliation.');
+    }
+    throw error;
+  }
+  try {
+    // A file alias can select a different lock name for the same ledger.
+    // Atomic state replacement also makes symlink/hardlink semantics unsafe.
+    // Parent-directory aliases are handled by the canonical lock directory.
+    let info;
+    try { info = fs.lstatSync(stateFile); } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    if (info && (!info.isFile() || info.nlink !== 1)) {
+      throw new Error('Unsupported fulfillment ledger alias or file type; manual reconciliation required.');
+    }
+    return await work();
+  } finally {
+    fs.rmdirSync(lockDir);
+  }
+}
+
 async function runOnce() {
+  return withFulfillmentLock(STATE_FILE, runLocked);
+}
+
+async function runLocked() {
   const state = ensureState();
   const mailAuth = await resolveMailAuth();
   const requests = await loadRecentRequests(mailAuth);
@@ -570,6 +639,10 @@ async function runOnce() {
   for (const request of requests) {
     const key = request.messageId || `uid-${request.uid}`;
     if (state.messages[key]?.status === 'processed') continue;
+    if (state.messages[key]?.status === 'reply_pending') {
+      console.warn('[free-site-worker] quarantined reply requires manual reconciliation');
+      continue;
+    }
     // The same request submitted repeatedly in one window (the 2026-11-10
     // junk arrived three times in ten seconds, each with a fresh message
     // id) is fulfilled once; later copies are recorded as duplicates.
@@ -590,7 +663,7 @@ async function runOnce() {
       const previous = state.messages[key] || {};
       state.messages[key] = {
         ...previous,
-        status: previous.status === 'publishing' ? 'publishing' : 'failed',
+        status: ['publishing', 'reply_pending'].includes(previous.status) ? previous.status : 'failed',
         error: String(error.message || error).slice(0, 500),
         failedAt: new Date().toISOString(),
       };
@@ -603,6 +676,11 @@ async function runOnce() {
 }
 
 module.exports = {
+  resolvePublicBase,
+  ensureState,
+  withFulfillmentLock,
+  sendReplyWithCheckpoint,
+  verifyLive,
   buildFallbackHtml,
   cleanBody,
   junkReason,

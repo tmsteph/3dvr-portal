@@ -16,9 +16,7 @@ const RECONNECT_MAX_MS = 60 * 1000;
 const EVENT_DEBOUNCE_MS = Number.parseInt(process.env.THREEDVR_INBOX_EVENT_DEBOUNCE_MS || '750', 10);
 const MAX_IDLE_TIME_MS = Number.parseInt(process.env.THREEDVR_INBOX_MAX_IDLE_TIME_MS || String(4 * 60 * 1000), 10);
 const LOCAL_FREE_SITE_ENABLED = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_FREE_SITE_LOCAL_WORKER || 'true').trim());
-const FREE_SITE_DISPATCH = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_FREE_SITE_WORKFLOW_DISPATCH || 'true').trim());
-const FREE_SITE_WORKFLOW = String(process.env.THREEDVR_FREE_SITE_WORKFLOW || 'free-site-fast-lane.yml').trim();
-const FREE_SITE_REPO = String(process.env.THREEDVR_FREE_SITE_REPO || 'tmsteph/3dvr-portal').trim();
+
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -58,18 +56,10 @@ async function runLocalFreeSiteWorker(reason) {
   return result;
 }
 
-async function dispatchFreeSiteFastLane(reason) {
-  if (!FREE_SITE_DISPATCH) return { ok: true, skipped: true };
-  console.log(`[inbox-monitor-loop] dispatching free-site fallback (${reason})`);
-  const result = await runCommand(
-    'gh',
-    ['workflow', 'run', FREE_SITE_WORKFLOW, '--repo', FREE_SITE_REPO, '--ref', 'main'],
-    'free-site workflow dispatch'
-  );
-  if (!result.ok) {
-    console.error('[inbox-monitor-loop] free-site fallback dispatch failed; the scheduled GitHub fallback remains available');
-  }
-  return result;
+// Separate Actions caches cannot safely reconcile the self-hosted ledger.
+// A failure is a local operational event, never a request to replay remotely.
+async function reportFreeSiteFailure(reason) {
+  console.error(`[inbox-monitor-loop] free-site fulfillment requires reconciliation (${reason}); remote fallback disabled`);
 }
 
 async function resolveImapAuth() {
@@ -100,11 +90,60 @@ async function resolveImapAuth() {
   };
 }
 
-function makeProcessor() {
+function makeProcessor({
+  runInbox = runInboxCycle,
+  runFreeSite = runLocalFreeSiteWorker,
+  reportFailure = reportFreeSiteFailure,
+  debounceMs = EVENT_DEBOUNCE_MS,
+} = {}) {
   let running = false;
   let pending = false;
   let pendingReason = 'event';
   let timer = null;
+  let freeSiteRunning = false;
+  let pendingFreeSiteReason = null;
+
+  // Free-site generation may wait on a deployment CLI indefinitely. It must
+  // never hold the independent business-inbox processor hostage. Only one
+  // free-site worker may run at a time; do not replay an uncertain in-flight
+  // fulfillment job or dispatch a fallback merely because it is slow.
+  const startFreeSite = (reason) => {
+    if (freeSiteRunning) {
+      pendingFreeSiteReason = reason;
+      console.log('[inbox-monitor-loop] free-site worker still running; coalescing a later scan');
+      return;
+    }
+    freeSiteRunning = true;
+    pendingFreeSiteReason = null;
+    let completedSuccessfully = false;
+    Promise.resolve()
+      .then(() => runFreeSite(reason))
+      .then(
+        (result) => {
+          if (result?.ok) {
+            completedSuccessfully = true;
+            return;
+          }
+          return reportFailure(reason);
+        },
+        (error) => {
+          console.error(`[inbox-monitor-loop] free-site worker failed: ${error.message || error}`);
+          return reportFailure(reason);
+        }
+      )
+      .catch((error) => {
+        console.error(`[inbox-monitor-loop] free-site failure reporting failed: ${error.message || error}`);
+      })
+      .finally(() => {
+        freeSiteRunning = false;
+        // A successful scan may have taken its mailbox snapshot before a new
+        // request arrived. Rescan once, but never automatically replay a
+        // failed/uncertain job merely because another event arrived.
+        if (completedSuccessfully && pendingFreeSiteReason !== null) {
+          startFreeSite(pendingFreeSiteReason);
+        }
+      });
+  };
 
   const drain = async () => {
     if (running) {
@@ -116,11 +155,10 @@ function makeProcessor() {
       do {
         pending = false;
         const reason = pendingReason;
-        const freeSite = await runLocalFreeSiteWorker(reason);
-        if (!freeSite.ok) {
-          await dispatchFreeSiteFastLane(reason);
-        }
-        await runInboxCycle(reason);
+        // Inbox always gets its chance, even when a previous free-site
+        // fulfillment is still running. Do not await that second lane.
+        await runInbox(reason);
+        startFreeSite(reason);
       } while (pending);
     } finally {
       running = false;
@@ -136,11 +174,11 @@ function makeProcessor() {
       drain().catch((error) => {
         console.error(`[inbox-monitor-loop] processor error: ${error.message || error}`);
       });
-    }, Math.max(0, Number.isFinite(EVENT_DEBOUNCE_MS) ? EVENT_DEBOUNCE_MS : 750));
+    }, Math.max(0, Number.isFinite(debounceMs) ? debounceMs : 750));
   };
 }
 
-async function watchConnection() {
+async function watchConnection(processInbox) {
   const { user, auth } = await resolveImapAuth();
   const client = new ImapFlow({
     host: DEFAULT_IMAP_HOST,
@@ -151,7 +189,6 @@ async function watchConnection() {
     maxIdleTime: Number.isFinite(MAX_IDLE_TIME_MS) ? MAX_IDLE_TIME_MS : 4 * 60 * 1000,
   });
 
-  const processInbox = makeProcessor();
   let closed = false;
   let lastCount = 0;
 
@@ -196,10 +233,13 @@ async function watchConnection() {
 }
 
 async function main() {
+  // Retain the process-wide worker guard across IMAP reconnects. A disconnected
+  // IMAP session does not imply that its fulfillment child has stopped.
+  const processInbox = makeProcessor();
   let backoffMs = RECONNECT_MIN_MS;
   while (true) {
     try {
-      await watchConnection();
+      await watchConnection(processInbox);
       backoffMs = RECONNECT_MIN_MS;
     } catch (error) {
       console.error(`[inbox-monitor-loop] connection failed: ${error.message || error}`);
@@ -211,7 +251,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message || error);
-  process.exit(1);
-});
+module.exports = { makeProcessor };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message || error);
+    process.exit(1);
+  });
+}
