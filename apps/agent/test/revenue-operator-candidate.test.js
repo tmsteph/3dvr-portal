@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { openLedger, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { openLedger, createProspect, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { recordOperatorCandidate, recordLocalCanaryCandidate } = require('../thomas-agent/node/revenue-operator-candidate');
 
 function fixture(suffix = 'abcdefghijkl') {
@@ -141,4 +141,48 @@ test('local canary rejects hard-linked queue or ledger without importing any row
       fs.rmSync(dir, { recursive: true, force: true });
     }
   }
+});
+
+test('verified exact listing survives changed model label without duplicate or send', () => {
+  const db = openLedger({ filePath: ':memory:' });
+  try {
+    const first = recordOperatorCandidate(db, fixture());
+    const second = fixture('mnopqrstuvwx');
+    second.verifiedSource.name = 'Different model label';
+    second.row.record.resultText = JSON.stringify({
+      ...JSON.parse(second.row.record.resultText), name: second.verifiedSource.name
+    });
+    const found = recordOperatorCandidate(db, second);
+    assert.equal(found.skipped, true);
+    assert.equal(found.prospect.id, first.prospect.id);
+    assert.equal(found.prospect.contact_key, first.prospect.contact_key);
+    assert.deepEqual(counts(db), [1, 1, 1, 0]);
+    const distinct = fixture('abcdefghijklmn');
+    distinct.verifiedSource.url = 'https://example.com/jobs/2';
+    distinct.row.record.resultText = JSON.stringify({
+      ...JSON.parse(distinct.row.record.resultText), sourceUrl: distinct.verifiedSource.url
+    });
+    assert.notEqual(recordOperatorCandidate(db, distinct).prospect.id, first.prospect.id);
+    assert.deepEqual(counts(db), [2, 2, 2, 0]);
+  } finally { db.close(); }
+});
+
+test('verified exact listing refuses historical ambiguity and case-fold collision', () => {
+  const db = openLedger({ filePath: ':memory:' });
+  try {
+    const input = fixture();
+    const campaignId = 'operator-research';
+    createProspect(db, { name: 'Historical A', sourceUrl: input.verifiedSource.url, campaignId });
+    createProspect(db, { name: 'Historical B', sourceUrl: input.verifiedSource.url, campaignId });
+    assert.throws(() => recordOperatorCandidate(db, input), /Ambiguous existing listing identity/);
+    assert.deepEqual(counts(db), [2, 0, 0, 0]);
+    const caseInput = fixture('mnopqrstuvwx');
+    caseInput.verifiedSource.url = 'https://example.com/Jobs/3';
+    caseInput.row.record.resultText = JSON.stringify({
+      ...JSON.parse(caseInput.row.record.resultText), sourceUrl: caseInput.verifiedSource.url
+    });
+    createProspect(db, { name: caseInput.verifiedSource.name, sourceUrl: 'https://example.com/jobs/3', campaignId });
+    assert.throws(() => recordOperatorCandidate(db, caseInput), /Conflicting existing listing identity/);
+    assert.deepEqual(counts(db), [3, 0, 0, 0]);
+  } finally { db.close(); }
 });
