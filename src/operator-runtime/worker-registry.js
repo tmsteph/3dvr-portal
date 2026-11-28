@@ -55,7 +55,10 @@ export function workerIsStale(worker, options = {}) {
   const staleAfterMs = Number.isFinite(options.staleAfterMs) && options.staleAfterMs > 0
     ? options.staleAfterMs
     : 5 * 60_000;
-  return now - heartbeat > staleAfterMs;
+  // A clock error or forged future timestamp must not keep a missing worker
+  // eligible indefinitely. Permit ordinary small host-to-host clock skew.
+  const futureSkewToleranceMs = 60_000;
+  return now - heartbeat > staleAfterMs || heartbeat - now > futureSkewToleranceMs;
 }
 
 export function touchWorkerHeartbeat(worker, options = {}) {
@@ -71,6 +74,9 @@ export function touchWorkerHeartbeat(worker, options = {}) {
 
 export function workerCanRun(worker, workItem) {
   if (!worker || !workItem) return false;
+  // Scheduling must not replay completed, failed, blocked, or approval-held work.
+  // Only explicitly queueable work items may be considered for a worker lease.
+  if (!['queued', 'ready'].includes(workItem.state)) return false;
   if (worker.status !== 'idle' && worker.status !== 'busy') return false;
   if (workerIsStale(worker)) return false;
   if (worker.activeCount >= worker.maxConcurrent) return false;

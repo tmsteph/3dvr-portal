@@ -270,3 +270,113 @@ describe('crm relationship helpers', () => {
     assert.deepEqual(board.standaloneProblems.map(record => record.id), []);
   });
 });
+
+describe('CRM Flow canonical revenue action boundary', () => {
+  it('preserves manual review dates and blocks shortcut sales writes for canonical records', async () => {
+    const elements = new Map();
+    const handlers = {};
+    const writes = [];
+    let receive;
+    const el = id => {
+      if (!elements.has(id)) elements.set(id, {
+        hidden: id === 'leadDrawer', value: '', innerHTML: '', textContent: '',
+        addEventListener(type, fn) { handlers[id + ':' + type] = fn; },
+      });
+      return elements.get(id);
+    };
+    const chain = {
+      get() { return this; }, map() { return this; },
+      on(fn) { receive = fn; },
+      put(data, ack) { writes.push(data); if (ack) ack({}); },
+    };
+    const old = {document: globalThis.document, window: globalThis.window, Gun: globalThis.Gun};
+    try {
+      globalThis.document = {getElementById: el, querySelectorAll: () => [],
+        addEventListener(type, fn) { handlers[type] = fn; }};
+      globalThis.window = {clearTimeout() {}, setTimeout() {}};
+      globalThis.Gun = () => chain;
+      await import('../crm/flow.js');
+      const canonical = {recordType: 'person', source: '3dvr-revenue-ledger', nextFollowUp: '2000-01-01'};
+      const failed = {...canonical, id: 'failed', name: 'Review only', canonicalState: 'failed', status: 'Lead'};
+      const suppressed = {...canonical, id: 'suppressed', name: 'Suppressed', canonicalState: 'suppressed', status: 'Closed', warmth: 'hot'};
+      const paid = {...canonical, id: 'paid', name: 'Paid', canonicalState: 'replied', status: 'Paid Customer', warmth: 'hot'};
+      const ordinary = {id:'ordinary', name:'Ordinary', recordType:'person', status:'Lead', nextFollowUp:'2000-01-01'};
+      for (const r of [failed, suppressed, paid, ordinary]) receive(r, r.id);
+      window.crmFlow.render();
+      assert.equal(el('metricToday').textContent, '1', 'only ordinary sales reminder is due');
+      assert.match(el('todayList').innerHTML, /Review only/);
+      assert.match(el('todayList').innerHTML, /Review due/);
+      assert.doesNotMatch(el('todayList').innerHTML, /Suppressed|Paid/);
+      assert.equal(window.crmFlow.getStage(suppressed), 'parked');
+      assert.equal(window.crmFlow.getStage(paid), 'parked');
+      const click = (action, id) => handlers.click({target:{closest:()=>({dataset:{flowAction:action, recordId:id}})}});
+      for (const r of [failed, suppressed, paid]) for (const action of ['snooze','log-touch','mark-won']) click(action,r.id);
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(writes.length, 0, 'canonical shortcuts cannot change CRM or touch log');
+      click('open',failed.id);
+      window.crmFlow.render();
+      assert.equal(el('drawerFollowUp').value,'2000-01-01');
+      assert.equal(el('drawerActions').hidden,true);
+      el('drawerFollowUp').value='2030-01-01';
+      el('drawerStatus').value='Won';
+      el('drawerWarmth').value='hot';
+      await handlers['drawerForm:submit']({preventDefault(){}});
+      assert.equal(writes.length,1);
+      assert.equal(writes[0].status,'Lead');
+      assert.equal(writes[0].canonicalState,'failed');
+      assert.equal(writes[0].nextFollowUp,'2030-01-01');
+      click('snooze',ordinary.id);
+      await new Promise(resolve=>setImmediate(resolve));
+      assert.equal(writes.length,2);
+      assert.equal(writes[1].status,'Warm - Follow-up');
+    } finally {
+      for (const [key,value] of Object.entries(old)) {
+        if (value === undefined) delete globalThis[key]; else globalThis[key]=value;
+      }
+    }
+  });
+});
+
+describe('CRM main workspace canonical sales boundary', () => {
+  it('filters non-sales records and prevents shortcut writes, including after a prompt', async () => {
+    const {readFileSync}=await import('node:fs');
+    const {runInNewContext}=await import('node:vm');
+    const {isCanonicalRevenue,isClosedRevenue,canUseCrmSalesShortcuts}=await import('../crm/crm-editing.js').catch(()=>({}));
+    const source=readFileSync(new URL('../crm/app.js',import.meta.url),'utf8');
+    const fn=(name,next)=>source.slice(source.indexOf(name),source.indexOf(next,source.indexOf(name)));
+    const rows=[];
+    const canonical={recordType:'person',source:'3dvr-revenue-ledger',nextFollowUp:'2000-01-01',warmth:'hot'};
+    const records=[
+      {...canonical,id:'failed',canonicalState:'failed',status:'Lead'},
+      {...canonical,id:'suppressed',canonicalState:'suppressed',status:'Closed'},
+      {...canonical,id:'paid',canonicalState:'replied',status:'Paid Customer'},
+      {id:'closed',recordType:'person',status:'Closed',nextFollowUp:'2000-01-01'},
+      {id:'ordinary',recordType:'person',status:'Lead',nextFollowUp:'2000-01-01'}
+    ];
+    const index=Object.fromEntries(records.map(r=>[r.id,r]));
+    let prompts=0,writes=0,touches=0;
+    const ctx={SALES_STALE_DAYS:7,isCanonicalRevenue,isClosedRevenue,canUseCrmSalesShortcuts,sanitizeCrmRecord,
+      state:{board:{people:records,index}},crmIndex:index,elements:{},window:{alert(){}},
+      normalizeFollowUpInput:v=>v,comparePeopleByFollowUpThenName:()=>0,comparePeopleByRecencyThenName:()=>0,
+      resolveLeadWarmth:r=>r.warmth,hasOutreachDraft:()=>false,renderSalesMoveRows:(_,r)=>rows.push(r.map(x=>x.id).join(',')),
+      openTouchPrompt:async r=>{prompts++;if(r.id==='ordinary' && prompts===2){index.ordinary={...r,canonicalState:'suppressed'};return {touchType:'outreach-sent'};}return null;},
+      pruneRecordForType:r=>r,putCrmRecord:async()=>{writes++},appendTouchLogEntry:()=>{touches++},
+      normalizeTouchType:v=>v,getTouchTypeLabel:v=>v,deriveStatusFromTouch:()=> 'Lead',toActivityCount:()=>0,scoreManager:null,console
+    };
+    const api=runInNewContext([
+      fn('function needsReplyResponse','\nfunction '),
+      fn('function renderSalesMoves','function putCrmRecord'),
+      fn('async function logTouch','function buildDetailSummary'),
+      '({renderSalesMoves,logTouch,quickFollowUp})'
+    ].join('\n'),ctx);
+    api.renderSalesMoves();
+    assert.equal(rows[0],'ordinary','only ordinary record should enter sales follow-up queue');
+    for(const r of records.slice(0,4)){await api.logTouch(r.id);api.quickFollowUp(r.id);}
+    assert.equal(prompts,0);assert.equal(writes,0);assert.equal(touches,0);
+    await api.logTouch('ordinary');assert.equal(prompts,1);
+    await api.logTouch('ordinary');assert.equal(prompts,2);assert.equal(writes,0,'new suppression after prompt must veto write');
+    index.ordinary=records[4];api.quickFollowUp('ordinary');await new Promise(r=>setImmediate(r));
+    assert.equal(writes,1);assert.equal(touches,1);
+  });
+});
+

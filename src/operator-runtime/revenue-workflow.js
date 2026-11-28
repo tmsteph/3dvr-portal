@@ -37,6 +37,23 @@ function normalizeRelationship(value) {
   return ['fresh', 'known', 'unknown'].includes(value) ? value : 'unknown';
 }
 
+// Follow-up dates are durable workflow instructions, not arbitrary CRM notes.
+// Reject ambiguous local dates, invalid calendar days and non-date values
+// before they can enter a queue or create phantom overdue reminders.
+function checkedFollowUpAt(value) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string'
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    || !Number.isFinite(Date.parse(value))) {
+    throw new TypeError('nextFollowUpAt requires a timezone-qualified ISO timestamp');
+  }
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) {
+    throw new TypeError('nextFollowUpAt is not a real calendar date');
+  }
+  return value;
+}
+
 export function getOutboundDecision({
   relationship = 'unknown',
   channel = 'email',
@@ -44,6 +61,8 @@ export function getOutboundDecision({
   sensitiveAction = false,
   campaignAllowed = true
 } = {}) {
+  // Never authorize an external send from lead classification or business hours alone.
+  // A separate send adapter must verify a recorded, message-specific human approval.
   if (sensitiveAction) {
     return { decision: 'approval', reason: 'Sensitive actions require a human checkpoint.' };
   }
@@ -65,13 +84,29 @@ export function getOutboundDecision({
     return { decision: 'defer', reason: 'Fresh-lead email should wait for the 08:00–18:00 local business window.' };
   }
 
-  return { decision: 'auto', reason: 'Fresh direct-email lead is inside the approved business window.' };
+  return { decision: 'approval', reason: 'Fresh direct-email outreach requires recorded human approval before sending.' };
 }
 
 export function createRevenueLeadWorkItem(input = {}) {
   const leadName = typeof input.leadName === 'string' ? input.leadName.trim() : '';
   const title = input.title || `Revenue opportunity${leadName ? ` · ${leadName}` : ''}`;
   const now = input.now || new Date().toISOString();
+
+  // Lead stages are a finite pipeline. Unknown stages cannot be advanced or
+  // measured reliably and should not enter the CRM/work queue.
+  const stage = input.stage || 'research';
+  if (!REVENUE_STAGES.includes(stage)) {
+    throw new TypeError(`unknown revenue stage: ${stage}`);
+  }
+  // There is no trusted payment-provider adapter. Reject both an invented
+  // paid stage and a completed work-item wrapper around an active pipeline
+  // stage; neither constitutes an attributable paid outcome.
+  if (stage === 'won') {
+    throw new TypeError('won revenue stage requires an authenticated payment provider adapter');
+  }
+  if (input.state === 'done' && stage !== 'lost') {
+    throw new TypeError('completed revenue lead requires a verified terminal stage');
+  }
 
   return createWorkItem({
     id: input.id,
@@ -93,11 +128,11 @@ export function createRevenueLeadWorkItem(input = {}) {
     result: input.result,
     metadata: {
       ...(input.metadata || {}),
-      stage: input.stage || 'research',
+      stage,
       leadName: leadName || null,
       relationship: normalizeRelationship(input.relationship),
       campaign: input.campaign || null,
-      nextFollowUpAt: input.nextFollowUpAt || null
+      nextFollowUpAt: stage === 'lost' ? null : checkedFollowUpAt(input.nextFollowUpAt)
     }
   });
 }
@@ -109,9 +144,90 @@ export function advanceRevenueLead(item, event, options = {}) {
   const transition = TRANSITIONS[stage]?.[event];
   if (!transition) throw new TypeError(`event ${event} is not valid from revenue stage ${stage}`);
 
+  // A follow-up cannot become due merely because an agent says it is due,
+  // or because it supplies a new due date in the transition call. Require an
+  // already scheduled reminder that has actually reached its due time.
+  // Callers that supply a test clock must be trusted by their event adapter.
+  if (event === 'follow_up_due') {
+    let scheduledAt, observedAt;
+    try {
+      // Persisted legacy records and injected clocks need the same absolute
+      // calendar validation as new reminders; Date.parse alone accepts local
+      // dates and silently normalizes some impossible calendar dates.
+      scheduledAt = checkedFollowUpAt(item.metadata?.nextFollowUpAt);
+      observedAt = checkedFollowUpAt(options.now ?? new Date().toISOString());
+    } catch {
+      throw new TypeError('follow_up_due requires a previously scheduled reminder at or before now');
+    }
+    if (!scheduledAt || !observedAt || Date.parse(scheduledAt) > Date.parse(observedAt)) {
+      throw new TypeError('follow_up_due requires a previously scheduled reminder at or before now');
+    }
+  }
+
   const [nextStage, nextState] = transition;
   const evidence = [...(item.evidence || [])];
+  // External actions are records of things that happened, not requested actions.
+  // Require a distinct receipt before marking a message sent, a reply received,
+  // or a lead won. Adapters must authenticate external provider evidence.
+  // Receipt structure does not verify signatures: provider/webhook adapters must
+  // authenticate their inputs before calling this state transition.
+  if (['outreach_sent', 'follow_up_sent', 'proposal_sent', 'reply_received', 'payment_received'].includes(event)) {
+    const receipt = options.evidence;
+    if (!receipt || typeof receipt !== 'object' || typeof receipt.id !== 'string' || !receipt.id.trim()) {
+      throw new TypeError(`${event} requires an external receipt with a stable id`);
+    }
+    if (evidence.some(prior => prior?.id === receipt.id)) {
+      throw new TypeError('external receipt id has already been recorded for this lead');
+    }
+    // A generic note, research artifact, inbound reply or payment intent is
+    // not evidence that a provider sent an external message. This is a shape
+    // check only; sender adapters must still authenticate provider receipts.
+    if (['outreach_sent', 'follow_up_sent', 'proposal_sent'].includes(event)
+      && !['email', 'provider_send'].includes(receipt.type)) {
+      throw new TypeError(`${event} requires a provider send receipt`);
+    }
+    if (event === 'reply_received') {
+      // A proposed reply must refer to a message already recorded as sent for
+      // this lead. Never turn an unverified narrative into a CRM reply event.
+      // The provider adapter, not this pure state machine, authenticates it.
+      const validReply = receipt.type === 'provider_reply'
+        && typeof receipt.provider === 'string' && Boolean(receipt.provider.trim())
+        && typeof receipt.inReplyToId === 'string' && Boolean(receipt.inReplyToId.trim())
+        && evidence.some(prior => prior?.id === receipt.inReplyToId
+          && ['email', 'provider_send'].includes(prior?.type));
+      if (!validReply) {
+        throw new TypeError('reply_received requires a provider reply receipt linked to an earlier send');
+      }
+    }
+    if (event === 'payment_received') {
+      const valid = receipt.type === 'provider_payment'
+        && typeof receipt.provider === 'string' && receipt.provider.trim()
+        && typeof receipt.invoiceId === 'string' && receipt.invoiceId.trim()
+        && receipt.leadId === item.id
+        && Number.isSafeInteger(receipt.amountCents) && receipt.amountCents > 0
+        && typeof receipt.currency === 'string' && /^[A-Z]{3}$/.test(receipt.currency)
+        && options.result?.amountCents === receipt.amountCents
+        && options.result?.currency === receipt.currency;
+      if (!valid) throw new TypeError('payment_received requires a matching provider receipt, lead and amount');
+      // Shape checks are not payment authentication. No trusted payment webhook
+      // adapter currently supplies a non-forgeable completion receipt here.
+      // Do not mark a lead won from caller-authored fields until such an
+      // adapter is implemented and separately verified.
+      throw new TypeError('payment_received requires an authenticated payment provider adapter');
+    }
+  }
   if (options.evidence) evidence.push(options.evidence);
+
+  // A reply, consumed due reminder, or sent follow-up supersedes the prior
+  // reminder. Closed and paid leads must never retain a stale sales nudge,
+  // even when a caller passes a new date with the terminal event.
+  const nextFollowUpAt = ['won', 'lost'].includes(nextStage)
+    ? null
+    : Object.hasOwn(options, 'nextFollowUpAt')
+      ? checkedFollowUpAt(options.nextFollowUpAt)
+      : ['reply_received', 'follow_up_due', 'follow_up_sent'].includes(event)
+        ? null
+        : item.metadata?.nextFollowUpAt ?? null;
 
   return transitionWorkItem(item, nextState, {
     now: options.now,
@@ -121,7 +237,7 @@ export function advanceRevenueLead(item, event, options = {}) {
     metadata: {
       stage: nextStage,
       lastEvent: event,
-      nextFollowUpAt: options.nextFollowUpAt ?? item.metadata?.nextFollowUpAt ?? null,
+      nextFollowUpAt,
       lastTransitionAt: options.now || new Date().toISOString()
     }
   });

@@ -1,4 +1,5 @@
 import Gun from 'gun';
+import { summarizeRecentCrmImports } from './recent-import-summary.mjs';
 
 const peer = process.env.THREEDVR_GUN_RELAY || 'https://portal.3dvr.tech/gun-relay';
 const expected = Number(process.env.EXPECTED_IMPORT_COUNT || 15);
@@ -14,26 +15,9 @@ gun.get('3dvr-crm').map().on((data, key) => {
 
 await new Promise((resolve) => setTimeout(resolve, collectMs));
 
-const cutoff = Date.now() - recentWindowMs;
-const recentImports = [...records.values()].filter((record) => {
-  if (String(record?.source || '') !== 'Lead import') return false;
-  const updated = Date.parse(String(record?.updated || ''));
-  return Number.isFinite(updated) && updated >= cutoff;
-});
-
-const statusCounts = recentImports.reduce((acc, record) => {
-  const status = String(record?.status || 'Unknown');
-  acc[status] = (acc[status] || 0) + 1;
-  return acc;
-}, {});
-
-const result = {
-  ok: recentImports.length >= expected,
-  expected,
-  recentLeadImports: recentImports.length,
-  totalCrmRecordsObserved: records.size,
-  statusCounts,
-};
+// This measures the observed relay snapshot only; it cannot prove the presence
+// of an authenticated Operator task, worker completion, or source import job.
+const result = summarizeRecentCrmImports(records, { expected, recentWindowMs });
 
 console.log(`CRM_IMPORT_VERIFY ${JSON.stringify(result)}`);
 process.exit(result.ok ? 0 : 2);

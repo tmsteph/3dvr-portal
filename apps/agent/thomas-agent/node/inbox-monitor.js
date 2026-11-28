@@ -481,15 +481,32 @@ function updateLeadStatusByEmail(filePath, email, status) {
   return changed;
 }
 
-function latestOutboundForLead(entries, lead, email) {
+// A contact match or a "Re:" subject alone does not establish a sales reply.
+// Only correlate inbox messages to a logged, acknowledged email with the same
+// recipient and an exact RFC Message-ID thread reference. Older logs lacking a
+// provider message ID remain manual-review items, not conversions.
+function referencedOutboundIds(message = {}) {
+  return new Set([message.inReplyTo, message.references]
+    .flatMap(value => String(value || '').match(/<[^<>\s]+>|[^\s,]+/g) || [])
+    .map(value => value.replace(/^<|>$/g, '').toLowerCase())
+    .filter(Boolean));
+}
+
+function latestOutboundForLead(entries, lead, email, message = {}) {
   const normalizedEmail = normalizeEmail(email);
-  const leadName = normalizeText(lead?.name).toLowerCase();
+  if (!normalizedEmail || extractLeadEmail(lead) !== normalizedEmail
+      || normalizeEmail(message.fromEmail) !== normalizedEmail) return null;
+  const references = referencedOutboundIds(message);
+  if (!references.size) return null;
   return entries.slice().reverse().find((entry) => {
     const status = normalizeText(entry.status).toLowerCase();
-    if (!['sent', 'submitted'].includes(status)) return false;
-    const entryEmail = extractLeadEmail({ contact: entry.contact });
-    if (normalizedEmail && entryEmail === normalizedEmail) return true;
-    return leadName && normalizeText(entry.name).toLowerCase() === leadName;
+    const deliveryStatus = normalizeText(entry.deliveryStatus || entry.status).toLowerCase();
+    if (normalizeText(entry.kind).toLowerCase() !== 'email'
+        || status !== 'sent' || !['sent', 'acknowledged'].includes(deliveryStatus)) return false;
+    if (extractLeadEmail({ contact: entry.contact }) !== normalizedEmail) return false;
+    const outboundId = normalizeText(entry.messageId || entry.providerMessageId)
+      .replace(/^<|>$/g, '').toLowerCase();
+    return Boolean(outboundId && references.has(outboundId));
   }) || null;
 }
 
@@ -500,10 +517,17 @@ function recordLeadReplyFeedback(message, lead, state, options = {}) {
   const meta = state.messages[messageId] || {};
   if (meta.feedbackRecordedAt) return { recorded: false, reason: 'already recorded' };
 
-  const email = normalizeEmail(message.replyToEmail || message.fromEmail || extractLeadEmail(lead));
-  if (!email) return { recorded: false, reason: 'reply email missing' };
+  // Reply-To can point to a different party. Attribute by the actual sender
+  // and the lead's exact contact address, never by display name or reply alias.
+  const email = normalizeEmail(message.fromEmail);
+  if (!email || email !== extractLeadEmail(lead)) {
+    return { recorded: false, reason: 'sender does not match lead; manual review required' };
+  }
   const entries = options.entries || readOutreachLog(options.logOptions);
-  const outbound = latestOutboundForLead(entries, lead, email);
+  const outbound = latestOutboundForLead(entries, lead, email, message);
+  if (!outbound) {
+    return { recorded: false, reason: 'no acknowledged outbound thread link; manual review required' };
+  }
   const updated = updateLeadStatusByEmail(options.leadsFile || LEADS_FILE, email, 'replied');
   const feedback = appendOutreachLog({
     kind: 'email',
@@ -514,15 +538,15 @@ function recordLeadReplyFeedback(message, lead, state, options = {}) {
     contact: lead.contact || `mailto:${email}`,
     route: 'email',
     subject: message.subject,
-    experiment: outbound?.experiment || outbound?.experimentId || '',
-    campaignId: outbound?.campaignId || outbound?.experiment || outbound?.experimentId || '',
-    variant: outbound?.variant || lead.variant || '',
+    experiment: outbound.experiment || outbound.experimentId || '',
+    campaignId: outbound.campaignId || outbound.experiment || outbound.experimentId || '',
+    variant: outbound.variant || lead.variant || '',
     note: `Inbound reply ${messageId}`,
   }, options.logOptions);
 
   meta.feedbackRecordedAt = feedback.timestamp;
   meta.feedbackExperiment = feedback.experiment;
-  meta.feedbackCampaignId = feedback.campaignId || outbound?.campaignId || feedback.experiment || '';
+  meta.feedbackCampaignId = feedback.campaignId || outbound.campaignId || feedback.experiment || '';
   meta.feedbackVariant = feedback.variant;
   state.messages[messageId] = meta;
   return { recorded: true, updated, feedback };
@@ -626,6 +650,12 @@ function upsertMessageState(state, message, lead, options = {}) {
   }
   existing.subject = message.subject;
   existing.fromEmail = message.fromEmail;
+  // Persist RFC 5322 thread links for the canonical revenue ledger. Without
+  // these, an unrelated inbound email from the same contact can be mistaken
+  // for a reply to an acknowledged proposal.
+  existing.inReplyTo = normalizeText(message.inReplyTo);
+  existing.references = normalizeText(message.references);
+  if (looksLikeBounce(message)) existing.bounceEmails = extractBounceEmails(message);
   existing.leadName = lead?.name || existing.leadName || '';
   if (options.publicAgent) {
     existing.publicAgent = true;
@@ -1696,6 +1726,20 @@ function actionIdForMessage(kind, message) {
 }
 
 async function sendCoordinatedReply(kind, message, sendImpl) {
+  // A coordination lease and an inbox-thread match are not human authorization.
+  // Do not reserve an email, call a sender, or write "sent" state until this
+  // boundary verifies an independently issued, unexpired, single-use receipt
+  // bound to the exact sender, recipient, subject, body and reply headers.
+  // No trusted receipt verifier exists yet; fail closed for ALL reply kinds.
+  const verifiedMessageApproval = false;
+  if (!verifiedMessageApproval) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'message-specific human approval receipt required; review draft without sending',
+    };
+  }
+
   const actionId = actionIdForMessage(kind, message);
   let handled;
   try {
@@ -2261,6 +2305,7 @@ module.exports = {
   updateLeadStatusByEmail,
   latestOutboundForLead,
   recordLeadReplyFeedback,
+  upsertMessageState,
 };
 
 if (require.main === module) {

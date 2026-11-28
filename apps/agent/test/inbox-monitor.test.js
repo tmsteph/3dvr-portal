@@ -19,7 +19,32 @@ const {
   subjectMatchesPublicAgentGate,
   subjectMatchesFreeDesignGate,
   recordLeadReplyFeedback,
+  upsertMessageState,
+  sendCoordinatedReply,
 } = require('../thomas-agent/node/inbox-monitor');
+
+test('all inbox auto-reply send modes fail closed without message-bound human approval', async () => {
+  let senderCalls = 0;
+  const sendImpl = async () => {
+    senderCalls += 1;
+    throw new Error('unapproved transport must not be reached');
+  };
+  for (const kind of ['inbox-lead-reply', 'inbox-public-agent-reply', 'inbox-free-design-reply']) {
+    const result = await sendCoordinatedReply(kind, {
+      messageId: '<inbound@test.example>',
+      fromEmail: 'buyer@test.example',
+      replyToEmail: 'buyer@test.example',
+      subject: 'Re: automation',
+      // A caller-controlled boolean or receipt-shaped object is not authority.
+      approved: true,
+      approvalReceipt: { verified: true, recipient: 'buyer@test.example' },
+    }, sendImpl);
+    assert.equal(result.ok, false, kind);
+    assert.equal(result.skipped, true, kind);
+    assert.match(result.reason, /message-specific human approval receipt required/i);
+  }
+  assert.equal(senderCalls, 0, 'no sender called for any reply mode');
+});
 
 test('detects bounce mail and extracts candidate addresses', () => {
   const message = {
@@ -122,11 +147,15 @@ test('records a reply once and attributes it to the outbound experiment variant'
     messageId: 'reply-1',
     fromEmail: 'lead@example.com',
     replyToEmail: 'lead@example.com',
+    inReplyTo: '<outbound-acme@3dvr.tech>',
     subject: 'Re: A free one-page website for Acme',
   };
   const lead = { name: 'Acme', link: 'https://acme.example', contact: 'mailto:lead@example.com', variant: 'route=email' };
   const entries = [{
-    experiment: 'campaign', variant: 'b', status: 'sent', name: 'Acme', contact: 'mailto:lead@example.com',
+    experiment: 'campaign', variant: 'b', kind: 'email',
+    status: 'sent', deliveryStatus: 'acknowledged',
+    name: 'Acme', contact: 'mailto:lead@example.com',
+    messageId: '<outbound-acme@3dvr.tech>',
   }];
 
   try {
@@ -149,6 +178,56 @@ test('records a reply once and attributes it to the outbound experiment variant'
     assert.equal(second.recorded, false);
     assert.match(leadText, /mailto:lead@example\.com,replied/);
     assert.equal(logLines.length, 1);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('legacy campaign feedback never credits unlinked or mismatched inbound email', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-reply-unlinked-'));
+  const leads = path.join(tmp, 'leads.csv');
+  const log = path.join(tmp, 'outreach.ndjson');
+  const initialLeads = 'name,link,contact,status,date,variant\\nAcme,https://acme.example,mailto:lead@example.com,contacted,2026-07-15,route=email\\n';
+  await writeFile(leads, initialLeads.replace(/\\n/g, '\n'));
+  const lead = { name: 'Acme', contact: 'mailto:lead@example.com', variant: 'route=email' };
+  const acknowledged = {
+    kind: 'email', status: 'sent', deliveryStatus: 'acknowledged',
+    contact: 'mailto:lead@example.com', messageId: '<outbound-acme@3dvr.tech>',
+  };
+  const cases = [
+    { fromEmail: 'lead@example.com', subject: 'Re: unrelated message' },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-other@3dvr.tech>' },
+    { fromEmail: 'lead@example.com', references: '<outbound-acme@3dvr.tech.evil>' },
+    { fromEmail: 'attacker@example.com', replyToEmail: 'lead@example.com',
+      inReplyTo: '<outbound-acme@3dvr.tech>' },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-acme@3dvr.tech>',
+      entries: [{ ...acknowledged, status: 'submitted' }] },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-acme@3dvr.tech>',
+      entries: [{ ...acknowledged, contact: 'mailto:other@example.com' }] },
+    { fromEmail: 'lead@example.com', inReplyTo: '<outbound-acme@3dvr.tech>',
+      entries: [{ ...acknowledged, messageId: '' }] },
+  ];
+  try {
+    for (const [i, sample] of cases.entries()) {
+      const { entries, ...message } = sample;
+      const state = { messages: {} };
+      const result = recordLeadReplyFeedback({ messageId: 'unlinked-' + i, ...message }, lead, state, {
+        entries: entries || [acknowledged], leadsFile: leads, logOptions: { filePath: log },
+      });
+      assert.equal(result.recorded, false, 'case ' + i + ' must require manual review');
+      assert.equal(state.messages['unlinked-' + i], undefined);
+      assert.equal(await readFile(leads, 'utf8'), initialLeads.replace(/\\n/g, '\n'));
+      assert.equal(await readFile(log, 'utf8').catch(() => ''), '');
+    }
+    const state = { messages: {} };
+    const linked = recordLeadReplyFeedback({
+      messageId: 'linked', fromEmail: 'lead@example.com',
+      references: '<prior@3dvr.tech> <outbound-acme@3dvr.tech>',
+    }, lead, state, {
+      entries: [acknowledged], leadsFile: leads, logOptions: { filePath: log },
+    });
+    assert.equal(linked.recorded, true);
+    assert.match(await readFile(leads, 'utf8'), /,replied,2026-07-15/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
@@ -259,4 +338,24 @@ test('triages subject-gated public 3dvr-agent requests separately', () => {
   } finally {
     console.log = originalLog;
   }
+});
+
+test('inbox state preserves thread headers and bounce recipients for later ledger checks', () => {
+  const state = { messages: {} };
+  upsertMessageState(state, {
+    messageId: '<reply-one@test.example>', fromEmail: 'owner@test.example',
+    subject: 'Re: Automation', inReplyTo: '<sent-one@test.example>',
+    references: '<start@test.example> <sent-one@test.example>',
+  }, null);
+  assert.equal(state.messages['<reply-one@test.example>'].inReplyTo, '<sent-one@test.example>');
+  assert.equal(state.messages['<reply-one@test.example>'].references,
+    '<start@test.example> <sent-one@test.example>');
+
+  upsertMessageState(state, {
+    messageId: '<bounce-one@test.example>', from: 'Mailer Daemon',
+    fromEmail: 'mailer-daemon@test.example',
+    subject: 'Delivery Status Notification (Failure)',
+    preview: 'Message undeliverable to buyer@test.example',
+  }, null);
+  assert.deepEqual(state.messages['<bounce-one@test.example>'].bounceEmails, ['buyer@test.example']);
 });

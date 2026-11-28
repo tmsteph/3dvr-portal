@@ -4,10 +4,82 @@ function text(value) { return String(value || '').trim(); }
 function lower(value) { return text(value).toLowerCase(); }
 
 function inboxState(message = {}) {
-  const haystack = `${message.from || ''} ${message.subject || ''} ${message.preview || ''}`.toLowerCase();
-  if (/unsubscribe|remove me|do not contact|don'?t contact|\bstop\b/.test(haystack)) return 'suppressed';
-  if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(haystack)) return 'bounced';
+  // Sender addresses, and ordinary phrases like "stop by tomorrow", are
+  // not opt-outs. Bare STOP is an opt-out only as a complete subject/preview;
+  // otherwise require an explicit request to end communications.
+  const subject = lower(message.subject);
+  const preview = lower(message.preview);
+  const content = `${subject} ${preview}`;
+  const standaloneOptOut = [subject, preview].some(part =>
+    /^(?:please[,\s]+)?(?:stop|unsubscribe)[.!?\s]*$/.test(part));
+  // The word "unsubscribe" also appears in legitimate implementation work
+  // ("add an unsubscribe link"). Suppress only a direct request to leave,
+  // never a feature discussion in an otherwise linked buyer reply.
+  const explicitOptOut = /\bunsubscribe\s+(?:me|us|my\s+(?:email|address)|this\s+(?:email|address)|from\s+(?:your|the)\s+(?:list|newsletter|mailing list))\b|\b(?:i|we)\s+(?:want|wish|need|would like)\s+to\s+unsubscribe\b|\bremove me\b|\bdo not contact\b|\bdon'?t contact\b|\bstop\s+(?:contacting|emailing|messaging|texting|sending|mailing)\b/.test(content);
+  // Explicit first-person opt-outs also arrive as "take me off your list" or
+  // "don't email me". Require the request at the start of a subject/preview
+  // to avoid suppressing buyers discussing an opt-out *feature*.
+  const directOptOut = [subject, preview].some(part =>
+    /^(?:please[,\s]+)?(?:take\s+(?:me|us)\s+off\s+(?:(?:your|the|this)\s+)?(?:(?:mailing|email)\s+)?list|(?:do\s+not|don['’]?t)\s+(?:email|message|text|contact)\s+(?:me|us))\b/.test(part));
+  if (standaloneOptOut || explicitOptOut || directOptOut) return 'suppressed';
+  // Keep the sender available for delivery-agent classification.
+  const deliverySignal = `${message.from || ''} ${content}`.toLowerCase();
+  if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(deliverySignal)) return 'bounced';
   return 'replied';
+}
+
+// The sender's email address and a "Re:" subject are not proof of a
+// commercial reply. Require an explicit In-Reply-To / References link to a
+// provider-attributed outbound message recorded for this same prospect.
+// This screens structured inbox state, not unauthenticated mailboxes/files.
+function referencedMessageIds(message = {}) {
+  return [message.inReplyTo, message.references]
+    .flatMap(value => String(value || '').match(/<[^<>\s]+>|[^\s,]+/g) || [])
+    .map(value => value.replace(/^<|>$/g, '').toLowerCase())
+    .filter(Boolean);
+}
+
+// A correlated delivery-status message can confirm successful delivery or a
+// temporary delay. Neither is evidence of a permanent bounce or a lost buyer.
+// Preserve ambiguous/mixed outcomes for review; do not update CRM to Lost.
+function nonFailureDsn(message = {}) {
+  const details = `${message.subject || ''} ${message.preview || ''}`;
+  return /\bstatus:\s*[24]\.\d{1,3}\.\d{1,3}\b/i.test(details)
+    || /\bdelivery status notification\s*\(\s*(?:success|delay|delayed)\s*\)/i.test(details)
+    || /\b(?:successfully delivered|delivery (?:was )?successful|(?:message|mail) was delivered|delivery (?:was )?delayed|temporarily deferred)\b/i.test(details);
+}
+
+// A DSN-like subject or a recipient hint is not proof of which outbound
+// message failed. Require a link to this same prospect's acknowledged provider
+// Message-ID, plus a plausible delivery-agent sender, before marking bounced.
+// This is correlation only, NOT authenticated DSN/DKIM verification.
+
+function hasDsnSender(message = {}) {
+  const sender = lower(message.fromEmail || message.from);
+  return /(?:^|[<@._ -])(mailer-daemon|postmaster)(?:[>@._ -]|$)/.test(sender)
+    || /mail delivery (?:subsystem|system)/.test(sender);
+}
+
+function hasAcknowledgedThreadLink(db, prospectId, message) {
+  const ids = new Set(referencedMessageIds(message));
+  if (!ids.size) return false;
+  return db.prepare(`SELECT message_id FROM delivery_attempts
+    WHERE prospect_id = ? AND status = 'acknowledged'
+      AND message_id != '' AND transport != ''`)
+    .all(prospectId)
+    .some(row => ids.has(String(row.message_id).trim().replace(/^<|>$/g, '').toLowerCase()));
+}
+
+// DSNs often supply the failed message's ID as Original-Message-ID rather
+// than In-Reply-To. Only the bounce path may use these additional fields:
+// an ordinary human reply still needs its own real References/In-Reply-To.
+function hasAcknowledgedBounceLink(db, prospectId, message) {
+  const originals = Array.isArray(message.originalMessageIds)
+    ? message.originalMessageIds : [message.originalMessageIds];
+  return hasAcknowledgedThreadLink(db, prospectId, {
+    inReplyTo: [message.inReplyTo, message.originalMessageId].filter(Boolean).join(' '),
+    references: [message.references, ...originals].filter(Boolean).join(' '),
+  });
 }
 
 function projectInboxMessage(db, message = {}) {
@@ -17,7 +89,31 @@ function projectInboxMessage(db, message = {}) {
   const prospect = findProspectByContact(db, contact);
   if (!prospect) return { matched: false, state: inboxState(message) };
   const state = inboxState(message);
-  if (prospect.state === state || prospect.state === 'suppressed') return { matched: true, replayed: true, prospect };
+  // An unverified prospectEmail/recipient hint must not let an unrelated
+  // inbound sender suppress a different buyer's CRM record. Real opt-outs
+  // from that buyer remain immediately effective; ambiguous ones go to
+  // manual review rather than modifying a third party's contact state.
+  if (state === 'suppressed' && lower(message.fromEmail) !== contact) {
+    return { matched: false, state, reason: 'unattributed opt-out requires manual review' };
+  }
+  if (state === 'bounced' && nonFailureDsn(message)) {
+    return { matched: false, state, reason: 'non-failure delivery notice requires manual review' };
+  }
+  if (state === 'bounced' && (!hasDsnSender(message) || !hasAcknowledgedBounceLink(db, prospect.id, message))) {
+    return { matched: false, state, reason: 'unattributed delivery failure requires manual review' };
+  }
+  if (state === 'replied' && (
+    lower(message.fromEmail) !== contact ||
+    !hasAcknowledgedThreadLink(db, prospect.id, message)
+  )) {
+    return { matched: false, state, reason: 'unlinked reply requires manual review' };
+  }
+  // A new message ID from a buyer who already replied is not a replay.
+  // Let the ledger persist a second inbox_replied event and CRM touch; only
+  // the same message ID is idempotent. Suppression remains terminal.
+  if ((prospect.state === state && state !== 'replied') || prospect.state === 'suppressed') {
+    return { matched: true, replayed: true, prospect };
+  }
   if (!['sent', 'replied'].includes(prospect.state) && state !== 'suppressed') {
     throw new Error(`Inbox event ${state} is invalid for ${prospect.state} prospect`);
   }
@@ -25,7 +121,9 @@ function projectInboxMessage(db, message = {}) {
     prospectId: prospect.id,
     toState: state,
     type: `inbox_${state}`,
-    idempotencyKey: `inbox:${messageId}:${state}`,
+    // One DSN may report failure for several distinct contacts. The inbox
+    // message ID is unique per prospect, not globally unique across leads.
+    idempotencyKey: `inbox:${prospect.id}:${messageId}:${state}`,
     payload: { messageId, uid: text(message.uid), subject: text(message.subject) },
   }) };
 }

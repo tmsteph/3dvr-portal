@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import {
   buildFulfillmentOrder,
   chooseFulfillmentLane,
-  createOrFindFulfillmentIssue
+  createOrFindFulfillmentIssue,
+  dispatchPaidCheckout
 } from '../src/money/fulfillment-router.js';
 
 function checkoutEvent(overrides = {}) {
   return {
-    id: 'evt_auto_1',
+    id: 'evt_auto_1', livemode: true,
     type: 'checkout.session.completed',
     data: { object: {
-      id: 'cs_auto_1', mode: 'payment', payment_status: 'paid',
+      id: 'cs_auto_1', livemode: true, mode: 'payment', payment_status: 'paid',
       amount_total: 29900, currency: 'usd', payment_link: 'plink_auto',
       customer_details: { email: 'private@example.com' },
       metadata: { offer: 'automation-quick-win', source: 'autobusiness' },
@@ -90,4 +91,82 @@ test('GitHub task body contains no private checkout fields', async () => {
   const createdBody = JSON.parse(calls[1].options.body);
   assert.match(createdBody.body, /3dvr-fulfillment:evt_auto_1/);
   assert.doesNotMatch(createdBody.body, /private@example\.com|Automate lead follow-up/);
+});
+
+test('only explicit positive integer paid checkout is classified as paid', () => {
+  for (const type of ['checkout.session.completed', 'checkout.session.async_payment_succeeded']) {
+    for (const overrides of [
+      { payment_status: undefined },
+      { payment_status: 'unpaid' },
+      { amount_total: 0 },
+      { amount_total: -1 },
+      { amount_total: 1.5 },
+      { amount_total: '29900' },
+      { amount_total: null },
+      { currency: '' },
+      { currency: 'US dollars' }
+    ]) {
+      assert.equal(buildFulfillmentOrder({ ...checkoutEvent(overrides), type }), null);
+    }
+    const order = buildFulfillmentOrder({ ...checkoutEvent(), type });
+    assert.equal(order.paymentClass, 'paid');
+    assert.equal(order.amountCents, 29900);
+    assert.equal(order.currency, 'usd');
+  }
+});
+
+test('explicit free checkout may fulfill but is not represented as paid revenue', () => {
+  const event = checkoutEvent({ payment_status: 'no_payment_required', amount_total: 0 });
+  const order = buildFulfillmentOrder(event);
+  assert.equal(order.paymentClass, 'no-payment-required');
+  assert.equal(order.amountCents, 0);
+  assert.match(order.publicBody, /no customer revenue attributed/);
+  assert.doesNotMatch(order.publicBody, /## Paid fulfillment order/);
+  assert.doesNotMatch(order.privateSummary, /^Paid Auto Business/);
+  assert.equal(buildFulfillmentOrder(checkoutEvent({ payment_status: 'no_payment_required' })), null);
+  assert.equal(buildFulfillmentOrder({ ...event, type: 'checkout.session.async_payment_succeeded' }), null);
+});
+
+test('test and ambiguous Stripe modes never dispatch fulfillment', async () => {
+  for (const type of ['checkout.session.completed', 'checkout.session.async_payment_succeeded']) {
+    for (const [eventMode, sessionMode] of [[false, false], [false, true], [true, false], [undefined, true], [true, undefined], ['true', true]]) {
+      const event = { ...checkoutEvent({ livemode: sessionMode }), type, livemode: eventMode };
+      let calls = 0;
+      const result = await dispatchPaidCheckout(event, { config: { GITHUB_TOKEN: 'test' }, fetchImpl: async () => { calls++; throw new Error('Unexpected network'); } });
+      assert.equal(result.order, null);
+      assert.equal(result.ticket.status, 'skipped');
+      assert.equal(calls, 0);
+    }
+  }
+  assert.equal(buildFulfillmentOrder(checkoutEvent({ livemode: false, payment_status: 'no_payment_required', amount_total: 0 })), null);
+});
+
+test('missing or malformed event and session identities never dispatch', async () => {
+  for (const invalid of [undefined, '', 'unknown', 'evt bad', 'cs_']) {
+    for (const event of [{ ...checkoutEvent(), id: invalid }, checkoutEvent({ id: invalid })]) {
+      let calls = 0;
+      const result = await dispatchPaidCheckout(event, { config: { GITHUB_TOKEN: 'test' }, fetchImpl: async () => { calls++; throw new Error('Unexpected network'); } });
+      assert.equal(result.order, null);
+      assert.equal(result.ticket.status, 'skipped');
+      assert.equal(calls, 0);
+    }
+  }
+});
+
+test('incomplete or malformed issue lookup cannot trigger fulfillment creation', async () => {
+  for (const payload of [{ incomplete_results: true, items: [] }, {}, { items: null }]) {
+    const calls = [];
+    const result = await dispatchPaidCheckout(checkoutEvent(), {
+      config: { GITHUB_TOKEN: 'test' },
+      fetchImpl: async (url, options = {}) => {
+        calls.push({ url, options });
+        return { ok: true, json: async () => payload };
+      }
+    });
+    assert.equal(result.ticket.status, 'error');
+    assert.match(result.ticket.reason, /lookup incomplete/);
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].url.includes('/search/issues'));
+    assert.notEqual(calls[0].options.method, 'POST');
+  }
 });

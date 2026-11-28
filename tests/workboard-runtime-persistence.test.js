@@ -111,6 +111,43 @@ test('human checkpoints remain visible through the sidecar', () => {
   assert.equal(display.humanCheckpointStatus, 'required');
 });
 
+test('Workboard does not claim signed Operator completion without a worker identity', () => {
+  const signedComplete = {
+    ...workItemToAgentQueueRecord(sampleWorkItem(), { backend: 'codex' }),
+    id: 'operator-http-synthetic-completion',
+    source: 'operator-http',
+    status: 'completed',
+    runtimeState: 'done',
+    workerDeviceId: '',
+    resultSummary: 'Synthetic completed result, not independently verified'
+  };
+  const unverified = queueRecordToWorkItem(signedComplete);
+  const display = normalizeQueueRecordForWorkboard(signedComplete);
+  assert.equal(unverified.state, 'verifying');
+  assert.equal(unverified.result, null, 'an unattributed completion is not verified execution evidence');
+  assert.equal(display.status, 'verifying', 'unattributed signed task must stay out of Done');
+  assert.equal(display.verificationStatus, 'missing_worker_attribution');
+  assert.match(display.resultSummary, /unverified.*worker identity/i);
+  assert.equal(signedComplete.status, 'completed', 'original queue row remains unchanged for reconciliation');
+
+  const attributed = normalizeQueueRecordForWorkboard({
+    ...signedComplete, workerDeviceId: 'ci-private-worker'
+  });
+  assert.equal(attributed.status, 'done');
+  assert.equal(attributed.verificationStatus, 'pending', 'existing verification metadata is preserved');
+  assert.equal(attributed.resultSummary, signedComplete.resultSummary);
+
+  const legacy = normalizeQueueRecordForWorkboard({
+    ...signedComplete, id: 'legacy-queue-task', source: 'sqlite'
+  });
+  assert.equal(legacy.status, 'done', 'other queue contracts retain their existing display behavior');
+
+  const stillQueued = normalizeQueueRecordForWorkboard({
+    ...signedComplete, status: 'queued', runtimeState: 'queued'
+  });
+  assert.equal(stillQueued.status, 'queued', 'normal signed queue work remains unchanged');
+});
+
 test('Workboard and Operator use the shared runtime persistence bridge', async () => {
   const [workboard, template, operatorQueue, docs] = await Promise.all([
     readFile(new URL('../workboard/app.js', import.meta.url), 'utf8'),

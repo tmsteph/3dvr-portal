@@ -8,8 +8,26 @@ import time
 from pathlib import Path
 
 
+def classify_service(unit, fields, now_monotonic_us):
+    """Separate cumulative restart history from a recently unstable service."""
+    problems = []
+    warnings = []
+    active = fields.get("ActiveState") == "active"
+    if not active:
+        problems.append(f"service_inactive:{unit}")
+    if int(fields.get("NRestarts", 0)) >= 3:
+        entered = int(fields.get("ActiveEnterTimestampMonotonic", 0))
+        stable = active and 0 < entered <= now_monotonic_us - 300_000_000
+        if stable:
+            warnings.append(f"historical_restarts:{unit}")
+        else:
+            problems.append(f"restart_history_needs_review:{unit}")
+    return problems, warnings
+
+
 def check_host():
     problems = []
+    warnings = []
     hostname = os.uname().nodename
     units = ["caddy.service"]
     if hostname == "vps-2b6a0420":
@@ -39,13 +57,13 @@ def check_host():
         except (OSError, ValueError):
             problems.append(f"portal_health_failed:{port}")
     for unit in units:
-        result = subprocess.run(["systemctl", "show", unit, "-p", "ActiveState", "-p", "NRestarts"],
+        result = subprocess.run(["systemctl", "show", unit, "-p", "ActiveState", "-p", "NRestarts",
+                                 "-p", "ActiveEnterTimestampMonotonic"],
                                 capture_output=True, text=True, timeout=5)
         fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
-        if fields.get("ActiveState") != "active":
-            problems.append(f"service_inactive:{unit}")
-        if int(fields.get("NRestarts", 0)) >= 3:
-            problems.append(f"restart_loop:{unit}")
+        service_problems, service_warnings = classify_service(unit, fields, time.monotonic_ns() // 1000)
+        problems.extend(service_problems)
+        warnings.extend(service_warnings)
     for peer in peers:
         result = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", peer, "true"],
                                 capture_output=True, timeout=5)
@@ -88,7 +106,7 @@ def check_host():
     state_path.write_text(json.dumps(current))
     if blocked:
         problems.append(f"old_blocked_processes:{blocked}")
-    return {"ok": not problems, "hostname": hostname, "problems": problems}
+    return {"ok": not problems, "hostname": hostname, "problems": problems, "warnings": warnings}
 
 
 if __name__ == "__main__":

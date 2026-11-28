@@ -25,9 +25,35 @@ db.exec('PRAGMA busy_timeout=5000');
 try {
   db.exec('BEGIN IMMEDIATE');
   const owner = '3dvr-managed';
-  let row = db.prepare('SELECT status,record_json FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  let row = db.prepare('SELECT status,record_json,source FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  // An existing row is only a signed Operator receipt if it originated from
+  // the authenticated HTTP transport. Never claim a legacy/imported row as
+  // this signer's completed work, even when its ID and task text collide.
+  if (row && row.source !== 'operator-http') throw Error('Task source conflict');
+  // A terminal status without a worker identity is not evidence that a
+  // private worker actually ran. Refuse both status and enqueue retries rather
+  // than turning a legacy/partial row into a signed completion receipt.
+  if (row && row.status === 'completed') {
+    const completed = JSON.parse(row.record_json);
+    if (typeof completed.workerDeviceId !== 'string' || !completed.workerDeviceId.trim()) {
+      throw Error('Unattributed task completion');
+    }
+  }
   if (input.action === 'enqueue') {
-    if (row && JSON.parse(row.record_json).task !== input.record.task) throw Error('Task identity conflict');
+    if (row) {
+      const saved = JSON.parse(row.record_json);
+      // A retry of the same signed request must not accept a changed title:
+      // title lives in the work-item sidecar, not the queue's task text.
+      const savedTitle = JSON.parse(saved.runtimeWorkItemJson || '{}').title || '';
+      const requestedTitle = JSON.parse(input.record.runtimeWorkItemJson || '{}').title || '';
+      // The exact signed request is the retry identity, even when whitespace
+      // normalization would produce the same queue task and sidecar title.
+      // Legacy records without a digest retain the task/title comparison.
+      if (saved.task !== input.record.task || savedTitle !== requestedTitle ||
+          (saved.operatorRequestDigest && saved.operatorRequestDigest !== input.record.operatorRequestDigest)) {
+        throw Error('Task identity conflict');
+      }
+    }
     if (!row) {
       const count = db.prepare("SELECT count(*) AS n FROM tasks WHERE owner_alias=? AND id LIKE ? AND status IN ('queued','running')").get(owner,input.prefix+'%').n;
       if (count >= 5) throw Error('Five tasks are already pending; wait for a result');
@@ -40,7 +66,7 @@ try {
   if (!row) console.log(JSON.stringify({ok:false,missing:true,error:'Task not found.'}));
   else {
     const record = JSON.parse(row.record_json);
-    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',resultText:String(record.resultText || '').slice(0,24000),resultSummaryTruncated:record.resultSummaryTruncated === true,resultTruncated:record.resultTruncated === true,error:record.error || '',workerDeviceId:record.workerDeviceId || ''}}));
+    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,completedAt:record.completedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',resultText:String(record.resultText || '').slice(0,24000),resultSummaryTruncated:record.resultSummaryTruncated === true,resultTruncated:record.resultTruncated === true,error:record.error || '',workerDeviceId:record.workerDeviceId || '',operatorRequestDigest:typeof record.operatorRequestDigest === 'string' && /^[a-f0-9]{64}$/.test(record.operatorRequestDigest) ? record.operatorRequestDigest : ''}}));
   }
 } finally { db.close(); }
 QUEUE_NODE
@@ -75,6 +101,19 @@ export function runManagedQueue(input, options = {}) {
 
 export function createOperatorDispatchHandler(options = {}) {
   const config = options.config || process.env;
+  // Only an explicitly constructed scratch handler can admit the reserved
+  // local model backend. The normal API and managed SSH path stay Codex-only;
+  // neither request fields nor environment flags alone can select this lane.
+  const localCanary = options.localCanary === true;
+  const canaryId = config.OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID;
+  const canaryDigest = config.OPERATOR_RUNTIME_E2E_EXPECTED_REQUEST_DIGEST;
+  if (localCanary && (!options.config || typeof options.run !== 'function' || options.verify
+      || config.OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED !== '1'
+      || config.OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED !== '1'
+      || !/^operator-http-[a-f0-9]{24}-operator-e2e-[A-Za-z0-9_-]{12,80}$/.test(canaryId || '')
+      || !/^[a-f0-9]{64}$/.test(canaryDigest || ''))) {
+    throw new Error('Local canary admission requires an explicit isolated transport and exact request pin.');
+  }
   const run = options.run || (input => runManagedQueue(input, options));
   const verify = options.verify || verifySignedSeaPayload;
   const reply = (res, status, value) => {
@@ -135,10 +174,20 @@ export function createOperatorDispatchHandler(options = {}) {
     }
     const prefix = `operator-http-${createHash('sha256').update(auth.identity.pub).digest('hex').slice(0,24)}-`;
     const id = prefix + requestId;
+    if (localCanary && (!ownerAlias || id !== canaryId)) {
+      return reply(res, 403, {ok:false,error:'Task is outside the isolated canary pin.'});
+    }
     const input = {action,id,prefix};
     if (action === 'enqueue') {
       const built = buildOperatorDelegatedTask({text,title}, {id,tenantAlias:ownerAlias ? 'operator-owner' : adminAlias});
-      input.record = {...built.record, backend:'codex', requiredCapabilities:'codex', unsafe:false};
+      // Persist the immutable signed command identity. Do not hash generated
+      // work-item timestamps, which legitimately differ on an HTTP retry.
+      const operatorRequestDigest = createHash('sha256').update(JSON.stringify({text,title})).digest('hex');
+      if (localCanary && operatorRequestDigest !== canaryDigest) {
+        return reply(res, 403, {ok:false,error:'Task is outside the isolated canary digest.'});
+      }
+      const backend = localCanary ? 'local-canary' : 'codex';
+      input.record = {...built.record, backend, requiredCapabilities:backend, unsafe:false, operatorRequestDigest};
     }
     try {
       const result = await run(input);

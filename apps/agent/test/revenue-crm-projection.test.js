@@ -3,8 +3,200 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { claimProjection, createProspect, finishProjection, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { projectPendingCrm, recordFor } = require('../thomas-agent/node/revenue-crm-projection');
+
+test('revenue CRM retains the public source and clears stale follow-up on suppression', () => {
+  const sourceUrl = 'https://example.test/public-request-123';
+  const prospect = {
+    id: 'synthetic-1', name: 'Synthetic Buyer', contact: 'synthetic@example.test',
+    source_url: sourceUrl, state: 'suppressed', campaign_id: 'discovery',
+    created_at: '2026-11-21T20:00:00Z',
+  };
+  const event = {
+    id: 'synthetic-opt-out', type: 'opt_out', from_state: 'verified',
+    to_state: 'suppressed', created_at: '2026-11-21T20:01:00Z',
+  };
+  const projected = recordFor(prospect, event, '2026-11-21T20:02:00Z');
+  assert.equal(projected.sourceUrl, sourceUrl, 'provenance must reach Operator CRM');
+  assert.match(projected.lastSignal, /Source: https:\/\/example\.test\/public-request-123/);
+  assert.equal(projected.status, 'Closed');
+  assert.equal(projected.nextFollowUp, '', 'suppression must not retain an automatic reminder');
+  assert.match(projected.nextBestAction, /Do not contact/);
+  assert.equal(projected.lastPaymentAmountCents, undefined, 'no payment without provider verification');
+  const activeDiscovery = recordFor({ ...prospect, state: 'replied' },
+    { ...event, to_state: 'replied', type: 'inbox_replied' }, '2026-11-21T20:03:00Z', { acknowledgedDelivery: true });
+  assert.equal(activeDiscovery.status, 'Warm - Discovery');
+  assert.equal(activeDiscovery.nextFollowUp, undefined,
+    'a projected reply must not erase a human-scheduled CRM follow-up');
+});
+
+test('legacy imported send and reply labels do not become verified warm CRM leads', () => {
+  const prospect = {
+    id: 'historical-signal', name: 'Historical Buyer',
+    contact: 'buyer@example.test', source_url: 'https://example.test/old-lead',
+    state: 'sent', campaign_id: 'legacy', created_at: '2026-01-01T00:00:00Z'
+  };
+  const event = {
+    id: 'historical-import', type: 'legacy_import',
+    from_state: 'prospect', to_state: 'sent', created_at: '2026-01-02T00:00:00Z'
+  };
+  for (const state of ['sent', 'replied']) {
+    const record = recordFor({ ...prospect, state }, { ...event, to_state: state },
+      '2026-11-22T20:00:00Z');
+    assert.equal(record.canonicalState, state, 'preserve original import for reconciliation');
+    assert.equal(record.status, 'Lead', 'unverified history cannot count as contacted or warm');
+    assert.equal(record.nextFollowUp, '', 'an imported claim must never preserve an automatic reminder');
+    assert.match(record.lastSignal, /Contact\/reply unverified by acknowledged delivery event/);
+    assert.match(record.nextBestAction, /Reconcile manually; do not send or schedule a follow-up/);
+    assert.equal(record.lastPaymentAmountCents, undefined);
+  }
+  const actualSend = recordFor(prospect, { ...event, type: 'delivery_acknowledged' },
+    '2026-11-22T20:00:00Z', { acknowledgedDelivery: true });
+  assert.equal(actualSend.status, 'Warm - Waiting',
+    'existing attributed send classifications stay unchanged');
+  const suppression = recordFor({ ...prospect, state: 'suppressed' },
+    { ...event, to_state: 'suppressed' }, '2026-11-22T20:00:00Z');
+  assert.equal(suppression.status, 'Closed', 'never loosen historical opt-out safety');
+  assert.equal(suppression.nextFollowUp, '');
+});
+
+test('CRM warm status requires a matching acknowledged delivery even when an event claims contact', async () => {
+  const prospect = {
+    id: 'unverified-current-contact', name: 'Synthetic Contact',
+    contact: 'unverified@example.test', source_url: 'https://example.test/lead',
+    state: 'sent', campaign_id: 'synthetic', created_at: '2026-11-22T18:00:00Z'
+  };
+  const sent = { id: 'claimed-send', type: 'delivery_acknowledged', to_state: 'sent' };
+  const replied = { id: 'claimed-reply', type: 'inbox_replied', to_state: 'replied' };
+  for (const [state, event] of [['sent', sent], ['replied', replied]]) {
+    const withoutAttempt = recordFor({ ...prospect, state }, event, '2026-11-22T18:01:00Z');
+    assert.equal(withoutAttempt.status, 'Lead', 'a label and claimed event cannot verify contact');
+    assert.equal(withoutAttempt.nextFollowUp, '', 'unverified contact cannot be auto-followed');
+    assert.match(withoutAttempt.nextBestAction, /Reconcile manually/);
+    const wrongEvent = recordFor({ ...prospect, state }, { ...event, type: 'state_transition' },
+      '2026-11-22T18:01:00Z', { acknowledgedDelivery: true });
+    assert.equal(wrongEvent.status, 'Lead', 'an unrelated ledger event is not an attributable contact');
+  }
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-contact-integrity-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, {
+      name: 'Synthetic No-Receipt Buyer', contact: 'no-receipt@example.test'
+    }).prospect;
+    transitionProspect(db, { prospectId: buyer.id, toState: 'verified', idempotencyKey: 'no-receipt-v' });
+    transitionProspect(db, { prospectId: buyer.id, toState: 'eligible', idempotencyKey: 'no-receipt-e' });
+    // The generic ledger API can record this label without a verified provider
+    // acknowledgement. It must not become a warm lead in the projected CRM.
+    transitionProspect(db, { prospectId: buyer.id, toState: 'sent', idempotencyKey: 'no-receipt-s' });
+    const emitted = [];
+    for (let i = 0; i < 3; i += 1) {
+      const result = await projectPendingCrm(db, {
+        write: async payload => {
+          emitted.push(payload.records[0]);
+          return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+        }
+      });
+      assert.equal(result.succeeded, 1);
+    }
+    assert.equal(emitted.length, 3);
+    assert.equal(emitted.at(-1).canonicalState, 'sent');
+    assert.equal(emitted.at(-1).status, 'Lead');
+    assert.equal(emitted.at(-1).nextFollowUp, '');
+    assert.equal(pendingProjections(db).length, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('CRM projection does not turn profile URLs or social handles into email addresses', () => {
+  const prospect = {
+    id: 'synthetic-public-profile', name: 'Public Profile Buyer',
+    contact: '', source_url: 'https://example.test/public-request',
+    state: 'verified', campaign_id: 'discovery', created_at: '2026-11-22T16:00:00Z'
+  };
+  const event = {
+    id: 'synthetic-profile-event', type: 'verified', from_state: 'prospect',
+    to_state: 'verified', created_at: '2026-11-22T16:01:00Z'
+  };
+  for (const contact of [
+    '@publichandle', 'https://social.example/@publichandle',
+    'https://user@example.test/profile', 'not-an-email@',
+    'matrix:@person:example.test', 'mailto:not-an-address'
+  ]) {
+    assert.equal(recordFor({ ...prospect, contact }, event, '2026-11-22T16:02:00Z').email,
+      '', `social/public contact ${contact} must not become a CRM email destination`);
+  }
+  assert.equal(recordFor({ ...prospect, contact: 'Buyer+trial@Example.test' }, event,
+    '2026-11-22T16:02:00Z').email, 'Buyer+trial@Example.test');
+  assert.equal(recordFor({ ...prospect, contact: 'mailto:buyer@example.test?subject=Hello' }, event,
+    '2026-11-22T16:02:00Z').email, 'buyer@example.test');
+});
+
+test('ambiguous send failure stays a reviewable lead rather than a lost sale', () => {
+  const prospect = {
+    id: 'synthetic-ambiguous', name: 'Synthetic Buyer',
+    contact: 'uncertain@example.test', source_url: 'https://example.test/request',
+    state: 'failed', campaign_id: 'research',
+    created_at: '2026-11-21T20:00:00Z'
+  };
+  const event = {
+    id: 'failure-event', type: 'delivery_failed', from_state: 'eligible',
+    to_state: 'failed', created_at: '2026-11-21T20:01:00Z'
+  };
+  const record = recordFor(prospect, event, '2026-11-21T20:02:00Z');
+  assert.equal(record.canonicalState, 'failed');
+  assert.equal(record.status, 'Lead', 'a transport error cannot prove customer loss');
+  assert.match(record.nextBestAction, /Manual delivery reconciliation required/);
+  assert.match(record.nextBestAction, /do not retry or follow up automatically/);
+  assert.equal(record.nextFollowUp, undefined, 'keep any human-scheduled review');
+  assert.equal(record.lastPaymentAmountCents, undefined);
+  const claimedBounce = recordFor({ ...prospect, state: 'bounced' }, event, '2026-11-21T20:03:00Z');
+  assert.equal(claimedBounce.status, 'Lead', 'unverified bounce labels must not count as lost deals');
+  assert.equal(claimedBounce.nextFollowUp, '', 'a claimed bounce still blocks outreach reminders');
+  assert.match(claimedBounce.lastSignal, /Bounce status unverified by authenticated provider event/);
+  assert.match(claimedBounce.nextBestAction, /Do not contact, retry or mark lost/);
+  const linkedBounce = recordFor({ ...prospect, state: 'bounced' },
+    { ...event, type: 'inbox_bounced' }, '2026-11-21T20:04:00Z',
+    { acknowledgedDelivery: true });
+  assert.equal(linkedBounce.status, 'Lost', 'a correlated inbox bounce with acknowledged outbound remains lost');
+  assert.equal(linkedBounce.nextFollowUp, '');
+  assert.doesNotMatch(linkedBounce.lastSignal, /Bounce status unverified/);
+});
+
+test('state-only bounce cannot create a lost CRM conversion in the canonical outbox', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-bounce-integrity-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const buyer = createProspect(db, {
+      name: 'Synthetic Bounce Buyer', contact: 'bounce-synthetic@example.test',
+      sourceUrl: 'https://example.test/source'
+    }).prospect;
+    for (const state of ['verified', 'eligible', 'sent', 'bounced']) {
+      transitionProspect(db, {
+        prospectId: buyer.id, toState: state, type: 'state_transition',
+        idempotencyKey: `synthetic-bounce-${state}`
+      });
+    }
+    const projected = [];
+    for (let i = 0; i < 4; i += 1) {
+      const result = await projectPendingCrm(db, {
+        write: async payload => {
+          projected.push(payload.records[0]);
+          return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+        }
+      });
+      assert.equal(result.succeeded, 1);
+    }
+    const final = projected.at(-1);
+    assert.equal(final.canonicalState, 'bounced', 'preserve canonical history for review');
+    assert.equal(final.status, 'Lead', 'a bounce label with no provider evidence is not a lost sale');
+    assert.equal(final.nextFollowUp, '', 'no automatic contact after a claimed bounce');
+    assert.match(final.lastSignal, /Bounce status unverified by authenticated provider event/);
+    assert.match(final.nextBestAction, /reconciles the provider event/);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('CRM projection retries a timeout and completes idempotently', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-projection-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
@@ -20,28 +212,429 @@ test('CRM projection retries a timeout and completes idempotently', async () => 
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('CRM projection preserves the legacy stable record identity while waiting quietly after contact', () => {
+test('expired CRM claim cannot falsely acknowledge a projection without re-claiming', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-expired-claim-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, {
+      name: 'Synthetic Expired Claim', contact: 'expired@example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-expired-verified'
+    });
+    const row = pendingProjections(db)[0];
+    const expiredToken = claimProjection(db, { id: row.id });
+    assert.ok(expiredToken);
+    // Simulate clock/worker delay in a scratch database. No remote write or timer.
+    db.prepare('UPDATE projection_claims SET expires_at = ? WHERE projection_id = ?')
+      .run('2000-01-01T00:00:00.000Z', row.id);
+    assert.throws(
+      () => finishProjection(db, { id: row.id, status: 'succeeded', claimToken: expiredToken }),
+      /CRM projection claim is stale or missing/,
+      'an expired worker lease is not proof of an acknowledged CRM write'
+    );
+    assert.equal(db.prepare('SELECT status FROM projection_outbox WHERE id = ?').get(row.id).status, 'pending');
+    const reclaimedToken = claimProjection(db, { id: row.id });
+    assert.ok(reclaimedToken);
+    assert.notEqual(reclaimedToken, expiredToken);
+    assert.throws(
+      () => finishProjection(db, { id: row.id, status: 'failed', claimToken: expiredToken }),
+      /CRM projection claim is stale or missing/,
+      'old worker cannot demote the new lease owner'
+    );
+    finishProjection(db, { id: row.id, status: 'succeeded', claimToken: reclaimedToken });
+    assert.equal(db.prepare('SELECT status FROM projection_outbox WHERE id = ?').get(row.id).status, 'succeeded');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM projection_claims').get().n, 0);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('two SQLite CRM projection workers cannot write one outbox event concurrently', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-claimed-'));
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const firstDb = openLedger({ filePath: ledger });
+  const secondDb = openLedger({ filePath: ledger });
+  let releaseWrite;
+  const heldWrite = new Promise(resolve => { releaseWrite = resolve; });
+  let markStarted;
+  const writeStarted = new Promise(resolve => { markStarted = resolve; });
+  let writeCount = 0;
+  try {
+    const prospect = createProspect(firstDb, {
+      name: 'Synthetic Concurrency Buyer', contact: 'concurrent@example.test'
+    }).prospect;
+    transitionProspect(firstDb, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-concurrent-verified'
+    });
+    const first = projectPendingCrm(firstDb, { write: async payload => {
+      writeCount += 1;
+      markStarted();
+      await heldWrite;
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    await writeStarted;
+    assert.equal(pendingProjections(secondDb).length, 0,
+      'a claimed in-flight row cannot consume another bounded worker batch');
+    const second = await projectPendingCrm(secondDb, { write: async payload => {
+      writeCount += 1;
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    assert.deepEqual(second, { attempted: 0, succeeded: 0, failed: 0, errors: [] });
+    assert.equal(writeCount, 1, 'only the lease holder may call the CRM writer');
+    releaseWrite();
+    const completed = await first;
+    assert.equal(completed.succeeded, 1);
+    assert.equal(pendingProjections(secondDb).length, 0);
+    assert.equal(firstDb.prepare("SELECT status, attempts FROM projection_outbox").get().status, 'succeeded');
+    assert.equal(firstDb.prepare("SELECT count(*) AS n FROM projection_claims").get().n, 0,
+      'completed work releases its claim');
+  } finally {
+    releaseWrite();
+    firstDb.close();
+    secondDb.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('CRM projection serializes different events for one buyer across SQLite workers', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-same-buyer-'));
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const firstDb = openLedger({ filePath: ledger });
+  const secondDb = openLedger({ filePath: ledger });
+  let releaseWrite;
+  const heldWrite = new Promise(resolve => { releaseWrite = resolve; });
+  let signalStarted;
+  const writeStarted = new Promise(resolve => { signalStarted = resolve; });
+  const writes = [];
+  try {
+    const buyer = createProspect(firstDb, {
+      name: 'Synthetic Opt Out', contact: 'optout@example.test'
+    }).prospect;
+    transitionProspect(firstDb, {
+      prospectId: buyer.id, toState: 'verified', idempotencyKey: 'same-buyer-verified'
+    });
+    const first = projectPendingCrm(firstDb, { write: async payload => {
+      writes.push(payload.records[0].canonicalState);
+      signalStarted();
+      await heldWrite;
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    await writeStarted;
+
+    // An opt-out event arrives while the earlier buyer write is still in flight.
+    // A second worker must not project it concurrently and then risk having
+    // the late prior write overwrite the Closed/Do not contact CRM state.
+    transitionProspect(secondDb, {
+      prospectId: buyer.id, toState: 'suppressed', idempotencyKey: 'same-buyer-suppressed'
+    });
+    assert.equal(pendingProjections(secondDb).length, 0,
+      'a held buyer claim excludes every event for that buyer before LIMIT');
+    const competing = await projectPendingCrm(secondDb, { write: async () => {
+      throw new Error('concurrent same-buyer CRM write');
+    } });
+    assert.equal(competing.attempted, 0);
+
+    releaseWrite();
+    assert.equal((await first).succeeded, 1);
+    const final = await projectPendingCrm(secondDb, { write: async payload => {
+      writes.push(payload.records[0].canonicalState);
+      assert.equal(payload.records[0].status, 'Closed');
+      assert.equal(payload.records[0].nextBestAction, 'Do not contact.');
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    assert.equal(final.succeeded, 1);
+    assert.deepEqual(writes, ['verified', 'suppressed']);
+    assert.equal(pendingProjections(firstDb).length, 0);
+    assert.equal(firstDb.prepare('SELECT COUNT(*) AS total FROM projection_claims').get().total, 0);
+  } finally {
+    releaseWrite();
+    firstDb.close();
+    secondDb.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('expired CRM lease handoff preserves newer success and continues unrelated batch work', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-stale-handoff-'));
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  const oldWorker = openLedger({ filePath: ledger });
+  const newWorker = openLedger({ filePath: ledger });
+  let releaseOldWrite;
+  const heldWrite = new Promise(resolve => { releaseOldWrite = resolve; });
+  let signalStarted;
+  const oldWriteStarted = new Promise(resolve => { signalStarted = resolve; });
+  const oldWrites = [];
+  const newWrites = [];
+  try {
+    for (const [index, contact] of ['first@example.test', 'second@example.test'].entries()) {
+      const prospect = createProspect(oldWorker, { name: 'Synthetic ' + index, contact }).prospect;
+      transitionProspect(oldWorker, {
+        prospectId: prospect.id, toState: 'verified', idempotencyKey: 'handoff:' + index
+      });
+    }
+    const originalBatch = projectPendingCrm(oldWorker, {
+      limit: 2,
+      write: async payload => {
+        const email = payload.records[0].email;
+        oldWrites.push(email);
+        if (email === 'first@example.test') {
+          signalStarted();
+          await heldWrite;
+        }
+        return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+      },
+    });
+    await oldWriteStarted;
+    // Simulate expiry with a local scratch SQLite edit, not a remote relay,
+    // timer, production queue or actual CRM transport.
+    oldWorker.prepare('UPDATE projection_claims SET expires_at = ?')
+      .run('2000-01-01T00:00:00.000Z');
+    const reclaimed = await projectPendingCrm(newWorker, {
+      limit: 1,
+      write: async payload => {
+        newWrites.push(payload.records[0].email);
+        return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+      },
+    });
+    assert.equal(reclaimed.succeeded, 1);
+    assert.deepEqual(newWrites, ['first@example.test'], 'new holder settles the reclaimed first event');
+
+    releaseOldWrite();
+    const settled = await originalBatch;
+    assert.equal(settled.attempted, 2);
+    assert.equal(settled.failed, 1, 'old holder cannot count its stale result as accepted');
+    assert.equal(settled.succeeded, 1, 'unrelated second prospect must still complete');
+    assert.match(settled.errors.join(' '), /lost its claim|stale or missing/);
+    // Independent buyers have no durable relative ordering when timestamps tie:
+    // the outbox sorts by a generated ID. Verify both were attempted exactly
+    // once, not an accidental UUID-dependent sequence.
+    assert.deepEqual([...oldWrites].sort(), ['first@example.test', 'second@example.test']);
+    const rows = newWorker.prepare('SELECT status, attempts FROM projection_outbox ORDER BY created_at, id').all();
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every(row => row.status === 'succeeded' && row.attempts === 1),
+      'the stolen claim must not demote or double-settle the newer success');
+    assert.equal(newWorker.prepare('SELECT COUNT(*) AS total FROM projection_claims').get().total, 0);
+  } finally {
+    releaseOldWrite();
+    oldWorker.close();
+    newWorker.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('CRM outbox refuses cross-prospect event linkage before writing any mismatched record', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-cross-lead-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const first = createProspect(db, { name: 'Synthetic North', contact: 'north@example.test' }).prospect;
+    const second = createProspect(db, { name: 'Synthetic South', contact: 'south@example.test' }).prospect;
+    const firstEvent = transitionProspect(db, {
+      prospectId: first.id, toState: 'verified', idempotencyKey: 'cross-lead-north'
+    }).event;
+    transitionProspect(db, {
+      prospectId: second.id, toState: 'verified', idempotencyKey: 'cross-lead-south'
+    });
+    const third = createProspect(db, {
+      name: 'Synthetic West', contact: 'west@example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: third.id, toState: 'verified', idempotencyKey: 'cross-lead-west'
+    });
+    // Both foreign keys still reference valid rows. Only their relationship is
+    // corrupt, so schema FK enforcement alone cannot catch this attribution bug.
+    db.prepare('UPDATE projection_outbox SET prospect_id=? WHERE event_id=?').run(second.id, firstEvent.id);
+    const writes = [];
+    const result = await projectPendingCrm(db, { write: async payload => {
+      writes.push(payload);
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    } });
+    assert.equal(result.attempted, 2);
+    assert.equal(result.succeeded, 1);
+    assert.equal(result.failed, 1);
+    assert.match(result.errors.join(' '), /identity mismatch/);
+    assert.equal(writes.length, 1, 'mismatched event must never reach CRM writer');
+    // The corrupt earlier row now belongs to the same projected buyer. The
+    // healthy later event for that buyer must remain blocked until repaired,
+    // while an independent buyer continues normally.
+    assert.equal(writes[0].records[0].email, 'west@example.test');
+    assert.equal(writes[0].touches[0].contactName, 'Synthetic West');
+    const corrupted = db.prepare('SELECT status,attempts FROM projection_outbox WHERE event_id=?').get(firstEvent.id);
+    assert.equal(corrupted.status, 'failed', 'quarantine is retryable, never silently accepted');
+    assert.equal(corrupted.attempts, 1);
+    const blocked = db.prepare(
+      'SELECT id FROM projection_outbox WHERE prospect_id=? AND event_id<>(SELECT id FROM revenue_events WHERE idempotency_key=?)'
+    ).get(second.id, 'cross-lead-north');
+    assert.equal(claimProjection(db, { id: blocked.id }), null,
+      'valid later event stays quarantined behind the corrupt predecessor');
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('CRM projection quarantines two distinct ledger buyers sharing one legacy slug ID', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-id-collision-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const contacts = ['alice.smith@buyer.example.test', 'alice-smith@buyer.example.test'];
+    for (const [i, contact] of contacts.entries()) {
+      const prospect = createProspect(db, { name: 'Distinct Buyer ' + i, contact }).prospect;
+      transitionProspect(db, {
+        prospectId: prospect.id, toState: 'verified', idempotencyKey: 'collision:' + i
+      });
+    }
+    const writes = [];
+    const write = async payload => {
+      writes.push(payload);
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    };
+    const blocked = await projectPendingCrm(db, { write });
+    assert.equal(blocked.attempted, 2);
+    assert.equal(blocked.failed, 2);
+    assert.equal(blocked.succeeded, 0);
+    assert.equal(writes.length, 0, 'neither distinct contact may overwrite the shared CRM slug');
+    assert.equal(pendingProjections(db).length, 2, 'both outbox entries remain retryable');
+    assert.ok(blocked.errors.every(error => /ID collision.*manual reconciliation/.test(error)));
+
+    // Quarantine only the ambiguous identities; independent work keeps moving.
+    const unrelated = createProspect(db, {
+      name: 'Independent Buyer', contact: 'independent@buyer.example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: unrelated.id, toState: 'verified', idempotencyKey: 'independent:verified'
+    });
+    const retry = await projectPendingCrm(db, { write });
+    assert.equal(retry.attempted, 3);
+    assert.equal(retry.failed, 2);
+    assert.equal(retry.succeeded, 1);
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].records[0].email, 'independent@buyer.example.test');
+    assert.equal(pendingProjections(db).length, 2);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('bounded CRM projection does not starve fresh leads behind quarantined failures', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-retry-fairness-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  const writes = [];
+  const write = async payload => {
+    writes.push(payload.records[0].email);
+    return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+  };
+  try {
+    // These are distinct buyers, but their legacy CRM IDs collide. Once
+    // quarantined, retrying them must not block a healthy third buyer.
+    for (const [i, contact] of [
+      'alice.smith@buyer.example.test', 'alice-smith@buyer.example.test'
+    ].entries()) {
+      const buyer = createProspect(db, { name: 'Collision ' + i, contact }).prospect;
+      transitionProspect(db, {
+        prospectId: buyer.id, toState: 'verified', idempotencyKey: 'fair-collision:' + i
+      });
+    }
+    const blocked = await projectPendingCrm(db, { write, limit: 2 });
+    assert.equal(blocked.failed, 2);
+    assert.equal(writes.length, 0);
+    const healthy = createProspect(db, {
+      name: 'Ready Buyer', contact: 'ready@buyer.example.test'
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: healthy.id, toState: 'verified', idempotencyKey: 'fair-ready'
+    });
+
+    const processed = await projectPendingCrm(db, { write, limit: 1 });
+    assert.equal(processed.attempted, 1);
+    assert.equal(processed.succeeded, 1,
+      'new independent lead must be projected even when old failed rows exist');
+    assert.deepEqual(writes, ['ready@buyer.example.test']);
+    assert.equal(pendingProjections(db).length, 2);
+
+    // In failure-only mode, a bounded run must rotate instead of looping
+    // forever on the same retryable collision record.
+    const firstRetryId = pendingProjections(db, 1)[0].id;
+    const retry = await projectPendingCrm(db, { write, limit: 1 });
+    assert.equal(retry.failed, 1);
+    assert.equal(pendingProjections(db).length, 2);
+    assert.notEqual(pendingProjections(db, 1)[0].id, firstRetryId,
+      'failed outbox rows should take turns when batch limit is small');
+    assert.deepEqual(writes, ['ready@buyer.example.test']);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('CRM projection preserves the legacy stable record identity without inventing a contact receipt', () => {
   const record = recordFor({ id: 'uuid', name: 'Acme', contact: 'mailto:info@acme.test', source_url: 'https://acme.test', state: 'sent', campaign_id: '', created_at: '2026-01-01T00:00:00Z' }, { id: 'event' }, '2026-01-02T00:00:00Z');
   assert.equal(record.id, 'agent-lead-info-acme-test');
-  assert.equal(record.status, 'Warm - Waiting');
-  assert.equal(record.nextBestAction, 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.');
+  assert.equal(record.status, 'Lead');
+  assert.match(record.nextBestAction, /Reconcile manually/);
   assert.equal(record.canonicalState, 'sent');
 });
 
-test('CRM projection turns a successful payment receipt into a paid-customer activation record', () => {
-  const record = recordFor(
-    { id: 'esai', name: 'Esai', contact: 'mailto:gamboaesai@gmail.com', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-08-01T00:00:00Z' },
-    { id: 'payment-event', type: 'payment_succeeded', created_at: '2026-08-13T20:00:00Z', payload_json: JSON.stringify({ payment: { amount_cents: 2000, currency: 'usd', paid_at: '2026-08-13T20:00:00Z', recurring_cents: 2000, plan: 'starter', payment_intent_id: 'pi_example', subscription_id: 'sub_example' } }) },
-    '2026-08-15T00:00:00Z'
-  );
-  assert.equal(record.status, 'Paid Customer');
-  assert.equal(record.lastPaymentAmountCents, 2000);
-  assert.equal(record.lastPaymentAmount, 'USD 20.00');
-  assert.equal(record.recurringPlanValueCents, 2000);
-  assert.equal(record.billingPlan, 'starter');
-  assert.equal(record.stripePaymentIntentId, 'pi_example');
-  assert.match(record.nextBestAction, /Activate the customer/);
-  assert.match(record.nextBestAction, /Do not schedule a sales follow-up because payment occurred\.$/i);
+test('CRM never marks a paid customer from caller-shaped payment records without a trusted adapter', () => {
+  const prospect = {
+    id: 'synthetic-lead', name: 'Synthetic Prospect', contact: 'contact@example.test',
+    source_url: 'https://example.test', state: 'replied', campaign_id: '',
+    created_at: '2026-11-19T00:00:00Z'
+  };
+  const plausiblePayments = [
+    { status: 'succeeded', amount_cents: 2000, currency: 'usd',
+      paid_at: '2026-11-19T01:00:00Z', recurring_cents: 2000,
+      payment_intent_id: 'pi_example', subscription_id: 'sub_example' },
+    { status: 'succeeded', amount_cents: 25000, currency: 'usd',
+      transaction_id: 'txn_example', provider: 'pretend-provider',
+      verified: true, signature_verified: true },
+  ];
+  for (const [index, payment] of plausiblePayments.entries()) {
+    const event = {
+      id: `unverified-payment-${index}`, type: 'payment_succeeded',
+      created_at: '2026-11-19T01:00:00Z',
+      payload_json: JSON.stringify({ payment })
+    };
+    const record = recordFor(prospect, event, '2026-11-19T02:00:00Z');
+    assert.equal(record.status, 'Lead');
+    assert.equal(record.lastPaymentAmountCents, undefined);
+    assert.equal(record.stripePaymentIntentId, undefined);
+    assert.doesNotMatch(record.nextBestAction, /Activate the customer/);
+    assert.doesNotMatch(record.lastSignal, /Successful payment/);
+  }
+});
+
+test('CRM refuses false paid-customer projections from quotes, pending or invalid payments', () => {
+  const prospect = {
+    id: 'synthetic-lead', name: 'Synthetic Prospect', contact: 'test@example.test',
+    source_url: 'https://example.test', state: 'replied', campaign_id: '', created_at: '2026-11-17T00:00:00Z'
+  };
+  const payment = { status: 'succeeded', amount_cents: 25000, currency: 'usd', payment_intent_id: 'pi_unverified' };
+  const event = (type, value) => ({
+    id: 'synthetic-event', type, payload_json: JSON.stringify({ payment: value })
+  });
+  const projected = (type, value) => recordFor(prospect, event(type, value), '2026-11-17T01:00:00Z');
+  const quote = projected('proposal_quoted', payment);
+  assert.equal(quote.status, 'Lead');
+  assert.equal(quote.lastPaymentAmountCents, undefined);
+  assert.equal(projected('payment_succeeded', {
+    status: 'succeeded', amount_cents: 25000, currency: 'usd'
+  }).status, 'Lead', 'status and amount without a provider payment reference are not proof of payment');
+  assert.equal(projected('payment_succeeded', {
+    ...payment, payment_intent_id: '   '
+  }).status, 'Lead', 'a blank payment reference cannot mark a customer as paid');
+  const withTransactionReference = projected('payment_succeeded', {
+    ...payment, payment_intent_id: undefined, transaction_id: 'txn_synthetic'
+  });
+  assert.equal(withTransactionReference.status, 'Lead', 'an unauthenticated non-Stripe transaction ID is not payment proof');
+  assert.equal(projected('payment_succeeded', { ...payment, status: 'pending' }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 0 }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: -1 }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, amount_cents: 5.5 }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { ...payment, currency: '' }).status, 'Lead');
+  assert.equal(projected('payment_succeeded', { status: 'succeeded', plan: 'starter', payment_intent_id: 'pi_unverified' }).status, 'Lead');
 });
 
 test('remote projection roots do not initialize a local radata store', () => {
@@ -50,4 +643,383 @@ test('remote projection roots do not initialize a local radata store', () => {
   assert.match(source, /rad:\s*false/);
   assert.match(source, /radisk:\s*false/);
   assert.match(source, /stats:\s*false/);
+});
+
+test('revenue outbox stays pending if the real CRM writer receives no positive Gun acknowledgement', async () => {
+  const { writeCrmSync } = require('../thomas-agent/node/crm-sync');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-unacked-projection-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  const rootWithAck = (ack) => ({
+    get() { return { put(_record, callback) { callback(ack); } }; }
+  });
+  try {
+    const prospect = createProspect(db, {
+      name: 'Synthetic No-Send Prospect',
+      contact: 'synthetic@example.test',
+      sourceUrl: 'https://example.test'
+    }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'synthetic-verify' });
+
+    const unacknowledgedRoot = rootWithAck({});
+    const writeWithoutReceipt = payload => writeCrmSync(payload, {
+      crmRoot: unacknowledgedRoot, touchRoot: unacknowledgedRoot, timeoutMs: 25
+    });
+    const failed = await projectPendingCrm(db, { write: writeWithoutReceipt });
+    assert.equal(failed.succeeded, 0);
+    assert.equal(failed.failed, 1);
+    assert.equal(pendingProjections(db).length, 1, 'an unacknowledged write must remain retryable');
+
+    const acknowledgedRoot = rootWithAck({ ok: true });
+    const accepted = await projectPendingCrm(db, {
+      write: payload => writeCrmSync(payload, {
+        crmRoot: acknowledgedRoot, touchRoot: acknowledgedRoot, timeoutMs: 25
+      })
+    });
+    assert.equal(accepted.succeeded, 1);
+    assert.equal(accepted.failed, 0);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('CRM projection keeps its outbox retryable when an adapter omits or partially acknowledges writes', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-incomplete-receipt-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, {
+      name: 'Synthetic Prospect - No Send', contact: 'local-only@example.test',
+      sourceUrl: 'https://example.test/local-only'
+    }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-incomplete' });
+    const incomplete = [
+      undefined, null, {}, { records: 1, touches: 1 },
+      { records: 0, touches: 1, errors: [] },
+      { records: 1, touches: 0, errors: [] },
+      { records: 2, touches: 1, errors: [] },
+      { records: '1', touches: 1, errors: [] },
+      { records: 1, touches: 1, errors: 'not-an-array' }
+    ];
+    for (const [index, reply] of incomplete.entries()) {
+      const result = await projectPendingCrm(db, { write: async payload => {
+        assert.equal(payload.records.length, 1);
+        assert.equal(payload.touches.length, 1);
+        return reply;
+      } });
+      assert.equal(result.succeeded, 0, 'no incomplete receipt may close the outbox');
+      assert.equal(result.failed, 1);
+      const pending = pendingProjections(db);
+      assert.equal(pending.length, 1);
+      assert.equal(pending[0].attempts, index + 1);
+      assert.equal(pending[0].status, 'failed');
+      assert.match(pending[0].last_error, /CRM projection/i);
+    }
+    const accepted = await projectPendingCrm(db, {
+      write: async payload => ({ records: payload.records.length, touches: payload.touches.length, errors: [] })
+    });
+    assert.equal(accepted.succeeded, 1);
+    assert.equal(accepted.failed, 0);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally {
+    db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('isolated CRM acceptance relay configuration fails closed before any Gun connection', () => {
+  const { projectionPeer, remoteProjectionRoots } = require('../thomas-agent/node/revenue-crm-projection');
+  const cases = [
+    '', 'wss://gun-relay-3dvr.fly.dev/gun', 'wss://gun-relay-3dvr.fly.dev./gun',
+    'wss://gun-relay-3dvr.fly.dev.evil/gun',
+    'ws://localhost:8765/gun', 'http://localhost:9876/gun',
+    'ws://localhost.evil:8765/gun', 'ws://127.0.0.1.evil:8765/gun',
+    'ws://localhost/gun', 'file:///tmp/gun', 'ws://user:pass@localhost:8765/gun',
+    'ws://localhost:8765/other', 'ws://localhost:8765/gun?peer=prod',
+    'ws://localhost:8765/gun#fragment'
+  ];
+  for (const relayUrl of cases) {
+    assert.throws(
+      () => remoteProjectionRoots({ isolated: true, relayUrl }),
+      /Isolated CRM relay|Invalid isolated CRM relay/,
+      `unsafe isolated relay must fail before Gun initialization: ${relayUrl}`
+    );
+  }
+  assert.equal(
+    projectionPeer({ isolated: true, relayUrl: 'ws://127.0.0.1:8765/gun' }),
+    'ws://127.0.0.1:8765/gun'
+  );
+
+  assert.equal(
+    projectionPeer({ isolated: true, relayUrl: 'ws://[::1]:9876/gun' }),
+    'ws://[::1]:9876/gun'
+  );
+  // Only the new opt-in isolated mode changes default behavior. Legacy
+  // production configuration is kept intact until separately reviewed.
+  assert.equal(
+    projectionPeer({ relayUrl: 'wss://custom-relay.example/gun' }),
+    'wss://custom-relay.example/gun'
+  );
+});
+
+
+test('projectPendingCrm passes isolated relay options to the real writer before any database read', async () => {
+  // Do not open Gun, a real relay, a database, or a sender. Rejected
+  // configurations must stop on the production-capable projection entry point.
+  const neverReadDb = { prepare() { throw new Error('database touched before relay validation'); } };
+  for (const relayUrl of [
+    undefined,
+    '',
+    'wss://gun-relay-3dvr.fly.dev/gun',
+    'ws://localhost/gun',
+    'ws://localhost:8765/gun',
+    'ws://user:password@localhost:8765/gun',
+    'ws://localhost:8765/gun?peer=prod'
+  ]) {
+    await assert.rejects(
+      projectPendingCrm(neverReadDb, { isolated: true, relayUrl }),
+      /Isolated CRM relay|Invalid isolated CRM relay/,
+      'isolated projection must reject unsafe relay before connecting: ' + relayUrl
+    );
+  }
+});
+
+test('isolated CRM projection rejects caller-supplied Gun roots before any database or network operation', async () => {
+  // The real writer may only obtain roots through the loopback relay validator.
+  // A custom root can otherwise bypass projectionPeer and point at production.
+  const neverReadDb = { prepare() { throw new Error('database reached before isolation check'); } };
+  const suppliedRoots = {
+    crmRoot: { get() { throw new Error('injected CRM root used'); } },
+    touchRoot: { get() { throw new Error('injected touch root used'); } },
+  };
+  for (const relayUrl of [
+    'ws://127.0.0.1:8765/gun',
+    'wss://gun-relay-3dvr.fly.dev/gun',
+    undefined,
+  ]) {
+    await assert.rejects(
+      projectPendingCrm(neverReadDb, {
+        isolated: true, relayUrl, writeOptions: suppliedRoots,
+      }),
+      /Isolated CRM projection cannot override Gun roots/,
+    );
+  }
+});
+
+test('isolated CRM projection refuses the real writer injected as a test adapter', async () => {
+  // An injected real writer with caller-supplied roots could otherwise bypass
+  // the validated loopback relay and touch a production Gun graph.
+  const { writeCrmSync } = require('../thomas-agent/node/crm-sync');
+  const neverReadDb = { prepare() { throw new Error('database read before isolation check'); } };
+  await assert.rejects(
+    projectPendingCrm(neverReadDb, {
+      isolated: true,
+      write: writeCrmSync,
+      writeOptions: {
+        crmRoot: { get() { throw new Error('untrusted CRM root used'); } },
+        touchRoot: { get() { throw new Error('untrusted touch root used'); } },
+      },
+    }),
+    /Isolated CRM projection cannot inject the real Gun writer/
+  );
+});
+
+
+test('isolated source-only lead persists in separate scratch CRM and independent readback stays deduplicated', async () => {
+  // Incremental #3774 fixture: real revenue ledger, real outbox projection
+  // orchestration and independently reopened SQLite CRM *test double*.
+  // The injected writer is NOT the production Gun transport. No server,
+  // worker, OAuth, mail, phone, payment, or customer system is exercised.
+  const { DatabaseSync } = require('node:sqlite');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-provenance-readback-'));
+  const ledger = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  const crmFile = path.join(tmp, 'independent-crm-fixture.sqlite');
+  const writerDb = new DatabaseSync(crmFile);
+  writerDb.exec(
+    'CREATE TABLE records(id TEXT PRIMARY KEY, json TEXT NOT NULL);' +
+    'CREATE TABLE touches(id TEXT PRIMARY KEY, json TEXT NOT NULL);'
+  );
+  const sourceUrl = 'https://example.test/public/verified-demand-20261122';
+  const payload = { sourceUrl, observedNeed: 'A synthetic disconnected scheduling-to-CRM workflow' };
+  let readDb;
+  try {
+    const lead = createProspect(ledger, {
+      name: 'Synthetic Sourced Prospect', sourceUrl, campaignId: 'no-send-test'
+    }).prospect;
+    const transition = {
+      prospectId: lead.id, toState: 'verified', type: 'research_verified',
+      idempotencyKey: 'offline-source:verified:20261122', payload
+    };
+    const firstEvent = transitionProspect(ledger, transition).event;
+    let writes = 0;
+    const writer = async ({ records, touches }) => {
+      writes++;
+      for (const record of records) {
+        writerDb.prepare('INSERT INTO records(id,json) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json')
+          .run(record.id, JSON.stringify(record));
+      }
+      for (const touch of touches) {
+        writerDb.prepare('INSERT INTO touches(id,json) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET json=excluded.json')
+          .run(touch.id, JSON.stringify(touch));
+      }
+      return { records: records.length, touches: touches.length, errors: [] };
+    };
+    const first = await projectPendingCrm(ledger, { isolated: true, write: writer });
+    assert.equal(first.attempted, 1);
+    assert.equal(first.succeeded, 1);
+    assert.equal(first.failed, 0);
+    assert.equal(pendingProjections(ledger).length, 0);
+    const replay = transitionProspect(ledger, transition);
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.event.id, firstEvent.id);
+    const second = await projectPendingCrm(ledger, { isolated: true, write: writer });
+    assert.equal(second.attempted, 0);
+    assert.equal(writes, 1, 'same evidence must never project a second time');
+    writerDb.close();
+
+    // Use an independent SQLite connection instead of trusting the writer
+    // return values. A successful mock acknowledgement alone proves little.
+    readDb = new DatabaseSync(crmFile, { readOnly: true });
+    const records = readDb.prepare('SELECT json FROM records').all();
+    const touches = readDb.prepare('SELECT json FROM touches').all();
+    assert.equal(records.length, 1);
+    assert.equal(touches.length, 1);
+    const record = JSON.parse(records[0].json);
+    const touch = JSON.parse(touches[0].json);
+    assert.equal(record.sourceUrl, sourceUrl);
+    assert.equal(record.canonicalEventId, firstEvent.id);
+    assert.equal(record.canonicalState, 'verified');
+    assert.equal(record.status, 'Lead', 'research is not a paid sale');
+    assert.equal(record.email, '', 'source-only research never invents a contact');
+    assert.equal(record.nextFollowUp, undefined, 'never invent an outbound follow-up');
+    assert.equal(record.lastPaymentAmountCents, undefined);
+    assert.equal(touch.crmRecordId, record.id);
+    assert.equal(touch.touchType, 'research_verified');
+  } finally {
+    if (readDb) readDb.close();
+    try { writerDb.close(); } catch { /* closed above after projection */ }
+    ledger.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+
+test('real loopback Gun projection is independently readable after the writer exits', { timeout: 45000 }, async () => {
+  // #3774 transport acceptance: isolated child processes, explicit loopback,
+  // scratch relay data, no inherited credentials or production configuration.
+  // This is real Gun transport, but not hosted model or hosted worker proof.
+  const { spawn, spawnSync } = require('node:child_process');
+  const { once } = require('node:events');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-real-crm-relay-'));
+  const gunModule = require.resolve('gun');
+  const ledgerModule = require.resolve('../thomas-agent/node/revenue-ledger');
+  const projectionModule = require.resolve('../thomas-agent/node/revenue-crm-projection');
+  const crmModule = require.resolve('../thomas-agent/node/crm-sync');
+  const env = { HOME: tmp, PATH: process.env.PATH || '', THREEDVR_GUN_PORTAL_ROOT: 'isolated-crm-test' };
+  const opts = { cwd: tmp, env };
+  const relay = spawn(process.execPath, ['-e', `
+    const http = require('node:http');
+    const gunFactory = require(process.argv[1]);
+    const server = http.createServer(gunFactory.serve);
+    gunFactory({ web: server, peers: [], file: 'scratch-relay', axe: false, multicast: false, stats: false });
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (address.address !== '127.0.0.1') process.exit(2);
+      console.log('RELAY_READY:' + address.port);
+    });
+  `, gunModule], { ...opts, stdio: ['ignore', 'pipe', 'pipe'] });
+  let relayOutput = '';
+  let relayError = '';
+  relay.stderr.on('data', chunk => { relayError += chunk; });
+  try {
+    const port = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
+      relay.once('error', error => { clearTimeout(timer); reject(error); });
+      relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
+      relay.stdout.on('data', chunk => {
+        relayOutput += chunk;
+        const match = /RELAY_READY:(\d+)/.exec(relayOutput);
+        if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+      });
+    });
+    assert.ok(port > 0 && port <= 65535);
+    const url = 'http://127.0.0.1:' + port + '/gun';
+    function runChild(code, args, timeout) {
+      const result = spawnSync(process.execPath, ['-e', code, ...args], {
+        ...opts, encoding: 'utf8', timeout, maxBuffer: 1024 * 1024,
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, (result.stderr || '') + '\n' + (result.stdout || ''));
+      const line = result.stdout.split(/\r?\n/).find(item => item.startsWith('CRM_RESULT:'));
+      assert.ok(line, 'child must return explicit evidence: ' + result.stdout);
+      return JSON.parse(line.slice('CRM_RESULT:'.length));
+    }
+    const written = runChild(`
+      const assert = require('node:assert/strict');
+      const { openLedger, createProspect, transitionProspect, pendingProjections } = require(process.argv[1]);
+      const { projectPendingCrm } = require(process.argv[2]);
+      const { buildLeadId } = require(process.argv[3]);
+      const url = process.argv[4];
+      const sourceUrl = 'https://example.test/real-loopback-provenance';
+      (async () => {
+        const db = openLedger({ filePath: 'scratch-ledger.sqlite' });
+        try {
+          const lead = createProspect(db, { name: 'Synthetic Real Relay Buyer', sourceUrl, campaignId: 'no-send-test' }).prospect;
+          const transition = { prospectId: lead.id, toState: 'verified', type: 'research_verified',
+            idempotencyKey: 'real-loopback-research', payload: { sourceUrl } };
+          const event = transitionProspect(db, transition).event;
+          const result = await projectPendingCrm(db, { isolated: true, relayUrl: url });
+          assert.equal(result.succeeded, 1, JSON.stringify(result));
+          assert.equal(result.failed, 0);
+          assert.equal(transitionProspect(db, transition).replayed, true);
+          assert.equal((await projectPendingCrm(db, { isolated: true, relayUrl: url })).attempted, 0);
+          assert.equal(pendingProjections(db).length, 0);
+          assert.equal(db.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+          const id = buildLeadId({ name: lead.name, contact: lead.contact, link: lead.source_url });
+          process.stdout.write('CRM_RESULT:' + JSON.stringify({ id, eventId: event.id, sourceUrl }) + '\\n', () => process.exit(0));
+        } finally { db.close(); }
+      })().catch(error => { console.error(error); process.exit(1); });
+    `, [ledgerModule, projectionModule, crmModule, url], 20000);
+    const read = runChild(`
+      const gunFactory = require(process.argv[1]);
+      const [url, id, eventId] = process.argv.slice(2);
+      const gun = gunFactory({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
+      function read(node, field, expected) {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('independent CRM read timed out: ' + field)), 8000);
+          node.on(data => {
+            if (data && data[field] === expected) {
+              clearTimeout(timer);
+              node.off();
+              resolve(data);
+            }
+          });
+        });
+      }
+      Promise.all([
+        read(gun.get('3dvr-crm').get(id), 'canonicalEventId', eventId),
+        read(gun.get('isolated-crm-test').get('crm-touch-log').get('revenue-event-' + eventId), 'crmRecordId', id)
+      ]).then(([record, touch]) => {
+        process.stdout.write('CRM_RESULT:' + JSON.stringify({ record, touch }) + '\\n', () => process.exit(0));
+      }).catch(error => { console.error(error); process.exit(1); });
+    `, [gunModule, url, written.id, written.eventId], 12000);
+    assert.equal(read.record.id, written.id);
+    assert.equal(read.record.sourceUrl, written.sourceUrl);
+    assert.equal(read.record.canonicalEventId, written.eventId);
+    assert.equal(read.record.canonicalState, 'verified');
+    assert.equal(read.record.status, 'Lead');
+    assert.equal(read.record.email, '');
+    assert.equal(read.record.nextFollowUp, undefined);
+    assert.equal(read.record.lastPaymentAmountCents, undefined);
+    assert.equal(read.touch.id, 'revenue-event-' + written.eventId);
+    assert.equal(read.touch.crmRecordId, written.id);
+    assert.equal(read.touch.touchType, 'research_verified');
+  } finally {
+    if (relay.exitCode === null && relay.signalCode === null) {
+      const exited = once(relay, 'exit');
+      relay.kill('SIGKILL');
+      await exited;
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });

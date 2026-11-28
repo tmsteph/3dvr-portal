@@ -123,6 +123,62 @@ class NativeTests(unittest.TestCase):
                 native.run_turn(Events([event('item/started', item={'type': kind})]),
                                 'thread-one', {'message': 'test', 'taskMode': True}, lambda _: None)
 
+    def test_signed_canary_disables_search_and_rejects_search_events(self):
+        request = {'taskMode': True, 'session': 'operator-http-' + 'a' * 24 +
+                   '-operator-e2e-123456789012', 'message': 'test'}
+        self.assertTrue(native.is_operator_canary(request))
+        self.assertFalse(native.is_operator_canary({**request, 'taskMode': False}))
+        self.assertFalse(native.is_operator_canary({**request, 'session': 'operator-http-research'}))
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(native, 'HOME', Path(directory)):
+                args = native.command('/codex', task_mode=True, tools=True, canary=True)
+                self.assertIn('web_search="disabled"', args)
+                self.assertNotIn('web_search="live"', args)
+                self.assertIn('shell_tool', args)
+                self.assertIn('web_search="live"', native.command('/codex', True))
+        for method in ['item/started', 'item/completed']:
+            with self.assertRaisesRegex(RuntimeError, 'Web search unavailable'):
+                native.run_turn(Events([event(method, item={'type': 'webSearch'})]),
+                                'thread-one', request, lambda _: None)
+
+    def test_signed_canary_launches_no_search_and_refuses_native_session_reuse(self):
+        calls = []
+        class Client:
+            def __init__(self, args, *_):
+                calls.append(args)
+            def rpc(self, method, params):
+                calls.append((method, params))
+                return {'thread': {'id': 'canary-thread'}}
+            def send(self, *_):
+                pass
+            def close(self):
+                pass
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / 'auth.json').write_text(json.dumps({'auth_mode': 'chatgpt'}))
+            request = {'action': 'chat', 'taskMode': True, 'session': 'operator-http-' +
+                       'a' * 24 + '-operator-e2e-123456789012', 'message': 'test'}
+            original_read = Path.read_text
+            def read(path, *args, **kwargs):
+                if str(path) == '/proc/meminfo':
+                    return 'MemAvailable: 2097152 kB'
+                if str(path) == '/proc/pressure/memory':
+                    return 'some avg10=0.10 avg60=0.10 avg300=0.10 total=10\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0'
+                return original_read(path, *args, **kwargs)
+            with patch.object(native, 'HOME', home), patch.object(native, 'STATE', home / 'helm'), \
+                 patch.object(native.Path, 'read_text', read), \
+                 patch.object(native, 'find_binary', return_value='/codex'), \
+                 patch.object(native, 'Client', Client), patch.object(native, 'run_turn', return_value='42') as run:
+                self.assertTrue(native.main(request)['ok'])
+                self.assertIn('web_search="disabled"', calls[0])
+                self.assertIn('shell_tool', calls[0])
+                self.assertEqual(calls[2][0], 'thread/start')
+                self.assertIn('No search', calls[2][1]['developerInstructions'])
+                result = native.main(request)
+                self.assertFalse(result['ok'])
+                self.assertIn('fresh native session', result['error'])
+                self.assertEqual(run.call_count, 1)
+
     def test_installed_binary_remains_discoverable_without_a_running_gateway(self):
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / 'codex'
@@ -249,6 +305,51 @@ class NativeTests(unittest.TestCase):
                  patch.object(native, 'find_binary', return_value='/existing/codex'):
                 self.assertEqual(native.main({'action': 'status', 'engine': 'codex', 'toolsEnabled': True})['profile'], 'native-agent')
                 self.assertEqual(native.main({'action': 'status', 'engine': 'codex'})['profile'], 'native-chat')
+
+    def test_operator_primary_memory_guard_refuses_before_binary_or_client(self):
+        request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
+        for info in ['MemAvailable: 524288 kB', 'MemAvailable: invalid kB', 'MemTotal: 8192 kB']:
+            with self.subTest(info=info), patch.object(native.Path, 'read_text', return_value=info), \
+                 patch.object(native, 'find_binary') as binary, patch.object(native, 'Client') as client:
+                result = native.main(request)
+                self.assertFalse(result['ok'])
+                self.assertIn('memory', result['error'])
+                binary.assert_not_called()
+                client.assert_not_called()
+        with patch.object(native.Path, 'read_text', side_effect=OSError('unavailable')), \
+             patch.object(native, 'find_binary') as binary:
+            self.assertFalse(native.main(request)['ok'])
+            binary.assert_not_called()
+
+    def test_operator_primary_memory_guard_allows_existing_preflight_at_reserve(self):
+        request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
+        with patch.object(native.Path, 'read_text', side_effect=['MemAvailable: 1572864 kB',
+                 'some avg10=0.10 avg60=0.10 avg300=0.10 total=10\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0']), \
+             patch.object(native, 'find_binary', side_effect=RuntimeError('binary probe reached')) as binary:
+            with self.assertRaisesRegex(RuntimeError, 'binary probe reached'):
+                native.main(request)
+            binary.assert_called_once()
+
+    def test_operator_memory_pressure_refuses_before_binary_or_client(self):
+        request = {'action': 'chat', 'taskMode': True, 'session': 'canary', 'message': 'test'}
+        for psi in [
+            'some avg10=95.65\nfull avg10=65.95',
+            'some avg10=50.00\nfull avg10=0.00',
+            'some avg10=20.00\nfull avg10=10.00',
+            'some avg10=1.00',
+            'some avg10=nan\nfull avg10=0.00',
+            'some avg10=0.00\nfull avg10=-1.00',
+            'some avg10=0.00\nfull avg10=101.00',
+            OSError('pressure unavailable')
+        ]:
+            with self.subTest(psi=psi), patch.object(native.Path, 'read_text',
+                    side_effect=['MemAvailable: 2271752 kB', psi]), \
+                 patch.object(native, 'find_binary') as binary, patch.object(native, 'Client') as client:
+                result = native.main(request)
+                self.assertFalse(result['ok'])
+                self.assertIn('memory pressure', result['error'])
+                binary.assert_not_called()
+                client.assert_not_called()
 
     def test_status_never_starts_inference_and_expiry_prevents_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:

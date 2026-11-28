@@ -466,7 +466,7 @@ describe('account recovery email api', () => {
   it('sends operator alerts through the unified mail route', async () => {
     const mail = createMailTransport();
     const handler = createUnifiedEmailHandler({
-      config: baseConfig,
+      config: { ...baseConfig, OPERATOR_EMAIL_TO: 'thomas@example.com' },
       mailTransport: mail
     });
 
@@ -502,6 +502,48 @@ describe('account recovery email api', () => {
     assert.match(sent.text, /New leads are ready for review/i);
   });
 
+  it('keeps operator alerts to configured owner recipients even with a valid token', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: { ...baseConfig, OPERATOR_EMAIL_TO: 'thomas@example.com' },
+      mailTransport: mail
+    });
+
+    for (const to of [
+      ['prospect@example.com'],
+      ['thomas@example.com', 'prospect@example.com']
+    ]) {
+      const res = createMockRes();
+      await handler({
+        method: 'POST',
+        headers: { authorization: 'Bearer operator-secret' },
+        body: { mode: 'operator-alert', to, subject: 'New lead',
+          summary: 'Bypass attempt', approved: true }
+      }, res);
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.body.code, 'operator_alert_recipient_not_allowed');
+    }
+    assert.equal(mail.sendMail.mock.calls.length, 0,
+      'a token must not authorize arbitrary external recipients');
+  });
+
+  it('fails closed when no owner recipient is configured for operator alerts', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: { ...baseConfig, GMAIL_USER: '' },
+      mailTransport: mail
+    });
+    const res = createMockRes();
+    await handler({
+      method: 'POST', headers: { authorization: 'Bearer operator-secret' },
+      body: { mode: 'operator-alert', to: 'prospect@example.com',
+        subject: 'Lead', summary: 'Test' }
+    }, res);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.code, 'operator_alert_recipients_unconfigured');
+    assert.equal(mail.sendMail.mock.calls.length, 0);
+  });
+
   it('rejects lead outreach without the shared token', async () => {
     const mail = createMailTransport();
     const handler = createUnifiedEmailHandler({
@@ -527,7 +569,7 @@ describe('account recovery email api', () => {
     assert.equal(mail.sendMail.mock.calls.length, 0);
   });
 
-  it('accepts a rotated local operator token when the env token is stale', async () => {
+  it('recognizes a rotated operator token but still blocks unapproved outreach', async () => {
     const tokenFile = `/tmp/3dvr-operator-token-${process.pid}.txt`;
     await writeFile(tokenFile, 'file-backed-secret\n', { mode: 0o600 });
     const mail = createMailTransport();
@@ -553,15 +595,15 @@ describe('account recovery email api', () => {
 
       await handler(req, res);
 
-      assert.equal(res.statusCode, 200);
-      assert.equal(res.body.mode, 'lead-outreach');
-      assert.equal(mail.sendMail.mock.calls.length, 1);
+      assert.equal(res.statusCode, 403, 'valid token reached the approval gate');
+      assert.equal(res.body.code, 'human_approval_receipt_required');
+      assert.equal(mail.sendMail.mock.calls.length, 0);
     } finally {
       await unlink(tokenFile).catch(() => {});
     }
   });
 
-  it('sends lead outreach through the unified mail route', async () => {
+  it('rejects unapproved lead outreach despite valid token and reply headers', async () => {
     const mail = createMailTransport();
     const handler = createUnifiedEmailHandler({
       config: baseConfig,
@@ -590,20 +632,8 @@ describe('account recovery email api', () => {
 
     await handler(req, res);
 
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.body.mode, 'lead-outreach');
-    assert.equal(mail.sendMail.mock.calls.length, 1);
-    const sent = mail.sendMail.mock.calls[0].arguments[0];
-    assert.deepEqual(sent.to, ['tmsteph1290@gmail.com']);
-    assert.equal(sent.subject, 'Re: Quick idea for your site');
-    assert.equal(sent.replyTo, '3dvr.tech@gmail.com');
-    assert.equal(sent.inReplyTo, '<reply-message@example.com>');
-    assert.equal(sent.references, '<thread-root@example.com> <reply-message@example.com>');
-    assert.equal(sent.messageId, '<3dvr-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef@3dvr.tech>');
-    assert.equal(res.body.idempotencyKey, '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
-    assert.match(sent.html, /Quick note from 3dvr\.tech/i);
-    assert.match(sent.html, /font-size: 11px[^>]*>Postal address:/i);
-    assert.equal((sent.html.match(/Thomas at 3dvr\.tech/gi) || []).length, 0);
-    assert.match(sent.text, /customer-flow issue/i);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.code, 'human_approval_receipt_required');
+    assert.equal(mail.sendMail.mock.calls.length, 0);
   });
 });

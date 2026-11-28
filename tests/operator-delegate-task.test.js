@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { normalizeOperatorResult } from '../src/operator/api.js';
-import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
+import { buildOperatorDelegatedTask, decodeOperatorTaskResponse, watchConfirmedTask, queueOperatorTask } from '../operator/delegate-task.js';
 
 test('Operator normalizes generic delegated tasks', () => {
   const result = normalizeOperatorResult({
@@ -49,4 +49,168 @@ test('browser action router delegates the new action type', async () => {
   const source = await readFile(new URL('../operator/actions.js', import.meta.url), 'utf8');
   assert.match(source, /action\.type === 'delegate_task'/);
   assert.match(source, /queueOperatorTask/);
+});
+
+const statusReceipt = (requestId, status = 'completed') => ({
+  ok: true, requestId, record: {
+    id: 'operator-http-' + 'a'.repeat(24) + '-' + requestId, status, resultText: '42'
+  }
+});
+
+test('uncertain Operator admission keeps polling its exact ID after 404', { timeout: 7000 }, async t => {
+  const id = 'test-request-id-123';
+  const calls = [];
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask(id, { timeoutMs: 6000, onUpdate: resolve }, async (action, requestId) => {
+      calls.push([action, requestId]);
+      if (calls.length < 3) throw Object.assign(new Error('Missing receipt'), { status: 404 });
+      return statusReceipt(requestId);
+    });
+    t.after(stop);
+  });
+  assert.equal(result.status, 'completed');
+  assert.equal(result.id, 'operator-http:' + id);
+  assert.deepEqual(calls, Array(3).fill(['status', id]));
+});
+
+test('Operator watcher stops on authorization denial without retry', { timeout: 1000 }, async t => {
+  let count = 0;
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask('test-request-id-123', { onUpdate: resolve }, async () => {
+      count += 1;
+      throw Object.assign(new Error('Sign in again'), { status: 401 });
+    });
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.equal(count, 1);
+});
+
+test('Operator watcher deadline does not claim an unconfirmed task was saved', { timeout: 1000 }, async t => {
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask('test-request-id-123', { timeoutMs: 0, onUpdate: resolve }, async () => {
+      throw Object.assign(new Error('Missing receipt'), { status: 404 });
+    });
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.match(result.error, /server state is not confirmed/);
+  assert.match(result.error, /same task before submitting again/);
+});
+
+test('Operator task response preserves non-JSON HTTP errors', async () => {
+  for (const status of [401, 403, 404, 405, 422, 502]) {
+    await assert.rejects(
+      decodeOperatorTaskResponse(new Response('<html>proxy error</html>', { status })),
+      error => error.status === status && /unreadable/.test(error.message)
+    );
+  }
+  await assert.rejects(
+    decodeOperatorTaskResponse(new Response('null', { status: 200 })),
+    error => error.status === 200
+  );
+  await assert.rejects(
+    decodeOperatorTaskResponse(new Response('{"ok":"true"}', { status: 200 })),
+    error => error.status === 200
+  );
+  assert.deepEqual(await decodeOperatorTaskResponse(new Response('{"ok":true}')), { ok: true });
+});
+
+test('Operator watcher stops immediately on HTML authorization denial', { timeout: 1000 }, async t => {
+  let calls = 0;
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask('proxy-auth-test', { onUpdate: resolve }, async () => {
+      calls += 1;
+      return decodeOperatorTaskResponse(new Response('<html>Denied</html>', { status: 401 }));
+    });
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.equal(calls, 1);
+});
+
+test('Operator watcher treats malformed successful receipts as failures without reporting progress', { timeout: 7000 }, async t => {
+  const records = [undefined, [], {status: ''}];
+  const updates = [];
+  const calls = [];
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask('malformed-receipt-test', {
+      onUpdate: record => {
+        updates.push(record);
+        if (record.status === 'blocked') resolve(record);
+      }
+    }, async (action, requestId) => {
+      calls.push([action, requestId]);
+      return {ok: true, record: records[calls.length - 1]};
+    });
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.match(result.error, /server state is not confirmed/);
+  assert.equal(updates.length, 1);
+  assert.deepEqual(calls, Array(3).fill(['status', 'malformed-receipt-test']));
+});
+
+test('Operator admission needs a matching durable receipt and never retries enqueue', async () => {
+  const valid = id => ({ok:true, requestId:id, record:{id:'operator-http-'+'a'.repeat(24)+'-'+id,status:'queued'}});
+  const malformed = [
+    id => ({ok:true,requestId:id}),
+    id => ({...valid(id),record:[]}),
+    id => ({...valid(id),requestId:'other-request'}),
+    id => ({...valid(id),record:{...valid(id).record,id:'operator-http-'+'a'.repeat(24)+'-other-request'}}),
+    id => ({...valid(id),record:{...valid(id).record,status:'unknown'}}),
+    id => ({...valid(id),record:{...valid(id).record,status:''}})
+  ];
+  for (const makeResponse of [...malformed,valid]) {
+    const calls = [];
+    const result = await queueOperatorTask({text:'Synthetic no-op'},async (action,id) => {
+      calls.push([action,id]);
+      return makeResponse(id);
+    });
+    assert.equal(calls.length,1);
+    assert.equal(calls[0][0],'enqueue');
+    assert.equal(result.taskId,'operator-http:'+calls[0][1]);
+    assert.equal(result.confirmed,makeResponse === valid);
+    assert.match(result.message,makeResponse === valid ? /server saved/ : /Checking delivery/);
+  }
+  await assert.rejects(queueOperatorTask({text:'Synthetic no-op'},async () => {
+    throw Object.assign(new Error('Forbidden'),{status:403});
+  }),/Forbidden/);
+});
+
+test('Operator watcher rejects unrelated completion and unknown status before accepting matching completion', { timeout: 7000 }, async t => {
+  const id = 'receipt-identity-test';
+  const responses = [
+    statusReceipt('different-request'),
+    statusReceipt(id, 'invented'),
+    statusReceipt(id)
+  ];
+  const updates = [];
+  const calls = [];
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask(id, { timeoutMs: 6000, onUpdate: record => {
+      updates.push(record);
+      if (record.status === 'completed' || record.status === 'blocked') resolve(record);
+    } }, async (action, requestId) => {
+      calls.push([action, requestId]);
+      return responses[calls.length - 1];
+    });
+    t.after(stop);
+  });
+  assert.deepEqual(calls, Array(3).fill(['status', id]));
+  assert.equal(updates.length, 1);
+  assert.equal(result.status, 'completed');
+  assert.equal(result.id, 'operator-http:' + id);
+});
+
+test('Operator watcher never attributes an unrelated queue row to the requested task', { timeout: 1000 }, async t => {
+  const id = 'receipt-wrong-row';
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask(id, { timeoutMs: 0, onUpdate: resolve }, async () => ({
+      ...statusReceipt('other-queue-row'), requestId: id
+    }));
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.match(result.error, /server state is not confirmed/);
 });

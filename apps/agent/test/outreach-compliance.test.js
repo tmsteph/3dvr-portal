@@ -55,7 +55,7 @@ test('free-page experiment variant b changes the call to action and stays compli
   try {
     const draft = buildTemplateOutreachDraft({ name: 'Acme', experimentVariant: 'b' });
     assert.equal(draft.source, 'template-free-page-b');
-    assert.match(draft.text, /Would you like to take a look/i);
+    assert.match(draft.text, /Would you like me to prepare one/i);
     assert.equal(validateCommercialOutreach(draft.text).ok, true);
   } finally {
     delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
@@ -78,6 +78,29 @@ test('av-operator offer states the day rate and event crew work', () => {
     assert.match(draft.text, /My work:\s+https:\/\/thomas-av\.3dvr\.tech\//i);
     assert.doesNotMatch(draft.text, /sample page/i);
     assert.match(draft.text, /Business offer from 3dvr\.tech/i);
+  } finally {
+    if (previousProfile === undefined) delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
+    else process.env.THREEDVR_OUTREACH_OFFER_PROFILE = previousProfile;
+  }
+});
+
+
+test('site and free-page templates do not claim a completed preview without a preview URL', () => {
+  const previousProfile = process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
+  try {
+    for (const profile of ['business-sites', 'free-page']) {
+      process.env.THREEDVR_OUTREACH_OFFER_PROFILE = profile;
+      for (const experimentVariant of ['a', 'b']) {
+        for (const site of ['', 'https://acme.example']) {
+          const lead = { name: 'Acme Studio', experimentVariant, site, previewUrl: '  ' };
+          const draft = buildTemplateOutreachDraft(lead);
+          assert.doesNotMatch(draft.text, /I made|Here is a .*concept|Sample page:|take a look/i);
+          const withPreview = buildTemplateOutreachDraft({ ...lead, previewUrl: 'https://example.com/preview' });
+          assert.match(withPreview.text, /https:\/\/example\.com\/preview/);
+          assert.match(withPreview.text, /Here is a .*concept/i);
+        }
+      }
+    }
   } finally {
     if (previousProfile === undefined) delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
     else process.env.THREEDVR_OUTREACH_OFFER_PROFILE = previousProfile;

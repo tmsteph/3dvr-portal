@@ -93,9 +93,15 @@ function normalizeRiskClass(value) {
 }
 
 function defaultApprovalStatus(record = {}) {
-  if (normalizeText(record.approvalStatus)) return normalizeText(record.approvalStatus);
-  if (record.unsafe) return 'approved';
-  return APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)) ? 'required' : 'not_required';
+  const status = normalizeText(record.approvalStatus).toLowerCase();
+  // 'unsafe' controls the executor sandbox, not human authorization.
+  // A caller cannot skip a high-risk gate by supplying 'not_required'.
+  if (record.unsafe || APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass))) {
+    // Preserve an explicit veto for review/audit; an agent-supplied
+    // 'approved' value is still not sufficient to run a high-risk task.
+    return ['approved', 'rejected'].includes(status) ? status : 'required';
+  }
+  return status || 'not_required';
 }
 
 function normalizeTenantRecord(record = {}) {
@@ -145,9 +151,18 @@ function normalizeTaskRecord(record = {}) {
     status: normalizeText(record.status) || 'queued',
     createdAt: normalizeText(record.createdAt) || nowIso(),
     updatedAt: normalizeText(record.updatedAt) || nowIso(),
+    // Claim and terminal timestamps are worker evidence, not the generic
+    // update time. Retain them through terminal normalization; never invent
+    // historical timestamps for records that lack them.
+    ...(record.startedAt ? { startedAt: normalizeText(record.startedAt) } : {}),
+    ...(record.completedAt ? { completedAt: normalizeText(record.completedAt) } : {}),
     requestedBy: normalizeText(record.requestedBy) || 'cli',
     resultSummary: normalizeText(record.resultSummary),
     ...(String(record.id || '').startsWith('operator-http-') ? {
+      // Preserve the immutable signed command identity for completed-task
+      // retries. This private record is never mirrored to the Gun relay.
+      ...(record.operatorRequestDigest ? { operatorRequestDigest: record.operatorRequestDigest } : {}),
+      ...(record.runtimeWorkItemJson ? { runtimeWorkItemJson: record.runtimeWorkItemJson } : {}),
       resultText: String(record.resultText || '').slice(0, 24000),
       resultSummaryTruncated: record.resultSummaryTruncated === true,
       resultTruncated: record.resultTruncated === true,
@@ -282,8 +297,29 @@ function requiredWorkerCapabilities(record = {}) {
   return [...required];
 }
 
+// Reserved backend: only the exact scratch queue caller may opt in.
+function canUseLocalCanary(record, options) {
+  const env = options.localCanaryEnv;
+  return options.localCanary === true
+    && options.queueStore === 'sqlite' && options.gunSync === false
+    && typeof options.queueDb === 'string' && require('node:path').isAbsolute(options.queueDb)
+    && options.queueDb === env?.OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB
+    && typeof options.ownerAlias === 'string' && options.ownerAlias.startsWith('operator-e2e-')
+    && options.ownerAlias === env?.OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS
+    && env?.OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED === '1'
+    && env?.OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED === '1'
+    && record.id === env?.OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID
+    && /^operator-http-[a-f0-9]{24}-operator-e2e-[A-Za-z0-9_-]{12,80}$/.test(record.id || '')
+    && ['read_only', 'draft'].includes(record.riskClass)
+    && record.backend === 'local-canary' && record.unsafe === false;
+}
+
 function canWorkerRunTask(record = {}, options = {}) {
   const profile = workerProfile(options);
+  if ((options.localCanary === true || normalizeText(record.backend).toLowerCase() === 'local-canary')
+    && !canUseLocalCanary(record, options)) {
+    return { ok: false, reason: 'reserved local canary requires an explicit isolated queue', profile };
+  }
   const required = requiredWorkerCapabilities(record);
   const missingCapabilities = required.filter(capability => !profile.capabilities.includes(capability));
   if (missingCapabilities.length) {
@@ -303,10 +339,26 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  if (record.approvalStatus === 'required') {
+  // Fail closed until a server-controlled, task-bound, single-use human
+  // approval verifier exists. The queue's approvalStatus is caller-writable:
+  // even 'approved' is not proof that a human authorized this execution.
+  // Never let an agent, legacy import, or worker --unsafe flag bypass it.
+  if (record.unsafe || options.unsafe || APPROVAL_REQUIRED_RISKS.has(riskClass)) {
     return {
       ok: false,
-      reason: `approval required for ${riskClass}`,
+      reason: `verified human approval receipt required for ${record.unsafe || options.unsafe ? 'unsafe executor' : riskClass}`,
+      profile,
+    };
+  }
+  // A human veto, pending review, or an unrecognized approval value must
+  // never become runnable merely because the task itself is low risk.
+  // Queue-normalized ordinary tasks default to 'not_required'; tolerate an
+  // absent legacy value but fail closed for every explicit non-grant.
+  const approval = normalizeText(record.approvalStatus).toLowerCase();
+  if (approval && !['not_required', 'approved'].includes(approval)) {
+    return {
+      ok: false,
+      reason: `approval not granted (${approval}) for ${riskClass}`,
       profile,
     };
   }
@@ -335,7 +387,23 @@ async function recordTaskLifeEvent(record, options = {}) {
   }
 }
 
+// An expired lease is NOT proof that the previous worker did nothing. A model,
+// shell or workspace task may have completed side effects before crashing or
+// losing its receipt. Only the intrinsic no-side-effect health probe is safe
+// to reclaim automatically; everything else stays running for reconciliation.
+function safeExpiredHealthClaim(record, options = {}, now = options.now ?? Date.now()) {
+  return queueStore(options) === 'sqlite'
+    && record?.status === 'running'
+    && normalizeText(record.backend).toLowerCase() === 'health'
+    && Number.isFinite(record.claimExpiresAt)
+    && record.claimExpiresAt <= now;
+}
+
 async function runQueuedTask(record, options = {}) {
+  if (record?.status !== 'queued' && !safeExpiredHealthClaim(record, options)) {
+    return { ok: false, skipped: true,
+      reason: 'non-queued task requires manual reconciliation before retry' };
+  }
   const runnable = canWorkerRunTask(record, options);
   if (!runnable.ok) {
     return { ok: false, skipped: true, reason: runnable.reason };
@@ -355,6 +423,20 @@ async function runQueuedTask(record, options = {}) {
       options,
     );
     if (!claimed) return { ok: false, skipped: true, reason: 'claimed by another worker' };
+    // Listing and claiming are separate operations. The atomic SQLite claim
+    // returns the current persisted record, which may have been vetoed or
+    // upgraded to a sensitive risk after the worker's initial eligibility check.
+    // Recheck that claimed record before any executor is invoked.
+    const claimedEligibility = canWorkerRunTask(claimed, options);
+    if (!claimedEligibility.ok) {
+      await finishClaimedTask(claimed, {
+        status: 'skipped',
+        completedAt: nowIso(),
+        resultSummary: claimedEligibility.reason,
+        error: claimedEligibility.reason,
+      }, options);
+      return { ok: false, skipped: true, reason: claimedEligibility.reason };
+    }
     claimed.workerCapabilities = normalizeCsv(runnable.profile.capabilities);
   } else {
     lease = await claimLease(`remote-task:${record.id}`, {
@@ -400,6 +482,13 @@ async function runQueuedTask(record, options = {}) {
         backend: 'health',
         result: { stdout: '3dvr-worker-ok' },
       };
+    } else if (claimed.backend === 'local-canary') {
+      if (!canUseLocalCanary(claimed, options) || claimed.queueSource !== 'operator-http') {
+        throw new Error('Local canary requires a claimed private signed-admission row.');
+      }
+      result = await require('./operator-local-canary').runOperatorLocalCanary(claimed, {
+        env: options.localCanaryEnv,
+      });
     } else if (claimed.id?.startsWith('operator-http-') && !options.runAgentTaskImpl) {
       result = await require('./operator-codex-task').runOperatorCodexTask(claimed);
     } else {
@@ -467,6 +556,15 @@ async function mirrorTerminalTask(record, options = {}) {
   if (!['completed', 'failed', 'skipped'].includes(record.status)) return false;
   const remote = await readTask(record.id, { ...options, queueStore: 'gun' });
   if (remote && timestamp(remote) > timestamp(record)) return false;
+  // An already-mirrored terminal record is immutable for this timestamp.
+  // Rewriting it on every worker poll amplified relay traffic and could
+  // delay local SQLite queue execution when the terminal backlog grew.
+  // Still repair missing or same-timestamp divergent remote records.
+  if (remote && timestamp(remote) === timestamp(record)
+    && remote.status === record.status
+    && normalizeText(remote.workerDeviceId) === normalizeText(record.workerDeviceId)
+    && normalizeText(remote.resultSummary) === normalizeText(record.resultSummary)
+    && normalizeText(remote.error) === normalizeText(record.error)) return false;
   await updateGunTask(record.id, record, options);
   return true;
 }
@@ -515,6 +613,9 @@ function summarizeTaskResult(result = {}) {
 }
 
 async function runWorkerOnce(options = {}) {
+  // Normal worker polls write Gun heartbeats even when queue sync is off.
+  // The scratch caller must use an exact runQueuedTask call instead.
+  if (options.localCanary === true) throw new Error('Local canary requires exact single-task execution.');
   const profile = workerProfile(options);
   await writeHeartbeat('task-worker', {
     ...options,
@@ -529,24 +630,31 @@ async function runWorkerOnce(options = {}) {
       maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
-  await syncTerminalResults(options);
-  await importLegacyGunTasks(options);
+  // Run already-persisted private work before any best-effort legacy Gun
+  // reads. A stalled relay must not starve Operator's authenticated queue.
+  // Newly imported legacy tasks become eligible on the following poll.
   const tasks = await listTasks(options);
   const now = options.now || Date.now();
   const queued = tasks
-    .filter(task => task.status === 'queued'
-      || (queueStore(options) === 'sqlite' && task.status === 'running' && task.claimExpiresAt <= now))
+    .filter(task => task.status === 'queued' || safeExpiredHealthClaim(task, options, now))
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
     const record = await readTask(summary.id, options);
-    const recoverable = queueStore(options) === 'sqlite'
-      && record?.status === 'running'
-      && record.claimExpiresAt <= now;
+    const recoverable = safeExpiredHealthClaim(record, options, now);
     if (!record || (record.status !== 'queued' && !recoverable)) continue;
     results.push({ id: record.id, result: await runQueuedTask(record, options) });
   }
+  // Legacy import is a compatibility read, not a prerequisite for the
+  // private worker. An unavailable relay must not terminate the worker loop
+  // after private tasks have completed.
+  try {
+    await importLegacyGunTasks(options);
+  } catch (error) {
+    console.warn(`[agent-worker] legacy queue import failed: ${error?.message || String(error)}`);
+  }
+  await syncTerminalResults(options);
   return results;
 }
 

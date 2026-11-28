@@ -14,6 +14,7 @@ import {
   normalizeCrmWarmth,
   parseCrmList,
   sanitizeCrmRecord,
+  canUseCrmSalesShortcuts,
   buildCrmRelationshipBoard,
 } from './crm-editing.js';
 import {
@@ -1063,13 +1064,8 @@ function comparePeopleByRecencyThenName(a, b) {
   return String(a?.name || '').localeCompare(String(b?.name || ''));
 }
 
-function isClosedStatus(status = '') {
-  const normalized = String(status || '').trim().toLowerCase();
-  return normalized === 'won' || normalized === 'lost';
-}
-
 function needsReplyResponse(record = {}) {
-  if (!record.lastReplyAt || isClosedStatus(record.status)) {
+  if (!record.lastReplyAt || !canUseCrmSalesShortcuts(record)) {
     return false;
   }
   const lastReplyAt = new Date(record.lastReplyAt);
@@ -2094,7 +2090,7 @@ function renderSalesMoveRows(target, records, formatter) {
 }
 
 function renderSalesMoves() {
-  const people = state.board.people.filter(record => !isClosedStatus(record.status));
+  const people = state.board.people.filter(canUseCrmSalesShortcuts);
   const todayKey = normalizeFollowUpInput(new Date().toISOString().slice(0, 10));
   const staleCutoff = Date.now() - (SALES_STALE_DAYS * 24 * 60 * 60 * 1000);
 
@@ -2652,14 +2648,25 @@ function openTouchPrompt(record) {
 }
 
 async function logTouch(recordId) {
-  const record = sanitizeCrmRecord(crmIndex[recordId] || state.board.index[recordId] || {});
+  let record = sanitizeCrmRecord(crmIndex[recordId] || state.board.index[recordId] || {});
   if (!record.id || record.recordType !== 'person') {
     window.alert('Only person records can log touches.');
     return;
   }
 
+  if (!canUseCrmSalesShortcuts(record)) {
+    window.alert('Use canonical revenue workflow or manual reconciliation.');
+    return;
+  }
+
   const promptResult = await openTouchPrompt(record);
   if (!promptResult) return;
+  const latest = sanitizeCrmRecord(crmIndex[recordId] || state.board.index[recordId] || {});
+  if (!latest.id || !canUseCrmSalesShortcuts(latest)) {
+    window.alert('This record is no longer eligible for sales shortcuts.');
+    return;
+  }
+  record = latest;
 
   const now = new Date().toISOString();
   const touchType = normalizeTouchType(promptResult.touchType);
@@ -2706,6 +2713,11 @@ function quickFollowUp(recordId) {
   const record = sanitizeCrmRecord(crmIndex[recordId] || state.board.index[recordId] || {});
   if (!record.id || record.recordType !== 'person') {
     window.alert('Only person records can get follow-up dates.');
+    return;
+  }
+
+  if (!canUseCrmSalesShortcuts(record)) {
+    window.alert('Use canonical revenue workflow or manual reconciliation.');
     return;
   }
 

@@ -1,14 +1,96 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
 import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
 import { createForkRecord, revokeFork } from '../src/agents/fork-contract.js';
 import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt } from '../operator/delegate-task.js';
+
+const require = createRequire(import.meta.url);
+const { runOnce: runPrivateWorkerOnce } = require('../scripts/ops/operator-private-worker.cjs');
+const workerQueue = require('../apps/agent/thomas-agent/node/agent-task-queue.js');
+
+function isolatedCrmFixture(dir) {
+  const gunModule = require.resolve('gun');
+  const childOpts = { cwd: dir, env: { HOME: dir, PATH: process.env.PATH || '',
+    THREEDVR_GUN_PORTAL_ROOT: 'isolated-signed-crm-test' } };
+  const startRelay = async () => {
+    const relay = spawn(process.execPath, ['-e', `
+      const http = require('node:http');
+      const gunFactory = require(process.argv[1]);
+      const server = http.createServer(gunFactory.serve);
+      gunFactory({ web: server, peers: [], file: 'signed-scratch-relay', axe: false, multicast: false, stats: false });
+      server.listen(0, '127.0.0.1', () => {
+        if (server.address().address !== '127.0.0.1') process.exit(2);
+        console.log('RELAY_READY:' + server.address().port);
+      });
+    `, gunModule], { ...childOpts, stdio: ['ignore', 'pipe', 'pipe'] });
+      let relayOutput = '', relayError = '';
+      relay.stderr.on('data', chunk => { relayError += chunk; });
+      try {
+        const port = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('isolated relay readiness timeout: ' + relayError)), 8000);
+        relay.once('error', error => { clearTimeout(timer); reject(error); });
+        relay.once('exit', code => { clearTimeout(timer); reject(new Error('relay exited: ' + code + ' ' + relayError)); });
+        relay.stdout.on('data', chunk => {
+          relayOutput += chunk;
+          const match = /RELAY_READY:(\d+)/.exec(relayOutput);
+          if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+        });
+      });
+      assert.ok(port > 0 && port <= 65535);
+      return { relay, url: 'http://127.0.0.1:' + port + '/gun' };
+    } catch (error) {
+      await stopRelay(relay);
+      throw error;
+    }
+  };
+  const stopRelay = async relay => {
+    if (relay.exitCode === null && relay.signalCode === null && relay.pid) {
+      const exited = once(relay, 'exit');
+      relay.kill('SIGKILL');
+      await exited;
+    }
+  };
+  const runChild = (code, args, timeout) => {
+    const result = spawnSync(process.execPath, ['-e', code, ...args], {
+      ...childOpts, encoding: 'utf8', timeout, maxBuffer: 1024 * 1024
+    });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, (result.stderr || '') + '\n' + (result.stdout || ''));
+    const line = result.stdout.split(/\r?\n/).find(item => item.startsWith('CRM_RESULT:'));
+    assert.ok(line, 'child must return explicit evidence: ' + result.stdout);
+    return JSON.parse(line.slice('CRM_RESULT:'.length));
+  };
+  const readCrm = (url, written) => runChild(`
+    const gunFactory = require(process.argv[1]);
+    const [url, id, eventId] = process.argv.slice(2);
+    const gun = gunFactory({ peers: [url], axe: false, multicast: false, rad: false, radisk: false, localStorage: false, stats: false });
+    function read(node, field, expected) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('independent CRM read timed out: ' + field)), 8000);
+        node.on(data => {
+          if (data && data[field] === expected) {
+            clearTimeout(timer); node.off(); resolve(data);
+          }
+        });
+      });
+    }
+    Promise.all([
+      read(gun.get('3dvr-crm').get(id), 'canonicalEventId', eventId),
+      read(gun.get('isolated-signed-crm-test').get('crm-touch-log').get('revenue-event-' + eventId), 'crmRecordId', id)
+    ]).then(([record, touch]) => {
+      process.stdout.write('CRM_RESULT:' + JSON.stringify({ record, touch }) + '\\n', () => process.exit(0));
+    }).catch(error => { console.error(error); process.exit(1); });
+  `, [gunModule, url, written.id, written.eventId], 12000);
+  return {startRelay, stopRelay, runChild, readCrm};
+}
 
 const origin = 'https://operator.3dvr.tech';
 const pair = await SEA.pair();
@@ -28,6 +110,8 @@ test('real signed requests enqueue only bounded Codex tasks and isolate status b
   assert.equal(inputs[0].record.backend,'codex');
   assert.equal(inputs[0].record.requiredCapabilities,'codex');
   assert.equal(inputs[0].record.unsafe,false);
+  assert.match(inputs[0].record.operatorRequestDigest, /^[a-f0-9]{64}$/,
+    'signed task must carry a stable exact-request digest');
   assert.equal(inputs[0].record.approvalStatus,'not_required');
   assert.equal(inputs[0].record.maxRuntimeMs,120000);
   assert.equal((await request(handler,{action:'status',requestId:enqueue.requestId})).statusCode,200);
@@ -67,9 +151,23 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const historical={id:'old-task',task:'historical do not replay',unsafe:true};
   insert.run('3dvr-managed',historical.id,'queued','old',JSON.stringify(historical),'sqlite');
   const script=REMOTE_QUEUE_SCRIPT.replace(/if \[ -f .*?fi\n/,'').replace('cd "$HOME/.3dvr/portal/apps/agent"',`cd '${dir}'`).replace('/opt/node-v22/bin/node',process.execPath);
-  const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString()};
+  const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString(),runtimeWorkItemJson:JSON.stringify({title:'Original title'})};
   const invoke=input => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:'codex,node',THREEDVR_AGENT_QUEUE_DB:dbPath}});
   try {
+    // An old/foreign queue row can carry an Operator-shaped ID. Its result
+    // must not be adopted as an authenticated signed task (enqueue or status).
+    const collision = {...record,id:'operator-http-test-foreign-row'};
+    insert.run('3dvr-managed',collision.id,'completed',collision.updatedAt,JSON.stringify(collision),'sqlite');
+    const foreignInput = {action:'enqueue',id:collision.id,prefix:'operator-http-test-',record:collision};
+    const foreignEnqueue = invoke(foreignInput);
+    assert.notEqual(foreignEnqueue.status,0,'foreign-source enqueue must fail closed');
+    assert.match(foreignEnqueue.stderr,/Task source conflict/);
+    const foreignStatus = invoke({action:'status',id:collision.id,prefix:foreignInput.prefix});
+    assert.notEqual(foreignStatus.status,0,'foreign-source completed task must not produce a signed status receipt');
+    assert.match(foreignStatus.stderr,/Task source conflict/);
+    assert.equal(db.prepare('SELECT source,status FROM tasks WHERE id=?').get(collision.id).source,'sqlite');
+    db.prepare('DELETE FROM tasks WHERE id=?').run(collision.id);
+
     const input={action:'enqueue',id:record.id,prefix:'operator-http-test-',record};
     assert.equal(invoke(input).status,0);
     db.prepare('UPDATE tasks SET status=? WHERE id=?').run('running',record.id);
@@ -79,9 +177,39 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,2);
     assert.equal(db.prepare('SELECT record_json FROM tasks WHERE id=?').get('old-task').record_json,JSON.stringify(historical));
     assert.notEqual(invoke({...input,record:{...record,task:'conflicting'}}).status,0);
+    // Same text + request ID with changed signed title must fail closed,
+    // even after the worker claims the original task. No second row is made.
+    const titleConflict=invoke({...input,record:{
+      ...record,runtimeWorkItemJson:JSON.stringify({title:'Changed title'})
+    }});
+    assert.notEqual(titleConflict.status,0);
+    assert.match(titleConflict.stderr,/Task identity conflict/);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,2);
+    // A distinct signed request can normalize to the same task/title. It must
+    // not inherit the first request ID or its work/result just because of trim.
+    const digestRecord = {...record,id:'operator-http-test-digest-456',operatorRequestDigest:'a'.repeat(64)};
+    const digestInput = {...input,id:digestRecord.id,record:digestRecord};
+    assert.equal(invoke(digestInput).status,0);
+    assert.equal(invoke(digestInput).status,0,'identical signed command retries are idempotent');
+    const digestConflict = invoke({...digestInput,record:{...digestRecord,operatorRequestDigest:'b'.repeat(64)}});
+    assert.notEqual(digestConflict.status,0,'same task and title but different signed command must be rejected');
+    assert.match(digestConflict.stderr,/Task identity conflict/);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks WHERE id=?').get(digestRecord.id).n,1);
+    // A legacy or partially-written terminal row must not be represented as
+    // a verified worker completion. Both signed status and enqueue replay fail.
+    db.prepare('UPDATE tasks SET status=? WHERE id=?').run('completed',record.id);
+    const unattributedStatus = invoke({action:'status',id:record.id,prefix:input.prefix});
+    assert.notEqual(unattributedStatus.status,0);
+    assert.match(unattributedStatus.stderr,/Unattributed task completion/);
+    const unattributedRetry = invoke(input);
+    assert.notEqual(unattributedRetry.status,0);
+    assert.match(unattributedRetry.stderr,/Unattributed task completion/);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks WHERE id=?').get(record.id).n,1);
+
     const fullText = 'complete output '.repeat(500);
     db.prepare('UPDATE tasks SET status=?,record_json=? WHERE id=?').run('completed', JSON.stringify({
-      ...record, resultSummary: fullText.slice(0,2000), resultText: fullText,
+      ...record, workerDeviceId: 'synthetic-attributed-worker',
+      resultSummary: fullText.slice(0,2000), resultText: fullText,
       resultSummaryTruncated: true, resultTruncated: false
     }), record.id);
     const saved = JSON.parse(invoke({action:'status',id:record.id,prefix:input.prefix}).stdout).record;
@@ -205,4 +333,619 @@ test('a forked admin keeps dispatch access only while its fork is active and gra
 
   // The owner is not a fork child and is unaffected by fork records.
   assert.equal((await request(revoked.handler, enqueue)).statusCode, 202);
+});
+
+
+test('signed Operator HTTP path persists one task in an isolated SQLite queue without worker or network access', async () => {
+  // Local process stands in for the SSH hop, but uses the exact production
+  // REMOTE_QUEUE_SCRIPT and real SEA verification. This is NOT worker/CRM E2E.
+  const dir = await mkdtemp(join(tmpdir(), 'operator-signed-isolated-'));
+  const dbPath = join(dir, 'queue.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
+  const script = REMOTE_QUEUE_SCRIPT
+    .replace(/if \[ -f .*?fi\n/, '')
+    .replace('cd "$HOME/.3dvr/portal/apps/agent"', "cd '" + dir + "'")
+    .replace('/opt/node-v22/bin/node', process.execPath);
+  const seen = [];
+  const handler = createOperatorDispatchHandler({
+    config,
+    run: async input => {
+      seen.push(input);
+      const proc = spawnSync('bash', ['-s', '--', Buffer.from(JSON.stringify(input)).toString('base64url')], {
+        input: script,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+          THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+          THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex,node',
+          THREEDVR_AGENT_QUEUE_DB: dbPath,
+          THREEDVR_AGENT_QUEUE_GUN_SYNC: '0'
+        }
+      });
+      assert.equal(proc.status, 0, proc.stderr);
+      return JSON.parse(proc.stdout);
+    }
+  });
+  const item = { ...enqueue, requestId: 'local-isolated-operator-123' };
+  try {
+    const denied = await request(handler, item, await SEA.pair());
+    assert.equal(denied.statusCode, 403);
+    assert.equal(seen.length, 0, 'wrong signer cannot enter queue transport');
+
+    const accepted = await request(handler, item);
+    assert.equal(accepted.statusCode, 202);
+    assert.equal(accepted.data.record.status, 'queued');
+    assert.match(accepted.data.record.id, /^operator-http-/);
+    assert.equal(seen[0].record.backend, 'codex');
+
+    const retry = await request(handler, item);
+    assert.equal(retry.statusCode, 202);
+    assert.equal(retry.data.record.id, accepted.data.record.id);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n, 1);
+    assert.equal(seen[0].record.operatorRequestDigest, seen[1].record.operatorRequestDigest,
+      'same signed requestId/text/title yields identical digest across HTTP retries');
+    const whitespaceChanged = await request(handler,{...item,text:item.text+'   '});
+    assert.equal(whitespaceChanged.statusCode,503,'changed signed text with same normalized task must fail closed');
+    assert.equal(seen[2].record.task,seen[0].record.task,'normalization makes actual task text identical');
+    assert.notEqual(seen[2].record.operatorRequestDigest,seen[0].record.operatorRequestDigest,
+      'exact signed content, not normalized task text, decides replay identity');
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,1,'conflicting retry adds no row');
+
+    // A second SQLite connection independently verifies durable identity and
+    // provenance. No worker runs, no CRM write occurs, no outbound is enabled.
+    const readback = new DatabaseSync(dbPath);
+    try {
+      const row = readback.prepare('SELECT * FROM tasks WHERE owner_alias=? AND id=?')
+        .get('3dvr-managed', accepted.data.record.id);
+      assert.equal(row.source, 'operator-http');
+      assert.equal(row.status, 'queued');
+      const saved = JSON.parse(row.record_json);
+      assert.equal(saved.task, seen[0].record.task);
+      assert.equal(saved.unsafe, false);
+      assert.equal(saved.approvalStatus, 'not_required');
+    } finally { readback.close(); }
+
+    const status = await request(handler, { action: 'status', requestId: item.requestId });
+    assert.equal(status.statusCode, 200);
+    assert.equal(status.data.record.id, accepted.data.record.id);
+    assert.equal(status.data.record.status, 'queued', 'no worker completion is simulated or claimed');
+    assert.equal(status.data.record.operatorRequestDigest, seen[0].record.operatorRequestDigest);
+
+    // Model a separately committed worker result without launching a worker:
+    // the owner-signed status reader must expose attribution and a retry must
+    // never reset an already-finished task to queued or create a second task.
+    const syntheticWorkerId = 'synthetic-worker-fixture-not-a-live-worker';
+    const savedRow = db.prepare('SELECT record_json FROM tasks WHERE owner_alias=? AND id=?')
+      .get('3dvr-managed', accepted.data.record.id);
+    const syntheticResult = {
+      ...JSON.parse(savedRow.record_json),
+      status: 'completed',
+      workerDeviceId: syntheticWorkerId,
+      resultSummary: '42',
+      resultText: '42',
+      updatedAt: '2026-11-17T23:00:00.000Z'
+    };
+    db.prepare('UPDATE tasks SET status=?, updated_at=?, record_json=? WHERE owner_alias=? AND id=?')
+      .run('completed', syntheticResult.updatedAt, JSON.stringify(syntheticResult),
+        '3dvr-managed', accepted.data.record.id);
+
+    const completed = await request(handler, { action: 'status', requestId: item.requestId });
+    assert.equal(completed.statusCode, 200);
+    assert.equal(completed.data.record.status, 'completed');
+    assert.equal(completed.data.record.workerDeviceId, syntheticWorkerId);
+    assert.equal(completed.data.record.operatorRequestDigest, seen[0].record.operatorRequestDigest);
+    assert.equal(completed.data.record.resultText, '42');
+
+    const completedRetry = await request(handler, item);
+    assert.equal(completedRetry.statusCode, 202);
+    assert.equal(completedRetry.data.record.status, 'completed');
+    assert.equal(completedRetry.data.record.workerDeviceId, syntheticWorkerId);
+    assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n, 1);
+    const independentCompletedReadback = new DatabaseSync(dbPath);
+    try {
+      const row = independentCompletedReadback.prepare('SELECT status,record_json FROM tasks WHERE owner_alias=? AND id=?')
+        .get('3dvr-managed', accepted.data.record.id);
+      assert.equal(row.status, 'completed');
+      assert.equal(JSON.parse(row.record_json).workerDeviceId, syntheticWorkerId);
+    } finally { independentCompletedReadback.close(); }
+  } finally {
+    db.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('signed Operator private worker result imports through candidate adapter and survives CRM restart (executor stub only)', { timeout: 90000 }, async () => {
+  // Unlike the mocked dispatch tests, this calls the unchanged REMOTE_QUEUE_SCRIPT
+  // through a local Bash/Node process and reads its temporary SQLite DB directly.
+  // This exercises a real private worker claim with a stubbed model executor;
+  // it does NOT prove hosted Codex execution or production CRM persistence.
+  const dir = await mkdtemp(join(tmpdir(), 'operator-signed-sqlite-'));
+  const dbPath = join(dir, 'isolated-queue.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec("CREATE TABLE tasks(owner_alias TEXT NOT NULL,id TEXT NOT NULL,status TEXT NOT NULL,updated_at TEXT NOT NULL,record_json TEXT NOT NULL,source TEXT NOT NULL DEFAULT 'sqlite',claim_token TEXT,claim_expires_at INTEGER,PRIMARY KEY(owner_alias,id)) WITHOUT ROWID");
+  const script = REMOTE_QUEUE_SCRIPT
+    .replace(/if \[ -f .*?fi\n/, '')
+    .replace('cd "$HOME/.3dvr/portal/apps/agent"', `cd '${dir}'`)
+    .replace('/opt/node-v22/bin/node', process.execPath);
+  let transportCalls = 0;
+  const run = async input => {
+    transportCalls++;
+    const execution = spawnSync('bash', ['-s', '--', Buffer.from(JSON.stringify(input)).toString('base64url')], {
+      input: script, encoding: 'utf8', timeout: 15000,
+      env: {
+        ...process.env,
+        THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+        THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+        THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex,node',
+        THREEDVR_AGENT_QUEUE_DB: dbPath,
+      },
+    });
+    assert.equal(execution.status, 0, execution.stderr || 'local managed queue transport failed');
+    return JSON.parse(execution.stdout);
+  };
+  const handler = createOperatorDispatchHandler({ config, run });
+  try {
+    const noProof = await request(handler, enqueue, pair, { authProof: '' });
+    assert.equal(noProof.statusCode, 401);
+    const stranger = await request(handler, enqueue, await SEA.pair());
+    assert.equal(stranger.statusCode, 403);
+    assert.equal(transportCalls, 0, 'unauthorized requests cannot touch SQLite');
+
+    const accepted = await request(handler, enqueue);
+    assert.equal(accepted.statusCode, 202);
+    const id = accepted.data.record.id;
+    assert.match(id, /^operator-http-[0-9a-f]{24}-diagnostic-request-123$/);
+    const row = db.prepare('SELECT * FROM tasks WHERE id=?').get(id);
+    assert.equal(row.status, 'queued');
+    assert.equal(row.source, 'operator-http');
+    assert.equal(row.owner_alias, '3dvr-managed');
+    assert.equal(JSON.parse(row.record_json).unsafe, false);
+
+    const status = await request(handler, { action: 'status', requestId: enqueue.requestId });
+    assert.equal(status.statusCode, 200);
+    assert.equal(status.data.record.id, id);
+    assert.equal(status.data.record.status, 'queued');
+
+    const replay = await request(handler, enqueue);
+    assert.equal(replay.statusCode, 202);
+    assert.equal(replay.data.record.id, id);
+    assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 1,
+      'same signed request must not enqueue a duplicate');
+    assert.equal(transportCalls, 3, 'one enqueue, one status and one idempotent retry');
+
+    // Invoke the real private-worker selection, SQLite claim, and result-writing
+    // code with only the model executor stubbed. No Codex, Gun, SSH or network.
+    let syntheticExecutions = 0;
+    const workerOptions = {
+      queueDb: dbPath, ownerAlias: '3dvr-managed', gunSync: false,
+      deviceId: 'ci-isolated-private-worker', workerCapabilities: 'codex,node',
+      workerRiskClasses: 'draft,low',
+    };
+    const isolatedWorkerQueue = {
+      listTasks: options => workerQueue.listTasks({ ...options, ...workerOptions }),
+      canWorkerRunTask: (record, options) =>
+        workerQueue.canWorkerRunTask(record, { ...options, ...workerOptions }),
+      runQueuedTask: (record, options) => workerQueue.runQueuedTask(record, {
+        ...options, ...workerOptions,
+        runAgentTaskImpl: async () => {
+          syntheticExecutions++;
+          return { ok: true, result: { stdout: '42 (synthetic executor)' } };
+        },
+      }),
+    };
+    assert.equal(await runPrivateWorkerOnce(isolatedWorkerQueue), 1,
+      'private worker must select and claim the signed task');
+    assert.equal(syntheticExecutions, 1);
+    const completed = await request(handler, { action: 'status', requestId: enqueue.requestId });
+    assert.equal(completed.statusCode, 200);
+    assert.equal(completed.data.record.status, 'completed');
+    assert.equal(completed.data.record.workerDeviceId, 'ci-isolated-private-worker');
+    const persisted = JSON.parse(db.prepare('SELECT record_json FROM tasks WHERE id=?').get(id).record_json);
+    assert.ok(Number.isFinite(Date.parse(persisted.startedAt)), 'worker persisted start time');
+    assert.ok(Number.isFinite(Date.parse(persisted.completedAt)), 'worker persisted completion time');
+    assert.ok(Date.parse(persisted.completedAt) >= Date.parse(persisted.startedAt));
+    assert.equal(completed.data.record.startedAt, persisted.startedAt);
+    assert.equal(completed.data.record.completedAt, persisted.completedAt,
+      'signed status must expose the actual worker completion timestamp, not an inferred update time');
+    const admitted = JSON.parse(row.record_json);
+    assert.equal(persisted.operatorRequestDigest, admitted.operatorRequestDigest,
+      'terminal write must preserve the signed request digest');
+    assert.equal(persisted.runtimeWorkItemJson, admitted.runtimeWorkItemJson,
+      'terminal write must preserve signed title metadata');
+    const completedRetry = await request(handler, enqueue);
+    assert.equal(completedRetry.statusCode, 202, 'exact signed retry returns existing terminal receipt');
+    assert.equal(completedRetry.data.record.status, 'completed');
+    const changedTitle = await request(handler, { ...enqueue, title: enqueue.title + ' changed' });
+    assert.equal(changedTitle.statusCode, 503, 'changed signed title must not reuse completed receipt');
+    assert.equal(completed.data.record.resultSummary, '42 (synthetic executor)');
+    assert.equal(completed.data.record.resultText, '42 (synthetic executor)');
+    assert.equal(await runPrivateWorkerOnce(isolatedWorkerQueue), 0,
+      'completed task is not replayed');
+    assert.equal(syntheticExecutions, 1, 'model executor is invoked only once');
+    assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 1);
+
+    // Joined #3774 acceptance: real signed dispatch/SQLite worker plus real
+    // loopback Gun projection. Model execution is still a deterministic stub.
+    // Relay, projection and reader each have a stripped environment and scratch
+    // cwd; the isolated projection refuses non-loopback endpoints.
+    const ledgerModule = require.resolve('../apps/agent/thomas-agent/node/revenue-ledger.js');
+    const candidateModule = require.resolve('../apps/agent/thomas-agent/node/revenue-operator-candidate.js');
+    const projectionModule = require.resolve('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
+    const crmModule = require.resolve('../apps/agent/thomas-agent/node/crm-sync.js');
+    const {startRelay, stopRelay, runChild, readCrm} = isolatedCrmFixture(dir);
+    let activeRelay = await startRelay();
+    try {
+      const relayUrl = activeRelay.url;
+      const provenance = 'signed-crm-canary-20261123';
+      const sourceUrl = 'https://example.test/' + provenance;
+      const prospectRequest = { action: 'enqueue', requestId: provenance,
+        text: 'Record synthetic research only: ' + sourceUrl + '. No outreach or external changes.',
+        title: 'Synthetic CRM research acceptance' };
+      const ledgerFile = join(dir, 'revenue-ledger-fixture.sqlite');
+      let crmExecutions = 0;
+      const candidate = { name: 'Synthetic buyer', sourceUrl, summary: 'Synthetic public listing for research-only acceptance' };
+      const sourceEvidence = { name: 'Synthetic buyer', url: sourceUrl, evidence: 'Independent synthetic listing fixture' };
+      const prospectAccepted = await request(handler, prospectRequest);
+      assert.equal(prospectAccepted.statusCode, 202);
+      const prospectTaskId = prospectAccepted.data.record.id;
+      const admission = JSON.parse(db.prepare('SELECT record_json FROM tasks WHERE id=?').get(prospectTaskId).record_json);
+      const expected = { taskId: prospectTaskId, requestDigest: admission.operatorRequestDigest,
+        workerDeviceId: workerOptions.deviceId, requestedAt: admission.createdAt };
+      const crmWorkerQueue = {
+        ...isolatedWorkerQueue,
+        runQueuedTask: (record, options) => workerQueue.runQueuedTask(record, {
+          ...options, ...workerOptions,
+          runAgentTaskImpl: async args => {
+            crmExecutions++;
+            assert.equal(record.id, prospectTaskId);
+            assert.equal(args.at(-1), record.task);
+            assert.ok(record.task.startsWith('Operator delegated task: ' + prospectRequest.text));
+            assert.match(record.task, /Do not send messages, spend money/);
+            return { ok: true, result: { stdout: JSON.stringify(candidate) } };
+          },
+        }),
+      };
+      assert.equal(await runPrivateWorkerOnce(crmWorkerQueue), 1);
+      const done = await request(handler, { action: 'status', requestId: provenance });
+      assert.equal(done.statusCode, 200);
+      assert.equal(done.data.record.status, 'completed');
+      assert.equal(done.data.record.workerDeviceId, workerOptions.deviceId);
+      assert.ok(Number.isFinite(Date.parse(done.data.record.completedAt)));
+      assert.deepEqual(JSON.parse(done.data.record.resultText), candidate);
+      assert.equal((await request(handler, prospectRequest)).data.record.status, 'completed');
+      assert.equal(await runPrivateWorkerOnce(crmWorkerQueue), 0);
+      assert.equal(crmExecutions, 1);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE id=?').get(prospectTaskId).n, 1);
+      // Revenue authority imports a completed durable row, not a model-authored
+      // receipt. The worker above never opens a CRM or ledger connection.
+      const written = runChild(`
+        const assert = require('node:assert/strict');
+        const { DatabaseSync } = require('node:sqlite');
+        const { openLedger, pendingProjections } = require(process.argv[1]);
+        const { recordOperatorCandidate } = require(process.argv[2]);
+        const { projectPendingCrm } = require(process.argv[3]);
+        const { buildLeadId } = require(process.argv[4]);
+        const [filePath, relayUrl, queuePath, expectedJson, evidenceJson] = process.argv.slice(5);
+        (async () => {
+          const expected = JSON.parse(expectedJson);
+          const verifiedSource = JSON.parse(evidenceJson);
+          const queue = new DatabaseSync(queuePath, { readOnly: true });
+          let row;
+          try {
+            const persisted = queue.prepare('SELECT source, status, record_json FROM tasks WHERE owner_alias = ? AND id = ?')
+              .get('3dvr-managed', expected.taskId);
+            row = { source: persisted.source, status: persisted.status, record: JSON.parse(persisted.record_json) };
+          } finally { queue.close(); }
+          const ledger = openLedger({ filePath });
+          try {
+            const input = { row, expected, verifiedSource };
+            const first = recordOperatorCandidate(ledger, input);
+            const lead = first.prospect;
+            const event = first.event;
+            assert.equal(lead.state, 'verified');
+            const projected = await projectPendingCrm(ledger, { isolated: true, relayUrl });
+            assert.equal(projected.succeeded, 1, JSON.stringify(projected));
+            assert.equal(projected.failed, 0);
+            assert.equal(recordOperatorCandidate(ledger, input).replayed, true);
+            assert.equal((await projectPendingCrm(ledger, { isolated: true, relayUrl })).attempted, 0);
+            assert.equal(pendingProjections(ledger).length, 0);
+            assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+            const id = buildLeadId({ name: lead.name, contact: lead.contact, link: lead.source_url });
+            process.stdout.write('CRM_RESULT:' + JSON.stringify({ id, eventId: event.id }) + '\\n', () => process.exit(0));
+          } finally { ledger.close(); }
+        })().catch(error => { console.error(error); process.exit(1); });
+      `, [ledgerModule, candidateModule, projectionModule, crmModule, ledgerFile, relayUrl,
+        dbPath, JSON.stringify(expected), JSON.stringify(sourceEvidence)], 20000);
+      // Fresh process, no local storage, reads the actual relay after writer exit.
+      const { record: saved, touch } = readCrm(relayUrl, written);
+      assert.equal(saved.id, written.id);
+      assert.equal(saved.sourceUrl, sourceUrl);
+      assert.equal(saved.canonicalEventId, written.eventId);
+      assert.equal(saved.canonicalState, 'verified');
+      assert.equal(saved.status, 'Lead');
+      assert.equal(saved.email, '');
+      assert.equal(saved.nextFollowUp, undefined);
+      assert.equal(saved.lastPaymentAmountCents, undefined);
+      assert.equal(touch.id, 'revenue-event-' + written.eventId);
+      assert.equal(touch.crmRecordId, saved.id);
+      assert.equal(touch.touchType, 'operator_candidate_verified');
+      // Acknowledgement plus a live reader could still be served from memory.
+      // Kill the isolated relay and start a fresh process with the same scratch
+      // Radisk path; no writer is running and the new reader has no cache.
+      await stopRelay(activeRelay.relay);
+      activeRelay = await startRelay();
+      const recovered = readCrm(activeRelay.url, written);
+      assert.deepEqual(recovered.record, saved, 'CRM record survives isolated relay restart');
+      assert.deepEqual(recovered.touch, touch, 'CRM event survives isolated relay restart');
+      const readLedger = new DatabaseSync(ledgerFile, { readOnly: true });
+      try {
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 1);
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+        // Independently join the persisted CRM event back to this exact signed
+        // worker task and provenance key. Do not publish private task IDs to Gun.
+        const persistedEvent = readLedger.prepare(`SELECT e.id, e.idempotency_key, e.payload_json,
+          p.source_url, p.state, o.status AS projection_status
+          FROM revenue_events e JOIN prospects p ON p.id = e.prospect_id
+          JOIN projection_outbox o ON o.event_id = e.id AND o.prospect_id = p.id
+          WHERE e.id = ?`).get(recovered.record.canonicalEventId);
+        assert.ok(persistedEvent, 'independent CRM event must join to its durable ledger event');
+        assert.equal(persistedEvent.id, written.eventId);
+        assert.equal(persistedEvent.idempotency_key, 'operator-candidate:' + prospectTaskId);
+        assert.deepEqual(JSON.parse(persistedEvent.payload_json), { taskId: prospectTaskId,
+          requestDigest: expected.requestDigest, workerDeviceId: expected.workerDeviceId,
+          sourceUrl, name: candidate.name,
+          summary: candidate.summary, evidence: sourceEvidence.evidence });
+        assert.equal(persistedEvent.source_url, sourceUrl);
+        assert.equal(persistedEvent.state, 'verified');
+        assert.equal(persistedEvent.projection_status, 'succeeded');
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 1);
+        assert.equal(readLedger.prepare('SELECT COUNT(*) AS n FROM projection_outbox').get().n, 1);
+      } finally { readLedger.close(); }
+    } finally {
+      await stopRelay(activeRelay.relay);
+    }
+
+  } finally {
+    db.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+async function signedLocalCrmCanary(real = null) {
+  const { createHash } = await import('node:crypto');
+  const { createServer } = await import('node:http');
+  const signer = await SEA.pair();
+  const candidate = { name:'Synthetic local buyer', sourceUrl:'https://operator-canary.invalid/listing', summary:'Synthetic acceptance fixture' };
+  const verifiedSource = { name:candidate.name, url:candidate.sourceUrl, evidence:'Independent synthetic source fixture' };
+  const item = { ...enqueue, requestId: 'operator-e2e-local-admission-123',
+    text:'Return exactly this synthetic prospect JSON object, with no markdown, extra fields or prose: '+JSON.stringify(candidate), title:'Synthetic local prospect' };
+  const id = 'operator-http-' + createHash('sha256').update(signer.pub).digest('hex').slice(0, 24) + '-' + item.requestId;
+  const digest = createHash('sha256').update(JSON.stringify({ text: item.text, title: item.title })).digest('hex');
+  const cfg = {
+    THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({ 'tmsteph@3dvr': signer.pub }),
+    OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: '1',
+    OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED: '1',
+    OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID: id,
+    OPERATOR_RUNTIME_E2E_EXPECTED_REQUEST_DIGEST: digest,
+  };
+  const dir = await mkdtemp(join(tmpdir(), 'operator-local-signed-'));
+  const dbPath = join(dir, 'queue.sqlite');
+  const owner = 'operator-e2e-test';
+  const worker = 'isolated-local-worker';
+  const db = new DatabaseSync(dbPath);
+  let calls = 0;
+  let genericCalls = 0;
+  const model = real ? null : createServer((req, res) => {
+    calls++;
+    req.resume();
+    req.on('end', () => res.end(JSON.stringify({model:'test-model', choices:[{
+      finish_reason:'stop',message:{role:'assistant',content:JSON.stringify(candidate)}
+    }]})));
+  });
+  try {
+    if (model) await new Promise(resolve => model.listen(0, '127.0.0.1', resolve));
+    db.exec("CREATE TABLE tasks(owner_alias TEXT NOT NULL,id TEXT NOT NULL,status TEXT NOT NULL,updated_at TEXT NOT NULL,record_json TEXT NOT NULL,source TEXT NOT NULL DEFAULT 'sqlite',claim_token TEXT,claim_expires_at INTEGER,PRIMARY KEY(owner_alias,id)) WITHOUT ROWID");
+    // Test-only adaptation of the existing SSH transport: no real HOME,
+    // production queue, credentials, SSH or Gun. Pin the scratch owner and DB.
+    const script = REMOTE_QUEUE_SCRIPT
+      .replace(/if \[ -f .*?fi\n/, '')
+      .replace('cd "$HOME/.3dvr/portal/apps/agent"', "cd '" + dir + "'")
+      .replace('/opt/node-v22/bin/node', process.execPath)
+      .replaceAll('3dvr-managed', owner)
+      .replace("capabilities.includes('codex')", "capabilities.includes('local-canary')");
+    let transportCalls = 0;
+    const run = async input => {
+      transportCalls++;
+      const proc = spawnSync('bash', ['-s', '--', Buffer.from(JSON.stringify(input)).toString('base64url')], {
+        input: script, encoding: 'utf8', timeout: 10000,
+        env: { HOME: dir, PATH: process.env.PATH || '', THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+          THREEDVR_AGENT_OWNER_ALIAS: owner, THREEDVR_AGENT_WORKER_CAPABILITIES: 'local-canary',
+          THREEDVR_AGENT_QUEUE_DB: dbPath }
+      });
+      assert.equal(proc.status, 0, proc.stderr);
+      return JSON.parse(proc.stdout);
+    };
+    assert.throws(() => createOperatorDispatchHandler({ config: cfg, localCanary: true }), /explicit isolated transport/);
+    assert.throws(() => createOperatorDispatchHandler({ config: cfg, run, localCanary: true, verify: async () => ({ok:true}) }), /explicit isolated transport/);
+    assert.throws(() => createOperatorDispatchHandler({ config: {...cfg, OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED:'0'}, run, localCanary: true }), /explicit isolated transport/);
+    let ordinaryBackend;
+    const ordinary = createOperatorDispatchHandler({config:cfg, run:async input => {
+      ordinaryBackend = input.record.backend;
+      return {ok:true};
+    }});
+    assert.equal((await request(ordinary, {...item, backend:'local-canary'}, signer)).statusCode, 202);
+    assert.equal(ordinaryBackend, 'codex', 'environment and request fields alone cannot select local canary');
+
+    const handler = createOperatorDispatchHandler({config:cfg, run, localCanary:true});
+    assert.equal((await request(handler,item,signer,{authProof:''})).statusCode,401);
+    assert.equal((await request(handler,item,await SEA.pair())).statusCode,403);
+    assert.equal((await request(handler,{...item,requestId:'operator-e2e-other-task-123'},signer)).statusCode,403);
+    assert.equal((await request(handler,{...item,text:item.text+' changed'},signer)).statusCode,403);
+    assert.equal(transportCalls,0);
+    assert.equal((await request(handler,{action:'status',requestId:item.requestId},signer)).statusCode,404);
+    const accepted = await request(handler,item,signer);
+    assert.equal(accepted.statusCode,202);
+    assert.equal(accepted.data.record.id,id);
+    const row = db.prepare('SELECT * FROM tasks WHERE id=?').get(id);
+    assert.equal(row.source,'operator-http');
+    const admitted = JSON.parse(row.record_json);
+    assert.equal(admitted.backend,'local-canary');
+    assert.equal(admitted.requiredCapabilities,'local-canary');
+    assert.equal(admitted.operatorRequestDigest,digest);
+    assert.equal((await request(handler,item,signer)).statusCode,202);
+    const options = { queueStore:'sqlite', queueDb:dbPath, ownerAlias:owner, gunSync:false,
+      deviceId:worker, workerCapabilities:'local-canary', workerRiskClasses:'draft,low', localCanary:true,
+      runAgentTaskImpl:async () => {genericCalls++; throw Error('generic fallback forbidden');},
+      localCanaryEnv:{...cfg, OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB:dbPath,
+        OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS:owner, OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID:worker,
+        OPERATOR_RUNTIME_E2E_LOCAL_MODEL_URL:real?.url ?? ('http://127.0.0.1:'+model.address().port),
+        OPERATOR_RUNTIME_E2E_LOCAL_MODEL:real?.model ?? 'test-model'}
+    };
+    const outcome = await workerQueue.runQueuedTask(await workerQueue.readTask(id,options),options);
+    assert.equal(outcome.ok,true);
+    const done = await request(handler,{action:'status',requestId:item.requestId},signer);
+    assert.equal(done.statusCode,200);
+    assert.equal(done.data.record.status,'completed');
+    assert.equal(done.data.record.workerDeviceId,worker);
+    assert.equal(done.data.record.operatorRequestDigest,digest);
+    assert.deepEqual(JSON.parse(done.data.record.resultText),candidate);
+    const independent = new DatabaseSync(dbPath,{readOnly:true});
+    try {
+      const saved = independent.prepare('SELECT * FROM tasks WHERE id=?').get(id);
+      assert.equal(saved.status,'completed');
+      assert.equal(saved.source,'operator-http');
+      assert.equal(JSON.parse(saved.record_json).backend,'local-canary');
+      assert.equal(independent.prepare('SELECT count(*) n FROM tasks').get().n,1);
+    } finally { independent.close(); }
+    assert.equal((await request(handler,item,signer)).data.record.status,'completed');
+    assert.equal((await workerQueue.runQueuedTask(await workerQueue.readTask(id,options),options)).skipped,true);
+    assert.equal(calls,real ? 0 : 1);
+    assert.equal(genericCalls,0);
+
+    const { openLedger } = require('../apps/agent/thomas-agent/node/revenue-ledger.js');
+    const { recordOperatorCandidate, recordLocalCanaryCandidate } = require('../apps/agent/thomas-agent/node/revenue-operator-candidate.js');
+    const { projectPendingCrm } = require('../apps/agent/thomas-agent/node/revenue-crm-projection.js');
+    const ledgerPath = join(dir,'ledger.sqlite');
+    const ledger = openLedger({ filePath:ledgerPath });
+    const expected = { taskId:id, requestDigest:digest, workerDeviceId:worker, requestedAt:admitted.createdAt };
+    const input = { scratchDir:dir, expected, verifiedSource, env:options.localCanaryEnv };
+    try {
+      const completed = db.prepare('SELECT source,status,record_json FROM tasks WHERE id=?').get(id);
+      assert.throws(() => recordOperatorCandidate(ledger,{ row:{source:completed.source,status:completed.status,
+        record:JSON.parse(completed.record_json)},expected,verifiedSource }), /Unverified private task completion/);
+      assert.throws(() => recordLocalCanaryCandidate(ledger,{...input,env:{...input.env,OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED:'0'}}), /not authorized/);
+      assert.throws(() => recordLocalCanaryCandidate(ledger,{...input,verifiedSource:{...verifiedSource,name:'Wrong name'}}), /verification mismatch/);
+      const other = openLedger({filePath:join(dir,'other.sqlite')});
+      try { assert.throws(() => recordLocalCanaryCandidate(other,input),/scratch databases/); } finally { other.close(); }
+      assert.equal(ledger.prepare('SELECT count(*) n FROM prospects').get().n,0);
+      const first = recordLocalCanaryCandidate(ledger,input);
+      assert.equal(first.prospect.state,'verified');
+      assert.equal(first.event.type,'operator_local_canary_verified');
+      assert.equal(JSON.parse(first.event.payload_json).backend,'local-canary');
+      assert.equal(recordLocalCanaryCandidate(ledger,input).replayed,true);
+      let writes = 0;
+      const write = async payload => {
+        writes++;
+        assert.equal(payload.records[0].status,'Lead');
+        assert.equal(payload.records[0].sourceUrl,candidate.sourceUrl);
+        assert.equal(payload.records[0].email,'');
+        assert.equal(payload.records[0].lastPaymentAmountCents,undefined);
+        assert.equal(payload.touches[0].touchType,'operator_local_canary_verified');
+        return { records:1,touches:1,errors:[] };
+      };
+      const blocked = await projectPendingCrm(ledger,{write});
+      assert.equal(blocked.failed,1);
+      assert.equal(writes,0);
+      assert.match(blocked.errors[0],/isolated CRM/);
+      assert.equal(ledger.prepare('SELECT count(*) n FROM delivery_attempts').get().n,0);
+    } finally { ledger.close(); }
+    // Real loopback Gun projection and independent post-restart readback.
+    // Reuse the signed Codex acceptance fixture, with a distinct scratch cwd.
+    const {startRelay, stopRelay, runChild, readCrm} = isolatedCrmFixture(dir);
+    let activeRelay = await startRelay();
+    let recoveredEventId;
+    try {
+      const written = runChild(`
+        const assert = require('node:assert/strict');
+        const { openLedger, pendingProjections } = require(process.argv[1]);
+        const { projectPendingCrm } = require(process.argv[2]);
+        const { buildLeadId } = require(process.argv[3]);
+        const [filePath, relayUrl] = process.argv.slice(4);
+        (async () => {
+          const ledger = openLedger({ filePath });
+          try {
+            const lead = ledger.prepare('SELECT * FROM prospects').get();
+            const event = ledger.prepare('SELECT * FROM revenue_events').get();
+            assert.equal(event.type, 'operator_local_canary_verified');
+            const projected = await projectPendingCrm(ledger, { isolated: true, relayUrl });
+            assert.equal(projected.succeeded, 1, JSON.stringify(projected));
+            assert.equal(projected.failed, 0);
+            assert.equal((await projectPendingCrm(ledger, { isolated: true, relayUrl })).attempted, 0);
+            assert.equal(pendingProjections(ledger).length, 0);
+            assert.equal(ledger.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+            const id = buildLeadId({name:lead.name,contact:lead.contact,link:lead.source_url});
+            process.stdout.write('CRM_RESULT:' + JSON.stringify({id,eventId:event.id}) + '\\n', () => process.exit(0));
+          } finally { ledger.close(); }
+        })().catch(error => { console.error(error); process.exit(1); });
+      `, [require.resolve('../apps/agent/thomas-agent/node/revenue-ledger.js'),
+        require.resolve('../apps/agent/thomas-agent/node/revenue-crm-projection.js'),
+        require.resolve('../apps/agent/thomas-agent/node/crm-sync.js'),
+        ledgerPath, activeRelay.url], 20000);
+      const saved = readCrm(activeRelay.url, written);
+      assert.equal(saved.record.id,written.id);
+      assert.equal(saved.record.canonicalEventId,written.eventId);
+      assert.equal(saved.record.sourceUrl,candidate.sourceUrl);
+      assert.equal(saved.record.status,'Lead');
+      assert.equal(saved.record.canonicalState,'verified');
+      assert.equal(saved.record.email,'');
+      assert.equal(saved.record.nextFollowUp,undefined);
+      assert.equal(saved.record.lastPaymentAmountCents,undefined);
+      assert.equal(saved.touch.touchType,'operator_local_canary_verified');
+      assert.equal(saved.touch.crmRecordId,written.id);
+      await stopRelay(activeRelay.relay);
+      activeRelay = await startRelay();
+      const recovered = readCrm(activeRelay.url, written);
+      assert.deepEqual(recovered.record,saved.record);
+      assert.deepEqual(recovered.touch,saved.touch);
+      recoveredEventId = recovered.record.canonicalEventId;
+    } finally { await stopRelay(activeRelay.relay); }
+    const readLedger = new DatabaseSync(ledgerPath,{readOnly:true});
+    try {
+      assert.equal(readLedger.prepare('SELECT count(*) n FROM prospects').get().n,1);
+      assert.equal(readLedger.prepare('SELECT count(*) n FROM delivery_attempts').get().n,0);
+      const event = readLedger.prepare('SELECT e.payload_json,o.status FROM revenue_events e JOIN projection_outbox o ON o.event_id=e.id WHERE e.id=?').get(recoveredEventId);
+      assert.equal(JSON.parse(event.payload_json).taskId,id);
+      assert.equal(JSON.parse(event.payload_json).backend,'local-canary');
+      assert.equal(event.status,'succeeded');
+      assert.equal(readLedger.prepare('SELECT count(*) n FROM revenue_events').get().n,1);
+    } finally { readLedger.close(); }
+    if (real) console.log('OPERATOR_REAL_LOCAL_CANARY_VERIFIED:' + JSON.stringify({
+      taskId:id, requestDigest:digest, workerDeviceId:worker, model:real.model,
+      responseValidated:true, crmEventId:recoveredEventId, deliveryAttempts:0
+    }));
+  } finally {
+    if (model?.listening) await new Promise(resolve => model.close(resolve));
+    db.close();
+    await rm(dir,{recursive:true,force:true});
+  }
+}
+
+test('isolated local canary admits a real exact signed request and completes a scratch SQLite claim and survives CRM restart', { timeout: 90000 }, () => signedLocalCrmCanary());
+
+// Deliberately skipped in CI. An operator must authorize exactly one synthetic
+// inference and confirm capacity on the owned server before invoking this test
+// in a clean environment; ordinary test flags cannot enable real inference.
+test('explicit real local model signed CRM canary', {
+  timeout: 90000, skip: process.env.OPERATOR_REAL_LOCAL_CANARY_RUN !== '1'
+}, async () => {
+  assert.ok(!process.env.CI && !process.env.GITHUB_ACTIONS, 'real inference prohibited in CI');
+  assert.equal(process.env.OPERATOR_REAL_LOCAL_CANARY_CAPACITY_VERIFIED,'1');
+  const url = process.env.OPERATOR_REAL_LOCAL_CANARY_URL || '';
+  const model = process.env.OPERATOR_REAL_LOCAL_CANARY_MODEL || '';
+  assert.match(url,/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/);
+  assert.ok(Number(url.split(':').at(-1)) <= 65535);
+  assert.ok(model.length > 0 && model.length <= 512 && model.trim() === model);
+  await signedLocalCrmCanary({url,model});
 });

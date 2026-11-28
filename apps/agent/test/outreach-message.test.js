@@ -196,7 +196,9 @@ test('ask-send applies a bounded free-page experiment variant without changing l
       THREEDVR_OUTREACH_POSTAL_ADDRESS: '123 Main St, San Diego, CA 92101',
     });
 
-    assert.match(stdout, /Would you like to take a look\?/i);
+    assert.match(stdout, /I can prepare a free homepage concept for Variant Studio/i);
+    assert.match(stdout, /Would you like me to prepare one\?/i);
+    assert.doesNotMatch(stdout, /I made a free homepage|Here is a free homepage|Would you like to take a look\?/i);
     assert.match(stdout, /Route: email/);
     assert.match(stdout, /Postal address: 123 Main St/);
   } finally {
@@ -418,4 +420,19 @@ test('ask-send prints form routes and opens the contact page', async () => {
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
+});
+
+test('outreach sender refuses a complete send request without verified approval before network access', async () => {
+  await assert.rejects(
+    run(process.execPath, [
+      path.join(root, 'thomas-agent', 'node', 'send-outreach-email.js'),
+      '--to', 'owner@example.com',
+      '--subject', 'Test subject',
+      '--text', 'Test message',
+    ], { THREEDVR_OUTREACH_EMAIL_TRANSPORT: 'gmail' }),
+    error => {
+      assert.match(error.stderr, /verified message-specific human approval is required/i);
+      return true;
+    },
+  );
 });

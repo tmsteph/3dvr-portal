@@ -235,6 +235,13 @@ async function main() {
     process.exit(1);
   }
 
+  // No durable, message-bound human approval verifier is wired to this sender yet.
+  // Fail closed before DNS, idempotency reservation, or any provider interaction.
+  // Do not replace this with an environment-variable or caller-supplied boolean.
+  if (!options.probeOnly) {
+    throw new Error('Outreach send blocked: verified message-specific human approval is required. Draft/probe only.');
+  }
+
   const sendWindow = businessHoursStatus();
   if (!options.probeOnly && !sendWindow.allowed) {
     throw new Error(

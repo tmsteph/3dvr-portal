@@ -1,129 +1,227 @@
-import Gun from 'gun';
+import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import SEA from 'gun/sea.js';
 
-import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
-
-const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://portal.3dvr.tech/gun-relay,https://portal.3dvr.tech/gun-relay')
-  .split(',')
-  .map(value => value.trim())
-  .filter(Boolean);
-const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
-const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
-const pollMs = 2000;
-const readTimeoutMs = 5000;
-const writeTimeoutMs = 10000;
-
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-const taskId = `operator-e2e-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-
-const built = buildOperatorDelegatedTask({
-  type: 'delegate_task',
-  title: 'Operator runtime E2E',
-  text: 'Fetch https://portal.3dvr.tech and report the HTML title. Read only. Make no changes.'
-}, {
-  id: taskId,
-  now: new Date().toISOString(),
-  tenantAlias: 'operator-runtime-e2e'
-});
-
-const gun = Gun({
-  peers,
-  radisk: false,
-  localStorage: false
-});
-const queue = gun
-  .get('3dvr-portal')
-  .get('agentOps')
-  .get(ownerAlias)
-  .get('taskQueue');
-
-function put(node, value) {
-  return new Promise(resolve => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      resolve({ acknowledged: false, timedOut: true });
-    }, writeTimeoutMs);
-    node.put(value, ack => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({
-        acknowledged: !ack?.err,
-        error: ack?.err ? String(ack.err) : '',
-        ack: ack || {}
-      });
-    });
-  });
+// Prepare a stable exact task ID before starting a pinned worker. This pure
+// step needs only the owner's public key and makes no network request.
+export function planOperatorRuntimeE2E({ env = process.env } = {}) {
+  const requestId = String(env.OPERATOR_RUNTIME_E2E_REQUEST_ID || '');
+  if (!/^operator-e2e-[A-Za-z0-9_-]{12,80}$/.test(requestId)) {
+    throw new Error('Preselected Operator E2E request ID is required for an exact-ID pinned canary.');
+  }
+  const pub = String(env.OPERATOR_RUNTIME_E2E_OWNER_PUB || '');
+  if (!pub) throw new Error('Signed owner public identity is not configured.');
+  const expectedTaskId = `operator-http-${createHash('sha256').update(pub).digest('hex').slice(0,24)}-${requestId}`;
+  const mode = env.OPERATOR_RUNTIME_E2E_MODE || 'arithmetic';
+  if (!['arithmetic', 'synthetic-prospect'].includes(mode)) {
+    throw new Error('Unsupported Operator E2E mode.');
+  }
+  return { requestId, expectedTaskId, mode };
 }
 
-function once(node) {
-  return new Promise(resolve => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      resolve(null);
-    }, readTimeoutMs);
-    node.once(data => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(data || null);
-    });
-  });
+export function prepareOperatorRuntimeE2E({ env = process.env, log = console.log } = {}) {
+  const plan = planOperatorRuntimeE2E({ env });
+  log(`E2E_TASK_REQUEST_ID=${plan.requestId}`);
+  log(`E2E_EXPECTED_TASK_ID=${plan.expectedTaskId}`);
+  log(`E2E_MODE=${plan.mode}`);
+  log('E2E_PREPARE_ONLY=true');
+  log('E2E_NETWORK_REQUESTS=0');
+  return plan;
 }
 
-async function main() {
-  console.log(`E2E_TASK_ID=${taskId}`);
-  console.log(`E2E_PEERS=${peers.join(',')}`);
-  console.log(`E2E_OWNER=${ownerAlias}`);
-
-  gun.on('hi', peer => console.log(`E2E_PEER_HI=${peer?.url || peer || 'unknown'}`));
-  gun.on('bye', peer => console.log(`E2E_PEER_BYE=${peer?.url || peer || 'unknown'}`));
-
-  const writes = await Promise.all([
-    put(queue.get('tasks').get(taskId), built.record),
-    put(queue.get('latest').get(taskId), built.summary),
-    put(queue.get('runtime').get(taskId), built.runtime)
-  ]);
-  console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
-  console.log('E2E_ENQUEUE_ATTEMPTED=true');
-
-  const transitions = [];
-  const deadline = Date.now() + maxWaitMs;
-  let record = null;
-
-  while (Date.now() < deadline) {
-    record = await once(queue.get('tasks').get(taskId));
-    const state = record?.status || record?.state || 'missing';
-    if (transitions.at(-1) !== state) {
-      transitions.push(state);
-      console.log(`E2E_STATE=${state}`);
+// This is an explicitly authorized, signed canary. Never enqueue legacy Gun
+// records: the managed worker only accepts owner-authenticated HTTP tasks.
+export async function runOperatorRuntimeE2E({
+  env = process.env,
+  sea = SEA,
+  fetchImpl = globalThis.fetch,
+  log = console.log,
+  now = () => Date.now(),
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+} = {}) {
+  if (env.OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED !== '1') {
+    throw new Error('Signed Operator E2E is disabled; explicit run and cost authorization required.');
+  }
+  // The signed origin is the existing API protocol value, not the network target.
+  // Only a separately verified isolated server on an explicit loopback port
+  // is eligible. Never fall back to a live public portal or follow redirects.
+  const origin = 'https://portal.3dvr.tech';
+  const target = String(env.OPERATOR_RUNTIME_E2E_ISOLATED_URL || '');
+  if (!/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/.test(target) ||
+      Number(target.split(':').at(-1)) > 65535) {
+    throw new Error('Explicit isolated loopback URL required; no public portal fallback.');
+  }
+  const expectedWorkerDeviceId = env.OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID;
+  if (typeof expectedWorkerDeviceId !== 'string' || !expectedWorkerDeviceId ||
+      expectedWorkerDeviceId.trim() !== expectedWorkerDeviceId) {
+    throw new Error('Explicit expected isolated worker device ID required before admission.');
+  }
+  const encodedPair = env.OPERATOR_RUNTIME_E2E_SEA_PAIR || '';
+  const expectedPub = env.OPERATOR_RUNTIME_E2E_OWNER_PUB || '';
+  if (!encodedPair || !expectedPub) throw new Error('Signed owner identity is not configured.');
+  let pair;
+  try { pair = JSON.parse(encodedPair); } catch { throw new Error('Signed owner identity is invalid.'); }
+  if (!pair?.pub || pair.pub !== expectedPub || !pair.priv || !pair.epriv) {
+    throw new Error('Signed owner identity does not match the expected owner.');
+  }
+  const probe = { scope: 'operator-runtime-e2e-self-check', pub: pair.pub, iat: now() };
+  const selfCheck = await sea.verify(await sea.sign(probe, pair), pair.pub);
+  if (selfCheck?.scope !== probe.scope || selfCheck?.pub !== pair.pub) {
+    throw new Error('Signed owner identity failed self-check.');
+  }
+  const { requestId, expectedTaskId, mode } = planOperatorRuntimeE2E({ env });
+  // Fixed, unique synthetic evidence only; no arbitrary prompt, live listing,
+  // network access, or customer data can enter this acceptance mode.
+  const fixture = mode === 'synthetic-prospect' ? {
+    name: 'Synthetic buyer ' + requestId,
+    sourceUrl: 'https://example.com/operator-canary/' + requestId,
+    summary: 'Synthetic request for workflow reliability review'
+  } : null;
+  const task = {
+    action: 'enqueue', requestId,
+    title: fixture ? 'Signed synthetic prospect canary' : 'Signed Operator execution canary',
+    text: fixture
+      ? 'From this fictional listing, extract a JSON object with exactly name, sourceUrl, summary (all strings). Buyer: ' + fixture.name + '. Listing URL: ' + fixture.sourceUrl + '. Request: ' + fixture.summary + '. Return only JSON. Do not access networks, files, accounts, or external services; do not make changes or contact anyone.'
+      : 'What is 6 multiplied by 7? Respond with only the integer answer, without explanation. Do not access networks, files, accounts, or external services; do not make changes.'
+  };
+  const expectedRequestDigest = createHash('sha256').update(JSON.stringify({text: task.text, title: task.title})).digest('hex');
+  const timeoutMs = Math.min(240000, Math.max(1000, Number(env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS) || 120000));
+  const pollMs = 2000;
+  const states = [];
+  async function request(fields) {
+    const authProof = await sea.sign({ ...fields, scope: 'operator-runtime-task', pub: pair.pub, origin, iat: now() }, pair);
+    // Never log or persist the signing pair or proof.
+    const response = await fetchImpl(`${target}/api/operator-task`, {
+      method: 'POST',
+      redirect: 'error',
+      headers: { 'Content-Type': 'application/json', Origin: origin },
+      body: JSON.stringify({ ...fields, authPub: pair.pub, authProof }),
+      signal: AbortSignal.timeout(15000)
+    });
+    const result = await response.json();
+    return { status: response.status, result };
+  }
+  log(`E2E_TASK_REQUEST_ID=${requestId}`);
+  // A preselected ID must be fresh. Otherwise an idempotent enqueue could
+  // return a historical completed receipt and falsely pass this canary.
+  // Check only this exact signed ID; if status is uncertain, do not enqueue.
+  let precheck;
+  try { precheck = await request({ action: 'status', requestId }); }
+  catch { throw new Error('Cannot verify fresh canary ID; no enqueue attempted.'); }
+  if (precheck.status !== 404 || precheck.result?.missing !== true) {
+    throw new Error('Canary ID is already used or freshness cannot be verified; no enqueue attempted.');
+  }
+  log('E2E_PRECHECK=missing');
+  // Bound the receipt to this admission attempt, allowing only small clock skew.
+  const admissionStartedAt = now();
+  const receiptClockSkewMs = 5000;
+  let admission;
+  try { admission = await request(task); }
+  catch { log('E2E_ADMISSION=uncertain'); }
+  if (admission && ![202, 503].includes(admission.status)) {
+    throw new Error(`Signed task admission rejected (HTTP ${admission.status}).`);
+  }
+  if (admission?.status === 202 && admission.result?.ok !== true) {
+    throw new Error('Signed task admission was not confirmed.');
+  }
+  // An uncertain admission must be observed with the same request ID, never
+  // resubmitted. A 404 can mean the original request was not persisted.
+  const deadline = now() + timeoutMs;
+  let lastRecord;
+  while (now() < deadline) {
+    let response;
+    try { response = await request({ action: 'status', requestId }); }
+    catch { await sleep(pollMs); continue; }
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(`Signed status authorization rejected (HTTP ${response.status}).`);
     }
-    if (['completed', 'failed', 'rejected', 'approval_required'].includes(state)) break;
+    // Invalid signed requests cannot recover by polling. Surface the actual
+    // protocol error instead of waiting two minutes and reporting a timeout.
+    // Keep polling 404 (uncertain admission), 429, and 503 (transient).
+    if ([400, 405, 422].includes(response.status) ||
+        (response.status === 200 && (!response.result?.ok || !response.result?.record))) {
+      throw new Error(`Signed status protocol rejected the request (HTTP ${response.status}).`);
+    }
+    if (response.status === 200 && response.result?.ok && response.result?.record) {
+      // A completed receipt from another task is not proof this canary ran.
+      if (response.result.requestId !== requestId || response.result.record.id !== expectedTaskId) {
+        throw new Error('Signed status returned a mismatched task receipt.');
+      }
+      lastRecord = response.result.record;
+      const state = lastRecord.status || 'unknown';
+      if (states.at(-1) !== state) { states.push(state); log(`E2E_STATE=${state}`); }
+      if (['completed', 'failed', 'blocked', 'review', 'cancelled'].includes(state)) break;
+    }
     await sleep(pollMs);
   }
-
-  console.log(`E2E_TRANSITIONS=${JSON.stringify(transitions)}`);
-  console.log(`E2E_RESULT=${JSON.stringify({
-    status: record?.status || record?.state || '',
-    resultSummary: record?.resultSummary || '',
-    error: record?.error || '',
-    workerDeviceId: record?.workerDeviceId || ''
-  })}`);
-
-  if ((record?.status || record?.state) !== 'completed') {
-    throw new Error(`Operator runtime task did not complete: ${record?.status || record?.state || 'timeout'} ${record?.error || ''}`);
+  log(`E2E_TRANSITIONS=${JSON.stringify(states)}`);
+  if (lastRecord?.status !== 'completed') {
+    throw new Error(`Signed task did not complete; last state: ${lastRecord?.status || 'unknown'}. Do not resubmit the request.`);
   }
+  if (!lastRecord.startedAt || !lastRecord.completedAt ||
+      !Number.isFinite(Date.parse(lastRecord.startedAt)) ||
+      !Number.isFinite(Date.parse(lastRecord.completedAt)) ||
+      Date.parse(lastRecord.completedAt) < Date.parse(lastRecord.startedAt) ||
+      typeof lastRecord.workerDeviceId !== 'string' || !lastRecord.workerDeviceId.trim() ||
+      lastRecord.error || lastRecord.resultTruncated === true || lastRecord.resultSummaryTruncated === true ||
+      !(lastRecord.resultText || lastRecord.resultSummary)) {
+    throw new Error('Task completed without a durable, attributable execution receipt.');
+  }
+  if (Date.parse(lastRecord.startedAt) < admissionStartedAt - receiptClockSkewMs ||
+      Date.parse(lastRecord.completedAt) > now() + receiptClockSkewMs) {
+    throw new Error('Task completion receipt is outside the fresh admission time window.');
+  }
+  // This matches the preselected worker identifier, not an independent worker
+  // signature. The operator must still verify the isolated worker ledger.
+  if (lastRecord.workerDeviceId !== expectedWorkerDeviceId) {
+    throw new Error('Task completion receipt does not match the expected isolated worker device ID.');
+  }
+  if (lastRecord.operatorRequestDigest !== expectedRequestDigest) {
+    throw new Error('Task completion receipt does not match the exact signed command digest.');
+  }
+  // The test checks both worker attribution and the actual requested answer.
+  const answer = String(lastRecord.resultText || lastRecord.resultSummary || '').trim();
+  if (fixture) {
+    // The private revenue importer requires full resultText, not a summary.
+    let extracted;
+    try { extracted = JSON.parse(lastRecord.resultText); } catch { /* reject below */ }
+    if (!extracted || typeof extracted !== 'object' || Array.isArray(extracted) ||
+        Object.keys(extracted).sort().join(',') !== 'name,sourceUrl,summary' ||
+        Object.keys(fixture).some(key => extracted[key] !== fixture[key]) ||
+        lastRecord.resultTruncated !== false) {
+      throw new Error('Signed task receipt did not contain the exact synthetic prospect.');
+    }
+  } else if (answer !== '42') {
+    throw new Error('Signed task receipt did not contain the expected canary answer.');
+  }
+  log(`E2E_RECEIPT=${JSON.stringify({ requestId, status: lastRecord.status,
+    startedAt: lastRecord.startedAt, completedAt: lastRecord.completedAt,
+    workerDeviceId: lastRecord.workerDeviceId, requestDigest: expectedRequestDigest, hasResult: true })}`);
+  // This canary verifies signed runtime execution only. CRM projection uses a
+  // separate write/read path and must have its own exact-ID persistence receipt.
+  // Keep the legacy pass marker for existing CI consumers, but make the scope
+  // explicit so a green worker test cannot be reported as CRM acceptance.
+  log('E2E_PASS=true');
+  log('E2E_SCOPE=signed_runtime_only');
+  log(`E2E_MODE=${mode}`);
+  log('E2E_CRM_READBACK=not_tested');
+  return { requestId, states, receipt: lastRecord, mode,
+    ...(fixture ? { candidateExpectation: {
+      taskId: expectedTaskId, requestDigest: expectedRequestDigest,
+      workerDeviceId: expectedWorkerDeviceId, requestedAt: new Date(admissionStartedAt).toISOString()
+    }, syntheticSource: { name: fixture.name, url: fixture.sourceUrl,
+      evidence: 'Fixed synthetic fixture; not a genuine prospect or a public-source verification' } } : {}) };
 }
 
-main()
-  .then(() => {
-    console.log('E2E_PASS=true');
-    setTimeout(() => process.exit(0), 200);
-  })
-  .catch(error => {
-    console.error(error?.stack || error?.message || String(error));
-    setTimeout(() => process.exit(1), 200);
-  });
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  if (process.env.OPERATOR_RUNTIME_E2E_PREPARE_ONLY === '1') {
+    try { prepareOperatorRuntimeE2E(); }
+    catch (error) { console.error(`E2E_FAIL=${error.message}`); process.exitCode = 1; }
+  } else {
+    runOperatorRuntimeE2E().catch(error => {
+      console.error(`E2E_FAIL=${error.message}`);
+      process.exitCode = 1;
+    });
+  }
+}

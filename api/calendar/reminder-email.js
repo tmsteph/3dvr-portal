@@ -104,6 +104,22 @@ function normalizeAliasList(value) {
   return Array.from(new Set(aliases));
 }
 
+// Operator alert tokens are used by unattended agents. Keep this channel for
+// configured owner/team inboxes only; it must not be a second cold-outreach
+// transport that bypasses lead-outreach's message-specific approval gate.
+function operatorAlertAllowedRecipients(config = process.env) {
+  const configured = [
+    config.OPERATOR_EMAIL_TO,
+    config.MONEY_PRINTER_OPERATOR_EMAIL_TO,
+    config.MONEY_PRINTER_OWNER_EMAIL,
+    config.AUTO_BUSINESS_OWNER_EMAIL,
+    config.THREEDVR_AUTOPILOT_NOTIFY_EMAIL,
+    config.STRIPE_LOG_EMAIL,
+    config.GMAIL_USER
+  ];
+  return new Set(configured.flatMap(value => normalizeRecipientList(value)));
+}
+
 function parseEmailList(value) {
   const list = Array.isArray(value)
     ? value
@@ -781,6 +797,20 @@ export function createOperatorAlertEmailHandler(options = {}) {
       return res.status(400).json({ error: 'At least one operator alert recipient is required.' });
     }
 
+    const allowedRecipients = operatorAlertAllowedRecipients(config);
+    if (!allowedRecipients.size) {
+      return res.status(503).json({
+        code: 'operator_alert_recipients_unconfigured',
+        error: 'Operator alert owner recipients are not configured.'
+      });
+    }
+    if (to.some(recipient => !allowedRecipients.has(recipient))) {
+      return res.status(403).json({
+        code: 'operator_alert_recipient_not_allowed',
+        error: 'Operator alerts can only be sent to configured owner inboxes.'
+      });
+    }
+
     if (!subject) {
       return res.status(400).json({ error: 'An operator alert subject is required.' });
     }
@@ -854,6 +884,20 @@ export function createLeadOutreachEmailHandler(options = {}) {
     const providedToken = parseOperatorAlertToken(req);
     if (!operatorAlertTokenMatches(providedToken, config)) {
       return res.status(401).json({ error: 'Unauthorized lead outreach trigger.' });
+    }
+
+    // An Operator API bearer token authenticates a caller, not the human's approval
+    // of this exact recipient, channel and message. No trusted, single-use receipt
+    // verifier is wired to this HTTP transport yet; even a forged approved flag,
+    // thread headers, or an arbitrary receipt supplied by the caller cannot send.
+    // Keep the legacy delivery path unreachable until a reviewed receipt adapter
+    // verifies a durable, expiry-bound, content-bound approval before sending.
+    const approvalReceiptVerified = false;
+    if (!approvalReceiptVerified) {
+      return res.status(403).json({
+        code: 'human_approval_receipt_required',
+        error: 'This outreach transport requires verified, message-specific human approval before sending.'
+      });
     }
 
     const to = normalizeRecipientList(req.body?.to);

@@ -163,16 +163,41 @@ async function taskRequest(action, requestId, extra = {}) {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({action,requestId,...extra,...proof}), signal:AbortSignal.timeout(25000)
   });
-  const result = await response.json();
-  if (!response.ok || !result.ok) {
-    const error = new Error(result.error || 'Task service unavailable.');
+  return decodeOperatorTaskResponse(response);
+}
+
+// Proxies may return HTML or an empty body instead of the API's JSON.
+// Preserve HTTP status so authorization errors fail closed and missing
+// receipts continue polling the original request identity.
+export async function decodeOperatorTaskResponse(response) {
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    const error = new Error('Task service returned an unreadable response.');
+    error.status = response.status;
+    throw error;
+  }
+  if (!response.ok || result?.ok !== true) {
+    const error = new Error(result?.error || 'Task service unavailable.');
     error.status = response.status;
     throw error;
   }
   return result;
 }
 
-function watchConfirmedTask(requestId, options = {}) {
+function hasMatchingTaskReceipt(result, requestId) {
+  const record = result?.record;
+  return result?.ok === true && result.requestId === requestId
+    && !!record && typeof record === 'object' && !Array.isArray(record)
+    && typeof record.id === 'string'
+    && /^operator-http-[a-f0-9]{24}-/.test(record.id)
+    && record.id.slice(39) === requestId
+    && typeof record.status === 'string'
+    && ['queued', 'running', ...TERMINAL_TASK_STATUSES].includes(record.status);
+}
+
+export function watchConfirmedTask(requestId, options = {}, request = taskRequest) {
   let stopped = false;
   let timer;
   let failures = 0;
@@ -181,21 +206,28 @@ function watchConfirmedTask(requestId, options = {}) {
   const poll = async () => {
     if (stopped) return;
     try {
-      const result = await taskRequest('status', requestId);
+      const result = await request('status', requestId);
       if (stopped) return;
+      const record = result?.record;
+      // A successful HTTP envelope is not evidence of a task receipt.
+      if (!hasMatchingTaskReceipt(result, requestId)) {
+        throw new Error('Task service returned no valid receipt; server state is not confirmed.');
+      }
       failures = 0;
-      options.onUpdate?.({...result.record, id:`operator-http:${requestId}`});
-      if (isOperatorTaskTerminal(result.record)) return stop();
+      options.onUpdate?.({...record, id:`operator-http:${requestId}`});
+      if (isOperatorTaskTerminal(record)) return stop();
     } catch (error) {
       if (stopped) return;
-      failures += 1;
-      if ([401,403,404].includes(error.status) || failures >= 3) {
+      // Admission may have committed after the response was lost. A missing
+      // receipt is not a terminal outcome; keep polling this exact ID.
+      failures = error.status === 404 ? 0 : failures + 1;
+      if ([400,401,403,405,422].includes(error.status) || failures >= 3) {
         options.onUpdate?.({status:'blocked',error:error.message});
         return stop();
       }
     }
     if (Date.now() >= deadline) {
-      options.onUpdate?.({status:'blocked',error:'The task has not finished. Its saved server state is preserved; do not submit it again.'});
+      options.onUpdate?.({status:'blocked',error:'The task has not finished. Its server state is not confirmed; check the same task before submitting again.'});
       return stop();
     }
     timer = setTimeout(poll, 2000);
@@ -204,7 +236,7 @@ function watchConfirmedTask(requestId, options = {}) {
   return stop;
 }
 
-export async function queueOperatorTask(action = {}) {
+export async function queueOperatorTask(action = {}, request = taskRequest) {
   const text = normalizeText(action.text, 6000);
   if (!text) throw new Error('A delegated task is required.');
   const title = normalizeText(action.title, 160) || 'Operator delegated task';
@@ -212,11 +244,16 @@ export async function queueOperatorTask(action = {}) {
   let confirmed = false;
   let message;
   try {
-    await taskRequest('enqueue', requestId, {text,title});
+    const result = await request('enqueue', requestId, {text,title});
+    // An OK envelope alone is not a durable admission receipt. The server
+    // echoes the request identity and returns the signer-scoped queue row.
+    if (!hasMatchingTaskReceipt(result, requestId)) {
+      throw new Error('Task service returned no valid admission receipt; server state is not confirmed.');
+    }
     confirmed = true;
     message = 'The server saved your task for the Codex worker.';
   } catch (error) {
-    if ([400,401,403].includes(error.status) || /Sign in/.test(error.message)) throw error;
+    if ([400,401,403,405,422].includes(error.status) || /Sign in/.test(error.message)) throw error;
     // A missing HTTP response is not proof that the write failed. Poll the
     // same request identity; never re-enqueue or silently fall back to Gun.
     message = 'Checking delivery. I will look up this task before any retry.';

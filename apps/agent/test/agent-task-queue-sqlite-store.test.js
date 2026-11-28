@@ -9,7 +9,9 @@ const {
   enqueueTask,
   publicTask,
   readTask,
+  runQueuedTask,
   runWorkerOnce,
+  updateTask,
 } = require('../thomas-agent/node/agent-task-queue');
 const sqliteQueue = require('../thomas-agent/node/task-queue-sqlite-store');
 
@@ -83,6 +85,41 @@ test('concurrent workers atomically claim a SQLite task only once', async (t) =>
   assert.equal((await readTask('concurrent-task', options)).status, 'completed');
 });
 
+test('SQLite claim rechecks a newer human veto or high-risk change before execution', async (t) => {
+  const options = await queueOptions(t, {
+    gunSync: false,
+    workerCapabilities: 'node,openai',
+    workerRiskClasses: 'read_only,draft,workspace_write,money',
+  });
+  for (const [id, patch, expectedReason] of [
+    ['revoked-between-read-and-claim', { approvalStatus: 'rejected' }, /approval not granted \(rejected\)/],
+    ['risk-raised-between-read-and-claim', { riskClass: 'money', approvalStatus: 'approved' }, /verified human approval receipt required/],
+  ]) {
+    await enqueueTask('Synthetic read-only research', {
+      ...options, id, backend: 'openai', riskClass: 'read_only',
+    });
+    const staleEligibleSnapshot = await readTask(id, options);
+    assert.equal(staleEligibleSnapshot.approvalStatus, 'not_required');
+    await updateTask(id, patch, options);
+    let executions = 0;
+    const outcome = await runQueuedTask(staleEligibleSnapshot, {
+      ...options,
+      runAgentTaskImpl: async () => {
+        executions++;
+        throw new Error('stale eligibility must not execute');
+      },
+    });
+    assert.equal(executions, 0, id);
+    assert.equal(outcome.skipped, true, id);
+    assert.match(outcome.reason, expectedReason);
+    const current = await readTask(id, options);
+    assert.equal(current.status, 'skipped', id);
+    assert.match(current.error, expectedReason);
+    assert.equal(current.approvalStatus, patch.approvalStatus, id);
+    if (patch.riskClass) assert.equal(current.riskClass, patch.riskClass, id);
+  }
+});
+
 test('long SQLite work renews an expired initial claim against a competing worker', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -114,7 +151,33 @@ test('long SQLite work renews an expired initial claim against a competing worke
   assert.equal((await readTask('slow-task', options)).status, 'completed');
 });
 
-test('an expired claim is recovered after a worker process restart', async (t) => {
+test('an expired intrinsic health claim is safely recovered after a worker restart', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    workerCapabilities: 'node',
+    deviceId: 'replacement-worker',
+    now: now + 100,
+  });
+  await enqueueTask('health probe', {
+    ...options, now, id: 'restart-health', backend: 'health', riskClass: 'read_only',
+  });
+  assert.ok(sqliteQueue.claimTask('restart-health', 'dead-process-token', 'dead-worker', now + 10, now, options));
+
+  let externalExecutions = 0;
+  const outcomes = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => {
+      externalExecutions += 1;
+      throw new Error('intrinsic health probe must not invoke model executor');
+    },
+  });
+  assert.equal(outcomes.length, 1);
+  assert.equal(externalExecutions, 0);
+  assert.equal((await readTask('restart-health', options)).status, 'completed');
+});
+
+test('expired model claims require manual reconciliation, never automatic side-effect replay', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -122,27 +185,27 @@ test('an expired claim is recovered after a worker process restart', async (t) =
     deviceId: 'replacement-worker',
     now: now + 100,
   });
-  await enqueueTask('recover me', {
-    ...options,
-    now,
-    id: 'restart-task',
-    backend: 'openai',
-    requiredCapabilities: 'openai',
+  await enqueueTask('may have already sent a message', {
+    ...options, now, id: 'uncertain-restart-task', backend: 'openai', riskClass: 'draft',
   });
-  assert.ok(sqliteQueue.claimTask('restart-task', 'dead-process-token', 'dead-worker', now + 10, now, options));
-
-  let executions = 0;
-  await runWorkerOnce({
-    ...options,
-    runAgentTaskImpl: async () => {
-      executions += 1;
-      return { ok: true, result: { stdout: 'recovered' } };
-    },
-  });
-
-  assert.equal(executions, 1);
-  assert.equal((await readTask('restart-task', options)).status, 'completed');
+  assert.ok(sqliteQueue.claimTask('uncertain-restart-task', 'dead-process-token', 'dead-worker',
+    now + 10, now, options));
+  let externalExecutions = 0;
+  const runAgentTaskImpl = async () => {
+    externalExecutions++;
+    throw new Error('uncertain task must not replay');
+  };
+  const outcomes = await runWorkerOnce({ ...options, runAgentTaskImpl });
+  assert.deepEqual(outcomes, []);
+  const stale = await readTask('uncertain-restart-task', options);
+  assert.equal(stale.status, 'running');
+  assert.equal(stale.workerDeviceId, 'dead-worker');
+  const directAttempt = await runQueuedTask(stale, { ...options, runAgentTaskImpl });
+  assert.equal(directAttempt.skipped, true);
+  assert.match(directAttempt.reason, /manual reconciliation/);
+  assert.equal(externalExecutions, 0);
 });
+
 
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
   const rootNode = fakeRoot();
@@ -161,11 +224,66 @@ test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) 
     runAgentTaskImpl: async () => ({ ok: true, result: { stdout: 'legacy done' } }),
   });
 
-  const results = await runWorkerOnce(options);
+  // The private queue gets first priority; compatibility imports are
+  // visible to the worker on its next pass, not ahead of private work.
+  const initial = await runWorkerOnce(options);
+  assert.equal(initial.length, 0);
+  assert.equal((await readTask('legacy/GUN:id', options)).status, 'queued');
 
+  const results = await runWorkerOnce(options);
   assert.equal(results.length, 1);
   assert.equal((await readTask('legacy/GUN:id', gunOptions)).status, 'completed');
   assert.match((await readTask('legacy/GUN:id', options)).resultSummary, /legacy done/);
+});
+
+test('private SQLite work completes despite a timed-out legacy relay read', async (t) => {
+  const rootNode = fakeRoot();
+  const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
+  await enqueueTask('unreachable legacy item', {
+    ...gunOptions, id: 'legacy-timeout', backend: 'openai',
+  });
+  const events = [];
+  class UnresponsiveGunNode extends FakeGunNode {
+    get(key) { return new UnresponsiveGunNode(this.store, [...this.path, key]); }
+    once(callback) {
+      if (this.path.join('/').endsWith('/legacy-timeout')) {
+        events.push('legacy-read');
+        return; // Simulate an unreachable Gun task payload.
+      }
+      return super.once(callback);
+    }
+  }
+  const options = await queueOptions(t, {
+    ...gunOptions,
+    rootNode: new UnresponsiveGunNode(rootNode.store),
+    timeoutMs: 10,
+    workerCapabilities: 'openai',
+    runAgentTaskImpl: async () => {
+      events.push('private-execution');
+      return { ok: true, result: { stdout: 'private task finished' } };
+    },
+  });
+  await enqueueTask('ready private work', {
+    ...options, id: 'private-before-legacy', backend: 'openai',
+  });
+  const warnings = [];
+  const originalWarn = console.warn;
+  // The worker reports a compatibility failure but keeps its private queue alive.
+  console.warn = (message) => { warnings.push(message); };
+  let results;
+  try {
+    results = await runWorkerOnce(options);
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, 'private-before-legacy');
+  assert.equal((await readTask('private-before-legacy', options)).status, 'completed');
+  assert.deepEqual(events, ['private-execution', 'legacy-read']);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /legacy queue import failed: Task relay read timed out/);
+  assert.equal((await readTask('legacy-timeout', options)), null);
 });
 
 test('newer GUN requeue replaces stale terminal import without being overwritten', async (t) => {
@@ -221,6 +339,76 @@ test('native SQLite terminal tasks mirror to GUN without exposing active states'
   await runWorkerOnce(options);
 
   assert.equal((await readTask('native-task', gunOptions)).status, 'completed');
+});
+
+
+test('SQLite terminal mirroring skips identical relay copies but repairs divergent records', async (t) => {
+  const rootNode = fakeRoot();
+  const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
+  const options = await queueOptions(t, {
+    ...gunOptions,
+    queueStore: 'sqlite',
+    workerCapabilities: 'openai',
+    runAgentTaskImpl: async () => ({ ok: true, result: { stdout: 'mirrored once' } }),
+  });
+  await enqueueTask('safe local task', { ...options, id: 'mirror-once', backend: 'openai' });
+  await runWorkerOnce(options);
+  const first = await readTask('mirror-once', gunOptions);
+  assert.equal(first.status, 'completed');
+
+  let queueWrites = 0;
+  const originalSet = rootNode.store.set.bind(rootNode.store);
+  rootNode.store.set = (key, value) => {
+    if (String(key).includes('/taskQueue/')) queueWrites += 1;
+    return originalSet(key, value);
+  };
+  await runWorkerOnce(options);
+  assert.equal(queueWrites, 0, 'a second poll must not resend an unchanged terminal record');
+
+  // An equal-timestamp but divergent relay copy must still be repaired, not
+  // mistaken for a previously mirrored terminal result.
+  const remotePath = `${gunOptions.ownerAlias}/taskQueue/tasks/mirror-once`;
+  originalSet(remotePath, { ...first, resultSummary: 'stale relay result' });
+  await runWorkerOnce(options);
+  assert.equal(queueWrites, 2, 'repair the task record and latest summary once');
+  assert.equal((await readTask('mirror-once', gunOptions)).resultSummary, first.resultSummary);
+});
+
+test('SQLite executes ready tasks before scanning old terminal relay copies', async (t) => {
+  const events = [];
+  class TrackingGunNode extends FakeGunNode {
+    get(key) { return new TrackingGunNode(this.store, [...this.path, key]); }
+    once(callback) {
+      if (this.path.join('/').endsWith('/old-terminal')) events.push('old-terminal-read');
+      return super.once(callback);
+    }
+  }
+  const rootNode = new TrackingGunNode(new Map());
+  const options = await queueOptions(t, {
+    rootNode,
+    workerCapabilities: 'openai',
+    runAgentTaskImpl: async () => {
+      events.push('local-execution');
+      return { ok: true, result: { stdout: 'done before relay scan' } };
+    },
+  });
+  sqliteQueue.writeTask({
+    id: 'old-terminal',
+    task: 'previously completed work',
+    backend: 'openai',
+    status: 'completed',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:01:00.000Z',
+  }, options);
+  await enqueueTask('ready private work', { ...options, id: 'ready-task', backend: 'openai' });
+
+  const results = await runWorkerOnce(options);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, 'ready-task');
+  assert.equal((await readTask('ready-task', options)).status, 'completed');
+  assert.ok(events.includes('old-terminal-read'), 'terminal sync still runs after execution');
+  assert.ok(events.indexOf('local-execution') < events.indexOf('old-terminal-read'),
+    'a long terminal-sync scan must not starve queued local execution');
 });
 
 test('GUN-only import does not load node:sqlite', () => {
@@ -301,4 +489,60 @@ test('private executor admission releases expired claims and leaves unrelated ta
   assert.ok(sqliteQueue.claimTask(a.id, 'a', 'worker', now + 10, now, options));
   assert.ok(sqliteQueue.claimTask(ordinary.id, 'ordinary', 'worker', now + 60000, now, options));
   assert.ok(sqliteQueue.claimTask(b.id, 'b', 'worker', now + 60000, now + 11, options));
+});
+
+
+test('reserved local canary executes only an exact private SQLite claim without generic fallback', async t => {
+  const { createServer } = require('node:http');
+  let calls = 0;
+  let genericCalls = 0;
+  const server = createServer((req, res) => {
+    calls++;
+    req.resume();
+    req.on('end', () => res.end(JSON.stringify({ model: 'test-model', choices: [{
+      finish_reason: 'stop', message: { role: 'assistant', content: '42' }
+    }] })));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const id = 'operator-http-' + 'a'.repeat(24) + '-operator-e2e-abcdefghijkl';
+  const digest = 'b'.repeat(64);
+  const options = await queueOptions(t, {
+    gunSync: false, ownerAlias: 'operator-e2e-test', workerCapabilities: 'local-canary,codex',
+    deviceId: 'isolated-worker', localCanary: true,
+    runAgentTaskImpl: async () => { genericCalls++; throw Error('must not use generic backend'); },
+  });
+  options.localCanaryEnv = {
+    OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: '1', OPERATOR_RUNTIME_E2E_LOCAL_MODEL_ENABLED: '1',
+    OPERATOR_RUNTIME_E2E_EXPECTED_TASK_ID: id, OPERATOR_RUNTIME_E2E_EXPECTED_REQUEST_DIGEST: digest,
+    OPERATOR_RUNTIME_E2E_EXPECTED_WORKER_DEVICE_ID: 'isolated-worker',
+    OPERATOR_RUNTIME_E2E_EXPECTED_QUEUE_DB: options.queueDb,
+    OPERATOR_RUNTIME_E2E_EXPECTED_OWNER_ALIAS: options.ownerAlias,
+    OPERATOR_RUNTIME_E2E_LOCAL_MODEL_URL: 'http://127.0.0.1:' + server.address().port,
+    OPERATOR_RUNTIME_E2E_LOCAL_MODEL: 'test-model',
+  };
+  const row = { id, task: 'Synthetic test', operatorRequestDigest: digest, backend: 'local-canary',
+    requiredCapabilities: 'local-canary', riskClass: 'draft', unsafe: false, approvalStatus: 'not_required',
+    status: 'queued', updatedAt: new Date().toISOString() };
+  sqliteQueue.writeTask(row, { ...options, queueSource: 'operator-http' });
+  for (const bad of [{localCanary: false}, {gunSync: true}, {queueStore: 'gun'},
+    {queueDb: options.queueDb + '.other'}, {ownerAlias: 'other'}]) {
+    const outcome = await runQueuedTask(row, { ...options, ...bad });
+    assert.equal(outcome.skipped, true);
+  }
+  assert.equal((await runQueuedTask({ ...row, backend: 'codex' }, options)).skipped, true);
+  await assert.rejects(runWorkerOnce(options), /exact single-task/);
+  assert.equal(calls, 0);
+  assert.equal((await readTask(id, options)).status, 'queued');
+  const outcome = await runQueuedTask(await readTask(id, options), options);
+  assert.equal(outcome.ok, true);
+  assert.equal(outcome.backend, 'local-canary');
+  const completed = await readTask(id, options);
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.backend, 'local-canary');
+  assert.equal(completed.workerDeviceId, 'isolated-worker');
+  assert.equal(completed.resultText, '42');
+  assert.equal((await runQueuedTask(completed, options)).skipped, true);
+  assert.equal(calls, 1);
+  assert.equal(genericCalls, 0);
 });
