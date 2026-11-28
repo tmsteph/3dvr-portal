@@ -226,7 +226,7 @@ export function watchConfirmedTask(requestId, options = {}, request = taskReques
   return stop;
 }
 
-export async function queueOperatorTask(action = {}) {
+export async function queueOperatorTask(action = {}, request = taskRequest) {
   const text = normalizeText(action.text, 6000);
   if (!text) throw new Error('A delegated task is required.');
   const title = normalizeText(action.title, 160) || 'Operator delegated task';
@@ -234,7 +234,19 @@ export async function queueOperatorTask(action = {}) {
   let confirmed = false;
   let message;
   try {
-    await taskRequest('enqueue', requestId, {text,title});
+    const result = await request('enqueue', requestId, {text,title});
+    const record = result?.record;
+    // An OK envelope alone is not a durable admission receipt. The server
+    // echoes the request identity and returns the signer-scoped queue row.
+    if (result?.ok !== true || result.requestId !== requestId
+        || !record || typeof record !== 'object' || Array.isArray(record)
+        || typeof record.id !== 'string'
+        || !/^operator-http-[a-f0-9]{24}-/.test(record.id)
+        || record.id.slice(39) !== requestId
+        || typeof record.status !== 'string'
+        || !['queued', 'running', ...TERMINAL_TASK_STATUSES].includes(record.status)) {
+      throw new Error('Task service returned no valid admission receipt; server state is not confirmed.');
+    }
     confirmed = true;
     message = 'The server saved your task for the Codex worker.';
   } catch (error) {
