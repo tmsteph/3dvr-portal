@@ -116,10 +116,22 @@ function resolveLeadWarmth(record = {}) {
 
 function isClosed(record = {}) {
   const status = String(record.status || '').trim().toLowerCase();
-  return status === 'won' || status === 'lost';
+  return ['won', 'lost', 'closed', 'paid customer'].includes(status)
+    || ['suppressed', 'bounced'].includes(String(record.canonicalState || '').trim().toLowerCase());
+}
+
+// The ledger, not CRM Flow shortcuts, owns canonical commercial transitions.
+function isCanonicalRevenue(record = {}) {
+  return record.source === '3dvr-revenue-ledger' || Boolean(record.canonicalState);
+}
+
+function hasDueReview(record = {}) {
+  const followUp = normalizeFollowUpInput(record.nextFollowUp || '');
+  return !isClosed(record) && isCanonicalRevenue(record) && Boolean(followUp && followUp <= todayKey());
 }
 
 function hasDueFollowUp(record = {}) {
+  if (isClosed(record) || isCanonicalRevenue(record)) return false;
   const followUp = normalizeFollowUpInput(record.nextFollowUp || '');
   return Boolean(followUp && followUp <= todayKey());
 }
@@ -207,7 +219,7 @@ function getFilteredPeople() {
 function getTodayPeople() {
   return getFilteredPeople()
     .filter(record => !isClosed(record))
-    .filter(record => hasDueFollowUp(record) || getLeadScore(record) >= 70)
+    .filter(record => hasDueReview(record) || hasDueFollowUp(record) || getLeadScore(record) >= 70)
     .sort(comparePriority);
 }
 
@@ -226,6 +238,7 @@ function getModePeople() {
 
 function getStage(record = {}) {
   if (String(record.status || '').trim().toLowerCase() === 'won') return 'won';
+  if (isClosed(record)) return 'parked';
   if (hasDueFollowUp(record)) return 'now';
   const warmth = resolveLeadWarmth(record);
   if (warmth === 'hot') return 'hot';
@@ -253,6 +266,7 @@ function getLeadBadges(record = {}) {
   const badges = [];
   const warmth = resolveLeadWarmth(record);
   if (hasDueFollowUp(record)) badges.push({ label: 'Due', tone: 'coral' });
+  if (hasDueReview(record)) badges.push({ label: 'Review due', tone: 'amber' });
   if (warmth) badges.push({ label: warmth, tone: warmth === 'hot' ? 'amber' : 'blue' });
   if (record.offerAmount) badges.push({ label: record.offerAmount, tone: 'green' });
   if (String(record.urgency || '').toLowerCase() === 'high') badges.push({ label: 'High urgency', tone: 'purple' });
@@ -295,6 +309,7 @@ function renderLeadCard(record = {}, { spotlight = false } = {}) {
       ${renderBadges(record)}
       <p class="lead-body">${safe(body)}</p>
       <div class="lead-actions">
+        ${!isClosed(record) && !isCanonicalRevenue(record) ? `
         <button class="flow-button compact primary" type="button" data-flow-action="log-touch" data-record-id="${safeAttr(record.id)}">
           <i data-lucide="check-circle-2" aria-hidden="true"></i>
           <span>Touch</span>
@@ -308,6 +323,7 @@ function renderLeadCard(record = {}, { spotlight = false } = {}) {
             <i data-lucide="mail-plus" aria-hidden="true"></i>
             <span>Email</span>
           </a>
+        ` : ''}
         ` : ''}
       </div>
     </article>
@@ -598,7 +614,9 @@ function refreshDrawer() {
   const isPerson = record.recordType === 'person';
   if (els.drawerTitle) els.drawerTitle.textContent = record.name || '(untitled record)';
   if (els.drawerKicker) els.drawerKicker.textContent = record.recordType === 'person' ? 'Lead' : record.recordType;
-  if (els.drawerActions) els.drawerActions.hidden = !isPerson;
+  if (els.drawerActions) els.drawerActions.hidden = !isPerson || isClosed(record) || isCanonicalRevenue(record);
+  if (els.drawerStatus) els.drawerStatus.disabled = isCanonicalRevenue(record);
+  if (els.drawerWarmth) els.drawerWarmth.disabled = isCanonicalRevenue(record);
   if (els.drawerMeta) {
     els.drawerMeta.innerHTML = [
       record.company || record.email || '',
@@ -621,8 +639,10 @@ async function handleDrawerSubmit(event) {
   const current = sanitizeCrmRecord(crmIndex[state.selectedId] || state.board.index[state.selectedId] || {});
   const isPerson = current.recordType === 'person';
   await updateRecord(state.selectedId, isPerson ? {
-    status: String(els.drawerStatus?.value || '').trim(),
-    warmth: String(els.drawerWarmth?.value || '').trim(),
+    ...(!isCanonicalRevenue(current) ? {
+      status: String(els.drawerStatus?.value || '').trim(),
+      warmth: String(els.drawerWarmth?.value || '').trim(),
+    } : {}),
     nextFollowUp: normalizeFollowUpInput(els.drawerFollowUp?.value || ''),
     nextBestAction: String(els.drawerAction?.value || '').trim(),
     primaryPain: String(els.drawerPain?.value || '').trim(),
@@ -639,6 +659,11 @@ async function handleFlowAction(action, id) {
   const current = sanitizeCrmRecord(crmIndex[id] || state.board.index[id] || {});
   if ((action === 'log-touch' || action === 'snooze' || action === 'mark-won') && current.recordType !== 'person') {
     setStatus('Open lead first', 'amber');
+    return;
+  }
+  if (['log-touch', 'snooze', 'mark-won'].includes(action)
+      && (isClosed(current) || isCanonicalRevenue(current))) {
+    setStatus('Use canonical revenue workflow or manual reconciliation', 'amber');
     return;
   }
   if (action === 'open') openDrawer(id);
