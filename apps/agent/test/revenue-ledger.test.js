@@ -395,14 +395,14 @@ test('legacy imports cannot replay a different lead or a normal transition', () 
   assert.equal(db.prepare('SELECT state FROM prospects WHERE id=?').get(bob.id).state, 'prospect');
 }));
 
-test('stale prospect read cannot overwrite a concurrent suppression', () => withLedger((db) => {
+test('write lock before prospect read preserves a competing suppression', () => withLedger((db) => {
   const prospect = createProspect(db, { name: 'Race Check Buyer', contact: 'race@example.test' }).prospect;
   const sqliteFile = db.prepare('PRAGMA database_list').all().find(row => row.name === 'main').file;
   const other = openLedger({ filePath: sqliteFile });
   try {
     let injected = false;
-    // Deterministically put a competing worker's transaction between the
-    // first worker's validation read and its write-lock acquisition.
+    // Commit a competing suppression immediately before the first worker
+    // acquires the write lock. Validation must then see the new state.
     const firstWorker = {
       prepare: (...args) => db.prepare(...args),
       exec: statement => {
@@ -418,7 +418,7 @@ test('stale prospect read cannot overwrite a concurrent suppression', () => with
     };
     assert.throws(() => transitionProspect(firstWorker, {
       prospectId: prospect.id, toState: 'verified', idempotencyKey: 'race:stale-verification'
-    }), /Concurrent prospect state transition/);
+    }), /Invalid transition: suppressed -> verified/);
     assert.equal(injected, true);
     assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(prospect.id).state, 'suppressed');
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 1);

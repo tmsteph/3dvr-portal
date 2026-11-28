@@ -186,3 +186,26 @@ test('verified exact listing refuses historical ambiguity and case-fold collisio
     assert.deepEqual(counts(db), [3, 0, 0, 0]);
   } finally { db.close(); }
 });
+
+test('candidate import atomically rolls back on outbox failure and retries safely', () => {
+  for (const existing of [false, true]) {
+    const db = openLedger({filePath: ':memory:'});
+    try {
+      const input = fixture();
+      const original = existing ? createProspect(db, {
+        name: input.verifiedSource.name, sourceUrl: input.verifiedSource.url, campaignId: 'operator-research'
+      }).prospect : null;
+      db.exec("CREATE TRIGGER reject_projection BEFORE INSERT ON projection_outbox BEGIN SELECT RAISE(ABORT, 'synthetic outbox failure'); END");
+      assert.throws(() => recordOperatorCandidate(db, input), /synthetic outbox failure/);
+      assert.deepEqual(counts(db), [existing ? 1 : 0, 0, 0, 0]);
+      if (existing) assert.deepEqual({...db.prepare('SELECT * FROM prospects WHERE id = ?').get(original.id)}, original);
+      db.exec('DROP TRIGGER reject_projection');
+      const accepted = recordOperatorCandidate(db, input);
+      assert.equal(accepted.prospect.state, 'verified');
+      if (existing) assert.equal(accepted.prospect.id, original.id);
+      assert.deepEqual(counts(db), [1, 1, 1, 0]);
+      assert.equal(recordOperatorCandidate(db, input).replayed, true);
+      assert.deepEqual(counts(db), [1, 1, 1, 0]);
+    } finally { db.close(); }
+  }
+});

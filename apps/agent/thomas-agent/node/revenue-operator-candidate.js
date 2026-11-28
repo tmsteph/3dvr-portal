@@ -6,7 +6,7 @@ const { realpathSync, lstatSync } = require('node:fs');
 const { join, dirname, basename } = require('node:path');
 const { tmpdir } = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
-const { createProspect, transitionProspect } = require('./revenue-ledger');
+const { createProspect, withRevenueWriteTransaction } = require('./revenue-ledger');
 
 function bounded(value, name, max) {
   if (typeof value !== 'string' || !value.trim() || value.length > max) {
@@ -72,35 +72,28 @@ function importCandidate(db, { row, expected, verifiedSource } = {}, local = fal
   const payload = { taskId: record.id, requestDigest: record.operatorRequestDigest,
     workerDeviceId: record.workerDeviceId,
     sourceUrl: url, name, summary, evidence, ...(local ? { backend: 'local-canary' } : {}) };
-  const prior = db.prepare('SELECT prospect_id FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
-  const transition = prospectId => transitionProspect(db, { prospectId,
-    toState: 'verified', type: local ? 'operator_local_canary_verified' : 'operator_candidate_verified', idempotencyKey, payload });
-  // Check replay before creating any prospect so a conflicting result cannot
-  // leave behind an orphan lead. The ledger validates the immutable payload.
-  if (prior) return transition(prior.prospect_id);
-  // The independently checked exact listing URL, not an AI-generated name,
-  // identifies a listing in this narrow no-contact intake. Preserve legacy
-  // keys and reject ambiguity rather than silently merging historical rows.
-  // Serialize lookup and creation across SQLite writers; the ledger owns the
-  // separate state-transition transaction below. Do not rewrite URL paths or
-  // query strings: source-specific canonicalization belongs to the verifier.
-  const campaignId = local ? 'operator-local-canary' : 'operator-research';
-  let prospect;
-  db.exec('BEGIN IMMEDIATE');
-  try {
+  // The replay check, exact identity lookup, row creation, event and outbox
+  // must commit together. An outbox failure must not leave an orphan prospect.
+  return withRevenueWriteTransaction(db, transitionProspect => {
+    const prior = db.prepare('SELECT prospect_id FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+    const transition = prospectId => transitionProspect({ prospectId,
+      toState: 'verified', type: local ? 'operator_local_canary_verified' : 'operator_candidate_verified', idempotencyKey, payload });
+    if (prior) return transition(prior.prospect_id);
+    // Preserve legacy keys and refuse ambiguous exact listing identities.
+    // Source-specific canonicalization belongs to the independent verifier.
+    const campaignId = local ? 'operator-local-canary' : 'operator-research';
     const matches = db.prepare("SELECT * FROM prospects WHERE source_url = ? AND contact = '' AND campaign_id = ? LIMIT 2")
       .all(url, campaignId);
     if (matches.length > 1) throw new Error('Ambiguous existing listing identity');
-    prospect = matches[0] || createProspect(db, { name, sourceUrl: url, campaignId }).prospect;
+    const prospect = matches[0] || createProspect(db, { name, sourceUrl: url, campaignId }).prospect;
     // The legacy generic contact key folds URL case. Never attach evidence
     // to a different listing or campaign on a legacy-key collision.
     if (prospect.source_url !== url || prospect.campaign_id !== campaignId || prospect.contact !== '') {
       throw new Error('Conflicting existing listing identity');
     }
-    db.exec('COMMIT');
-  } catch (error) { db.exec('ROLLBACK'); throw error; }
-  if (prospect.state !== 'prospect') return { skipped: true, reason: 'existing prospect advanced', prospect };
-  return transition(prospect.id);
+    if (prospect.state !== 'prospect') return { skipped: true, reason: 'existing prospect advanced', prospect };
+    return transition(prospect.id);
+  });
 }
 
 function recordOperatorCandidate(db, input) {

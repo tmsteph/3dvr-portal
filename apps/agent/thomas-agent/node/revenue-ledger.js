@@ -204,7 +204,22 @@ function createProspect(db, input = {}) {
   return { prospect, created: true };
 }
 
+// Keep lookup, state transition and outbox insert under one write lock.
+// The callback is synchronous and receives the transaction-local transition.
+function withRevenueWriteTransaction(db, work) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = work(input => transitionProspectInTransaction(db, input));
+    db.exec('COMMIT');
+    return result;
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
+}
+
 function transitionProspect(db, input = {}) {
+  return withRevenueWriteTransaction(db, transition => transition(input));
+}
+
+function transitionProspectInTransaction(db, input = {}) {
   const id = normalize(input.prospectId);
   const toState = normalize(input.toState);
   const idempotencyKey = normalize(input.idempotencyKey);
@@ -243,21 +258,17 @@ function transitionProspect(db, input = {}) {
   }
   const now = new Date().toISOString();
   const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: eventType, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    // Recheck the state atomically under the SQLite write lock. A different
-    // worker may have suppressed/replied to this lead after our validation;
-    // never overwrite that newer state or invent a stale CRM event.
-    const moved = db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ? AND state = ?')
-      .run(toState, now, id, prospect.state);
-    if (moved.changes !== 1) throw new Error('Concurrent prospect state transition; reload and retry');
-    db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
-    db.prepare(`INSERT INTO projection_outbox (id, idempotency_key, prospect_id, event_id, destination, payload_json, status, attempts, last_error, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'crm', ?, 'pending', 0, '', ?, ?)`)
-      .run(randomUUID(), `crm:${idempotencyKey}`, id, event.id, JSON.stringify({ prospectId: id, state: toState, eventId: event.id }), now, now);
-    db.exec('COMMIT');
-  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  // Recheck the state atomically under the SQLite write lock. A different
+  // worker may have suppressed/replied to this lead after our validation;
+  // never overwrite that newer state or invent a stale CRM event.
+  const moved = db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ? AND state = ?')
+    .run(toState, now, id, prospect.state);
+  if (moved.changes !== 1) throw new Error('Concurrent prospect state transition; reload and retry');
+  db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
+  db.prepare(`INSERT INTO projection_outbox (id, idempotency_key, prospect_id, event_id, destination, payload_json, status, attempts, last_error, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'crm', ?, 'pending', 0, '', ?, ?)`)
+    .run(randomUUID(), `crm:${idempotencyKey}`, id, event.id, JSON.stringify({ prospectId: id, state: toState, eventId: event.id }), now, now);
   return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
@@ -421,4 +432,4 @@ function importProspectState(db, input = {}) {
   return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
-module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, claimProjection, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };
+module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, claimProjection, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect, withRevenueWriteTransaction };
