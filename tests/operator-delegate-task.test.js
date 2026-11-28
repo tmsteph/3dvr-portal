@@ -51,6 +51,12 @@ test('browser action router delegates the new action type', async () => {
   assert.match(source, /queueOperatorTask/);
 });
 
+const statusReceipt = (requestId, status = 'completed') => ({
+  ok: true, requestId, record: {
+    id: 'operator-http-' + 'a'.repeat(24) + '-' + requestId, status, resultText: '42'
+  }
+});
+
 test('uncertain Operator admission keeps polling its exact ID after 404', { timeout: 7000 }, async t => {
   const id = 'test-request-id-123';
   const calls = [];
@@ -58,7 +64,7 @@ test('uncertain Operator admission keeps polling its exact ID after 404', { time
     const stop = watchConfirmedTask(id, { timeoutMs: 6000, onUpdate: resolve }, async (action, requestId) => {
       calls.push([action, requestId]);
       if (calls.length < 3) throw Object.assign(new Error('Missing receipt'), { status: 404 });
-      return { record: { status: 'completed', resultText: '42' } };
+      return statusReceipt(requestId);
     });
     t.after(stop);
   });
@@ -170,4 +176,41 @@ test('Operator admission needs a matching durable receipt and never retries enqu
   await assert.rejects(queueOperatorTask({text:'Synthetic no-op'},async () => {
     throw Object.assign(new Error('Forbidden'),{status:403});
   }),/Forbidden/);
+});
+
+test('Operator watcher rejects unrelated completion and unknown status before accepting matching completion', { timeout: 7000 }, async t => {
+  const id = 'receipt-identity-test';
+  const responses = [
+    statusReceipt('different-request'),
+    statusReceipt(id, 'invented'),
+    statusReceipt(id)
+  ];
+  const updates = [];
+  const calls = [];
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask(id, { timeoutMs: 6000, onUpdate: record => {
+      updates.push(record);
+      if (record.status === 'completed' || record.status === 'blocked') resolve(record);
+    } }, async (action, requestId) => {
+      calls.push([action, requestId]);
+      return responses[calls.length - 1];
+    });
+    t.after(stop);
+  });
+  assert.deepEqual(calls, Array(3).fill(['status', id]));
+  assert.equal(updates.length, 1);
+  assert.equal(result.status, 'completed');
+  assert.equal(result.id, 'operator-http:' + id);
+});
+
+test('Operator watcher never attributes an unrelated queue row to the requested task', { timeout: 1000 }, async t => {
+  const id = 'receipt-wrong-row';
+  const result = await new Promise(resolve => {
+    const stop = watchConfirmedTask(id, { timeoutMs: 0, onUpdate: resolve }, async () => ({
+      ...statusReceipt('other-queue-row'), requestId: id
+    }));
+    t.after(stop);
+  });
+  assert.equal(result.status, 'blocked');
+  assert.match(result.error, /server state is not confirmed/);
 });
